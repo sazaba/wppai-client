@@ -101,9 +101,12 @@ export default function DashboardLayout({
       </aside>
 
       {/* Contenido principal */}
-      <main className="p-4 transition-all duration-300 w-full overflow-auto">
-        {children}
-      </main>
+      <main className="transition-all duration-300 w-full h-screen overflow-hidden flex flex-col">
+  <div className="flex-1 overflow-hidden">
+    {children}
+  </div>
+</main>
+
     </div>
   )
 }

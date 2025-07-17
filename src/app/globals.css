@@ -1,5 +1,21 @@
 @import "tailwindcss";
 
+/* Opcional: aplicar estilo base si Tailwind falla */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: #2A3942;
+  border-radius: 9999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
 body {
   @apply bg-white text-gray-900 antialiased;
   height: 100%;
