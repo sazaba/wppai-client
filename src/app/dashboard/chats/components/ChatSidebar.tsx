@@ -37,11 +37,13 @@ export default function ChatSidebar({
   estadoIconos,
   estadoEstilos
 }: ChatSidebarProps) {
-  const chatsFiltrados = chats.filter(chat =>
+  const chatsFiltrados = (Array.isArray(chats) ? chats : []).filter(chat =>
     (estadoFiltro === 'todos' || chat.estado === estadoFiltro) &&
-    chat.nombre.toLowerCase().includes(busqueda.toLowerCase())
+    (chat.nombre ?? chat.phone).toLowerCase().includes(busqueda.toLowerCase())
   )
-
+  
+  
+  
   return (
     <aside className="w-full md:w-[30%] max-w-[400px] flex-shrink-0 bg-[#111B21] text-white flex flex-col h-full overflow-hidden">
       {/* Título */}

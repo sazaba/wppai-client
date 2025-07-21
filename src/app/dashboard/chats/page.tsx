@@ -4,7 +4,8 @@ import { useEffect, useRef, useState } from 'react'
 import { FiClock } from 'react-icons/fi'
 import { responderConIA } from '@/lib/chatService'
 import socket from '@/lib/socket'
-import axios from 'axios'
+import axios from '@/lib/axios' // ← tu instancia personalizada con el token
+
 
 import ChatSidebar from './components/ChatSidebar'
 import ChatHeader from './components/ChatHeader'
@@ -41,21 +42,23 @@ export default function ChatsPage() {
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const [mostrarModalCerrar, setMostrarModalCerrar] = useState(false)
 
-  useEffect(() => {
-    const fetchChats = async () => {
-      try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats`)
-        const data = await res.json()
-        setChats(data)
-      } catch (error) {
-        console.error('Error al cargar conversaciones:', error)
-      } finally {
-        setLoading(false)
+ 
+    useEffect(() => {
+      const fetchChats = async () => {
+        try {
+          const res = await axios.get('/api/chats')
+          setChats(res.data)
+        } catch (error) {
+          console.error('Error al cargar conversaciones:', error)
+          setChats([])
+        } finally {
+          setLoading(false)
+        }
       }
-    }
-
-    fetchChats()
-  }, [])
+    
+      fetchChats()
+    }, [])
+    
 
   useEffect(() => {
     const handleNuevoMensaje = (msg: any) => {
@@ -117,42 +120,36 @@ export default function ChatsPage() {
     setActivoId(chatId)
     setMensajes([])
     setPage(1)
-
+  
     try {
       const chatActual = chats.find((c) => c.id === chatId)
       if (chatActual?.estado === 'pendiente') {
-        await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/estado`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ estado: 'en_proceso' })
-        })
+        await axios.put(`/api/chats/${chatId}/estado`, { estado: 'en_proceso' })
       }
-
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/messages?page=1&limit=20`)
-      const data = await res.json()
-
-      setMensajes(ordenarMensajes(data.messages))
-      setHasMore(data.pagination.hasMore)
+  
+      const res = await axios.get(`/api/chats/${chatId}/messages?page=1&limit=20`)
+      setMensajes(ordenarMensajes(res.data.messages))
+      setHasMore(res.data.pagination.hasMore)
     } catch (err) {
       console.error('Error al cargar mensajes:', err)
     }
   }
+  
 
   const handleLoadMore = async () => {
     if (!activoId) return
     const nextPage = page + 1
-
+  
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${activoId}/messages?page=${nextPage}&limit=20`)
-      const data = await res.json()
-
-      setMensajes((prev) => ordenarMensajes([...data.messages, ...prev]))
+      const res = await axios.get(`/api/chats/${activoId}/messages?page=${nextPage}&limit=20`)
+      setMensajes((prev) => ordenarMensajes([...res.data.messages, ...prev]))
       setPage(nextPage)
-      setHasMore(data.pagination.hasMore)
+      setHasMore(res.data.pagination.hasMore)
     } catch (err) {
       console.error('Error al cargar más mensajes:', err)
     }
   }
+  
 
   const handleSendMessage = async () => {
     if (!respuesta.trim() || !activoId) return
@@ -225,20 +222,18 @@ export default function ChatsPage() {
 
   const handleCerrarConversacion = async () => {
     if (!activoId) return
-
+  
     try {
-      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${activoId}/estado`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ estado: 'cerrado' })
+      await axios.put(`/api/chats/${activoId}/estado`, {
+        estado: 'cerrado'
       })
-
+  
       setChats((prev) =>
         prev.map((chat) =>
           chat.id === activoId ? { ...chat, estado: 'cerrado' } : chat
         )
       )
-
+  
       if (estadoFiltro !== 'todos') {
         setActivoId(null)
         setMensajes([])
@@ -247,7 +242,7 @@ export default function ChatsPage() {
       console.error('Error al cerrar conversación:', err)
     }
   }
-
+  
   const ordenarMensajes = (mensajes: any[]) => {
     return [...mensajes].sort((a, b) => {
       const timeA = new Date(a.timestamp).getTime()
