@@ -6,7 +6,8 @@ import {
   FiInbox,
   FiClock,
   FiCheck,
-  FiChevronDown
+  FiChevronDown,
+  FiPlus
 } from 'react-icons/fi'
 import { Menu } from '@headlessui/react'
 
@@ -21,6 +22,7 @@ interface ChatSidebarProps {
   activoId: number | null
   estadoIconos: any
   estadoEstilos: any
+  onNuevaConversacion?: () => void // ← nueva prop opcional
 }
 
 const estados = ['todos', 'pendiente', 'en_proceso', 'respondido', 'requiere_agente', 'cerrado']
@@ -35,22 +37,28 @@ export default function ChatSidebar({
   onSelectChat,
   activoId,
   estadoIconos,
-  estadoEstilos
+  estadoEstilos,
+  onNuevaConversacion
 }: ChatSidebarProps) {
   const chatsFiltrados = (Array.isArray(chats) ? chats : []).filter(chat =>
     (estadoFiltro === 'todos' || chat.estado === estadoFiltro) &&
     (chat.nombre ?? chat.phone).toLowerCase().includes(busqueda.toLowerCase())
   )
-  
-  
-  
+
   return (
     <aside className="w-full md:w-[30%] max-w-[400px] flex-shrink-0 bg-[#111B21] text-white flex flex-col h-full overflow-hidden">
-      {/* Título */}
+      {/* Título + botón */}
       <div className="p-4 flex items-center justify-between">
         <h1 className="font-bold text-lg flex items-center gap-2">
           <FiInbox /> Chats
         </h1>
+        <button
+          onClick={onNuevaConversacion}
+          className="flex items-center gap-1 px-2 py-1 text-xs bg-green-600 hover:bg-green-700 rounded"
+          title="Crear nueva conversación"
+        >
+          <FiPlus /> Nueva
+        </button>
       </div>
 
       {/* Filtro */}
