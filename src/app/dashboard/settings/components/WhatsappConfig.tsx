@@ -45,14 +45,21 @@ export default function WhatsappConfig() {
   }
 
   const conectarConMeta = () => {
-    if (!empresaId) return
-
+    console.log("Intentando conectar con Meta", { empresaId, META_APP_ID, REDIRECT_URI })
+  
+    if (!empresaId) {
+      console.warn("❌ No hay empresaId en localStorage")
+      return
+    }
+  
     const url = `https://www.facebook.com/v20.0/dialog/oauth?client_id=${META_APP_ID}&redirect_uri=${encodeURIComponent(
       REDIRECT_URI
     )}&state=${empresaId}&response_type=code&scope=whatsapp_business_management`
-
+  
+    console.log("Redirigiendo a:", url)
     window.location.href = url
   }
+  
 
   const eliminarWhatsapp = async () => {
     if (!token) return
