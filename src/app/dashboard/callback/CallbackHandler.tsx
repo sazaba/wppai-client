@@ -7,6 +7,9 @@ import Swal from 'sweetalert2'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL
 
+
+
+
 export default function CallbackHandler() {
   const params = useSearchParams()
   const router = useRouter()
