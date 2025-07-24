@@ -43,9 +43,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         email,
         password
       })
-
+  
       const { token, empresaId } = res.data
-
+  
       const payload = JSON.parse(atob(token.split('.')[1])) // decodifica el JWT
       const usuario: Usuario = {
         id: payload.id,
@@ -53,19 +53,21 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         rol: payload.rol,
         empresaId: payload.empresaId
       }
-
+  
       localStorage.setItem('token', token)
       localStorage.setItem('usuario', JSON.stringify(usuario))
-
+      localStorage.setItem('empresaId', String(empresaId)) // ✅ esta es la línea clave
+  
       setToken(token)
       setUsuario(usuario)
-
+  
       return true
     } catch (err) {
       console.error('❌ Login fallido:', err)
       return false
     }
   }
+  
 
   const logout = () => {
     localStorage.removeItem('token')
