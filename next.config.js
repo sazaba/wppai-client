@@ -10,6 +10,7 @@ const nextConfig = {
         // ⛔ También ignora errores de TypeScript (opcional)
         ignoreBuildErrors: true,
     },
+
 }
 
 module.exports = nextConfig

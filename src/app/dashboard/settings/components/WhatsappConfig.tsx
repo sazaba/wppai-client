@@ -57,7 +57,8 @@ export default function WhatsappConfig() {
     }
   }
 
-  const REDIRECT_URI = `https://wasaaa.com/callback`
+  const REDIRECT_URI = `https://wasaaa.com/dashboard/callback`
+
 
   const conectarConMeta = () => {
     if (!empresaId || !token) {
