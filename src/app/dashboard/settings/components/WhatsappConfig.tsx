@@ -140,7 +140,7 @@ export default function WhatsappConfig() {
             className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg shadow flex items-center gap-2"
           >
             <Trash2 className="w-4 h-4" />
-            Eliminar
+            Eliminaaaaaar
           </button>
         )}
       </div>
