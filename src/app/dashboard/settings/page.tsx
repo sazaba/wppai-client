@@ -1,4 +1,4 @@
-// 🧠 SettingsPage con navegación hacia atrás reestructurada y alerta premium
+// 🧠 SettingsPage con axios, token y alerta premium
 
 'use client'
 
@@ -8,6 +8,9 @@ import { AnimatePresence, motion } from "framer-motion"
 import { CheckCircle, AlertCircle, Sparkles, RotateCw } from "lucide-react"
 import Swal from 'sweetalert2'
 import 'sweetalert2/dist/sweetalert2.min.css'
+import ModalEntrenamiento from "./components/ModalEntrenamiento"
+import axios from "axios"
+import WhatsappConfig from "./components/WhatsappConfig"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL
 
@@ -83,14 +86,15 @@ export default function SettingsPage() {
   const [showResumen, setShowResumen] = useState(false)
   const [loading, setLoading] = useState(true)
 
+  const token = typeof window !== 'undefined' ? localStorage.getItem("token") : null
+  const headers = token ? { Authorization: `Bearer ${token}` } : {}
+
   useEffect(() => {
     const fetchConfig = async () => {
       try {
-        const res = await fetch(`${API_URL}/api/config`)
-        const data = await res.json()
-
-        if (Array.isArray(data) && data.length > 0) {
-          setConfigGuardada(data[0])
+        const res = await axios.get(`${API_URL}/api/config`, { headers })
+        if (Array.isArray(res.data) && res.data.length > 0) {
+          setConfigGuardada(res.data[0])
         }
       } catch (err) {
         console.error("Error al cargar configuración existente:", err)
@@ -126,14 +130,8 @@ export default function SettingsPage() {
       setTrainingStep(trainingStep + 1)
     } else {
       try {
-        const res = await fetch(`${API_URL}/api/config`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(nuevoForm)
-        })
-        const data = await res.json()
-        if (!res.ok) throw new Error(data.error)
-        setConfigGuardada(data.config)
+        const res = await axios.post(`${API_URL}/api/config`, nuevoForm, { headers })
+        setConfigGuardada(res.data.config)
         setTrainingActive(false)
         setShowResumen(true)
       } catch (err) {
@@ -154,9 +152,7 @@ export default function SettingsPage() {
 
   const reiniciarEntrenamiento = async () => {
     try {
-      await fetch(`${API_URL}/api/config/${configGuardada?.id}`, {
-        method: 'DELETE'
-      })
+      await axios.delete(`${API_URL}/api/config/${configGuardada?.id}`, { headers })
       setConfigGuardada(null)
       setTrainingActive(true)
       setTrainingStep(0)
@@ -205,59 +201,18 @@ export default function SettingsPage() {
         </div>
       )}
 
-      <AnimatePresence>
-        {trainingActive && (
-          <Dialog open={trainingActive} onClose={() => {}} className="relative z-50">
-            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" aria-hidden="true" />
-            <div className="fixed inset-0 flex items-center justify-center p-4">
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-                className="bg-slate-900 text-white rounded-xl p-6 w-full max-w-md border border-slate-700 shadow-xl"
-              >
-                <Dialog.Panel>
-                  <div className="space-y-4">
-                    <h2 className="text-lg font-bold">Paso {trainingStep + 1} de {preguntasEntrenamiento.length}</h2>
-                    <p className="text-slate-300">{preguntasEntrenamiento[trainingStep].pregunta}</p>
-                    {preguntasEntrenamiento[trainingStep].tipo === "textarea" ? (
-                      <textarea
-                        rows={4}
-                        value={respuestaActual}
-                        onChange={(e) => setRespuestaActual(e.target.value)}
-                        className="w-full bg-slate-800 border border-slate-600 px-3 py-2 rounded-md focus:outline-none focus:ring focus:ring-blue-500"
-                      />
-                    ) : (
-                      <input
-                        type="text"
-                        value={respuestaActual}
-                        onChange={(e) => setRespuestaActual(e.target.value)}
-                        className="w-full bg-slate-800 border border-slate-600 px-3 py-2 rounded-md focus:outline-none focus:ring focus:ring-blue-500"
-                      />
-                    )}
-                    <div className="flex justify-between">
-                      {trainingStep > 0 && (
-                        <button
-                          onClick={retrocederPaso}
-                          className="bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded-lg shadow"
-                        >
-                          Atrás
-                        </button>
-                      )}
-                      <button
-                        onClick={avanzarPaso}
-                        className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg shadow"
-                      >
-                        {trainingStep < preguntasEntrenamiento.length - 1 ? 'Siguiente' : 'Finalizar'}
-                      </button>
-                    </div>
-                  </div>
-                </Dialog.Panel>
-              </motion.div>
-            </div>
-          </Dialog>
-        )}
-      </AnimatePresence>
+      <ModalEntrenamiento
+        trainingActive={trainingActive}
+        trainingStep={trainingStep}
+        setTrainingStep={setTrainingStep}
+        respuestaActual={respuestaActual}
+        setRespuestaActual={setRespuestaActual}
+        avanzarPaso={avanzarPaso}
+        retrocederPaso={retrocederPaso}
+        preguntas={preguntasEntrenamiento}
+      />
+      <WhatsappConfig />
+
     </div>
   )
 }
