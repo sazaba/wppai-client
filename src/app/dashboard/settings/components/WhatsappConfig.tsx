@@ -7,7 +7,7 @@ import Swal from 'sweetalert2'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL
 const META_APP_ID = process.env.NEXT_PUBLIC_META_APP_ID
-const REDIRECT_URI = `${API_URL}/api/auth/callback`
+
 
 export default function WhatsappConfig() {
   const [estado, setEstado] = useState<'conectado' | 'desconectado' | 'cargando'>('cargando')
@@ -21,7 +21,20 @@ export default function WhatsappConfig() {
     if (storedEmpresaId) setEmpresaId(parseInt(storedEmpresaId))
     if (storedToken) setToken(storedToken)
     if (storedToken) fetchEstado(storedToken)
+  
+    // ✅ Mostrar mensaje si se acaba de conectar correctamente
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('success') === '1') {
+      Swal.fire({
+        icon: 'success',
+        title: '¡Conectado con WhatsApp!',
+        background: '#1f2937',
+        color: '#fff',
+        confirmButtonColor: '#10b981'
+      })
+    }
   }, [])
+  
 
   const fetchEstado = async (authToken: string) => {
     try {
@@ -44,21 +57,23 @@ export default function WhatsappConfig() {
     }
   }
 
+  const REDIRECT_URI = `https://wasaaa.com/callback`
+
   const conectarConMeta = () => {
-    console.log("Intentando conectar con Meta", { empresaId, META_APP_ID, REDIRECT_URI })
-  
-    if (!empresaId) {
-      console.warn("❌ No hay empresaId en localStorage")
+    if (!empresaId || !token) {
+      console.error("Faltan datos para conectar con Meta")
       return
     }
+  
+    localStorage.setItem('tempToken', token) // ✅ guardar token
   
     const url = `https://www.facebook.com/v20.0/dialog/oauth?client_id=${META_APP_ID}&redirect_uri=${encodeURIComponent(
       REDIRECT_URI
     )}&state=${empresaId}&response_type=code&scope=whatsapp_business_management`
   
-    console.log("Redirigiendo a:", url)
     window.location.href = url
   }
+  
   
 
   const eliminarWhatsapp = async () => {
