@@ -13,16 +13,24 @@ export default function WhatsappConfig() {
   const [estado, setEstado] = useState<'conectado' | 'desconectado' | 'cargando'>('cargando')
   const [phoneNumberId, setPhoneNumberId] = useState('')
   const [empresaId, setEmpresaId] = useState<number | null>(null)
+  const [token, setToken] = useState<string | null>(null)
 
   useEffect(() => {
     const storedEmpresaId = localStorage.getItem('empresaId')
+    const storedToken = localStorage.getItem('token')
     if (storedEmpresaId) setEmpresaId(parseInt(storedEmpresaId))
-    fetchEstado()
+    if (storedToken) setToken(storedToken)
+    if (storedToken) fetchEstado(storedToken)
   }, [])
 
-  const fetchEstado = async () => {
+  const fetchEstado = async (authToken: string) => {
     try {
-      const res = await axios.get(`${API_URL}/api/whatsapp/estado`, { withCredentials: true })
+      const res = await axios.get(`${API_URL}/api/whatsapp/estado`, {
+        headers: {
+          Authorization: `Bearer ${authToken}`
+        }
+      })
+
       if (res.data?.conectado) {
         setEstado('conectado')
         setPhoneNumberId(res.data.phoneNumberId)
@@ -47,6 +55,8 @@ export default function WhatsappConfig() {
   }
 
   const eliminarWhatsapp = async () => {
+    if (!token) return
+
     const confirm = await Swal.fire({
       title: '¿Eliminar conexión?',
       text: 'Esta acción desvinculará el número de WhatsApp de tu empresa.',
@@ -63,7 +73,9 @@ export default function WhatsappConfig() {
     if (confirm.isConfirmed) {
       try {
         await axios.delete(`${API_URL}/api/whatsapp/eliminar`, {
-          withCredentials: true
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
         })
 
         setPhoneNumberId('')
