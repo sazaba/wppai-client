@@ -36,20 +36,25 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     const storedToken = localStorage.getItem('token')
     const storedUser = localStorage.getItem('usuario')
-
+  
     if (storedToken && storedUser) {
       setToken(storedToken)
       setUsuario(JSON.parse(storedUser))
-
-      // Cargar empresa asociada
+  
       axios
         .get(`${process.env.NEXT_PUBLIC_API_URL}/api/empresa`, {
           headers: { Authorization: `Bearer ${storedToken}` }
         })
-        .then((res) => setEmpresa(res.data))
-        .catch((err) => console.error('❌ Error al cargar empresa:', err))
+        .then((res) => {
+          console.log('[AuthContext] Empresa cargada:', res.data) // ✅
+          setEmpresa(res.data)
+        })
+        .catch((err) => {
+          console.error('[AuthContext] Error al cargar empresa:', err.response?.data || err.message)
+        })
     }
   }, [])
+  
 
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
