@@ -8,10 +8,9 @@ import Swal from 'sweetalert2'
 const API_URL = process.env.NEXT_PUBLIC_API_URL
 const META_APP_ID = process.env.NEXT_PUBLIC_META_APP_ID
 
-
 export default function WhatsappConfig() {
   const [estado, setEstado] = useState<'conectado' | 'desconectado' | 'cargando'>('cargando')
-  const [phoneNumberId, setPhoneNumberId] = useState('')
+  const [displayPhone, setDisplayPhone] = useState('')
   const [empresaId, setEmpresaId] = useState<number | null>(null)
   const [token, setToken] = useState<string | null>(null)
 
@@ -21,8 +20,7 @@ export default function WhatsappConfig() {
     if (storedEmpresaId) setEmpresaId(parseInt(storedEmpresaId))
     if (storedToken) setToken(storedToken)
     if (storedToken) fetchEstado(storedToken)
-  
-    // ✅ Mostrar mensaje si se acaba de conectar correctamente
+
     const params = new URLSearchParams(window.location.search)
     if (params.get('success') === '1') {
       Swal.fire({
@@ -34,7 +32,6 @@ export default function WhatsappConfig() {
       })
     }
   }, [])
-  
 
   const fetchEstado = async (authToken: string) => {
     try {
@@ -46,10 +43,10 @@ export default function WhatsappConfig() {
 
       if (res.data?.conectado) {
         setEstado('conectado')
-        setPhoneNumberId(res.data.phoneNumberId)
+        setDisplayPhone(res.data.displayPhoneNumber || res.data.phoneNumberId)
       } else {
         setEstado('desconectado')
-        setPhoneNumberId('')
+        setDisplayPhone('')
       }
     } catch (err) {
       console.warn('No hay conexión activa:', err)
@@ -59,23 +56,20 @@ export default function WhatsappConfig() {
 
   const REDIRECT_URI = `https://wasaaa.com/dashboard/callback`
 
-
   const conectarConMeta = () => {
     if (!empresaId || !token) {
       console.error("Faltan datos para conectar con Meta")
       return
     }
-  
-    localStorage.setItem('tempToken', token) // ✅ guardar token
-  
+
+    localStorage.setItem('tempToken', token)
+
     const url = `https://www.facebook.com/v20.0/dialog/oauth?client_id=${META_APP_ID}&redirect_uri=${encodeURIComponent(
       REDIRECT_URI
     )}&state=${empresaId}&response_type=code&scope=whatsapp_business_management`
-  
+
     window.location.href = url
   }
-  
-  
 
   const eliminarWhatsapp = async () => {
     if (!token) return
@@ -101,7 +95,7 @@ export default function WhatsappConfig() {
           }
         })
 
-        setPhoneNumberId('')
+        setDisplayPhone('')
         setEstado('desconectado')
 
         Swal.fire({
@@ -126,40 +120,45 @@ export default function WhatsappConfig() {
   }
 
   return (
-    <div className="mt-8 bg-slate-800 border border-slate-700 p-6 rounded-2xl shadow-xl text-white space-y-6">
-      <h2 className="text-xl font-bold flex items-center gap-2">
-        Estado de WhatsApp
-        {estado === 'conectado' ? (
-          <CheckCircle className="w-5 h-5 text-emerald-400" />
-        ) : (
-          <XCircle className="w-5 h-5 text-red-400" />
-        )}
-      </h2>
+    <div className="max-w-xl w-full mx-auto bg-white dark:bg-gray-900 rounded-xl shadow-md p-6 mt-8 text-center">
+      <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">Estado de WhatsApp</h2>
 
-      {estado === 'conectado' && (
-        <p className="text-sm text-slate-300">
-          📞 Número conectado: <strong>{phoneNumberId}</strong>
-        </p>
-      )}
-
-      <div className="flex gap-4">
-        <button
-          onClick={conectarConMeta}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg shadow"
-        >
-          {estado === 'conectado' ? 'Re-conectar WhatsApp' : 'Conectar con WhatsApp'}
-        </button>
-
-        {estado === 'conectado' && (
+      {estado === 'conectado' ? (
+        <>
+          <p className="text-green-500 font-medium mb-2">✅ Conectado</p>
+          <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">
+            Número: <strong>{displayPhone}</strong>
+          </p>
+          <div className="flex justify-center gap-4">
+            <button
+              onClick={conectarConMeta}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm"
+            >
+              Re-conectar
+            </button>
+            <button
+              onClick={eliminarWhatsapp}
+              className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md text-sm flex items-center gap-2"
+            >
+              <Trash2 className="w-4 h-4" />
+              Desconectar
+            </button>
+          </div>
+        </>
+      ) : (
+        <>
+          <p className="text-yellow-500 font-medium mb-2">⚠️ No conectado</p>
+          <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">
+            Conecta un número de WhatsApp para comenzar.
+          </p>
           <button
-            onClick={eliminarWhatsapp}
-            className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg shadow flex items-center gap-2"
+            onClick={conectarConMeta}
+            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md text-sm"
           >
-            <Trash2 className="w-4 h-4" />
-            Eliminaaaaaar
+            Conectar con WhatsApp
           </button>
-        )}
-      </div>
+        </>
+      )}
     </div>
   )
 }

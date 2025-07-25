@@ -12,6 +12,7 @@ import ModalEntrenamiento from "./components/ModalEntrenamiento"
 import axios from "axios"
 import WhatsappConfig from "./components/WhatsappConfig"
 
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL
 
 interface ConfigForm {
@@ -212,6 +213,7 @@ export default function SettingsPage() {
         preguntas={preguntasEntrenamiento}
       />
       <WhatsappConfig />
+    
 
     </div>
   )
