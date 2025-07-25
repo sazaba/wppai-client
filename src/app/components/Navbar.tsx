@@ -57,16 +57,42 @@ export default function Navbar() {
                 <Menu className="h-6 w-6" />
               </Button>
             </SheetTrigger>
-            <SheetContent side="left" className="bg-white dark:bg-gray-900 text-gray-900 dark:text-white">
-              <nav className="flex flex-col gap-4 mt-8 text-base">
-                <Link href="#features">Funcionalidades</Link>
-                <Link href="#pricing">Precios</Link>
-                <Link href="#blog">Blog</Link>
-                <hr className="my-4 border-gray-300 dark:border-gray-700" />
-                <Link href="/login" className="text-indigo-600 font-medium">Iniciar sesión</Link>
-                <Link href="/register" className="bg-indigo-600 text-white py-2 px-4 rounded-full text-center">Probar gratis</Link>
-              </nav>
-            </SheetContent>
+            <SheetContent side="left" className="bg-white dark:bg-gray-900 text-gray-900 dark:text-white p-6">
+  <div className="flex flex-col h-full justify-between">
+    <div>
+      <h2 className="text-xl font-bold mb-6 text-indigo-600">WppAI</h2>
+
+      <nav className="flex flex-col gap-5 text-base font-medium">
+        <Link href="#features" className="hover:text-indigo-600 transition-all">
+          Funcionalidades
+        </Link>
+        <Link href="#pricing" className="hover:text-indigo-600 transition-all">
+          Precios
+        </Link>
+        <Link href="#blog" className="hover:text-indigo-600 transition-all">
+          Blog
+        </Link>
+      </nav>
+    </div>
+
+    <div className="flex flex-col gap-4 mt-10 border-t pt-6 border-gray-200 dark:border-gray-700">
+      <Link href="/login">
+        <Button
+          variant="outline"
+          className="w-full text-sm rounded-full border-gray-300 dark:border-gray-600"
+        >
+          Iniciar sesión
+        </Button>
+      </Link>
+      <Link href="/register">
+        <Button className="w-full text-sm rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow">
+          <Sparkles className="mr-2 h-4 w-4" /> Probar gratis
+        </Button>
+      </Link>
+    </div>
+  </div>
+</SheetContent>
+
           </Sheet>
         </div>
       </div>
