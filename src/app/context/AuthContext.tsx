@@ -1,4 +1,3 @@
-// app/context/AuthContext.tsx
 'use client'
 
 import { createContext, useContext, useEffect, useState } from 'react'
@@ -13,8 +12,14 @@ interface Usuario {
   empresaId: number
 }
 
+interface Empresa {
+  id: number
+  nombre: string
+}
+
 interface AuthContextProps {
   usuario: Usuario | null
+  empresa: Empresa | null
   token: string | null
   isAuthenticated: boolean
   login: (email: string, password: string) => Promise<boolean>
@@ -25,6 +30,7 @@ const AuthContext = createContext<AuthContextProps>({} as AuthContextProps)
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [usuario, setUsuario] = useState<Usuario | null>(null)
+  const [empresa, setEmpresa] = useState<Empresa | null>(null)
   const [token, setToken] = useState<string | null>(null)
 
   useEffect(() => {
@@ -34,6 +40,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     if (storedToken && storedUser) {
       setToken(storedToken)
       setUsuario(JSON.parse(storedUser))
+
+      // Cargar empresa asociada
+      axios
+        .get(`${process.env.NEXT_PUBLIC_API_URL}/api/empresa`, {
+          headers: { Authorization: `Bearer ${storedToken}` }
+        })
+        .then((res) => setEmpresa(res.data))
+        .catch((err) => console.error('❌ Error al cargar empresa:', err))
     }
   }, [])
 
@@ -43,41 +57,45 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         email,
         password
       })
-  
-      const { token, empresaId } = res.data
-  
-      const payload = JSON.parse(atob(token.split('.')[1])) // decodifica el JWT
+
+      const { token } = res.data
+
+      const payload = JSON.parse(atob(token.split('.')[1]))
       const usuario: Usuario = {
         id: payload.id,
         email: payload.email,
         rol: payload.rol,
         empresaId: payload.empresaId
       }
-  
+
       localStorage.setItem('token', token)
       localStorage.setItem('usuario', JSON.stringify(usuario))
-      localStorage.setItem('empresaId', String(empresaId)) // ✅ esta es la línea clave
-  
       setToken(token)
       setUsuario(usuario)
-  
+
+      // Cargar empresa después del login
+      const empresaRes = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/empresa`, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      setEmpresa(empresaRes.data)
+
       return true
     } catch (err) {
       console.error('❌ Login fallido:', err)
       return false
     }
   }
-  
 
   const logout = () => {
     localStorage.removeItem('token')
     localStorage.removeItem('usuario')
     setToken(null)
     setUsuario(null)
+    setEmpresa(null)
   }
 
   return (
-    <AuthContext.Provider value={{ usuario, token, isAuthenticated: !!token, login, logout }}>
+    <AuthContext.Provider value={{ usuario, empresa, token, isAuthenticated: !!token, login, logout }}>
       {children}
     </AuthContext.Provider>
   )
