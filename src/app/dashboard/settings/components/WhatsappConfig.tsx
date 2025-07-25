@@ -65,8 +65,9 @@ export default function WhatsappConfig() {
     localStorage.setItem('tempToken', token)
 
     const url = `https://www.facebook.com/v20.0/dialog/oauth?client_id=${META_APP_ID}&redirect_uri=${encodeURIComponent(
-      REDIRECT_URI
-    )}&state=${empresaId}&response_type=code&scope=whatsapp_business_management`
+  REDIRECT_URI
+)}&state=${empresaId}&response_type=code&scope=whatsapp_business_management,whatsapp_business_messaging,business_management`
+
 
     window.location.href = url
   }
