@@ -1,5 +1,12 @@
-import { redirect } from "next/navigation"
+// src/app/page.tsx
 
-export default function Home() {
-  redirect("/login")
+import LandingSection from "./components/LandingSection"
+
+
+export default function HomePage() {
+  return (
+    <main className="min-h-screen bg-white dark:bg-zinc-900 text-zinc-800 dark:text-white">
+      <LandingSection />
+    </main>
+  )
 }
