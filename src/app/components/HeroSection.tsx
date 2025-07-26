@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button"
 import { Sparkles } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
-import mockup from "../images/mockup-1.webp"
+import mockup from "../images/mockup-3.webp"
 
 export default function HeroSection() {
   return (
@@ -36,7 +36,7 @@ export default function HeroSection() {
         </div>
 
         {/* Imagen o ilustración */}
-        <div className="relative w-full h-80 md:h-[480px]">
+        <div className="relative w-full h-90 md:h-[480px]">
           <Image
             src={mockup} // cambia por tu imagen real
             alt="Ilustración de chat automático"

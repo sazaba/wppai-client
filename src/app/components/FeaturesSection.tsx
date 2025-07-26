@@ -33,7 +33,7 @@ const features = [
 
 export default function FeaturesSection() {
   return (
-    <section id="features" className="bg-gradient-to-b from-white to-gray-50 dark:from-gray-900 dark:to-gray-950 py-24 px-4 sm:px-6 lg:px-8">
+    <section id="features" className="bg-gradient-to-b from-white to-gray-50 dark:from-gray-900 dark:to-gray-950 py-5 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto text-center">
         <motion.h2
           initial={{ opacity: 0, y: -20 }}
