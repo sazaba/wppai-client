@@ -1,35 +1,25 @@
 'use client'
 
 import { useAuth } from '@/app/context/AuthContext'
+import { useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 
-export default function TestAuthPage() {
-  const { usuario, token, isAuthenticated } = useAuth()
+export default function DashboardHomePage() {
+  const { usuario, isAuthenticated } = useAuth()
+  const router = useRouter()
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      router.replace('/login')
+    }
+  }, [isAuthenticated, router])
+
+  if (!isAuthenticated) return null // o un spinner si quieres
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gray-100">
-      <div className="bg-white p-6 rounded shadow-md w-full max-w-md">
-        <h1 className="text-xl font-bold mb-4">Test de Autenticación</h1>
-
-        <p><strong>Autenticado:</strong> {isAuthenticated ? 'Sí' : 'No'}</p>
-
-        {usuario && (
-          <div className="mt-4 text-sm">
-            <p><strong>Email:</strong> {usuario.email}</p>
-            <p><strong>Rol:</strong> {usuario.rol}</p>
-            <p><strong>Empresa ID:</strong> {usuario.empresaId}</p>
-          </div>
-        )}
-
-        {!usuario && <p className="text-red-500 text-sm mt-2">No hay información de usuario.</p>}
-
-        {token && (
-          <div className="mt-4">
-            <p className="text-xs text-gray-500 truncate">
-              <strong>Token:</strong> {token.slice(0, 30)}... (truncado)
-            </p>
-          </div>
-        )}
-      </div>
+    <div className="p-6">
+      <h1 className="text-2xl font-bold mb-2">Bienvenid@ al Dashboard</h1>
+      <p className="text-sm text-muted-foreground">Tu correo: {usuario?.email}</p>
     </div>
   )
 }

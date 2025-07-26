@@ -10,8 +10,10 @@ import {
   ChevronLeft,
   ChevronRight,
 } from "lucide-react"
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import clsx from "clsx"
+import { useAuth } from "../context/AuthContext"
 
 export default function DashboardLayout({
   children,
@@ -19,6 +21,19 @@ export default function DashboardLayout({
   children: React.ReactNode
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(true)
+
+  const { isAuthenticated } = useAuth()
+  const router = useRouter()
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      router.replace('/')
+    }
+  }, [isAuthenticated, router])
+
+  if (!isAuthenticated) {
+    return null // O puedes mostrar un spinner
+  }
 
   return (
     <div className="min-h-screen bg-gray-900 text-zinc-100 grid grid-cols-[auto_1fr]">
@@ -102,11 +117,8 @@ export default function DashboardLayout({
 
       {/* Contenido principal */}
       <main className="transition-all duration-300 w-full h-screen overflow-hidden flex flex-col">
-  <div className="flex-1 overflow-hidden">
-    {children}
-  </div>
-</main>
-
+        <div className="flex-1 overflow-hidden">{children}</div>
+      </main>
     </div>
   )
 }
