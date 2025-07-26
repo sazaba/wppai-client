@@ -41,7 +41,7 @@ export default function HeroSection() {
           src={mockup}
           alt="Ilustración de chat automático"
           fill
-          className="object-contain"
+          className="object-cover"
           priority
         />
       </div>
