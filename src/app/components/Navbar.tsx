@@ -6,13 +6,13 @@ import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
 import { Menu, Sparkles } from 'lucide-react'
 import clsx from 'clsx'
-import { useAuth } from '../context/AuthContext' // Asegúrate de tenerlo
+import { useAuth } from '../context/AuthContext'
 
 export default function Navbar() {
   const [isScrolled, setIsScrolled] = useState(false)
   const [openSheet, setOpenSheet] = useState(false)
 
-  const { empresa } = useAuth() // ← obtener nombre de la empresa
+  const { empresa } = useAuth()
 
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 10)
@@ -20,7 +20,6 @@ export default function Navbar() {
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
 
-  // Función para manejar navegación con cierre automático
   const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
     const href = e.currentTarget.getAttribute('href')
     if (href?.startsWith('#')) {
@@ -30,7 +29,7 @@ export default function Navbar() {
         target.scrollIntoView({ behavior: 'smooth' })
       }
     }
-    setOpenSheet(false) // cerrar el menú
+    setOpenSheet(false)
   }
 
   return (
@@ -49,15 +48,23 @@ export default function Navbar() {
         {/* Navegación - Escritorio */}
         <nav className="hidden md:flex items-center space-x-6 text-sm text-gray-600 dark:text-gray-300">
           <a href="#features" onClick={handleNavClick} className="hover:text-indigo-600 transition">Funcionalidades</a>
+          <a href="#how" onClick={handleNavClick} className="hover:text-indigo-600 transition">Cómo funciona</a>
           <a href="#pricing" onClick={handleNavClick} className="hover:text-indigo-600 transition">Precios</a>
           <a href="#faqs" onClick={handleNavClick} className="hover:text-indigo-600 transition">FAQs</a>
           <a href="#contact" onClick={handleNavClick} className="hover:text-indigo-600 transition">Contacto</a>
         </nav>
 
         {/* Botones - Escritorio */}
-        <div className="hidden md:flex items-center gap-2">
+        <div className="hidden md:flex items-center gap-3">
           {empresa ? (
-            <span className="text-sm text-muted-foreground">Bienvenid@ <strong>{empresa.nombre}</strong></span>
+            <>
+              <span className="text-sm text-muted-foreground">Bienvenid@ <strong>{empresa.nombre}</strong></span>
+              <Link href="/dashboard">
+                <Button className="rounded-full px-6 text-sm bg-indigo-600 hover:bg-indigo-700 text-white">
+                  Ir al dashboard
+                </Button>
+              </Link>
+            </>
           ) : (
             <>
               <Link href="/login">
@@ -90,9 +97,17 @@ export default function Navbar() {
                   )}
                   <nav className="flex flex-col gap-5 text-base font-medium">
                     <a href="#features" onClick={handleNavClick} className="hover:text-indigo-600 transition-all">Funcionalidades</a>
+                    <a href="#how" onClick={handleNavClick} className="hover:text-indigo-600 transition-all">Cómo funciona</a>
                     <a href="#pricing" onClick={handleNavClick} className="hover:text-indigo-600 transition-all">Precios</a>
                     <a href="#faqs" onClick={handleNavClick} className="hover:text-indigo-600 transition-all">FAQs</a>
                     <a href="#contact" onClick={handleNavClick} className="hover:text-indigo-600 transition-all">Contacto</a>
+                    {empresa && (
+                      <Link href="/dashboard">
+                        <Button className="mt-6 w-full text-sm rounded-full bg-indigo-600 hover:bg-indigo-700 text-white">
+                          Ir al dashboard
+                        </Button>
+                      </Link>
+                    )}
                   </nav>
                 </div>
 
