@@ -80,55 +80,56 @@ export default function Navbar() {
         </div>
 
         {/* Hamburguesa - Móvil */}
-        <div className="md:hidden">
-          <Sheet open={openSheet} onOpenChange={setOpenSheet}>
-            <SheetTrigger asChild>
-              <Button variant="ghost" size="icon">
-                <Menu className="h-6 w-6" />
-              </Button>
-            </SheetTrigger>
+<div className="md:hidden">
+  <Sheet open={openSheet} onOpenChange={setOpenSheet}>
+    <SheetTrigger asChild>
+      <Button variant="ghost" size="icon">
+        <Menu className="h-6 w-6" />
+      </Button>
+    </SheetTrigger>
 
-            <SheetContent side="left" className="bg-white dark:bg-gray-900 text-gray-900 dark:text-white p-6">
-              <div className="flex flex-col h-full justify-between">
-                <div>
-                  <h2 className="text-xl font-bold mb-6 text-indigo-600">WppAI</h2>
-                  {empresa && (
-                    <p className="text-sm mb-4 text-muted-foreground">Bienvenid@ <strong>{empresa.nombre}</strong></p>
-                  )}
-                  <nav className="flex flex-col gap-5 text-base font-medium">
-                    <a href="#features" onClick={handleNavClick} className="hover:text-indigo-600 transition-all">Funcionalidades</a>
-                    <a href="#how" onClick={handleNavClick} className="hover:text-indigo-600 transition-all">Cómo funciona</a>
-                    <a href="#pricing" onClick={handleNavClick} className="hover:text-indigo-600 transition-all">Precios</a>
-                    <a href="#faqs" onClick={handleNavClick} className="hover:text-indigo-600 transition-all">FAQs</a>
-                    <a href="#contact" onClick={handleNavClick} className="hover:text-indigo-600 transition-all">Contacto</a>
-                    {empresa && (
-                      <Link href="/dashboard">
-                        <Button className="mt-6 w-full text-sm rounded-full bg-indigo-600 hover:bg-indigo-700 text-white">
-                          Ir al dashboard
-                        </Button>
-                      </Link>
-                    )}
-                  </nav>
-                </div>
-
-                {!empresa && (
-                  <div className="flex flex-col gap-4 mt-10 border-t pt-6 border-gray-200 dark:border-gray-700">
-                    <Link href="/login">
-                      <Button variant="outline" className="w-full text-sm rounded-full border-gray-300 dark:border-gray-600">
-                        Iniciar sesión
-                      </Button>
-                    </Link>
-                    <Link href="/register">
-                      <Button className="w-full text-sm rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow">
-                        <Sparkles className="mr-2 h-4 w-4" /> Probar gratis
-                      </Button>
-                    </Link>
-                  </div>
-                )}
-              </div>
-            </SheetContent>
-          </Sheet>
+    <SheetContent side="left" className="bg-white dark:bg-gray-900 text-gray-900 dark:text-white p-6">
+      <div className="flex flex-col h-full justify-between">
+        <div>
+          <h2 className="text-xl font-bold mb-6 text-indigo-600">WppAI</h2>
+          {empresa && (
+            <p className="text-sm mb-4 text-muted-foreground">Bienvenid@ <strong>{empresa.nombre}</strong></p>
+          )}
+          <nav className="flex flex-col gap-5 text-base font-medium">
+            <a href="#features" onClick={handleNavClick} className="hover:text-indigo-600 transition-all">Funcionalidades</a>
+            <a href="#how" onClick={handleNavClick} className="hover:text-indigo-600 transition-all">Cómo funciona</a>
+            <a href="#pricing" onClick={handleNavClick} className="hover:text-indigo-600 transition-all">Precios</a>
+            <a href="#faqs" onClick={handleNavClick} className="hover:text-indigo-600 transition-all">FAQs</a>
+            <a href="#contact" onClick={handleNavClick} className="hover:text-indigo-600 transition-all">Contacto</a>
+            {empresa && (
+              <Link href="/dashboard" onClick={() => setOpenSheet(false)}>
+                <Button className="mt-6 w-full text-sm rounded-full bg-indigo-600 hover:bg-indigo-700 text-white">
+                  Ir al dashboard
+                </Button>
+              </Link>
+            )}
+          </nav>
         </div>
+
+        {!empresa && (
+          <div className="flex flex-col gap-4 mt-10 border-t pt-6 border-gray-200 dark:border-gray-700">
+            <Link href="/login" onClick={() => setOpenSheet(false)}>
+              <Button variant="outline" className="w-full text-sm rounded-full border-gray-300 dark:border-gray-600">
+                Iniciar sesión
+              </Button>
+            </Link>
+            <Link href="/register" onClick={() => setOpenSheet(false)}>
+              <Button className="w-full text-sm rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow">
+                <Sparkles className="mr-2 h-4 w-4" /> Probar gratis
+              </Button>
+            </Link>
+          </div>
+        )}
+      </div>
+    </SheetContent>
+  </Sheet>
+</div>
+
       </div>
     </header>
   )
