@@ -52,6 +52,9 @@ export default function Navbar() {
           <a href="#pricing" onClick={handleNavClick} className="hover:text-indigo-600 transition">Precios</a>
           <a href="#faqs" onClick={handleNavClick} className="hover:text-indigo-600 transition">FAQs</a>
           <a href="#contact" onClick={handleNavClick} className="hover:text-indigo-600 transition">Contacto</a>
+          <a href="/politica" className="hover:text-indigo-600 transition">Privacidad</a>
+          <a href="/terminos" className="hover:text-indigo-600 transition">Términos</a>
+
         </nav>
 
         {/* Botones - Escritorio */}
@@ -101,6 +104,9 @@ export default function Navbar() {
             <a href="#pricing" onClick={handleNavClick} className="hover:text-indigo-600 transition-all">Precios</a>
             <a href="#faqs" onClick={handleNavClick} className="hover:text-indigo-600 transition-all">FAQs</a>
             <a href="#contact" onClick={handleNavClick} className="hover:text-indigo-600 transition-all">Contacto</a>
+            <a href="/politica" onClick={() => setOpenSheet(false)} className="hover:text-indigo-600 transition-all">Privacidad</a>
+            <a href="/terminos" className="hover:text-indigo-600 transition">Términos</a>
+
             {empresa && (
               <Link href="/dashboard" onClick={() => setOpenSheet(false)}>
                 <Button className="mt-6 w-full text-sm rounded-full bg-indigo-600 hover:bg-indigo-700 text-white">
