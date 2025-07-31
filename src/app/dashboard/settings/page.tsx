@@ -162,9 +162,9 @@ export default function SettingsPage() {
   if (loading) return <p className="p-8 text-slate-300">Cargando configuración...</p>
 
   return (
-    <div className="h-full overflow-y-auto px-6 py-8 scrollbar scrollbar-thumb-zinc-700 scrollbar-track-transparent">
+    <div className="w-full max-w-5xl mx-auto px-4 sm:px-6 py-8">
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <h1 className="text-2xl font-bold text-white">Entrenamiento de tu IA</h1>
           {!configGuardada && (
             <button
@@ -176,11 +176,11 @@ export default function SettingsPage() {
             </button>
           )}
         </div>
-
+  
         {configGuardada && (
           <div className="bg-slate-800 border border-slate-700 p-6 rounded-2xl shadow-xl text-white space-y-4">
-            <h2 className="text-xl font-bold text-white">📦 Resumen de la configuración</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+            <h2 className="text-xl font-bold">📦 Resumen de la configuración</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm break-words">
               <div><strong>Nombre:</strong> {configGuardada.nombre}</div>
               <div><strong>Descripción:</strong> {configGuardada.descripcion}</div>
               <div><strong>Servicios:</strong> {configGuardada.servicios}</div>
@@ -197,7 +197,7 @@ export default function SettingsPage() {
             </button>
           </div>
         )}
-
+  
         <ModalEntrenamiento
           trainingActive={trainingActive}
           trainingStep={trainingStep}
@@ -208,9 +208,10 @@ export default function SettingsPage() {
           retrocederPaso={retrocederPaso}
           preguntas={preguntasEntrenamiento}
         />
-
+  
         <WhatsappConfig />
       </div>
     </div>
   )
+  
 }
