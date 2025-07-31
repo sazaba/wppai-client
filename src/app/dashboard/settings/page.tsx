@@ -1,17 +1,12 @@
-// 🧠 SettingsPage con axios, token y alerta premium
-
 'use client'
 
 import { useState, useEffect } from "react"
-import { Dialog } from "@headlessui/react"
-import { AnimatePresence, motion } from "framer-motion"
-import { CheckCircle, AlertCircle, Sparkles, RotateCw } from "lucide-react"
+import { Sparkles, RotateCw } from "lucide-react"
 import Swal from 'sweetalert2'
 import 'sweetalert2/dist/sweetalert2.min.css'
 import ModalEntrenamiento from "./components/ModalEntrenamiento"
 import axios from "axios"
 import WhatsappConfig from "./components/WhatsappConfig"
-
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL
 
@@ -167,54 +162,55 @@ export default function SettingsPage() {
   if (loading) return <p className="p-8 text-slate-300">Cargando configuración...</p>
 
   return (
-    <div className="p-8 space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-white">Entrenamiento de tu IA</h1>
-        {!configGuardada && (
-          <button
-            onClick={() => setTrainingActive(true)}
-            className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg shadow-lg"
-          >
-            <Sparkles className="w-5 h-5" />
-            Comenzar entrenamiento
-          </button>
-        )}
-      </div>
-
-      {configGuardada && (
-        <div className="bg-slate-800 border border-slate-700 p-6 rounded-2xl shadow-xl text-white space-y-4">
-          <h2 className="text-xl font-bold text-white">📦 Resumen de la configuración</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-            <div><strong>Nombre:</strong> {configGuardada.nombre}</div>
-            <div><strong>Descripción:</strong> {configGuardada.descripcion}</div>
-            <div><strong>Servicios:</strong> {configGuardada.servicios}</div>
-            <div><strong>FAQ:</strong> {configGuardada.faq}</div>
-            <div><strong>Horarios:</strong> {configGuardada.horarios}</div>
-            <div><strong>Palabras clave para escalar:</strong> {configGuardada.escalarPalabrasClave}</div>
-          </div>
-          <button
-            onClick={reiniciarEntrenamiento}
-            className="mt-4 flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg shadow"
-          >
-            <RotateCw className="w-4 h-4" />
-            Reiniciar entrenamiento
-          </button>
+    <div className="h-full overflow-y-auto px-6 py-8 scrollbar scrollbar-thumb-zinc-700 scrollbar-track-transparent">
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-bold text-white">Entrenamiento de tu IA</h1>
+          {!configGuardada && (
+            <button
+              onClick={() => setTrainingActive(true)}
+              className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg shadow-lg"
+            >
+              <Sparkles className="w-5 h-5" />
+              Comenzar entrenamiento
+            </button>
+          )}
         </div>
-      )}
 
-      <ModalEntrenamiento
-        trainingActive={trainingActive}
-        trainingStep={trainingStep}
-        setTrainingStep={setTrainingStep}
-        respuestaActual={respuestaActual}
-        setRespuestaActual={setRespuestaActual}
-        avanzarPaso={avanzarPaso}
-        retrocederPaso={retrocederPaso}
-        preguntas={preguntasEntrenamiento}
-      />
-      <WhatsappConfig />
-    
+        {configGuardada && (
+          <div className="bg-slate-800 border border-slate-700 p-6 rounded-2xl shadow-xl text-white space-y-4">
+            <h2 className="text-xl font-bold text-white">📦 Resumen de la configuración</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+              <div><strong>Nombre:</strong> {configGuardada.nombre}</div>
+              <div><strong>Descripción:</strong> {configGuardada.descripcion}</div>
+              <div><strong>Servicios:</strong> {configGuardada.servicios}</div>
+              <div><strong>FAQ:</strong> {configGuardada.faq}</div>
+              <div><strong>Horarios:</strong> {configGuardada.horarios}</div>
+              <div><strong>Palabras clave para escalar:</strong> {configGuardada.escalarPalabrasClave}</div>
+            </div>
+            <button
+              onClick={reiniciarEntrenamiento}
+              className="mt-4 flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg shadow"
+            >
+              <RotateCw className="w-4 h-4" />
+              Reiniciar entrenamiento
+            </button>
+          </div>
+        )}
 
+        <ModalEntrenamiento
+          trainingActive={trainingActive}
+          trainingStep={trainingStep}
+          setTrainingStep={setTrainingStep}
+          respuestaActual={respuestaActual}
+          setRespuestaActual={setRespuestaActual}
+          avanzarPaso={avanzarPaso}
+          retrocederPaso={retrocederPaso}
+          preguntas={preguntasEntrenamiento}
+        />
+
+        <WhatsappConfig />
+      </div>
     </div>
   )
 }
