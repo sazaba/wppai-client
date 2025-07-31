@@ -13,13 +13,14 @@ import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import clsx from "clsx"
 import { useAuth } from "../context/AuthContext"
+import DashboardScrollWrapper from "../components/DashboardScrollWrapper"
 
 export default function DashboardLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
-  const [sidebarOpen, setSidebarOpen] = useState(false) // empieza colapsado en mobile
+  const [sidebarOpen, setSidebarOpen] = useState(false)
   const { isAuthenticated } = useAuth()
   const router = useRouter()
 
@@ -40,16 +41,13 @@ export default function DashboardLayout({
           sidebarOpen ? "w-64" : "w-16"
         )}
       >
-        {/* Contenido del sidebar */}
         <div className={clsx("flex flex-col", sidebarOpen ? "p-4 gap-6 items-start" : "pt-6 gap-4 items-center")}>
-          {/* Título */}
           {sidebarOpen && (
             <h2 className="text-2xl font-semibold tracking-tight flex items-center gap-2">
               🚀 Mi Panel
             </h2>
           )}
 
-          {/* Navegación */}
           <nav className={clsx("flex flex-col w-full", sidebarOpen ? "gap-4" : "gap-6 items-center")}>
             <Link
               href="/"
@@ -101,7 +99,6 @@ export default function DashboardLayout({
           </nav>
         </div>
 
-        {/* Botón para plegar/desplegar (solo desktop) */}
         <div className="hidden md:flex justify-end p-2 border-t border-slate-700">
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
@@ -117,10 +114,10 @@ export default function DashboardLayout({
         </div>
       </aside>
 
-      {/* Contenido principal */}
-      <main className="transition-all duration-300 w-full h-screen overflow-hidden flex flex-col">
-        <div className="flex-1 overflow-hidden">{children}</div>
-      </main>
+      {/* Contenido principal con scroll personalizado */}
+      <DashboardScrollWrapper>
+        {children}
+      </DashboardScrollWrapper>
     </div>
   )
 }
