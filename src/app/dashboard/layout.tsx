@@ -5,10 +5,9 @@ import {
   BrainCircuit,
   MessageSquareText,
   Settings2,
-  Menu,
-  X,
   ChevronLeft,
   ChevronRight,
+  Home,
 } from "lucide-react"
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
@@ -21,7 +20,6 @@ export default function DashboardLayout({
   children: React.ReactNode
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(true)
-
   const { isAuthenticated } = useAuth()
   const router = useRouter()
 
@@ -31,25 +29,26 @@ export default function DashboardLayout({
     }
   }, [isAuthenticated, router])
 
-  if (!isAuthenticated) {
-    return null // O puedes mostrar un spinner
-  }
+  if (!isAuthenticated) return null
 
   return (
     <div className="min-h-screen bg-gray-900 text-zinc-100 grid grid-cols-[auto_1fr]">
-      {/* Botón hamburguesa (mobile) */}
-      <button
-        onClick={() => setSidebarOpen(!sidebarOpen)}
+      {/* Botón "volver al inicio" solo en móviles */}
+      <Link
+        href="/"
         className="md:hidden fixed top-4 left-4 z-50 p-2 rounded-md bg-slate-800 hover:bg-slate-700 transition"
+        title="Volver al inicio"
       >
-        {sidebarOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-      </button>
+        <Home className="w-5 h-5" />
+      </Link>
 
       {/* Sidebar */}
       <aside
         className={clsx(
           "h-screen bg-slate-800 border-r border-slate-700 shadow-md z-40 transition-all duration-300 ease-in-out flex flex-col justify-between",
-          sidebarOpen ? "w-64" : "w-16"
+          "w-16 md:w-64", // Sidebar plegado en mobile, expandido en desktop
+          sidebarOpen && "md:w-64",
+          !sidebarOpen && "md:w-16"
         )}
       >
         {/* Contenido del sidebar */}
@@ -99,7 +98,7 @@ export default function DashboardLayout({
           </nav>
         </div>
 
-        {/* Botón para plegar/desplegar (desktop) */}
+        {/* Botón para plegar/desplegar el sidebar (solo desktop) */}
         <div className="hidden md:flex justify-end p-2 border-t border-slate-700">
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
