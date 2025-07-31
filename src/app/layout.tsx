@@ -23,6 +23,9 @@ export const metadata: Metadata = {
     locale: "es_ES",
     type: "website",
   },
+  other: {
+    'fb:app_id': '1491280195185816',
+  },
   metadataBase: new URL("https://www.wasaaa.com"),
 }
 
