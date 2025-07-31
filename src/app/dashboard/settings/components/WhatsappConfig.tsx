@@ -65,9 +65,8 @@ export default function WhatsappConfig() {
     localStorage.setItem('tempToken', token)
 
     const url = `https://www.facebook.com/v20.0/dialog/oauth?client_id=${META_APP_ID}&redirect_uri=${encodeURIComponent(
-  REDIRECT_URI
-)}&state=${empresaId}&response_type=code&scope=whatsapp_business_management,whatsapp_business_messaging,business_management`
-
+      REDIRECT_URI
+    )}&state=${empresaId}&response_type=code&scope=whatsapp_business_management,whatsapp_business_messaging,business_management`
 
     window.location.href = url
   }
@@ -121,16 +120,18 @@ export default function WhatsappConfig() {
   }
 
   return (
-    <div className="max-w-xl w-full mx-auto bg-white dark:bg-gray-900 rounded-xl shadow-md p-6 mt-8 text-center">
-      <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">Estado de WhatsApp</h2>
+    <div className="w-full sm:max-w-xl mx-auto bg-white dark:bg-gray-900 rounded-xl shadow-md p-6 mt-8 text-center">
+      <h2 className="text-lg sm:text-xl font-semibold mb-4 text-gray-900 dark:text-white">
+        Estado de WhatsApp
+      </h2>
 
       {estado === 'conectado' ? (
         <>
-          <p className="text-green-500 font-medium mb-2">✅ Conectado</p>
-          <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">
+          <p className="text-green-500 font-medium mb-2 text-sm sm:text-base">✅ Conectado</p>
+          <p className="text-gray-600 dark:text-gray-300 text-sm sm:text-base mb-4">
             Número: <strong>{displayPhone}</strong>
           </p>
-          <div className="flex justify-center gap-4">
+          <div className="flex flex-col sm:flex-row justify-center gap-3 sm:gap-4">
             <button
               onClick={conectarConMeta}
               className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm"
@@ -139,7 +140,7 @@ export default function WhatsappConfig() {
             </button>
             <button
               onClick={eliminarWhatsapp}
-              className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md text-sm flex items-center gap-2"
+              className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md text-sm flex items-center justify-center gap-2"
             >
               <Trash2 className="w-4 h-4" />
               Desconectar
@@ -148,8 +149,8 @@ export default function WhatsappConfig() {
         </>
       ) : (
         <>
-          <p className="text-yellow-500 font-medium mb-2">⚠️ No conectado</p>
-          <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">
+          <p className="text-yellow-500 font-medium mb-2 text-sm sm:text-base">⚠️ No conectado</p>
+          <p className="text-gray-600 dark:text-gray-300 text-sm sm:text-base mb-4">
             Conecta un número de WhatsApp para comenzar.
           </p>
           <button
