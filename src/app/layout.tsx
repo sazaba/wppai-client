@@ -1,13 +1,20 @@
+'use client'
+
 import type { Metadata } from "next"
 import "./globals.css"
 import { AuthProvider } from "./context/AuthContext"
 import Navbar from "./components/Navbar"
 import Footer from "./components/Footer"
+import { usePathname } from "next/navigation"
+
 export default function RootLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
+  const pathname = usePathname()
+  const hideNavbar = pathname.startsWith('/dashboard')
+
   return (
     <html lang="es">
       <head>
@@ -21,9 +28,9 @@ export default function RootLayout({
       </head>
       <body className="min-h-screen bg-white text-gray-900 antialiased">
         <AuthProvider>
-          <Navbar />
+          {!hideNavbar && <Navbar />}
           <main>{children}</main>
-          <Footer />
+          {!hideNavbar && <Footer />}
         </AuthProvider>
       </body>
     </html>

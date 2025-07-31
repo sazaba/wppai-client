@@ -41,7 +41,7 @@ export default function Navbar() {
         isScrolled ? 'shadow-md bg-white dark:bg-gray-900 border-b' : 'bg-transparent'
       )}
     >
-      <div className="max-w-7xl mx-auto px-4 py-2.5 md:py-3 flex items-center justify-between">
+      <div className="max-w-7xl mx-auto px-4 py-0 md:py-3 flex items-center justify-between">
         {/* Logo */}
         <Link href="/" className="inline-block">
           <Image
@@ -49,7 +49,7 @@ export default function Navbar() {
             alt="logo"
             width={48}
             height={48}
-            className="h-12 w-12 md:h-[60px] md:w-[60px]"
+            className="h-16 w-16 md:h-[60px] md:w-[60px]"
           />
         </Link>
 
@@ -108,7 +108,7 @@ export default function Navbar() {
                     alt="logo"
                     width={48}
                     height={48}
-                    className="h-12 w-12"
+                    className="h-16 w-16"
                   />
                   {!loading && empresa && (
                     <p className="text-sm mb-4 text-muted-foreground">Bienvenid@ <strong>{empresa.nombre}</strong></p>
