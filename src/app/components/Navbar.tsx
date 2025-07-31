@@ -37,7 +37,7 @@ export default function Navbar() {
   return (
     <header
       className={clsx(
-        'w-full top-0 z-100 sticky transition-all duration-300',
+        'w-full top-0 z-50 sticky transition-all duration-300',
         isScrolled ? 'shadow-md bg-white dark:bg-gray-900 border-b' : 'bg-transparent'
       )}
     >
@@ -103,7 +103,13 @@ export default function Navbar() {
     <SheetContent side="left" className="bg-white dark:bg-gray-900 text-gray-900 dark:text-white p-6">
       <div className="flex flex-col h-full justify-between">
         <div>
-          <h2 className="text-xl font-bold mb-6 text-indigo-600">WppAI</h2>
+        <Image
+    src={logo}  
+    alt="logo"
+    width={60}
+    height={60}
+    className="h-auto w-auto"
+  />
           {empresa && (
             <p className="text-sm mb-4 text-muted-foreground">Bienvenid@ <strong>{empresa.nombre}</strong></p>
           )}
