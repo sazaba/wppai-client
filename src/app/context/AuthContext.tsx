@@ -3,6 +3,8 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 import axios from 'axios'
 
+
+
 type Rol = 'admin' | 'agente' | 'invitado'
 
 interface Usuario {
@@ -22,9 +24,11 @@ interface AuthContextProps {
   empresa: Empresa | null
   token: string | null
   isAuthenticated: boolean
+  loading: boolean
   login: (email: string, password: string) => Promise<boolean>
   logout: () => void
 }
+
 
 const AuthContext = createContext<AuthContextProps>({} as AuthContextProps)
 
@@ -32,6 +36,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [usuario, setUsuario] = useState<Usuario | null>(null)
   const [empresa, setEmpresa] = useState<Empresa | null>(null)
   const [token, setToken] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     const storedToken = localStorage.getItem('token')
@@ -46,14 +51,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           headers: { Authorization: `Bearer ${storedToken}` }
         })
         .then((res) => {
-          console.log('[AuthContext] Empresa cargada:', res.data) // ✅
           setEmpresa(res.data)
         })
         .catch((err) => {
-          console.error('[AuthContext] Error al cargar empresa:', err.response?.data || err.message)
+          console.error('[AuthContext] Error al cargar empresa:', err)
         })
+        .finally(() => setLoading(false))
+    } else {
+      setLoading(false)
     }
   }, [])
+  
   
 
   const login = async (email: string, password: string): Promise<boolean> => {
@@ -100,9 +108,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }
 
   return (
-    <AuthContext.Provider value={{ usuario, empresa, token, isAuthenticated: !!token, login, logout }}>
-      {children}
-    </AuthContext.Provider>
+    <AuthContext.Provider
+  value={{ usuario, empresa, token, isAuthenticated: !!token, loading, login, logout }}
+>
+  {children}
+</AuthContext.Provider>
+
   )
 }
 
