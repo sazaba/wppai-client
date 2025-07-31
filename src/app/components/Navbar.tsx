@@ -7,6 +7,8 @@ import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
 import { Menu, Sparkles } from 'lucide-react'
 import clsx from 'clsx'
 import { useAuth } from '../context/AuthContext'
+import logo from '../images/Logo-Wasaaa.webp'
+import Image from 'next/image'
 
 export default function Navbar() {
   const [isScrolled, setIsScrolled] = useState(false)
@@ -35,15 +37,22 @@ export default function Navbar() {
   return (
     <header
       className={clsx(
-        'w-full top-0 z-50 sticky transition-all duration-300',
+        'w-full top-0 z-100 sticky transition-all duration-300',
         isScrolled ? 'shadow-md bg-white dark:bg-gray-900 border-b' : 'bg-transparent'
       )}
     >
       <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
         {/* Logo */}
-        <Link href="/" className="text-xl font-bold tracking-tight text-indigo-600">
-          WppAI
-        </Link>
+        <Link href="/" className="inline-block">
+  <Image
+    src={logo}  
+    alt="logo"
+    width={60}
+    height={60}
+    className="h-auto w-auto"
+  />
+</Link>
+
 
         {/* Navegación - Escritorio */}
         <nav className="hidden md:flex items-center space-x-6 text-sm text-gray-600 dark:text-gray-300">

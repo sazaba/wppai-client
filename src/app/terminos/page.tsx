@@ -53,8 +53,9 @@ export default function Terminos() {
         <section className="mb-8">
           <h2 className="text-xl md:text-2xl font-semibold mb-3">4. Propiedad intelectual</h2>
           <p className="text-base md:text-lg leading-relaxed">
-            El contenido, marca, código fuente y diseño de la plataforma son propiedad de Wasaaa y están protegidos por
-            leyes de propiedad intelectual.
+            El contenido, marca, código fuente y diseño de la plataforma son propiedad de <strong>Wasaaa</strong>,
+            actualmente en fase de desarrollo como marca comercial de uso exclusivo por su creador. Todos los derechos
+            de propiedad intelectual sobre esta aplicación están reservados.
           </p>
         </section>
 
@@ -67,7 +68,15 @@ export default function Terminos() {
         </section>
 
         <section className="mb-8">
-          <h2 className="text-xl md:text-2xl font-semibold mb-3">6. Cambios</h2>
+          <h2 className="text-xl md:text-2xl font-semibold mb-3">6. Integración con servicios de terceros</h2>
+          <p className="text-base md:text-lg leading-relaxed">
+            Wasaaa utiliza la API oficial de WhatsApp Cloud (Meta Platforms, Inc.) para la automatización de respuestas.
+            El uso del servicio implica aceptar también las políticas de privacidad y términos de uso de Meta.
+          </p>
+        </section>
+
+        <section className="mb-8">
+          <h2 className="text-xl md:text-2xl font-semibold mb-3">7. Cambios</h2>
           <p className="text-base md:text-lg leading-relaxed">
             Podemos modificar estos términos en cualquier momento. Se informará a los usuarios por correo o dentro
             de la plataforma.
@@ -75,9 +84,27 @@ export default function Terminos() {
         </section>
 
         <section className="mb-8">
-          <h2 className="text-xl md:text-2xl font-semibold mb-3">7. Contacto</h2>
+          <h2 className="text-xl md:text-2xl font-semibold mb-3">8. Jurisdicción</h2>
           <p className="text-base md:text-lg leading-relaxed">
-            Si tienes dudas o sugerencias, puedes escribirnos a <strong>contacto@wasaaa.com</strong>
+            Estos términos se regirán por las leyes de Colombia. Cualquier disputa será resuelta en los tribunales de Medellín.
+          </p>
+        </section>
+
+        <section className="mb-8">
+          <h2 className="text-xl md:text-2xl font-semibold mb-3">9. Política de privacidad</h2>
+          <p className="text-base md:text-lg leading-relaxed">
+            Para más información sobre cómo manejamos tus datos, consulta nuestra{' '}
+            <Link href="/politica" className="text-indigo-600 hover:underline">
+              Política de Privacidad
+            </Link>.
+          </p>
+        </section>
+
+        <section className="mb-8">
+          <h2 className="text-xl md:text-2xl font-semibold mb-3">10. Contacto</h2>
+          <p className="text-base md:text-lg leading-relaxed">
+            Si tienes dudas o sugerencias, puedes escribirnos a{' '}
+            <strong>contacto@wasaaa.com</strong>.
           </p>
         </section>
       </motion.div>

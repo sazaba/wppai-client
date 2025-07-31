@@ -7,7 +7,7 @@ const testimonios = [
   {
     nombre: "Laura Méndez",
     cargo: "CEO de White Skincare",
-    mensaje: "Gracias a WppAI hemos automatizado más del 80% de nuestras consultas por WhatsApp. La IA responde como si fuera parte del equipo. ¡Un antes y un después en nuestro servicio!",
+    mensaje: "Gracias a Wasaaa hemos automatizado más del 80% de nuestras consultas por WhatsApp. La IA responde como si fuera parte del equipo. ¡Un antes y un después en nuestro servicio!",
     imagen: "/avatars/laura.jpg"
   },
   {

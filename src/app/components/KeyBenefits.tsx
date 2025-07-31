@@ -36,7 +36,7 @@ export default function KeyBenefits() {
           whileInView={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
         >
-          ¿Por qué usar WppAI en tu negocio?
+          ¿Por qué usar Wasaaa en tu negocio?
         </motion.h2>
 
         <p className="text-gray-600 max-w-2xl mx-auto mb-12">

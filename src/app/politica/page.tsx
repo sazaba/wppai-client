@@ -1,7 +1,9 @@
 'use client'
 
 import Link from 'next/link'
+import Image from 'next/image'
 import { motion } from 'framer-motion'
+import logo from '../images/Logo-Wasaaa.webp'
 
 export default function Politica() {
   return (
@@ -21,13 +23,25 @@ export default function Politica() {
           <span className="text-gray-800 dark:text-gray-100 font-medium">Política de privacidad</span>
         </nav>
 
-        <h1 className="text-3xl md:text-4xl font-bold mb-8 text-center text-indigo-600 dark:text-indigo-400">
-          Política de Privacidad
-        </h1>
+        {/* Encabezado con logo */}
+        <div className="flex flex-col items-center mb-8 text-center">
+          <Image
+            src={logo}
+            alt="Logo de Wasaaa"
+            width={64}
+            height={64}
+            className="mb-4"
+          />
+          <h1 className="text-3xl md:text-4xl font-bold text-indigo-600 dark:text-indigo-400">
+            Política de Privacidad de Wasaaa
+          </h1>
+        </div>
 
         <p className="mb-6 text-base md:text-lg leading-relaxed">
-          En <strong>Wasaaa</strong>, valoramos tu privacidad. Esta política describe cómo recopilamos,
-          usamos y protegemos tu información al utilizar nuestra plataforma.
+          Esta política de privacidad aplica exclusivamente para los servicios ofrecidos por <strong>Wasaaa</strong>,
+          una plataforma SaaS de automatización de mensajes de WhatsApp con inteligencia artificial, desarrollada para
+          empresas que se promocionan a través de redes sociales. Fue creada por el equipo de desarrollo de Wasaaa y
+          está disponible públicamente en cumplimiento de los términos de Meta Platforms Inc.
         </p>
 
         <section className="mb-8">
@@ -68,6 +82,15 @@ export default function Politica() {
           <p className="text-base md:text-lg leading-relaxed">
             Si tienes preguntas sobre esta política, contáctanos en:{' '}
             <strong>contacto@wasaaa.com</strong>
+          </p>
+        </section>
+
+        <section className="mt-12 border-t pt-6">
+          <p className="text-sm text-gray-500 dark:text-gray-400 text-center leading-relaxed">
+            Esta plataforma es un proyecto en desarrollo operado por su creador, con fines de prueba y validación
+            en el ecosistema de Meta. <strong>Wasaaa</strong> es una app en fase beta, desarrollada para automatizar
+            la atención de mensajes vía WhatsApp utilizando inteligencia artificial. Para más información o soporte, puedes escribirnos a:{' '}
+            <strong>contacto@wasaaa.com</strong>.
           </p>
         </section>
       </motion.div>
