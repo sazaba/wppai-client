@@ -2,31 +2,28 @@
 
 import { useEffect, useState } from 'react'
 import axios from 'axios'
-import { CheckCircle, XCircle, Trash2 } from 'lucide-react'
+import { Trash2 } from 'lucide-react'
 import Swal from 'sweetalert2'
+import { useAuth } from '@/app/context/AuthContext'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL
 const META_APP_ID = process.env.NEXT_PUBLIC_META_APP_ID
+const REDIRECT_URI = `https://wasaaa.com/dashboard/callback`
 
 export default function WhatsappConfig() {
+  const { usuario, token } = useAuth()
+  const empresaId = usuario?.empresaId || null
+
   const [estado, setEstado] = useState<'conectado' | 'desconectado' | 'cargando'>('cargando')
   const [displayPhone, setDisplayPhone] = useState('')
-  const [empresaId, setEmpresaId] = useState<number | null>(null)
-  const [token, setToken] = useState<string | null>(null)
   const [oauthDone, setOauthDone] = useState(false)
 
-  const REDIRECT_URI = `https://wasaaa.com/dashboard/callback`
-
   useEffect(() => {
-    const storedEmpresaId = localStorage.getItem('empresaId')
-    const storedToken = localStorage.getItem('token')
-    const oauthStatus = localStorage.getItem('oauthDone')
-
-    if (storedEmpresaId) setEmpresaId(parseInt(storedEmpresaId))
-    if (storedToken) {
-      setToken(storedToken)
-      fetchEstado(storedToken)
+    if (token) {
+      fetchEstado(token)
     }
+
+    const oauthStatus = localStorage.getItem('oauthDone')
     if (oauthStatus === '1') setOauthDone(true)
 
     const params = new URLSearchParams(window.location.search)
@@ -38,16 +35,14 @@ export default function WhatsappConfig() {
         color: '#fff',
         confirmButtonColor: '#10b981'
       })
-      localStorage.setItem('oauthDone', '1') // marcar que ya se hizo el flujo
+      localStorage.setItem('oauthDone', '1')
     }
-  }, [])
+  }, [token])
 
   const fetchEstado = async (authToken: string) => {
     try {
       const res = await axios.get(`${API_URL}/api/whatsapp/estado`, {
-        headers: {
-          Authorization: `Bearer ${authToken}`
-        }
+        headers: { Authorization: `Bearer ${authToken}` }
       })
 
       if (res.data?.conectado) {
@@ -98,9 +93,7 @@ export default function WhatsappConfig() {
     if (confirm.isConfirmed) {
       try {
         await axios.delete(`${API_URL}/api/whatsapp/eliminar`, {
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
+          headers: { Authorization: `Bearer ${token}` }
         })
 
         setDisplayPhone('')
