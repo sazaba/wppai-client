@@ -13,13 +13,21 @@ export default function WhatsappConfig() {
   const [displayPhone, setDisplayPhone] = useState('')
   const [empresaId, setEmpresaId] = useState<number | null>(null)
   const [token, setToken] = useState<string | null>(null)
+  const [oauthDone, setOauthDone] = useState(false)
+
+  const REDIRECT_URI = `https://wasaaa.com/dashboard/callback`
 
   useEffect(() => {
     const storedEmpresaId = localStorage.getItem('empresaId')
     const storedToken = localStorage.getItem('token')
+    const oauthStatus = localStorage.getItem('oauthDone')
+
     if (storedEmpresaId) setEmpresaId(parseInt(storedEmpresaId))
-    if (storedToken) setToken(storedToken)
-    if (storedToken) fetchEstado(storedToken)
+    if (storedToken) {
+      setToken(storedToken)
+      fetchEstado(storedToken)
+    }
+    if (oauthStatus === '1') setOauthDone(true)
 
     const params = new URLSearchParams(window.location.search)
     if (params.get('success') === '1') {
@@ -30,6 +38,7 @@ export default function WhatsappConfig() {
         color: '#fff',
         confirmButtonColor: '#10b981'
       })
+      localStorage.setItem('oauthDone', '1') // marcar que ya se hizo el flujo
     }
   }, [])
 
@@ -54,8 +63,6 @@ export default function WhatsappConfig() {
     }
   }
 
-  const REDIRECT_URI = `https://wasaaa.com/dashboard/callback`
-
   const conectarConMeta = () => {
     if (!empresaId || !token) {
       console.error("Faltan datos para conectar con Meta")
@@ -68,6 +75,7 @@ export default function WhatsappConfig() {
       REDIRECT_URI
     )}&state=${empresaId}&response_type=code&scope=whatsapp_business_management,whatsapp_business_messaging,business_management`
 
+    console.log("🔗 OAuth URL:", url)
     window.location.href = url
   }
 
@@ -97,6 +105,7 @@ export default function WhatsappConfig() {
 
         setDisplayPhone('')
         setEstado('desconectado')
+        localStorage.removeItem('oauthDone')
 
         Swal.fire({
           icon: 'success',
@@ -128,9 +137,21 @@ export default function WhatsappConfig() {
       {estado === 'conectado' ? (
         <>
           <p className="text-green-500 font-medium mb-2 text-sm sm:text-base">✅ Conectado</p>
-          <p className="text-gray-600 dark:text-gray-300 text-sm sm:text-base mb-4">
+          <p className="text-gray-600 dark:text-gray-300 text-sm sm:text-base mb-2">
             Número: <strong>{displayPhone}</strong>
           </p>
+          <p className="text-xs text-gray-400 mb-4">
+            * Token conectado manualmente (modo demo). En producción se usa OAuth.
+          </p>
+
+          {oauthDone && (
+            <div className="bg-gray-800 text-white text-xs p-3 rounded mb-4">
+              <p><strong>Test Mode:</strong> Using Meta sandbox number.</p>
+              <p><strong>Connection:</strong> Token injected manually.</p>
+              <p><strong>Note:</strong> Real OAuth flow shown above for demo purposes.</p>
+            </div>
+          )}
+
           <div className="flex flex-col sm:flex-row justify-center gap-3 sm:gap-4">
             <button
               onClick={conectarConMeta}

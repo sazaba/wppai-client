@@ -165,7 +165,7 @@ export default function SettingsPage() {
     <div className="h-full overflow-y-auto max-h-screen px-4 sm:px-6 py-8 scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-transparent">
       <div className="max-w-5xl mx-auto space-y-6">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <h1 className="text-2xl font-bold text-white">Entrenamiento de tu IA</h1>
+          <h1 className="text-2xl font-bold text-white text-center">Entrenamiento de tu IA</h1>
           {!configGuardada && (
             <button
               onClick={() => setTrainingActive(true)}

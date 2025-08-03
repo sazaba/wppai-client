@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import axios from 'axios'
 import Swal from 'sweetalert2'
@@ -10,8 +10,12 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL
 export default function CallbackHandler() {
   const params = useSearchParams()
   const router = useRouter()
+  const hasRun = useRef(false) // para evitar doble ejecución en dev
 
   useEffect(() => {
+    if (hasRun.current) return
+    hasRun.current = true
+
     const code = params.get('code')
     const token = localStorage.getItem('tempToken')
 
@@ -29,6 +33,8 @@ export default function CallbackHandler() {
 
     const conectar = async () => {
       try {
+        console.log('📲 Enviando código a backend:', code)
+
         const res = await axios.post(
           `${API_URL}/api/auth/callback`,
           { code },
@@ -37,11 +43,11 @@ export default function CallbackHandler() {
           }
         )
 
-        // 🔁 Ver si se requiere selección de número
+        // 🔁 Selección de número (si aplica)
         if (res.data.seleccionarNumero) {
           const { availableNumbers, accessToken } = res.data
 
-          const options = availableNumbers.map((n: any, i: number) => ({
+          const options = availableNumbers.map((n: any) => ({
             value: JSON.stringify({ ...n, accessToken }),
             text: `${n.nombre || 'Número'} – ${n.displayPhoneNumber}`
           }))
@@ -68,6 +74,9 @@ export default function CallbackHandler() {
               headers: { Authorization: `Bearer ${token}` }
             })
 
+            localStorage.setItem('oauthDone', '1')
+            localStorage.removeItem('tempToken')
+
             Swal.fire({
               icon: 'success',
               title: 'WhatsApp conectado 🎉',
@@ -88,6 +97,9 @@ export default function CallbackHandler() {
         }
 
         // ✅ Conexión directa sin selección
+        localStorage.setItem('oauthDone', '1')
+        localStorage.removeItem('tempToken')
+
         Swal.fire({
           icon: 'success',
           title: 'WhatsApp conectado 🎉',
@@ -109,7 +121,7 @@ export default function CallbackHandler() {
     }
 
     conectar()
-  }, [params])
+  }, [params, router])
 
   return <p className="text-lg text-white">Conectando con WhatsApp...</p>
 }
