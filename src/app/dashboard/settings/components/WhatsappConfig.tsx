@@ -17,6 +17,8 @@ export default function WhatsappConfig() {
   const [estado, setEstado] = useState<'conectado' | 'desconectado' | 'cargando'>('cargando')
   const [displayPhone, setDisplayPhone] = useState('')
   const [oauthDone, setOauthDone] = useState(false)
+  const [numeroManual, setNumeroManual] = useState('')
+  const [phoneIdManual, setPhoneIdManual] = useState('')
 
   useEffect(() => {
     if (token) {
@@ -59,16 +61,26 @@ export default function WhatsappConfig() {
   }
 
   const conectarConMeta = () => {
-    if (!empresaId || !token) {
-      console.error("Faltan datos para conectar con Meta")
+    if (!empresaId || !token || !numeroManual || !phoneIdManual) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'Faltan datos',
+        text: 'Debes ingresar el número y el Phone Number ID antes de conectar.',
+        background: '#1f2937',
+        color: '#fff',
+        confirmButtonColor: '#f59e0b'
+      })
       return
     }
 
     localStorage.setItem('tempToken', token)
 
+    // Incluimos número y phone_number_id en el state
+    const stateValue = `${empresaId}|${numeroManual}|${phoneIdManual}`
+
     const url = `https://www.facebook.com/v20.0/dialog/oauth?client_id=${META_APP_ID}&redirect_uri=${encodeURIComponent(
       REDIRECT_URI
-    )}&state=${empresaId}&response_type=code&scope=whatsapp_business_management,whatsapp_business_messaging,business_management`
+    )}&state=${encodeURIComponent(stateValue)}&response_type=code&scope=whatsapp_business_messaging,public_profile`
 
     console.log("🔗 OAuth URL:", url)
     window.location.href = url
@@ -133,17 +145,6 @@ export default function WhatsappConfig() {
           <p className="text-gray-600 dark:text-gray-300 text-sm sm:text-base mb-2">
             Número: <strong>{displayPhone}</strong>
           </p>
-          <p className="text-xs text-gray-400 mb-4">
-            * Token conectado manualmente (modo demo). En producción se usa OAuth.
-          </p>
-
-          {oauthDone && (
-            <div className="bg-gray-800 text-white text-xs p-3 rounded mb-4">
-              <p><strong>Test Mode:</strong> Using Meta sandbox number.</p>
-              <p><strong>Connection:</strong> Token injected manually.</p>
-              <p><strong>Note:</strong> Real OAuth flow shown above for demo purposes.</p>
-            </div>
-          )}
 
           <div className="flex flex-col sm:flex-row justify-center gap-3 sm:gap-4">
             <button
@@ -165,8 +166,25 @@ export default function WhatsappConfig() {
         <>
           <p className="text-yellow-500 font-medium mb-2 text-sm sm:text-base">⚠️ No conectado</p>
           <p className="text-gray-600 dark:text-gray-300 text-sm sm:text-base mb-4">
-            Conecta un número de WhatsApp para comenzar.
+            Ingresa tu número de WhatsApp Business y el Phone Number ID.
           </p>
+
+          <input
+            type="text"
+            placeholder="Ej: +573001112233"
+            value={numeroManual}
+            onChange={(e) => setNumeroManual(e.target.value)}
+            className="w-full px-3 py-2 border rounded mb-4 dark:bg-gray-800 dark:text-white"
+          />
+
+          <input
+            type="text"
+            placeholder="Phone Number ID de Meta"
+            value={phoneIdManual}
+            onChange={(e) => setPhoneIdManual(e.target.value)}
+            className="w-full px-3 py-2 border rounded mb-4 dark:bg-gray-800 dark:text-white"
+          />
+
           <button
             onClick={conectarConMeta}
             className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md text-sm"
