@@ -19,16 +19,21 @@ export default function WhatsappConfig() {
   const [oauthDone, setOauthDone] = useState(false)
   const [numeroManual, setNumeroManual] = useState('')
   const [phoneIdManual, setPhoneIdManual] = useState('')
+  const [phoneNumberId, setPhoneNumberId] = useState('')
+
 
   useEffect(() => {
     if (token) {
       fetchEstado(token)
     }
-
+  
     const oauthStatus = localStorage.getItem('oauthDone')
-    if (oauthStatus === '1') setOauthDone(true)
-
+    if (oauthStatus === '1') {
+      setOauthDone(true)
+    }
+  
     const params = new URLSearchParams(window.location.search)
+  
     if (params.get('success') === '1') {
       Swal.fire({
         icon: 'success',
@@ -38,27 +43,36 @@ export default function WhatsappConfig() {
         confirmButtonColor: '#10b981'
       })
       localStorage.setItem('oauthDone', '1')
+  
+      // Limpia la query para no dejar success=1 en la URL
+      window.history.replaceState({}, document.title, window.location.pathname)
     }
   }, [token])
+  
 
   const fetchEstado = async (authToken: string) => {
     try {
       const res = await axios.get(`${API_URL}/api/whatsapp/estado`, {
         headers: { Authorization: `Bearer ${authToken}` }
       })
-
+  
       if (res.data?.conectado) {
         setEstado('conectado')
         setDisplayPhone(res.data.displayPhoneNumber || res.data.phoneNumberId)
+        setPhoneNumberId(res.data.phoneNumberId || '') // ✅ Guardamos el ID
       } else {
         setEstado('desconectado')
         setDisplayPhone('')
+        setPhoneNumberId('')
       }
     } catch (err) {
       console.warn('No hay conexión activa:', err)
       setEstado('desconectado')
+      setDisplayPhone('')
+      setPhoneNumberId('')
     }
   }
+  
 
   const conectarConMeta = () => {
     if (!empresaId || !token || !numeroManual || !phoneIdManual) {
@@ -109,6 +123,7 @@ export default function WhatsappConfig() {
         })
 
         setDisplayPhone('')
+        setPhoneNumberId('') 
         setEstado('desconectado')
         localStorage.removeItem('oauthDone')
 
@@ -143,7 +158,8 @@ export default function WhatsappConfig() {
         <>
           <p className="text-green-500 font-medium mb-2 text-sm sm:text-base">✅ Conectado</p>
           <p className="text-gray-600 dark:text-gray-300 text-sm sm:text-base mb-2">
-            Número: <strong>{displayPhone}</strong>
+          Número: <strong>{displayPhone}</strong> <br />
+          ID: <strong>{phoneNumberId}</strong>
           </p>
 
           <div className="flex flex-col sm:flex-row justify-center gap-3 sm:gap-4">
