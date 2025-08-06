@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/app/context/AuthContext'
 import { LockClosedIcon, EnvelopeIcon } from '@heroicons/react/24/outline'
@@ -10,7 +10,7 @@ import Particles from 'react-tsparticles'
 import { loadFireworksPreset } from 'tsparticles-preset-fireworks'
 
 export default function LoginPage() {
-  const { login, isAuthenticated, empresa } = useAuth()
+  const { login, empresa } = useAuth()
   const router = useRouter()
 
   const [email, setEmail] = useState('')
@@ -19,17 +19,10 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false)
   const [showWelcomeModal, setShowWelcomeModal] = useState(false)
 
-  // Inicializar partículas con el preset fireworks
+  // Inicializar partículas fireworks
   const particlesInit = useCallback(async (engine: any) => {
     await loadFireworksPreset(engine)
   }, [])
-
-  // Si ya estaba logueado antes de entrar y no es login nuevo → redirige
-  useEffect(() => {
-    if (isAuthenticated && !showWelcomeModal) {
-      router.replace('/dashboard')
-    }
-  }, [isAuthenticated, showWelcomeModal, router])
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -39,9 +32,9 @@ export default function LoginPage() {
     const success = await login(email, password)
 
     if (success) {
-      setShowWelcomeModal(true)
+      setShowWelcomeModal(true) // ✅ Mostrar modal primero
 
-      // Redirigir después de mostrar el modal
+      // ⏳ Redirigir después de 2.5 segundos
       setTimeout(() => {
         setShowWelcomeModal(false)
         router.push('/dashboard')
@@ -53,71 +46,71 @@ export default function LoginPage() {
     setLoading(false)
   }
 
-  if (isAuthenticated && !showWelcomeModal) return null
-
   return (
     <>
       {/* Formulario */}
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-200 flex items-center justify-center px-4">
-        <div className="bg-white shadow-xl rounded-xl p-8 w-full max-w-md transition-all duration-300">
-          <h1 className="text-3xl font-bold text-center mb-6 text-gray-800">
-            Iniciar sesión
-          </h1>
+      {!showWelcomeModal && (
+        <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-200 flex items-center justify-center px-4">
+          <div className="bg-white shadow-xl rounded-xl p-8 w-full max-w-md transition-all duration-300">
+            <h1 className="text-3xl font-bold text-center mb-6 text-gray-800">
+              Iniciar sesión
+            </h1>
 
-          {error && (
-            <p className="text-sm text-red-600 text-center mb-4">{error}</p>
-          )}
+            {error && (
+              <p className="text-sm text-red-600 text-center mb-4">{error}</p>
+            )}
 
-          <form onSubmit={handleLogin} className="space-y-5">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Correo electrónico
-              </label>
-              <div className="relative">
-                <EnvelopeIcon className="w-5 h-5 absolute left-3 top-2.5 text-gray-400" />
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="pl-10 pr-4 py-2 w-full rounded-md border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:outline-none text-sm"
-                  required
-                />
+            <form onSubmit={handleLogin} className="space-y-5">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Correo electrónico
+                </label>
+                <div className="relative">
+                  <EnvelopeIcon className="w-5 h-5 absolute left-3 top-2.5 text-gray-400" />
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="pl-10 pr-4 py-2 w-full rounded-md border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:outline-none text-sm"
+                    required
+                  />
+                </div>
               </div>
-            </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Contraseña
-              </label>
-              <div className="relative">
-                <LockClosedIcon className="w-5 h-5 absolute left-3 top-2.5 text-gray-400" />
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="pl-10 pr-4 py-2 w-full rounded-md border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:outline-none text-sm"
-                  required
-                />
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Contraseña
+                </label>
+                <div className="relative">
+                  <LockClosedIcon className="w-5 h-5 absolute left-3 top-2.5 text-gray-400" />
+                  <input
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="pl-10 pr-4 py-2 w-full rounded-md border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:outline-none text-sm"
+                    required
+                  />
+                </div>
               </div>
-            </div>
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2.5 rounded-md transition"
-            >
-              {loading ? 'Ingresando...' : 'Iniciar sesión'}
-            </button>
-          </form>
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2.5 rounded-md transition"
+              >
+                {loading ? 'Ingresando...' : 'Iniciar sesión'}
+              </button>
+            </form>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Modal premium con partículas fireworks */}
       <AnimatePresence>
         {showWelcomeModal && (
           <Dialog
             open={showWelcomeModal}
-            onClose={() => setShowWelcomeModal(false)}
+            onClose={() => {}}
             className="relative z-50"
           >
             {/* Fondo */}
