@@ -18,7 +18,6 @@ export default function LoginPage() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [showWelcomeModal, setShowWelcomeModal] = useState(false)
-  const [justLoggedIn, setJustLoggedIn] = useState(false) // ✅ nuevo estado
 
   // Inicializar partículas
   const particlesInit = useCallback(async (engine: any) => {
@@ -45,23 +44,12 @@ export default function LoginPage() {
     }
   }
 
-  // Redirección si ya estaba autenticado antes de entrar
+  // Si el usuario ya estaba logueado antes de entrar, redirige directo
   useEffect(() => {
-    if (isAuthenticated && !justLoggedIn) {
+    if (isAuthenticated && !showWelcomeModal) {
       router.replace('/dashboard')
     }
-  }, [isAuthenticated, justLoggedIn, router])
-
-  // Redirección automática tras modal
-  useEffect(() => {
-    if (showWelcomeModal) {
-      const timeout = setTimeout(() => {
-        setShowWelcomeModal(false)
-        router.push('/dashboard')
-      }, 2500)
-      return () => clearTimeout(timeout)
-    }
-  }, [showWelcomeModal, router])
+  }, []) // Solo en el montaje
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -71,8 +59,14 @@ export default function LoginPage() {
     const success = await login(email, password)
 
     if (success) {
-      setJustLoggedIn(true) // ✅ evita redirección inmediata
-      setShowWelcomeModal(true) // muestra el modal premium
+      // Mostrar modal premium
+      setShowWelcomeModal(true)
+
+      // Redirigir después de 2.5s
+      setTimeout(() => {
+        setShowWelcomeModal(false)
+        router.push('/dashboard')
+      }, 2500)
     } else {
       setError('Credenciales incorrectas')
     }
@@ -80,7 +74,8 @@ export default function LoginPage() {
     setLoading(false)
   }
 
-  if (isAuthenticated && !justLoggedIn) return null
+  // Si ya estaba logueado y no es un login nuevo, no mostramos nada aquí
+  if (isAuthenticated && !showWelcomeModal) return null
 
   return (
     <>
