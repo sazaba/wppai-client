@@ -3,8 +3,6 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 import axios from 'axios'
 
-
-
 type Rol = 'admin' | 'agente' | 'invitado'
 
 interface Usuario {
@@ -27,8 +25,10 @@ interface AuthContextProps {
   loading: boolean
   login: (email: string, password: string) => Promise<boolean>
   logout: () => void
+  setToken: (token: string | null) => void
+  setUsuario: (usuario: Usuario | null) => void
+  setEmpresa: (empresa: Empresa | null) => void
 }
-
 
 const AuthContext = createContext<AuthContextProps>({} as AuthContextProps)
 
@@ -61,8 +61,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setLoading(false)
     }
   }, [])
-  
-  
 
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
@@ -82,8 +80,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
 
       localStorage.setItem('token', token)
-localStorage.setItem('usuario', JSON.stringify(usuario))
-localStorage.setItem('empresaId', usuario.empresaId.toString()) // ✅ Agrega esto
+      localStorage.setItem('usuario', JSON.stringify(usuario))
+      localStorage.setItem('empresaId', usuario.empresaId.toString())
 
       setToken(token)
       setUsuario(usuario)
@@ -111,11 +109,21 @@ localStorage.setItem('empresaId', usuario.empresaId.toString()) // ✅ Agrega es
 
   return (
     <AuthContext.Provider
-  value={{ usuario, empresa, token, isAuthenticated: !!token, loading, login, logout }}
->
-  {children}
-</AuthContext.Provider>
-
+      value={{
+        usuario,
+        empresa,
+        token,
+        isAuthenticated: !!token,
+        loading,
+        login,
+        logout,
+        setToken,    // ⬅️ ahora disponible en el contexto
+        setUsuario,  // ⬅️ ahora disponible en el contexto
+        setEmpresa   // ⬅️ ahora disponible en el contexto
+      }}
+    >
+      {children}
+    </AuthContext.Provider>
   )
 }
 

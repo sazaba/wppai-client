@@ -7,12 +7,12 @@ import { CheckCircleIcon } from '@heroicons/react/24/outline'
 import { motion, AnimatePresence } from 'framer-motion'
 // @ts-ignore
 import confetti from 'canvas-confetti'
-import { useAuth } from '@/app/context/AuthContext'
+import { useAuth } from '../context/AuthContext'
 import axios from 'axios'
 
 export default function RegisterPage() {
   const router = useRouter()
-  const { setToken, setUsuario, setEmpresa } = useAuth() as any
+  const { setToken, setUsuario, setEmpresa } = useAuth()
 
   const [nombreEmpresa, setNombreEmpresa] = useState('')
   const [email, setEmail] = useState('')
