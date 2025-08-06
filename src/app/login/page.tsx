@@ -8,7 +8,7 @@ import { Dialog } from '@headlessui/react'
 import { motion, AnimatePresence } from 'framer-motion'
 import Particles from 'react-tsparticles'
 import { loadFull } from 'tsparticles'
-import type { ISourceOptions } from 'tsparticles-engine' // ✅ Tipado correcto
+import type { ISourceOptions } from 'tsparticles-engine'
 
 export default function LoginPage() {
   const { login, isAuthenticated, empresa } = useAuth()
@@ -20,12 +20,10 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false)
   const [showWelcomeModal, setShowWelcomeModal] = useState(false)
 
-  // Inicializar motor de partículas con tipado correcto
   const particlesInit = useCallback(async (engine: any) => {
     await loadFull(engine)
   }, [])
 
-  // Configuración Aurora Boreal con tipado
   const particlesOptions: ISourceOptions = {
     background: { color: { value: 'transparent' } },
     fpsLimit: 60,
@@ -42,23 +40,21 @@ export default function LoginPage() {
       },
       opacity: {
         value: 0.4,
-        animation: { enable: true, speed: 0.5, minimumValue: 0.1, sync: false }
+        anim: { enable: true, speed: 0.5, opacity_min: 0.1, sync: false }
       },
       size: {
         value: 200,
         random: { enable: true, minimumValue: 100 },
-        animation: { enable: true, speed: 10, minimumValue: 40, sync: false }
+        anim: { enable: true, speed: 10, size_min: 40, sync: false }
       },
       shape: { type: 'circle' }
     },
     interactivity: {
-      detectsOn: 'canvas',
       events: { resize: true }
     },
     detectRetina: true
   }
 
-  // Si ya estaba logueado antes, redirige directo
   useEffect(() => {
     if (isAuthenticated && !showWelcomeModal) {
       router.replace('/dashboard')
@@ -89,22 +85,17 @@ export default function LoginPage() {
 
   return (
     <>
-      {/* Formulario */}
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-200 flex items-center justify-center px-4">
         <div className="bg-white shadow-xl rounded-xl p-8 w-full max-w-md transition-all duration-300">
           <h1 className="text-3xl font-bold text-center mb-6 text-gray-800">
             Iniciar sesión
           </h1>
 
-          {error && (
-            <p className="text-sm text-red-600 text-center mb-4">{error}</p>
-          )}
+          {error && <p className="text-sm text-red-600 text-center mb-4">{error}</p>}
 
           <form onSubmit={handleLogin} className="space-y-5">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Correo electrónico
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Correo electrónico</label>
               <div className="relative">
                 <EnvelopeIcon className="w-5 h-5 absolute left-3 top-2.5 text-gray-400" />
                 <input
@@ -118,9 +109,7 @@ export default function LoginPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Contraseña
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Contraseña</label>
               <div className="relative">
                 <LockClosedIcon className="w-5 h-5 absolute left-3 top-2.5 text-gray-400" />
                 <input
@@ -144,15 +133,9 @@ export default function LoginPage() {
         </div>
       </div>
 
-      {/* Modal Aurora Boreal */}
       <AnimatePresence>
         {showWelcomeModal && (
-          <Dialog
-            open={showWelcomeModal}
-            onClose={() => setShowWelcomeModal(false)}
-            className="relative z-50"
-          >
-            {/* Fondo con partículas */}
+          <Dialog open={showWelcomeModal} onClose={() => setShowWelcomeModal(false)} className="relative z-50">
             <motion.div
               className="fixed inset-0 bg-black/40 backdrop-blur-sm z-0"
               initial={{ opacity: 0 }}
@@ -160,14 +143,7 @@ export default function LoginPage() {
               exit={{ opacity: 0 }}
             />
             <div className="fixed inset-0 flex items-center justify-center p-4 relative overflow-hidden">
-              <Particles
-                id="tsparticles"
-                init={particlesInit}
-                options={particlesOptions}
-                className="absolute inset-0 z-10"
-              />
-
-              {/* Contenido modal */}
+              <Particles id="tsparticles" init={particlesInit} options={particlesOptions} className="absolute inset-0 z-10" />
               <motion.div
                 initial={{ opacity: 0, scale: 0.8, y: 50 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -175,17 +151,13 @@ export default function LoginPage() {
                 transition={{ duration: 0.4 }}
                 className="bg-white dark:bg-gray-900 p-6 rounded-2xl shadow-xl max-w-md w-full text-center relative z-20"
               >
-                <motion.h2 className="text-2xl font-bold mb-2">
-                  ¡Bienvenido/a! ✨
-                </motion.h2>
+                <motion.h2 className="text-2xl font-bold mb-2">¡Bienvenido/a! ✨</motion.h2>
                 <motion.p className="text-gray-600 dark:text-gray-300 mb-4">
                   {empresa?.nombre
                     ? `Nos alegra verte de nuevo, ${empresa.nombre}.`
                     : 'Has iniciado sesión con éxito en Wasaaa.'}
                 </motion.p>
-                <p className="text-sm text-gray-500">
-                  Redirigiendo a tu dashboard...
-                </p>
+                <p className="text-sm text-gray-500">Redirigiendo a tu dashboard...</p>
               </motion.div>
             </div>
           </Dialog>
