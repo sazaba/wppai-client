@@ -8,6 +8,7 @@ import { Dialog } from '@headlessui/react'
 import { motion, AnimatePresence } from 'framer-motion'
 import Particles from 'react-tsparticles'
 import { loadFull } from 'tsparticles'
+import type { Engine } from 'tsparticles-engine'
 
 export default function LoginPage() {
   const { login, isAuthenticated, empresa } = useAuth()
@@ -19,10 +20,11 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false)
   const [showWelcomeModal, setShowWelcomeModal] = useState(false)
 
-  // Inicializar partículas
+  // Inicializar partículas con tipado correcto
   const particlesInit = useCallback(async (engine: any) => {
     await loadFull(engine)
   }, [])
+  
 
   // Configuración de partículas elegantes
   const particlesOptions = {
@@ -35,9 +37,8 @@ export default function LoginPage() {
     },
     particles: {
       color: { value: ['#4F46E5', '#22D3EE', '#F59E0B'] },
-      links: { enable: false },
       move: { enable: true, speed: 0.8 },
-      number: { value: 40 },
+      number: { value: 60 },
       opacity: { value: 0.6 },
       shape: { type: 'circle' },
       size: { value: { min: 2, max: 5 } }
@@ -59,10 +60,7 @@ export default function LoginPage() {
     const success = await login(email, password)
 
     if (success) {
-      // Mostrar modal premium
       setShowWelcomeModal(true)
-
-      // Redirigir después de 2.5s
       setTimeout(() => {
         setShowWelcomeModal(false)
         router.push('/dashboard')
@@ -74,7 +72,6 @@ export default function LoginPage() {
     setLoading(false)
   }
 
-  // Si ya estaba logueado y no es un login nuevo, no mostramos nada aquí
   if (isAuthenticated && !showWelcomeModal) return null
 
   return (
@@ -142,7 +139,7 @@ export default function LoginPage() {
             onClose={() => setShowWelcomeModal(false)}
             className="relative z-50"
           >
-            {/* Fondo */}
+            {/* Fondo oscuro */}
             <motion.div
               className="fixed inset-0 bg-black/40 backdrop-blur-sm z-0"
               initial={{ opacity: 0 }}
@@ -151,22 +148,22 @@ export default function LoginPage() {
             />
 
             {/* Contenedor modal */}
-            <div className="fixed inset-0 flex items-center justify-center p-4">
-              {/* Partículas detrás del modal */}
+            <div className="fixed inset-0 flex items-center justify-center p-0">
+              {/* Partículas a pantalla completa */}
               <Particles
-                  id="tsparticles"
-                  init={particlesInit}
-                  options={particlesOptions}
-                  className="absolute inset-0 z-10"
+                id="confetti-particles"
+                init={particlesInit}
+                options={particlesOptions}
+                className="absolute inset-0 z-10"
               />
 
               {/* Contenido modal */}
               <motion.div
-                 initial={{ opacity: 0, scale: 0.8, y: 50 }}
-                 animate={{ opacity: 1, scale: 1, y: 0 }}
-                 exit={{ opacity: 0, scale: 0.8, y: 50 }}
-                 transition={{ duration: 0.4 }}
-                 className="bg-white dark:bg-gray-900 p-6 rounded-2xl shadow-xl max-w-md w-full text-center relative z-20"
+                initial={{ opacity: 0, scale: 0.8, y: 50 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.8, y: 50 }}
+                transition={{ duration: 0.4 }}
+                className="bg-white dark:bg-gray-900 p-6 rounded-2xl shadow-xl max-w-md w-full text-center relative z-20"
               >
                 <motion.h2 className="text-2xl font-bold mb-2">
                   ¡Bienvenido/a! ✨
