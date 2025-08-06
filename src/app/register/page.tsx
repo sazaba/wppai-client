@@ -2,6 +2,8 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Swal from 'sweetalert2'
+import 'sweetalert2/dist/sweetalert2.min.css'
 
 export default function RegisterPage() {
   const router = useRouter()
@@ -19,7 +21,6 @@ export default function RegisterPage() {
 
     try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/register`, {
-
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ nombreEmpresa, email, password }),
@@ -32,10 +33,32 @@ export default function RegisterPage() {
         return
       }
 
-      const { token, empresaId } = await res.json()
+      const { token } = await res.json()
 
       localStorage.setItem('token', token)
+
+      // 🔹 Mostrar mensaje de bienvenida
+      await Swal.fire({
+        title: `¡Bienvenido a Wasaaa! 🎉`,
+        html: `
+          <p>Tu empresa <strong>${nombreEmpresa}</strong> ha sido registrada con éxito.</p>
+          <p>Estás en el <strong>Plan Gratis</strong> con 100 mensajes y 30 días de prueba.</p>
+          <ul style="text-align:left; margin-top:10px;">
+            <li>✅ Respuestas automáticas con IA</li>
+            <li>✅ Clasificación de conversaciones</li>
+            <li>✅ Conexión con WhatsApp Business</li>
+          </ul>
+        `,
+        icon: 'success',
+        confirmButtonText: 'Ir al Dashboard 🚀',
+        background: '#1e1e1e',
+        color: '#fff',
+        confirmButtonColor: '#2563eb'
+      })
+
+      // Redirigir al dashboard después del mensaje
       router.push('/dashboard')
+
     } catch (err) {
       setError('Error inesperado')
     } finally {
