@@ -6,8 +6,9 @@ import { useAuth } from '@/app/context/AuthContext'
 import { LockClosedIcon, EnvelopeIcon } from '@heroicons/react/24/outline'
 import { Dialog } from '@headlessui/react'
 import { motion, AnimatePresence } from 'framer-motion'
-import Particles, { initParticlesEngine } from '@tsparticles/react'
+import Particles from 'react-tsparticles'
 import { loadFull } from 'tsparticles'
+import type { ISourceOptions } from 'tsparticles-engine' // ✅ Tipado correcto
 
 export default function LoginPage() {
   const { login, isAuthenticated, empresa } = useAuth()
@@ -19,13 +20,13 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false)
   const [showWelcomeModal, setShowWelcomeModal] = useState(false)
 
-  // Inicializar motor de partículas
+  // Inicializar motor de partículas con tipado correcto
   const particlesInit = useCallback(async (engine: any) => {
     await loadFull(engine)
   }, [])
 
-  // Configuración Aurora Boreal
-  const particlesOptions = {
+  // Configuración Aurora Boreal con tipado
+  const particlesOptions: ISourceOptions = {
     background: { color: { value: 'transparent' } },
     fpsLimit: 60,
     particles: {
@@ -41,12 +42,12 @@ export default function LoginPage() {
       },
       opacity: {
         value: 0.4,
-        anim: { enable: true, speed: 0.5, opacity_min: 0.1, sync: false }
+        animation: { enable: true, speed: 0.5, minimumValue: 0.1, sync: false }
       },
       size: {
         value: 200,
         random: { enable: true, minimumValue: 100 },
-        anim: { enable: true, speed: 10, size_min: 40, sync: false }
+        animation: { enable: true, speed: 10, minimumValue: 40, sync: false }
       },
       shape: { type: 'circle' }
     },
@@ -57,7 +58,7 @@ export default function LoginPage() {
     detectRetina: true
   }
 
-  // Evitar redirección automática si es login nuevo
+  // Si ya estaba logueado antes, redirige directo
   useEffect(() => {
     if (isAuthenticated && !showWelcomeModal) {
       router.replace('/dashboard')
@@ -158,7 +159,7 @@ export default function LoginPage() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
             />
-            <div className="fixed inset-0 flex items-center justify-center p-4">
+            <div className="fixed inset-0 flex items-center justify-center p-4 relative overflow-hidden">
               <Particles
                 id="tsparticles"
                 init={particlesInit}
