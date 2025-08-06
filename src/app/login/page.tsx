@@ -2,13 +2,13 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { useAuth } from '@/app/context/AuthContext'
+import { useAuth } from '../context/AuthContext'
 import { LockClosedIcon, EnvelopeIcon } from '@heroicons/react/24/outline'
 import { Dialog } from '@headlessui/react'
 import { motion, AnimatePresence } from 'framer-motion'
 import Particles from 'react-tsparticles'
 import { loadFull } from 'tsparticles'
-import type { ISourceOptions } from 'tsparticles-engine'
+import type { IOptions, RecursivePartial } from 'tsparticles-engine'
 
 export default function LoginPage() {
   const { login, isAuthenticated, empresa } = useAuth()
@@ -24,8 +24,10 @@ export default function LoginPage() {
     await loadFull(engine)
   }, [])
 
-  const particlesOptions: ISourceOptions = {
+  // 🎨 Aurora Premium
+  const particlesOptions: RecursivePartial<IOptions> = {
     background: { color: { value: 'transparent' } },
+    fullScreen: { enable: true, zIndex: -1 },
     fpsLimit: 60,
     particles: {
       number: { value: 50 },
@@ -40,12 +42,12 @@ export default function LoginPage() {
       },
       opacity: {
         value: 0.4,
-        anim: { enable: true, speed: 0.5, opacity_min: 0.1, sync: false }
+        animation: { enable: true, speed: 0.5, minimumValue: 0.1, sync: false }
       },
       size: {
         value: 200,
         random: { enable: true, minimumValue: 100 },
-        anim: { enable: true, speed: 10, size_min: 40, sync: false }
+        animation: { enable: true, speed: 10, minimumValue: 40, sync: false }
       },
       shape: { type: 'circle' }
     },
@@ -85,6 +87,7 @@ export default function LoginPage() {
 
   return (
     <>
+      {/* Pantalla de Login */}
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-200 flex items-center justify-center px-4">
         <div className="bg-white shadow-xl rounded-xl p-8 w-full max-w-md transition-all duration-300">
           <h1 className="text-3xl font-bold text-center mb-6 text-gray-800">
@@ -133,33 +136,31 @@ export default function LoginPage() {
         </div>
       </div>
 
+      {/* Modal de bienvenida con partículas */}
       <AnimatePresence>
         {showWelcomeModal && (
-          <Dialog open={showWelcomeModal} onClose={() => setShowWelcomeModal(false)} className="relative z-50">
+          <Dialog
+            open={showWelcomeModal}
+            onClose={() => {}}
+            className="fixed inset-0 z-50 flex items-center justify-center"
+          >
+            <Particles id="tsparticles" init={particlesInit} options={particlesOptions} />
+
             <motion.div
-              className="fixed inset-0 bg-black/40 backdrop-blur-sm z-0"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-            />
-            <div className="fixed inset-0 flex items-center justify-center p-4 relative overflow-hidden">
-              <Particles id="tsparticles" init={particlesInit} options={particlesOptions} className="absolute inset-0 z-10" />
-              <motion.div
-                initial={{ opacity: 0, scale: 0.8, y: 50 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.8, y: 50 }}
-                transition={{ duration: 0.4 }}
-                className="bg-white dark:bg-gray-900 p-6 rounded-2xl shadow-xl max-w-md w-full text-center relative z-20"
-              >
-                <motion.h2 className="text-2xl font-bold mb-2">¡Bienvenido/a! ✨</motion.h2>
-                <motion.p className="text-gray-600 dark:text-gray-300 mb-4">
-                  {empresa?.nombre
-                    ? `Nos alegra verte de nuevo, ${empresa.nombre}.`
-                    : 'Has iniciado sesión con éxito en Wasaaa.'}
-                </motion.p>
-                <p className="text-sm text-gray-500">Redirigiendo a tu dashboard...</p>
-              </motion.div>
-            </div>
+              initial={{ opacity: 0, scale: 0.8, y: 50 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.8, y: 50 }}
+              transition={{ duration: 0.4 }}
+              className="bg-white dark:bg-gray-900 p-6 rounded-2xl shadow-xl max-w-md w-full text-center relative z-10"
+            >
+              <motion.h2 className="text-2xl font-bold mb-2">¡Bienvenido/a! ✨</motion.h2>
+              <motion.p className="text-gray-600 dark:text-gray-300 mb-4">
+                {empresa?.nombre
+                  ? `Nos alegra verte de nuevo, ${empresa.nombre}.`
+                  : 'Has iniciado sesión con éxito en Wasaaa.'}
+              </motion.p>
+              <p className="text-sm text-gray-500">Redirigiendo a tu dashboard...</p>
+            </motion.div>
           </Dialog>
         )}
       </AnimatePresence>
