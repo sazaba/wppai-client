@@ -7,8 +7,7 @@ import { LockClosedIcon, EnvelopeIcon } from '@heroicons/react/24/outline'
 import { Dialog } from '@headlessui/react'
 import { motion, AnimatePresence } from 'framer-motion'
 import Particles from 'react-tsparticles'
-import { loadFull } from 'tsparticles'
-import type { Engine } from 'tsparticles-engine'
+import { loadFireworksPreset } from 'tsparticles-preset-fireworks'
 
 export default function LoginPage() {
   const { login, isAuthenticated, empresa } = useAuth()
@@ -20,37 +19,17 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false)
   const [showWelcomeModal, setShowWelcomeModal] = useState(false)
 
-  // Inicializar partículas con tipado correcto
+  // Inicializar partículas con el preset fireworks
   const particlesInit = useCallback(async (engine: any) => {
-    await loadFull(engine)
+    await loadFireworksPreset(engine)
   }, [])
-  
 
-  // Configuración de partículas elegantes
-  const particlesOptions = {
-    background: { color: { value: 'transparent' } },
-    fpsLimit: 60,
-    interactivity: {
-      events: {
-        onHover: { enable: true, mode: 'repulse' }
-      }
-    },
-    particles: {
-      color: { value: ['#4F46E5', '#22D3EE', '#F59E0B'] },
-      move: { enable: true, speed: 0.8 },
-      number: { value: 60 },
-      opacity: { value: 0.6 },
-      shape: { type: 'circle' },
-      size: { value: { min: 2, max: 5 } }
-    }
-  }
-
-  // Si el usuario ya estaba logueado antes de entrar, redirige directo
+  // Si ya estaba logueado antes de entrar y no es login nuevo → redirige
   useEffect(() => {
     if (isAuthenticated && !showWelcomeModal) {
       router.replace('/dashboard')
     }
-  }, []) // Solo en el montaje
+  }, [isAuthenticated, showWelcomeModal, router])
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -61,6 +40,8 @@ export default function LoginPage() {
 
     if (success) {
       setShowWelcomeModal(true)
+
+      // Redirigir después de mostrar el modal
       setTimeout(() => {
         setShowWelcomeModal(false)
         router.push('/dashboard')
@@ -131,7 +112,7 @@ export default function LoginPage() {
         </div>
       </div>
 
-      {/* Modal premium con partículas */}
+      {/* Modal premium con partículas fireworks */}
       <AnimatePresence>
         {showWelcomeModal && (
           <Dialog
@@ -139,7 +120,7 @@ export default function LoginPage() {
             onClose={() => setShowWelcomeModal(false)}
             className="relative z-50"
           >
-            {/* Fondo oscuro */}
+            {/* Fondo */}
             <motion.div
               className="fixed inset-0 bg-black/40 backdrop-blur-sm z-0"
               initial={{ opacity: 0 }}
@@ -147,13 +128,12 @@ export default function LoginPage() {
               exit={{ opacity: 0 }}
             />
 
-            {/* Contenedor modal */}
-            <div className="fixed inset-0 flex items-center justify-center p-0">
-              {/* Partículas a pantalla completa */}
+            {/* Contenedor modal con partículas */}
+            <div className="fixed inset-0 flex items-center justify-center p-4 overflow-hidden">
               <Particles
-                id="confetti-particles"
+                id="fireworks-particles"
                 init={particlesInit}
-                options={particlesOptions}
+                options={{ preset: 'fireworks' }}
                 className="absolute inset-0 z-10"
               />
 
