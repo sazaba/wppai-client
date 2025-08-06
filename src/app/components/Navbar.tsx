@@ -9,12 +9,14 @@ import clsx from 'clsx'
 import { useAuth } from '../context/AuthContext'
 import logo from '../images/Logo-Wasaaa.webp'
 import Image from 'next/image'
+import { useRouter } from 'next/navigation'
 
 export default function Navbar() {
   const [isScrolled, setIsScrolled] = useState(false)
   const [openSheet, setOpenSheet] = useState(false)
 
-  const { empresa, loading } = useAuth()
+  const { empresa, loading, logout } = useAuth()
+  const router = useRouter()
 
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 10)
@@ -32,6 +34,11 @@ export default function Navbar() {
       }
     }
     setOpenSheet(false)
+  }
+
+  const handleLogoutClick = () => {
+    logout()
+    router.push('/login')
   }
 
   return (
@@ -75,6 +82,13 @@ export default function Navbar() {
                     Ir al dashboard
                   </Button>
                 </Link>
+                <Button
+                  variant="outline"
+                  className="rounded-full px-6 text-sm border-red-500 text-red-500 hover:bg-red-500 hover:text-white"
+                  onClick={handleLogoutClick}
+                >
+                  Cerrar sesión
+                </Button>
               </>
             ) : (
               <>
@@ -123,11 +137,23 @@ export default function Navbar() {
                     <a href="/terminos" className="hover:text-indigo-600 transition">Términos</a>
 
                     {!loading && empresa && (
-                      <Link href="/dashboard" onClick={() => setOpenSheet(false)}>
-                        <Button className="mt-6 w-full text-sm rounded-full bg-indigo-600 hover:bg-indigo-700 text-white">
-                          Ir al dashboard
+                      <>
+                        <Link href="/dashboard" onClick={() => setOpenSheet(false)}>
+                          <Button className="mt-6 w-full text-sm rounded-full bg-indigo-600 hover:bg-indigo-700 text-white">
+                            Ir al dashboard
+                          </Button>
+                        </Link>
+                        <Button
+                          variant="outline"
+                          className="mt-3 w-full text-sm rounded-full border-red-500 text-red-500 hover:bg-red-500 hover:text-white"
+                          onClick={() => {
+                            setOpenSheet(false)
+                            handleLogoutClick()
+                          }}
+                        >
+                          Cerrar sesión
                         </Button>
-                      </Link>
+                      </>
                     )}
                   </nav>
                 </div>
