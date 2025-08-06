@@ -24,10 +24,10 @@ export default function LoginPage() {
     await loadFull(engine)
   }, [])
 
-  // 🎨 Partículas premium
+  // 🎨 Partículas Premium Aurora Boreal
   const particlesOptions: RecursivePartial<IOptions> = {
     background: { color: { value: 'transparent' } },
-    fullScreen: { enable: true, zIndex: -1 },
+    fullScreen: { enable: false },
     fpsLimit: 60,
     particles: {
       number: { value: 50 },
@@ -65,9 +65,7 @@ export default function LoginPage() {
     const success = await login(email, password)
 
     if (success) {
-      // Primero mostrar modal
       setShowWelcomeModal(true)
-      // Después de 2.5s redirigir
       setTimeout(() => {
         setShowWelcomeModal(false)
         router.push('/dashboard')
@@ -138,22 +136,54 @@ export default function LoginPage() {
             onClose={() => {}}
             className="fixed inset-0 z-50 flex items-center justify-center"
           >
-            <Particles id="tsparticles" init={particlesInit} options={particlesOptions} />
+            {/* Fondo con blur y oscurecido */}
+            <motion.div
+              className="absolute inset-0 bg-black/40 backdrop-blur-lg"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.3 }}
+            />
 
+            {/* Contenedor de partículas detrás del modal */}
+            <div className="absolute inset-0 z-10">
+              <Particles id="tsparticles" init={particlesInit} options={particlesOptions} />
+            </div>
+
+            {/* Contenido animado */}
             <motion.div
               initial={{ opacity: 0, scale: 0.8, y: 50 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.8, y: 50 }}
-              transition={{ duration: 0.4 }}
-              className="bg-white dark:bg-gray-900 p-6 rounded-2xl shadow-xl max-w-md w-full text-center relative z-10"
+              transition={{ duration: 0.5, ease: 'easeOut' }}
+              className="bg-white dark:bg-gray-900 p-6 rounded-2xl shadow-xl max-w-md w-full text-center relative z-20"
             >
-              <motion.h2 className="text-2xl font-bold mb-2">¡Bienvenido/a! ✨</motion.h2>
-              <motion.p className="text-gray-600 dark:text-gray-300 mb-4">
+              <motion.h2
+                initial={{ opacity: 0, y: -20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 }}
+                className="text-2xl font-bold mb-2"
+              >
+                ¡Bienvenido/a! ✨
+              </motion.h2>
+              <motion.p
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.3 }}
+                className="text-gray-600 dark:text-gray-300 mb-4"
+              >
                 {empresa?.nombre
                   ? `Nos alegra verte de nuevo, ${empresa.nombre}.`
                   : 'Has iniciado sesión con éxito en Wasaaa.'}
               </motion.p>
-              <p className="text-sm text-gray-500">Redirigiendo a tu dashboard...</p>
+              <motion.p
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.4 }}
+                className="text-sm text-gray-500"
+              >
+                Redirigiendo a tu dashboard...
+              </motion.p>
             </motion.div>
           </Dialog>
         )}
