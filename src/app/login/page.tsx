@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '../context/AuthContext'
 import { LockClosedIcon, EnvelopeIcon } from '@heroicons/react/24/outline'
@@ -11,7 +11,7 @@ import { loadFull } from 'tsparticles'
 import type { IOptions, RecursivePartial } from 'tsparticles-engine'
 
 export default function LoginPage() {
-  const { login, isAuthenticated, empresa } = useAuth()
+  const { login, empresa } = useAuth()
   const router = useRouter()
 
   const [email, setEmail] = useState('')
@@ -24,7 +24,7 @@ export default function LoginPage() {
     await loadFull(engine)
   }, [])
 
-  // 🎨 Aurora Premium
+  // 🎨 Partículas premium
   const particlesOptions: RecursivePartial<IOptions> = {
     background: { color: { value: 'transparent' } },
     fullScreen: { enable: true, zIndex: -1 },
@@ -57,12 +57,6 @@ export default function LoginPage() {
     detectRetina: true
   }
 
-  useEffect(() => {
-    if (isAuthenticated && !showWelcomeModal) {
-      router.replace('/dashboard')
-    }
-  }, [isAuthenticated, showWelcomeModal, router])
-
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
@@ -71,7 +65,9 @@ export default function LoginPage() {
     const success = await login(email, password)
 
     if (success) {
+      // Primero mostrar modal
       setShowWelcomeModal(true)
+      // Después de 2.5s redirigir
       setTimeout(() => {
         setShowWelcomeModal(false)
         router.push('/dashboard')
@@ -82,8 +78,6 @@ export default function LoginPage() {
 
     setLoading(false)
   }
-
-  if (isAuthenticated && !showWelcomeModal) return null
 
   return (
     <>
