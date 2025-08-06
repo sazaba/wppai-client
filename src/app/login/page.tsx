@@ -18,6 +18,7 @@ export default function LoginPage() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [showWelcomeModal, setShowWelcomeModal] = useState(false)
+  const [justLoggedIn, setJustLoggedIn] = useState(false) // ✅ nuevo estado
 
   // Inicializar partículas
   const particlesInit = useCallback(async (engine: any) => {
@@ -44,12 +45,12 @@ export default function LoginPage() {
     }
   }
 
-  // Redirección si ya está autenticado
+  // Redirección si ya estaba autenticado antes de entrar
   useEffect(() => {
-    if (isAuthenticated) {
+    if (isAuthenticated && !justLoggedIn) {
       router.replace('/dashboard')
     }
-  }, [isAuthenticated, router])
+  }, [isAuthenticated, justLoggedIn, router])
 
   // Redirección automática tras modal
   useEffect(() => {
@@ -70,7 +71,8 @@ export default function LoginPage() {
     const success = await login(email, password)
 
     if (success) {
-      setShowWelcomeModal(true)
+      setJustLoggedIn(true) // ✅ evita redirección inmediata
+      setShowWelcomeModal(true) // muestra el modal premium
     } else {
       setError('Credenciales incorrectas')
     }
@@ -78,7 +80,7 @@ export default function LoginPage() {
     setLoading(false)
   }
 
-  if (isAuthenticated) return null
+  if (isAuthenticated && !justLoggedIn) return null
 
   return (
     <>
@@ -140,7 +142,11 @@ export default function LoginPage() {
       {/* Modal premium con partículas */}
       <AnimatePresence>
         {showWelcomeModal && (
-          <Dialog open={showWelcomeModal} onClose={() => setShowWelcomeModal(false)} className="relative z-50">
+          <Dialog
+            open={showWelcomeModal}
+            onClose={() => setShowWelcomeModal(false)}
+            className="relative z-50"
+          >
             {/* Fondo */}
             <motion.div
               className="fixed inset-0 bg-black/50 backdrop-blur-sm"
@@ -167,13 +173,17 @@ export default function LoginPage() {
                 transition={{ duration: 0.4 }}
                 className="bg-white dark:bg-gray-900 p-6 rounded-2xl shadow-xl max-w-md w-full text-center relative z-10"
               >
-                <motion.h2 className="text-2xl font-bold mb-2">¡Bienvenido/a! ✨</motion.h2>
+                <motion.h2 className="text-2xl font-bold mb-2">
+                  ¡Bienvenido/a! ✨
+                </motion.h2>
                 <motion.p className="text-gray-600 dark:text-gray-300 mb-4">
                   {empresa?.nombre
                     ? `Nos alegra verte de nuevo, ${empresa.nombre}.`
                     : 'Has iniciado sesión con éxito en Wasaaa.'}
                 </motion.p>
-                <p className="text-sm text-gray-500">Redirigiendo a tu dashboard...</p>
+                <p className="text-sm text-gray-500">
+                  Redirigiendo a tu dashboard...
+                </p>
               </motion.div>
             </div>
           </Dialog>
