@@ -8,6 +8,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Home,
+  FileText
 } from "lucide-react"
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
@@ -98,6 +99,18 @@ export default function DashboardLayout({
               <Settings2 className={clsx("transition-all", sidebarOpen ? "w-5 h-5" : "w-6 h-6")} />
               {sidebarOpen && <span>Configuración</span>}
             </Link>
+            <Link
+  href="/dashboard/templates"
+  className={clsx(
+    "flex items-center rounded-md hover:bg-slate-700 transition-colors px-3 py-2 w-full",
+    sidebarOpen ? "gap-3 justify-start text-sm" : "justify-center"
+  )}
+  title={!sidebarOpen ? "Plantillas" : ""}
+>
+  <FileText className={clsx("transition-all", sidebarOpen ? "w-5 h-5" : "w-6 h-6")} />
+  {sidebarOpen && <span>Plantillas</span>}
+</Link>
+
           </nav>
         </div>
 
