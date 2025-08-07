@@ -125,37 +125,47 @@ export default function TemplatesPage() {
   const renderEstado = (estado: string) => {
     const estadoLower = estado.toLowerCase()
     if (estadoLower.includes('approved')) {
-      return <span className="flex items-center gap-1 text-green-600 text-sm"><CheckCircle size={16} /> Aprobado</span>
+      return <span className="flex items-center gap-1 text-green-400 text-sm"><CheckCircle size={16} /> Aprobado</span>
     }
     if (estadoLower.includes('rejected')) {
-      return <span className="flex items-center gap-1 text-red-600 text-sm"><XCircle size={16} /> Rechazado</span>
+      return <span className="flex items-center gap-1 text-red-400 text-sm"><XCircle size={16} /> Rechazado</span>
     }
     if (estadoLower.includes('in_review') || estadoLower.includes('pending')) {
-      return <span className="flex items-center gap-1 text-yellow-500 text-sm"><Clock size={16} /> En revisión</span>
+      return <span className="flex items-center gap-1 text-yellow-400 text-sm"><Clock size={16} /> En revisión</span>
     }
-    return <span className="text-gray-500 text-sm capitalize">{estado}</span>
+    return <span className="text-slate-400 text-sm capitalize">{estado}</span>
   }
 
   return (
-    <div className="max-w-3xl mx-auto p-4">
-      <h1 className="text-2xl font-bold mb-4">Plantillas de Mensaje</h1>
+    <div className="max-w-3xl mx-auto p-6">
+      <h1 className="text-2xl font-bold mb-6 text-white">Plantillas de Mensaje</h1>
 
-      <form onSubmit={handleSubmit} className="space-y-4 bg-white p-4 rounded shadow">
+      <form onSubmit={handleSubmit} className="space-y-4 bg-slate-800 border border-slate-700 p-6 rounded-xl shadow-md">
         <input
           name="nombre"
           value={form.nombre}
           onChange={handleChange}
           placeholder="Nombre interno"
-          className="w-full border px-3 py-2 rounded"
+          className="w-full bg-slate-900 text-white border border-slate-600 placeholder-slate-400 px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-600"
           required
         />
 
-        <select name="idioma" value={form.idioma} onChange={handleChange} className="w-full border px-3 py-2 rounded">
+        <select
+          name="idioma"
+          value={form.idioma}
+          onChange={handleChange}
+          className="w-full bg-slate-900 text-white border border-slate-600 px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-600"
+        >
           <option value="es">Español</option>
           <option value="en">Inglés</option>
         </select>
 
-        <select name="categoria" value={form.categoria} onChange={handleChange} className="w-full border px-3 py-2 rounded">
+        <select
+          name="categoria"
+          value={form.categoria}
+          onChange={handleChange}
+          className="w-full bg-slate-900 text-white border border-slate-600 px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-600"
+        >
           <option value="ALERT_UPDATE">Alerta</option>
           <option value="TRANSACTIONAL">Transaccional</option>
           <option value="MARKETING">Marketing</option>
@@ -166,46 +176,46 @@ export default function TemplatesPage() {
           value={form.cuerpo}
           onChange={handleChange}
           placeholder="Ej: Hola {{1}}, tu pedido está listo"
-          className="w-full border px-3 py-2 rounded"
+          className="w-full bg-slate-900 text-white border border-slate-600 placeholder-slate-400 px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-600"
           rows={3}
           required
         />
 
-        <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+        <button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded font-medium transition-all">
           Crear Plantilla
         </button>
       </form>
 
-      <hr className="my-6" />
+      <hr className="my-8 border-slate-700" />
 
-      <div className="space-y-2">
+      <div className="space-y-4">
         {plantillas.map((p) => (
-          <div key={p.id} className="border p-3 rounded flex justify-between items-start bg-white shadow">
+          <div key={p.id} className="border border-slate-700 p-4 rounded flex justify-between items-start bg-slate-800 shadow-sm text-white">
             <div>
               <p className="font-semibold">{p.nombre}</p>
-              <p className="text-sm text-gray-500">{p.idioma} • {p.categoria}</p>
+              <p className="text-sm text-slate-400">{p.idioma} • {p.categoria}</p>
               <p className="text-sm mt-1">{p.cuerpo}</p>
-              <div className="text-xs mt-1 text-gray-500 flex items-center gap-2">
+              <div className="text-xs mt-1 text-slate-500 flex items-center gap-2">
                 <span>Vars: {p.variables}</span>
                 <span>•</span>
                 {renderEstado(p.estado)}
               </div>
             </div>
             <div className="flex flex-col items-end space-y-2">
-              <button onClick={() => handleDelete(p.id)} className="text-red-500 hover:text-red-700 text-sm">
+              <button onClick={() => handleDelete(p.id)} className="text-red-400 hover:text-red-500 text-sm">
                 <Trash2 size={18} />
               </button>
               <button
                 onClick={() => enviarAMeta(p.id)}
                 disabled={sendingId === p.id}
-                className="text-blue-600 hover:text-blue-800 text-sm underline disabled:opacity-50"
+                className="text-blue-400 hover:text-blue-500 text-sm underline disabled:opacity-50"
               >
                 Enviar a Meta
               </button>
               <button
                 onClick={() => consultarEstado(p.id)}
                 disabled={checkingId === p.id}
-                className="text-gray-600 hover:text-gray-800 text-sm underline disabled:opacity-50 flex items-center gap-1"
+                className="text-slate-300 hover:text-white text-sm underline disabled:opacity-50 flex items-center gap-1"
               >
                 <RefreshCw size={14} /> Consultar estado
               </button>
