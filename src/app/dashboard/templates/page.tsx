@@ -27,6 +27,13 @@ export default function TemplatesPage() {
   const [sendingId, setSendingId] = useState<number | null>(null)
   const [checkingId, setCheckingId] = useState<number | null>(null)
 
+  const ejemplos: Record<string, string> = {
+    saludo_basico: 'Hola {{1}}, gracias por escribirnos.',
+    recordatorio_cita: 'Hola {{1}}, te recordamos tu cita el {{2}}.',
+    confirmacion_pedido: 'Hola {{1}}, tu pedido {{2}} ha sido confirmado.',
+    notificacion_estado: 'Hola {{1}}, el estado de tu solicitud es: {{2}}.'
+  }
+
   const fetchTemplates = async () => {
     try {
       const res = await axios.get('/api/templates')
@@ -141,14 +148,26 @@ export default function TemplatesPage() {
       <h1 className="text-2xl font-bold mb-6 text-white">Plantillas de Mensaje</h1>
 
       <form onSubmit={handleSubmit} className="space-y-4 bg-slate-800 border border-slate-700 p-6 rounded-xl shadow-md">
-        <input
+        <select
           name="nombre"
           value={form.nombre}
-          onChange={handleChange}
-          placeholder="Nombre interno"
-          className="w-full bg-slate-900 text-white border border-slate-600 placeholder-slate-400 px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-600"
+          onChange={(e) => {
+            const value = e.target.value
+            setForm({
+              ...form,
+              nombre: value,
+              cuerpo: ejemplos[value] || ''
+            })
+          }}
+          className="w-full bg-slate-900 text-white border border-slate-600 px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-600"
           required
-        />
+        >
+          <option value="">Selecciona tipo de plantilla</option>
+          <option value="saludo_basico">Saludo</option>
+          <option value="recordatorio_cita">Recordatorio</option>
+          <option value="confirmacion_pedido">Confirmación</option>
+          <option value="notificacion_estado">Notificación</option>
+        </select>
 
         <select
           name="idioma"
