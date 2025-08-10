@@ -150,12 +150,12 @@ export default function CallbackPage() {
     }
   }
 
-  // 🚀 Nueva carga de activos: delega en backend (con fallback y manejo de code:3)
+  // 🚀 Carga desde backend (con fallback y modo debug)
   const loadAssetsViaBackend = async (at: string): Promise<void> => {
     await ensureWaPermissions(at)
     try {
       const { data } = await axios.get(`${API_URL}/api/auth/wabas`, {
-        params: { token: at }
+        params: { token: at, debug: 1 } // 👈 modo debug
       })
       // data.items => [{ waba:{id,name}, phones:[{id,display_phone_number}] }]
       const mapped: WabaWithPhones[] = (data.items || []).map((item: any) => ({
@@ -173,40 +173,59 @@ export default function CallbackPage() {
       if (!mapped.length && data.note) {
         Swal.fire({
           icon: 'info',
-          title: 'Sin WABAs',
-          text: data.note,
+          title: 'Sin WABAs visibles',
+          html:
+            `${data.note}<br/><br/>Prueba con <b>Embedded Signup</b> si no tienes acceso directo a la WABA.`,
           background: '#111827',
           color: '#fff'
         })
       }
+      if (data?.diagnostics) {
+        // útil para investigar en consola
+        // eslint-disable-next-line no-console
+        console.log('[wabas diagnostics]', data.diagnostics)
+      }
     } catch (e: any) {
-      const code = e?.response?.status
+      const status = e?.response?.status
       const payload = e?.response?.data
-      // Caso típico de permisos insuficientes en el Business/WABA (edge solo para business/system user)
-      if (code === 403 && payload?.errorCode === 3) {
+      const diag = payload?.diagnostics
+      const meta = payload?.meta
+
+      if (status === 403 && payload?.errorCode === 3) {
+        const missing = diag?.permissions?.missing?.join(', ') || '—'
         Swal.fire({
           icon: 'warning',
           title: 'Permisos insuficientes en la WABA',
           html:
             'Tu usuario no tiene permisos completos sobre la cuenta de WhatsApp Business.<br/>' +
-            'Actívalos en Business Manager (Control total + acceso a “Cuentas de WhatsApp”)<br/>' +
-            'o usa el flujo <b>Embedded Signup</b> para continuar.',
+            'Actívalos en Business Manager (Control total + acceso a “Cuentas de WhatsApp”).<br/>' +
+            'O usa el flujo <b>Embedded Signup</b> para continuar.<br/><br/>' +
+            `<code style="font-size:12px">Missing: ${missing}</code><br/>` +
+            (meta?.message ? `<code style="font-size:12px">${meta.message}</code>` : ''),
           background: '#111827',
           color: '#fff',
-          confirmButtonText: 'Entendido',
+          confirmButtonText: 'Entendido'
         })
       } else {
         const txt =
           typeof payload?.error === 'object'
             ? JSON.stringify(payload.error)
             : payload?.message || payload?.error || e.message
+
         Swal.fire({
           icon: 'error',
           title: 'No se pudieron cargar WABAs',
-          text: txt,
+          html:
+            `${txt ? `<div style="margin-bottom:6px">${txt}</div>` : ''}` +
+            (meta?.message ? `<code style="font-size:12px">${meta.message}</code>` : ''),
           background: '#111827',
           color: '#fff'
         })
+      }
+
+      if (diag) {
+        // eslint-disable-next-line no-console
+        console.log('[wabas diagnostics]', diag)
       }
       setItems([])
       throw e
