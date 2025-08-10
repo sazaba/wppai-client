@@ -1,14 +1,12 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import axios from 'axios'
 import { Trash2 } from 'lucide-react'
 import Swal from 'sweetalert2'
 import { useAuth } from '../../../context/AuthContext'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL
-// Para dev/prod, el redirect_uri lo maneja tu backend via META_REDIRECT_URI
-// Deja estas dos por si las necesitas en UI o validaciones
 const META_APP_ID = process.env.NEXT_PUBLIC_META_APP_ID
 const REDIRECT_URI = process.env.NEXT_PUBLIC_META_REDIRECT_URI || 'https://wasaaa.com/dashboard/callback'
 
@@ -19,8 +17,19 @@ export default function WhatsappConfig() {
   const [estado, setEstado] = useState<'conectado' | 'desconectado' | 'cargando'>('cargando')
   const [displayPhone, setDisplayPhone] = useState('')
   const [phoneNumberId, setPhoneNumberId] = useState('')
+  const [redirecting, setRedirecting] = useState(false)
 
   useEffect(() => {
+    if (!API_URL) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Config requerida',
+        text: 'Falta NEXT_PUBLIC_API_URL en el frontend.',
+        background: '#1f2937',
+        color: '#fff'
+      })
+      return
+    }
     if (token) fetchEstado(token)
 
     const params = new URLSearchParams(window.location.search)
@@ -37,7 +46,7 @@ export default function WhatsappConfig() {
     }
   }, [token])
 
-  const fetchEstado = async (authToken: string) => {
+  const fetchEstado = useCallback(async (authToken: string) => {
     try {
       const res = await axios.get(`${API_URL}/api/whatsapp/estado`, {
         headers: { Authorization: `Bearer ${authToken}` }
@@ -46,6 +55,8 @@ export default function WhatsappConfig() {
         setEstado('conectado')
         setDisplayPhone(res.data.displayPhoneNumber || res.data.phoneNumberId)
         setPhoneNumberId(res.data.phoneNumberId || '')
+        // Defensivo: si quedó tempToken de un intento anterior, límpialo
+        localStorage.removeItem('tempToken')
       } else {
         setEstado('desconectado')
         setDisplayPhone('')
@@ -56,7 +67,7 @@ export default function WhatsappConfig() {
       setDisplayPhone('')
       setPhoneNumberId('')
     }
-  }
+  }, [])
 
   const conectarConMeta = () => {
     if (!empresaId || !token) {
@@ -70,12 +81,13 @@ export default function WhatsappConfig() {
       })
       return
     }
+    if (!API_URL) return
 
     // Guarda JWT para el callback
     localStorage.setItem('tempToken', token)
     localStorage.removeItem('oauthDone')
 
-    // 🔐 Inicia OAuth desde backend (scopes y redirect_uri salen de ENV)
+    setRedirecting(true)
     // auth_type=rerequest fuerza re-consent si faltó algún permiso
     window.location.href = `${API_URL}/api/auth/auth?auth_type=rerequest`
   }
@@ -96,7 +108,7 @@ export default function WhatsappConfig() {
   }
 
   const eliminarWhatsapp = async () => {
-    if (!token) return
+    if (!token || !API_URL) return
     const confirm = await Swal.fire({
       title: '¿Eliminar conexión?',
       text: 'Esto desvinculará el número de tu empresa.',
@@ -119,6 +131,7 @@ export default function WhatsappConfig() {
       setPhoneNumberId('')
       setEstado('desconectado')
       localStorage.removeItem('oauthDone')
+      localStorage.removeItem('tempToken')
       Swal.fire({
         icon: 'success',
         title: 'Conexión eliminada',
@@ -141,7 +154,12 @@ export default function WhatsappConfig() {
     <div className="w-full sm:max-w-xl mx-auto bg-gray-900 text-white rounded-xl shadow-md p-6 mt-8 text-center">
       <h2 className="text-lg sm:text-xl font-semibold mb-4">Estado de WhatsApp</h2>
 
-      {estado === 'conectado' ? (
+      {estado === 'cargando' ? (
+        <div className="flex items-center justify-center gap-3 py-6">
+          <div className="w-6 h-6 border-4 border-t-transparent border-indigo-500 rounded-full animate-spin" />
+          <span className="text-sm text-gray-300">Verificando conexión…</span>
+        </div>
+      ) : estado === 'conectado' ? (
         <>
           <p className="text-green-400 font-medium mb-2">✅ Conectado</p>
           <p className="text-gray-300 mb-2">
@@ -149,8 +167,12 @@ export default function WhatsappConfig() {
             ID: <strong>{phoneNumberId}</strong>
           </p>
           <div className="flex flex-col sm:flex-row justify-center gap-3">
-            <button onClick={conectarConMeta} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-md text-sm">
-              Re-conectar
+            <button
+              onClick={conectarConMeta}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-md text-sm disabled:opacity-60"
+              disabled={redirecting}
+            >
+              {redirecting ? 'Redirigiendo…' : 'Re-conectar'}
             </button>
             <button
               onClick={eliminarWhatsapp}
@@ -167,9 +189,10 @@ export default function WhatsappConfig() {
           <div className="flex flex-col sm:flex-row justify-center gap-3">
             <button
               onClick={conectarConMeta}
-              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 rounded-md text-sm"
+              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 rounded-md text-sm disabled:opacity-60"
+              disabled={redirecting}
             >
-              Conectar con WhatsApp (OAuth)
+              {redirecting ? 'Redirigiendo…' : 'Conectar con WhatsApp (OAuth)'}
             </button>
             <button
               onClick={abrirEmbeddedSignup}

@@ -49,7 +49,7 @@ export default function CallbackPage() {
 
     ;(async () => {
       try {
-        // Ruta rápida ESU: ?code&waba_id&phone_number_id
+        // 💨 Ruta rápida (Embedded Signup) con code + waba_id + phone_number_id
         if (code && wabaIdQS && phoneIdQS) {
           const r = await axios.post<{ access_token: string }>(
             `${API_URL}/api/auth/exchange-code`,
@@ -68,12 +68,12 @@ export default function CallbackPage() {
           let displayPhoneNumber = ''
           try {
             const pn = await axios.get(
-              `https://graph.facebook.com/${FB_VERSION}/${wabaIdQS}/phone_numbers?fields=display_phone_number&access_token=${at}`
+              `https://graph.facebook.com/${FB_VERSION}/${wabaIdQS}/phone_numbers?fields=id,display_phone_number&access_token=${at}`
             )
             const match = (pn.data?.data || []).find((p: any) => p.id === phoneIdQS)
             displayPhoneNumber = match?.display_phone_number || ''
           } catch {
-            // ignore: si no se puede leer, guardamos vacío
+            // ignore
           }
 
           const jwt = localStorage.getItem('tempToken') || ''
@@ -96,10 +96,10 @@ export default function CallbackPage() {
           return
         }
 
-        // Token directo (soportado)
+        // Token directo soportado
         if (tokenFromQuery) {
           setAccessToken(tokenFromQuery)
-          await loadAssets(tokenFromQuery)
+          await loadAssetsViaBackend(tokenFromQuery)
         } else if (code) {
           // Intercambio code → token
           const r = await axios.post<{ access_token: string }>(
@@ -108,7 +108,7 @@ export default function CallbackPage() {
           )
           const at = r.data.access_token
           setAccessToken(at)
-          await loadAssets(at)
+          await loadAssetsViaBackend(at)
         } else {
           throw new Error('Missing token or code in callback URL')
         }
@@ -116,7 +116,9 @@ export default function CallbackPage() {
         const msg =
           typeof err?.response?.data?.error === 'object'
             ? JSON.stringify(err.response.data.error)
-            : err?.response?.data?.error || err.message
+            : err?.response?.data?.message ||
+              err?.response?.data?.error ||
+              err.message
         Swal.fire({
           icon: 'error',
           title: 'OAuth error',
@@ -131,6 +133,7 @@ export default function CallbackPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // (opcional) validación de permisos mínimos en el token
   const ensureWaPermissions = async (at: string): Promise<void> => {
     try {
       const { data } = await axios.get(
@@ -147,39 +150,64 @@ export default function CallbackPage() {
     }
   }
 
-  const loadAssets = async (at: string): Promise<void> => {
+  // 🚀 Nueva carga de activos: delega en backend (con fallback y manejo de code:3)
+  const loadAssetsViaBackend = async (at: string): Promise<void> => {
     await ensureWaPermissions(at)
     try {
-      // 1) WABAs asignadas al usuario (no al negocio) → sin business_management
-      const wabRes = await axios.get(
-        `https://graph.facebook.com/${FB_VERSION}/me/assigned_whatsapp_business_accounts?fields=name&access_token=${at}`
-      )
-      const wabList: Array<{ id: string; name?: string }> = (wabRes.data?.data || []).map(
-        (w: any) => ({ id: w.id, name: w.name })
-      )
-
-      const results: WabaWithPhones[] = []
-      for (const w of wabList) {
-        // 2) businessId desde la WABA
-        const info = await axios.get(
-          `https://graph.facebook.com/${FB_VERSION}/${w.id}?fields=owner_business_info&access_token=${at}`
-        )
-        const ownerId: string = info.data?.owner_business_info?.id || ''
-
-        // 3) Números de esa WABA
-        const pn = await axios.get(
-          `https://graph.facebook.com/${FB_VERSION}/${w.id}/phone_numbers?fields=display_phone_number&access_token=${at}`
-        )
-        const phones: Phone[] = (pn.data?.data || []).map((p: any) => ({
+      const { data } = await axios.get(`${API_URL}/api/auth/wabas`, {
+        params: { token: at }
+      })
+      // data.items => [{ waba:{id,name}, phones:[{id,display_phone_number}] }]
+      const mapped: WabaWithPhones[] = (data.items || []).map((item: any) => ({
+        waba: {
+          id: item.waba?.id,
+          name: item.waba?.name,
+          owner_business_id: item.waba?.owner_business_id // puede venir vacío
+        },
+        phones: (item.phones || []).map((p: any) => ({
           id: p.id,
           display_phone_number: p.display_phone_number
         }))
-
-        results.push({ waba: { id: w.id, name: w.name, owner_business_id: ownerId }, phones })
+      }))
+      setItems(mapped)
+      if (!mapped.length && data.note) {
+        Swal.fire({
+          icon: 'info',
+          title: 'Sin WABAs',
+          text: data.note,
+          background: '#111827',
+          color: '#fff'
+        })
       }
-
-      setItems(results)
     } catch (e: any) {
+      const code = e?.response?.status
+      const payload = e?.response?.data
+      // Caso típico de permisos insuficientes en el Business/WABA (edge solo para business/system user)
+      if (code === 403 && payload?.errorCode === 3) {
+        Swal.fire({
+          icon: 'warning',
+          title: 'Permisos insuficientes en la WABA',
+          html:
+            'Tu usuario no tiene permisos completos sobre la cuenta de WhatsApp Business.<br/>' +
+            'Actívalos en Business Manager (Control total + acceso a “Cuentas de WhatsApp”)<br/>' +
+            'o usa el flujo <b>Embedded Signup</b> para continuar.',
+          background: '#111827',
+          color: '#fff',
+          confirmButtonText: 'Entendido',
+        })
+      } else {
+        const txt =
+          typeof payload?.error === 'object'
+            ? JSON.stringify(payload.error)
+            : payload?.message || payload?.error || e.message
+        Swal.fire({
+          icon: 'error',
+          title: 'No se pudieron cargar WABAs',
+          text: txt,
+          background: '#111827',
+          color: '#fff'
+        })
+      }
       setItems([])
       throw e
     }
@@ -232,7 +260,7 @@ export default function CallbackPage() {
     }
   }
 
-  // Fallback manual
+  // Fallback manual (por si el backend no encuentra nada)
   const submitManual = async (): Promise<void> => {
     if (!accessToken) {
       Swal.fire({

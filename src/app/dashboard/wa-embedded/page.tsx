@@ -6,11 +6,11 @@ import Swal from 'sweetalert2'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL
 const META_APP_ID = process.env.NEXT_PUBLIC_META_APP_ID
-const META_WA_CONFIG_ID = process.env.NEXT_PUBLIC_META_WA_CONFIG_ID // 👈 agrega esto en tus env
+const META_WA_CONFIG_ID = process.env.NEXT_PUBLIC_META_WA_CONFIG_ID
 const FB_VERSION = 'v20.0'
 
 declare global {
-  interface Window { FB: any }
+  interface Window { FB: any; fbLoaded?: boolean }
 }
 
 export default function WAEmbeddedPage() {
@@ -19,9 +19,22 @@ export default function WAEmbeddedPage() {
   const wabaRef = useRef<string | null>(null)
   const phoneRef = useRef<string | null>(null)
 
+  // Validar variables de entorno requeridas
+  useEffect(() => {
+    if (!API_URL || !META_APP_ID || !META_WA_CONFIG_ID) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Configuración incompleta',
+        text: 'Faltan variables NEXT_PUBLIC_API_URL, META_APP_ID o META_WA_CONFIG_ID.',
+        background: '#111827',
+        color: '#fff'
+      })
+    }
+  }, [])
+
   // Cargar SDK de Facebook
   useEffect(() => {
-    if ((window as any).fbLoaded) return
+    if (window.fbLoaded) return
     const script = document.createElement('script')
     script.src = 'https://connect.facebook.net/en_US/sdk.js'
     script.async = true
@@ -32,32 +45,38 @@ export default function WAEmbeddedPage() {
         xfbml: false,
         version: FB_VERSION
       })
-      ;(window as any).fbLoaded = true
+      window.fbLoaded = true
     }
     document.body.appendChild(script)
+    return () => {
+      // limpieza opcional si quisieras recargar SDK
+    }
   }, [])
 
   // Captura de resultados ESU via postMessage
   useEffect(() => {
     const onMsg = async (event: MessageEvent) => {
       if (typeof event.data !== 'string') return
-      if (!/facebook\.com$/.test(new URL(event.origin).hostname)) return
       try {
         const data = JSON.parse(event.data)
         if (data?.type !== 'WA_EMBEDDED_SIGNUP') return
 
-        // FINISH / FINISH_ONLY_WABA → trae waba_id / phone_number_id
+        // Guardar IDs si vienen
         if (data.event === 'FINISH' || data.event === 'FINISH_ONLY_WABA') {
-          wabaRef.current = data?.data?.waba_id || null
-          phoneRef.current = data?.data?.phone_number_id || null
+          if (data?.data?.waba_id) wabaRef.current = data.data.waba_id
+          if (data?.data?.phone_number_id) phoneRef.current = data.data.phone_number_id
         }
 
-        // Siempre viene un code intercambiable
+        // Guardar code
         if (data?.code) {
           codeRef.current = data.code
+          setLoading(true)
           await finalizarVinculacion()
+          setLoading(false)
         }
-      } catch {}
+      } catch {
+        // ignorar mensajes no válidos
+      }
     }
     window.addEventListener('message', onMsg)
     return () => window.removeEventListener('message', onMsg)
@@ -65,29 +84,33 @@ export default function WAEmbeddedPage() {
 
   const lanzarESU = () => {
     if (!window.FB) {
-      Swal.fire({ icon: 'error', title: 'Facebook SDK no cargó', background: '#111827', color: '#fff' })
+      Swal.fire({
+        icon: 'error',
+        title: 'Facebook SDK no cargó',
+        background: '#111827',
+        color: '#fff'
+      })
       return
     }
+    if (!META_WA_CONFIG_ID) return
     setLoading(true)
+
     window.FB.login(
-      // callback FB.login
       (response: any) => {
-        // En algunos navegadores también viene code aquí
         const code = response?.authResponse?.code
         if (code) {
           codeRef.current = code
-          // El waba/phone puede llegar por postMessage; si no, completamos en finalizarVinculacion()
           finalizarVinculacion().finally(() => setLoading(false))
         } else {
           setLoading(false)
         }
       },
       {
-        config_id: META_WA_CONFIG_ID,               // ← configuración “WhatsApp Embedded Signup”
+        config_id: META_WA_CONFIG_ID,
         response_type: 'code',
         override_default_response_type: true,
         scope: 'whatsapp_business_management,whatsapp_business_messaging,public_profile',
-        extras: { setup: {} } // opcional: prefills
+        extras: { setup: {} }
       }
     )
   }
@@ -95,29 +118,36 @@ export default function WAEmbeddedPage() {
   const finalizarVinculacion = async () => {
     try {
       const code = codeRef.current
-      if (!code) return
+      if (!code) {
+        Swal.fire({
+          icon: 'error',
+          title: 'Código no recibido',
+          text: 'Reinicia el proceso de conexión.',
+          background: '#111827',
+          color: '#fff'
+        })
+        return
+      }
 
-      // 1) Intercambiar code → access_token (tu backend)
-      const r = await axios.post<{ access_token: string }>(`${API_URL}/api/auth/exchange-code`, { code })
+      // 1) Intercambiar code → access_token
+      const r = await axios.post<{ access_token: string }>(
+        `${API_URL}/api/auth/exchange-code`,
+        { code }
+      )
       const accessToken = r.data.access_token
 
-      // 2) Si ESU no trajo IDs por postMessage, los confirmamos después con Graph (opcional).
-      //    Pero normalmente ESU trae waba_id y phone_number_id:
+      // 2) Variables locales
       let wabaId = wabaRef.current
       let phoneNumberId = phoneRef.current
-
-      // 3) Obtener businessId y displayPhone
       let businessId = ''
       let displayPhoneNumber = ''
 
+      // 3) Si no llegaron IDs, intentar deducirlos
       if (!wabaId || !phoneNumberId) {
-        // De respaldo (raro): intentar deducir
-        // NOTA: con solo permisos WA puedes listar WABAs asignadas y sus números.
         const wab = await axios.get(
           `https://graph.facebook.com/${FB_VERSION}/me/assigned_whatsapp_business_accounts?fields=name&access_token=${accessToken}`
         )
-        const firstWaba = wab.data?.data?.[0]?.id
-        if (!wabaId) wabaId = firstWaba || ''
+        if (!wabaId) wabaId = wab.data?.data?.[0]?.id || ''
         if (wabaId && !phoneNumberId) {
           const pn = await axios.get(
             `https://graph.facebook.com/${FB_VERSION}/${wabaId}/phone_numbers?fields=display_phone_number&access_token=${accessToken}`
@@ -127,7 +157,7 @@ export default function WAEmbeddedPage() {
         }
       }
 
-      // businessId desde la WABA
+      // 4) Obtener businessId
       if (wabaId) {
         const info = await axios.get(
           `https://graph.facebook.com/${FB_VERSION}/${wabaId}?fields=owner_business_info&access_token=${accessToken}`
@@ -135,7 +165,7 @@ export default function WAEmbeddedPage() {
         businessId = info.data?.owner_business_info?.id || ''
       }
 
-      // displayPhone (si aún falta)
+      // 5) displayPhone si falta
       if (wabaId && phoneNumberId && !displayPhoneNumber) {
         const list = await axios.get(
           `https://graph.facebook.com/${FB_VERSION}/${wabaId}/phone_numbers?fields=display_phone_number&access_token=${accessToken}`
@@ -144,7 +174,19 @@ export default function WAEmbeddedPage() {
         displayPhoneNumber = match?.display_phone_number || ''
       }
 
-      // 4) Guardar en tu backend
+      // 6) Validaciones antes de guardar
+      if (!wabaId || !phoneNumberId) {
+        Swal.fire({
+          icon: 'error',
+          title: 'Datos incompletos',
+          text: 'No se pudo obtener el WABA ID o Phone Number ID.',
+          background: '#111827',
+          color: '#fff'
+        })
+        return
+      }
+
+      // 7) Guardar en backend
       const jwt = localStorage.getItem('tempToken') || ''
       await axios.post(
         `${API_URL}/api/whatsapp/vincular`,
@@ -152,16 +194,34 @@ export default function WAEmbeddedPage() {
         { headers: { Authorization: `Bearer ${jwt}` } }
       )
 
-      // (Opcional) suscribir webhooks de la WABA a tu app
-      // await axios.post(`https://graph.facebook.com/${FB_VERSION}/${wabaId}/subscribed_apps?subscribed_fields=messages&access_token=${accessToken}`)
+      // 8) Suscribir webhooks automáticamente
+      await axios.post(
+        `https://graph.facebook.com/${FB_VERSION}/${wabaId}/subscribed_apps`,
+        { subscribed_fields: 'messages' },
+        { params: { access_token: accessToken } }
+      )
 
-      Swal.fire({ icon: 'success', title: 'Conexión completada', background: '#111827', color: '#fff' })
+      Swal.fire({
+        icon: 'success',
+        title: 'Conexión completada',
+        background: '#111827',
+        color: '#fff'
+      })
       window.location.href = '/dashboard/settings?success=1'
     } catch (e: any) {
-      const txt = typeof e?.response?.data?.error === 'object'
-        ? JSON.stringify(e.response.data.error)
-        : e?.response?.data?.error || e.message
-      Swal.fire({ icon: 'error', title: 'No se pudo completar ESU', text: txt, background: '#111827', color: '#fff' })
+      const txt =
+        typeof e?.response?.data?.error === 'object'
+          ? JSON.stringify(e.response.data.error)
+          : e?.response?.data?.error || e.message
+      Swal.fire({
+        icon: 'error',
+        title: 'No se pudo completar ESU',
+        text: txt,
+        background: '#111827',
+        color: '#fff'
+      })
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -175,7 +235,7 @@ export default function WAEmbeddedPage() {
           disabled={loading}
           className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 rounded disabled:opacity-50"
         >
-          {loading ? 'Abriendo…' : 'Conectar con Facebook'}
+          {loading ? 'Procesando…' : 'Conectar con Facebook'}
         </button>
       </div>
     </div>
