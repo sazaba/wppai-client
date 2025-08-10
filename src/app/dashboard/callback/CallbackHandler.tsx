@@ -81,7 +81,33 @@ export default function CallbackPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  const ensurePermissions = async (at: string) => {
+    const perms = await axios.get(
+      `https://graph.facebook.com/v20.0/me/permissions?access_token=${at}`
+    )
+    const list: Array<{ permission: string; status: string }> = perms.data?.data || []
+    const granted = (name: string) => list.some(p => p.permission === name && p.status === 'granted')
+
+    const required = [
+      'business_management',
+      'whatsapp_business_management',
+      'whatsapp_business_messaging'
+    ]
+    const missing = required.filter(p => !granted(p))
+
+    if (missing.length) {
+      throw new Error(
+        `Faltan permisos: ${missing.join(
+          ', '
+        )}. Vuelve a conectar y acepta todos los permisos.`
+      )
+    }
+  }
+
   const loadAssets = async (at: string) => {
+    // 0) Verifica permisos antes de llamar /me?fields=businesses
+    await ensurePermissions(at)
+
     // 1) Businesses
     const me = await axios.get(
       `https://graph.facebook.com/v20.0/me?fields=businesses{name}&access_token=${at}`

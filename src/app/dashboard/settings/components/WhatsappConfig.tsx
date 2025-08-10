@@ -69,11 +69,11 @@ export default function WhatsappConfig() {
       return
     }
 
-    // Guardar JWT para el callback
+    // Guarda JWT para el callback
     localStorage.setItem('tempToken', token)
     localStorage.removeItem('oauthDone')
 
-    // ⬇️ Agregamos business_management y forzamos re-consent
+    // Scopes correctos + re-consent
     const scopes = [
       'whatsapp_business_management',
       'whatsapp_business_messaging',
