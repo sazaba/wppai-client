@@ -41,7 +41,7 @@ export default function CallbackPage() {
     if (err) {
       Swal.fire({
         icon: 'error',
-        title: 'OAuth error',
+        title: 'Error de OAuth',
         text: errDesc || err,
         background: '#111827',
         color: '#fff'
@@ -82,7 +82,7 @@ export default function CallbackPage() {
           } catch {}
 
           const jwt = localStorage.getItem('tempToken') || ''
-          if (!jwt) throw new Error('Session expired')
+          if (!jwt) throw new Error('Sesión expirada')
 
           await axios.post(
             `${API_URL}/api/whatsapp/vincular`,
@@ -110,12 +110,12 @@ export default function CallbackPage() {
           )
           at = r.data.access_token
         }
-        if (!at) throw new Error('Missing token or code')
+        if (!at) throw new Error('Falta token o code en el callback')
         setAccessToken(at)
 
         // Validar permisos y cargar assets
         const { ok, missing } = await checkScopes(at)
-        if (!ok) throw new Error(`Missing permissions: ${missing.join(', ')}`)
+        if (!ok) throw new Error(`Faltan permisos: ${missing.join(', ')}`)
         await loadAssetsViaBackend(at)
       } catch (err: any) {
         const msg =
@@ -126,7 +126,7 @@ export default function CallbackPage() {
               err.message
         Swal.fire({
           icon: 'error',
-          title: 'OAuth error',
+          title: 'Error de OAuth',
           text: msg,
           background: '#111827',
           color: '#fff'
@@ -175,7 +175,10 @@ export default function CallbackPage() {
     if (!mapped.length) {
       Swal.fire({
         icon: 'info',
-        title: 'No WABAs or numbers found',
+        title: 'No encontramos WABAs o números',
+        text:
+          'Verifica que tu usuario sea Admin del Business y tenga acceso a “Cuentas de WhatsApp”. ' +
+          'También puedes usar el modo manual.',
         background: '#111827',
         color: '#fff'
       })
@@ -187,7 +190,8 @@ export default function CallbackPage() {
     if (!jwt || !accessToken) {
       Swal.fire({
         icon: 'error',
-        title: 'Session expired',
+        title: 'Sesión expirada',
+        text: 'Vuelve a iniciar la conexión.',
         background: '#111827',
         color: '#fff'
       })
@@ -206,7 +210,7 @@ export default function CallbackPage() {
     )
     Swal.fire({
       icon: 'success',
-      title: 'Number connected',
+      title: 'Número conectado',
       background: '#111827',
       color: '#fff'
     })
@@ -218,7 +222,16 @@ export default function CallbackPage() {
     if (!accessToken) return
     const jwt = localStorage.getItem('tempToken') || ''
     if (!jwt) return
-    if (!manualWabaId || !manualPhoneId || !manualDisplay) return
+    if (!manualWabaId || !manualPhoneId || !manualDisplay) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'Faltan datos',
+        text: 'Completa WABA ID, Phone Number ID y el número mostrado.',
+        background: '#111827',
+        color: '#fff'
+      })
+      return
+    }
 
     let businessId = 'unknown'
     try {
@@ -241,7 +254,7 @@ export default function CallbackPage() {
     )
     Swal.fire({
       icon: 'success',
-      title: 'Number connected (manual)',
+      title: 'Número conectado (manual)',
       background: '#111827',
       color: '#fff'
     })
@@ -252,25 +265,25 @@ export default function CallbackPage() {
   return (
     <div className="min-h-screen bg-gray-900 text-white px-6 py-10">
       <div className="max-w-4xl mx-auto">
-        <h1 className="text-2xl font-bold mb-6">Connecting your WhatsApp Business</h1>
+        <h1 className="text-2xl font-bold mb-6">Conectando tu WhatsApp Business</h1>
 
         {loading ? (
           <div className="flex items-center gap-3">
             <div className="w-6 h-6 border-4 border-t-transparent border-blue-500 rounded-full animate-spin" />
-            <span>Fetching your Businesses, WABAs and phone numbers…</span>
+            <span>Obteniendo tus Negocios, WABAs y números…</span>
           </div>
         ) : !accessToken ? (
-          <p className="text-red-400">Could not obtain the access token.</p>
+          <p className="text-red-400">No se pudo obtener el access token.</p>
         ) : items.length === 0 ? (
           <div className="space-y-4">
             <p className="text-slate-300">
-              No WABAs or phone numbers found, or you don’t have enough permissions.
+              No encontramos WABAs o números, o no tienes permisos suficientes.
             </p>
             <button
               onClick={() => setManualOpen(!manualOpen)}
               className="px-3 py-2 bg-slate-700 hover:bg-slate-600 rounded text-sm"
             >
-              {manualOpen ? 'Hide manual mode' : 'Use manual mode'}
+              {manualOpen ? 'Ocultar modo manual' : 'Usar modo manual'}
             </button>
             {manualOpen && (
               <div className="bg-slate-800 border border-slate-700 rounded-xl p-4 grid gap-3">
@@ -280,7 +293,7 @@ export default function CallbackPage() {
                     value={manualWabaId}
                     onChange={(e) => setManualWabaId(e.target.value)}
                     className="mt-1 w-full rounded bg-slate-900 border border-slate-700 px-3 py-2 text-sm"
-                    placeholder="Eg: 123456789012345"
+                    placeholder="Ej: 123456789012345"
                   />
                 </div>
                 <div>
@@ -289,11 +302,11 @@ export default function CallbackPage() {
                     value={manualPhoneId}
                     onChange={(e) => setManualPhoneId(e.target.value)}
                     className="mt-1 w-full rounded bg-slate-900 border border-slate-700 px-3 py-2 text-sm"
-                    placeholder="Eg: 987654321098765"
+                    placeholder="Ej: 987654321098765"
                   />
                 </div>
                 <div>
-                  <label className="text-sm text-slate-300">Display Phone Number</label>
+                  <label className="text-sm text-slate-300">Número mostrado</label>
                   <input
                     value={manualDisplay}
                     onChange={(e) => setManualDisplay(e.target.value)}
@@ -305,7 +318,7 @@ export default function CallbackPage() {
                   onClick={submitManual}
                   className="mt-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 rounded text-sm"
                 >
-                  Connect manually
+                  Conectar manualmente
                 </button>
               </div>
             )}
@@ -315,14 +328,14 @@ export default function CallbackPage() {
             {items.map(({ waba, phones }) => (
               <div key={waba.id} className="bg-slate-800 border border-slate-700 rounded-xl p-5">
                 <div className="flex items-center justify-between mb-3">
-                  <h2 className="font-semibold text-lg">{waba.name || 'Unnamed WABA'}</h2>
+                  <h2 className="font-semibold text-lg">{waba.name || 'WABA sin nombre'}</h2>
                   <div className="text-xs text-slate-400">
                     WABA ID: {waba.id}
                     {waba.owner_business_id ? ` · Business ID: ${waba.owner_business_id}` : ''}
                   </div>
                 </div>
                 {phones.length === 0 ? (
-                  <p className="text-slate-400">No phone numbers found in this WABA.</p>
+                  <p className="text-slate-400">No hay números en esta WABA.</p>
                 ) : (
                   <div className="mt-2 grid gap-2">
                     {phones.map((p) => (
@@ -338,7 +351,7 @@ export default function CallbackPage() {
                           onClick={() => connectPhone(waba, p)}
                           className="text-sm px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 rounded"
                         >
-                          Use this number
+                          Usar este número
                         </button>
                       </div>
                     ))}

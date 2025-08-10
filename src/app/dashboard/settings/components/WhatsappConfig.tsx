@@ -8,9 +8,6 @@ import 'sweetalert2/dist/sweetalert2.min.css'
 import { useAuth } from '../../../context/AuthContext'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL
-const META_APP_ID = process.env.NEXT_PUBLIC_META_APP_ID
-const REDIRECT_URI =
-  process.env.NEXT_PUBLIC_META_REDIRECT_URI || 'https://wasaaa.com/dashboard/callback'
 
 type Estado = 'conectado' | 'desconectado' | 'cargando'
 
@@ -27,29 +24,17 @@ export default function WhatsappConfig() {
   const [loadingEstado, setLoadingEstado] = useState(false)
 
   // ---------- Helpers ----------
-  const alertError = (title: string, text?: string) =>
-    Swal.fire({
-      icon: 'error',
-      title,
-      text,
-      background: '#111827',
-      color: '#fff'
-    })
+  const alertError = (titulo: string, texto?: string) =>
+    Swal.fire({ icon: 'error', title: titulo, text: texto, background: '#111827', color: '#fff' })
 
-  const alertInfo = (title: string, html?: string) =>
-    Swal.fire({
-      icon: 'info',
-      title,
-      html,
-      background: '#111827',
-      color: '#fff'
-    })
+  const alertInfo = (titulo: string, html?: string) =>
+    Swal.fire({ icon: 'info', title: titulo, html, background: '#111827', color: '#fff' })
 
-  const alertSuccess = (title: string, text?: string) =>
+  const alertSuccess = (titulo: string, texto?: string) =>
     Swal.fire({
       icon: 'success',
-      title,
-      text,
+      title: titulo,
+      text: texto,
       background: '#111827',
       color: '#fff',
       confirmButtonColor: '#10b981'
@@ -72,7 +57,6 @@ export default function WhatsappConfig() {
           setPhoneNumberId(acc.phoneNumberId || '')
           setWabaId(acc.wabaId || '')
           setBusinessId(acc.businessId || '')
-          // limpiar tempToken por si quedó de intentos anteriores
           localStorage.removeItem('tempToken')
         } else {
           setEstado('desconectado')
@@ -81,7 +65,7 @@ export default function WhatsappConfig() {
           setWabaId('')
           setBusinessId('')
         }
-      } catch (e: any) {
+      } catch {
         setEstado('desconectado')
         setDisplayPhone('')
         setPhoneNumberId('')
@@ -96,15 +80,14 @@ export default function WhatsappConfig() {
 
   useEffect(() => {
     if (!API_URL) {
-      alertError('Config requerida', 'Falta NEXT_PUBLIC_API_URL en el frontend.')
+      alertError('Configuración requerida', 'Falta NEXT_PUBLIC_API_URL en el frontend.')
       return
     }
     if (token) fetchEstado(token)
 
-    // Leer ?success=1 desde callback
     const params = new URLSearchParams(window.location.search)
     if (params.get('success') === '1') {
-      alertSuccess('¡Conectado con WhatsApp!')
+      alertSuccess('¡Conexión realizada!', 'Tu cuenta de WhatsApp quedó vinculada.')
       localStorage.setItem('oauthDone', '1')
       window.history.replaceState({}, document.title, window.location.pathname)
     }
@@ -118,12 +101,11 @@ export default function WhatsappConfig() {
     }
     if (!API_URL) return
 
-    // Guarda JWT para que el CallbackPage lo use al guardar la selección
     localStorage.setItem('tempToken', token)
     localStorage.removeItem('oauthDone')
 
     setRedirecting(true)
-    // auth_type=rerequest para forzar re-consent si faltó business_management
+    // auth_type=rerequest fuerza re-consentir si faltó business_management
     window.location.href = `${API_URL}/api/auth/whatsapp?auth_type=rerequest`
   }
 
@@ -133,7 +115,8 @@ export default function WhatsappConfig() {
       return
     }
     localStorage.setItem('tempToken', token)
-    window.location.href = '/dashboard/callback' // tu flujo embedded debería redirigir aquí
+    // Tu flujo de Embedded Signup debe redirigir al mismo callback del dashboard
+    window.location.href = '/dashboard/callback'
   }
 
   const eliminarWhatsapp = async () => {
@@ -165,7 +148,7 @@ export default function WhatsappConfig() {
       localStorage.removeItem('tempToken')
       alertSuccess('Conexión eliminada')
     } catch {
-      alertError('No se pudo eliminar')
+      alertError('No se pudo eliminar la conexión')
     }
   }
 
@@ -174,11 +157,11 @@ export default function WhatsappConfig() {
     fetchEstado(token)
   }
 
-  // ---------- Render ----------
+  // ---------- UI ----------
   return (
     <div className="w-full sm:max-w-xl mx-auto bg-gray-900 text-white rounded-xl shadow-md p-6 mt-8">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg sm:text-xl font-semibold">Estado de WhatsApp</h2>
+        <h2 className="text-lg sm:text-xl font-semibold">Conexión con WhatsApp</h2>
         <button
           onClick={recargar}
           disabled={loadingEstado}
@@ -201,19 +184,19 @@ export default function WhatsappConfig() {
 
           <div className="grid gap-2 text-sm bg-slate-800/60 border border-slate-700 rounded-lg p-4 mb-4">
             <div className="flex items-center justify-between">
-              <span className="text-slate-400">Display Number</span>
+              <span className="text-slate-400">Número mostrado</span>
               <span className="font-medium">{displayPhone || '—'}</span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-slate-400">Phone Number ID</span>
+              <span className="text-slate-400">ID del número</span>
               <code className="text-slate-300">{phoneNumberId || '—'}</code>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-slate-400">WABA ID</span>
+              <span className="text-slate-400">ID de la WABA</span>
               <code className="text-slate-300">{wabaId || '—'}</code>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-slate-400">Business ID</span>
+              <span className="text-slate-400">ID del negocio (Business)</span>
               <code className="text-slate-300">{businessId || '—'}</code>
             </div>
           </div>
@@ -224,7 +207,7 @@ export default function WhatsappConfig() {
               className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-md text-sm disabled:opacity-60"
               disabled={redirecting}
             >
-              {redirecting ? 'Redirigiendo…' : 'Re-conectar'}
+              {redirecting ? 'Redirigiendo…' : 'Volver a conectar'}
             </button>
             <button
               onClick={eliminarWhatsapp}
@@ -237,7 +220,7 @@ export default function WhatsappConfig() {
         </>
       ) : (
         <>
-          <p className="text-yellow-400 font-medium mb-4">⚠️ No conectado</p>
+          <p className="text-yellow-400 font-medium mb-4">⚠️ No hay un número conectado</p>
 
           <div className="flex flex-col sm:flex-row justify-center gap-3">
             <button
@@ -256,9 +239,9 @@ export default function WhatsappConfig() {
           </div>
 
           <p className="text-xs text-slate-500 mt-4">
-            Tras la aprobación, el usuario deberá re-autorizar para otorgar{' '}
-            <code>business_management</code>. Luego, en el callback verás la lista de Businesses → WABAs
-            → Phone Numbers y podrás seleccionar el número a conectar.
+            Tras la aprobación, el usuario deberá volver a otorgar{' '}
+            <code>business_management</code>. Luego, en el callback se mostrará la lista de Negocios →
+            Cuentas de WhatsApp (WABA) → Números para elegir y conectar.
           </p>
         </>
       )}
