@@ -8,40 +8,26 @@ import Swal from 'sweetalert2'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL
 
-type Business = { id: string; name: string }
-type WABA = { id: string; name?: string }
-type Phone = {
-  id: string
-  display_phone_number: string
-  business_id: string
-  waba_id: string
-}
+type WABA = { id: string; name?: string; owner_business_id?: string }
+type Phone = { id: string; display_phone_number: string }
+type WabaWithPhones = { waba: WABA; phones: Phone[] }
 
 export default function CallbackPage() {
   const searchParams = useSearchParams()
 
   const [accessToken, setAccessToken] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
-  const [businesses, setBusinesses] = useState<Business[]>([])
-  const [wabas, setWabas] = useState<Record<string, WABA[]>>({})
-  const [phones, setPhones] = useState<Record<string, Phone[]>>({})
+  const [items, setItems] = useState<WabaWithPhones[]>([])
 
-  // Muestra el error real si Meta envía ?error=...&error_description=...
+  // Si Meta envía error en querystring
   useEffect(() => {
     const err = searchParams.get('error')
     const errDesc = searchParams.get('error_description')
     if (err) {
-      Swal.fire({
-        icon: 'error',
-        title: 'OAuth error',
-        text: errDesc || err,
-        background: '#111827',
-        color: '#fff'
-      })
+      Swal.fire({ icon: 'error', title: 'OAuth error', text: errDesc || err, background: '#111827', color: '#fff' })
     }
   }, [searchParams])
 
-  // Intercambia code -> token o toma token directo y carga assets
   useEffect(() => {
     const tokenFromQuery = searchParams.get('token')
     const code = searchParams.get('code')
@@ -52,10 +38,7 @@ export default function CallbackPage() {
           setAccessToken(tokenFromQuery)
           await loadAssets(tokenFromQuery)
         } else if (code) {
-          const r = await axios.post<{ access_token: string }>(
-            `${API_URL}/api/auth/exchange-code`,
-            { code }
-          )
+          const r = await axios.post<{ access_token: string }>(`${API_URL}/api/auth/exchange-code`, { code })
           const at = r.data.access_token
           setAccessToken(at)
           await loadAssets(at)
@@ -67,13 +50,7 @@ export default function CallbackPage() {
           typeof err?.response?.data?.error === 'object'
             ? JSON.stringify(err.response.data.error)
             : err?.response?.data?.error || err.message
-        Swal.fire({
-          icon: 'error',
-          title: 'OAuth error',
-          text: msg,
-          background: '#111827',
-          color: '#fff'
-        })
+        Swal.fire({ icon: 'error', title: 'OAuth error', text: msg, background: '#111827', color: '#fff' })
       } finally {
         setLoading(false)
       }
@@ -81,113 +58,75 @@ export default function CallbackPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // Solo exigimos los 2 permisos de WhatsApp
   const ensurePermissions = async (at: string) => {
-    const perms = await axios.get(
-      `https://graph.facebook.com/v20.0/me/permissions?access_token=${at}`
-    )
-    const list: Array<{ permission: string; status: string }> = perms.data?.data || []
-    const granted = (name: string) => list.some(p => p.permission === name && p.status === 'granted')
-
-    const required = [
-      'business_management',
-      'whatsapp_business_management',
-      'whatsapp_business_messaging'
-    ]
-    const missing = required.filter(p => !granted(p))
-
-    if (missing.length) {
-      throw new Error(
-        `Faltan permisos: ${missing.join(
-          ', '
-        )}. Vuelve a conectar y acepta todos los permisos.`
-      )
-    }
+    const { data } = await axios.get(`https://graph.facebook.com/v20.0/me/permissions?access_token=${at}`)
+    const list: Array<{ permission: string; status: string }> = data?.data || []
+    const need = ['whatsapp_business_management', 'whatsapp_business_messaging']
+    const missing = need.filter(p => !list.some(x => x.permission === p && x.status === 'granted'))
+    if (missing.length) throw new Error(`Faltan permisos: ${missing.join(', ')}`)
   }
 
   const loadAssets = async (at: string) => {
-    // 0) Verifica permisos antes de llamar /me?fields=businesses
     await ensurePermissions(at)
 
-    // 1) Businesses
-    const me = await axios.get(
-      `https://graph.facebook.com/v20.0/me?fields=businesses{name}&access_token=${at}`
+    // 1) Traer WABAs del usuario (evita /me?fields=businesses)
+    //   Nota: este endpoint funciona con los permisos de WhatsApp (sin business_management).
+    //   Formato: /me/owned_whatsapp_business_accounts?fields=name
+    const wabRes = await axios.get(
+      `https://graph.facebook.com/v20.0/me/owned_whatsapp_business_accounts?fields=name&access_token=${at}`
     )
-    const list: Business[] =
-      me.data?.businesses?.data?.map((b: any) => ({ id: b.id, name: b.name })) || []
-    setBusinesses(list)
+    const wabList: WABA[] = (wabRes.data?.data || []).map((w: any) => ({ id: w.id, name: w.name }))
 
-    const wMap: Record<string, WABA[]> = {}
-    const pMap: Record<string, Phone[]> = {}
-
-    for (const biz of list) {
-      // 2) WABAs por negocio
-      const wab = await axios.get(
-        `https://graph.facebook.com/v20.0/${biz.id}/owned_whatsapp_business_accounts?fields=name&access_token=${at}`
+    // 2) Para cada WABA: obtener owner_business_info.id y sus phone_numbers
+    const results: WabaWithPhones[] = []
+    for (const w of wabList) {
+      // owner_business_info -> para poblar businessId sin pedir business_management
+      const wInfo = await axios.get(
+        `https://graph.facebook.com/v20.0/${w.id}?fields=owner_business_info&access_token=${at}`
       )
-      const wabList: WABA[] = (wab.data?.data || []).map((w: any) => ({ id: w.id, name: w.name }))
-      wMap[biz.id] = wabList
+      const ownerId = wInfo.data?.owner_business_info?.id || ''
 
-      // 3) Números por WABA (guardando contexto de negocio y WABA)
-      for (const w of wabList) {
-        const pn = await axios.get(
-          `https://graph.facebook.com/v20.0/${w.id}/phone_numbers?fields=display_phone_number&access_token=${at}`
-        )
-        pMap[w.id] = (pn.data?.data || []).map((p: any) => ({
-          id: p.id,
-          display_phone_number: p.display_phone_number,
-          business_id: biz.id,
-          waba_id: w.id
-        }))
-      }
+      const pn = await axios.get(
+        `https://graph.facebook.com/v20.0/${w.id}/phone_numbers?fields=display_phone_number&access_token=${at}`
+      )
+      const phones: Phone[] = (pn.data?.data || []).map((p: any) => ({
+        id: p.id,
+        display_phone_number: p.display_phone_number
+      }))
+
+      results.push({ waba: { ...w, owner_business_id: ownerId }, phones })
     }
 
-    setWabas(wMap)
-    setPhones(pMap)
+    setItems(results)
   }
 
-  const connectPhone = async (wabaId: string, phone: Phone) => {
+  const connectPhone = async (item: WabaWithPhones, phone: Phone) => {
     const jwt = localStorage.getItem('tempToken') || ''
     if (!jwt || !accessToken) {
-      Swal.fire({
-        icon: 'error',
-        title: 'Sesión expirada',
-        text: 'Vuelve a iniciar la conexión.',
-        background: '#111827',
-        color: '#fff'
-      })
+      Swal.fire({ icon: 'error', title: 'Sesión expirada', text: 'Vuelve a iniciar la conexión.', background: '#111827', color: '#fff' })
       return
     }
     try {
       await axios.post(
         `${API_URL}/api/whatsapp/vincular`,
         {
-          businessId: phone.business_id,
-          wabaId,
+          businessId: item.waba.owner_business_id || 'unknown',
+          wabaId: item.waba.id,
           phoneNumberId: phone.id,
           displayPhoneNumber: phone.display_phone_number,
           accessToken
         },
         { headers: { Authorization: `Bearer ${jwt}` } }
       )
-      Swal.fire({
-        icon: 'success',
-        title: 'Número conectado',
-        background: '#111827',
-        color: '#fff'
-      })
+      Swal.fire({ icon: 'success', title: 'Número conectado', background: '#111827', color: '#fff' })
       window.location.href = '/dashboard/settings?success=1'
     } catch (e: any) {
       const txt =
         typeof e?.response?.data?.error === 'object'
           ? JSON.stringify(e.response.data.error)
           : e?.response?.data?.error || e.message
-      Swal.fire({
-        icon: 'error',
-        title: 'No se pudo conectar',
-        text: txt,
-        background: '#111827',
-        color: '#fff'
-      })
+      Swal.fire({ icon: 'error', title: 'No se pudo conectar', text: txt, background: '#111827', color: '#fff' })
     }
   }
 
@@ -199,57 +138,43 @@ export default function CallbackPage() {
         {loading ? (
           <div className="flex items-center gap-3">
             <div className="w-6 h-6 border-4 border-t-transparent border-blue-500 rounded-full animate-spin" />
-            <span>Obteniendo tus activos de Meta…</span>
+            <span>Obteniendo tus WABAs y números…</span>
           </div>
         ) : !accessToken ? (
           <p className="text-red-400">No se pudo obtener el access token.</p>
-        ) : businesses.length === 0 ? (
-          <p className="text-slate-300">No encontramos negocios en tu cuenta de Meta.</p>
+        ) : items.length === 0 ? (
+          <p className="text-slate-300">No encontramos WABAs asociadas a tu cuenta.</p>
         ) : (
           <div className="space-y-6">
-            {businesses.map((b) => (
-              <div key={b.id} className="bg-slate-800 border border-slate-700 rounded-xl p-5">
+            {items.map(({ waba, phones }) => (
+              <div key={waba.id} className="bg-slate-800 border border-slate-700 rounded-xl p-5">
                 <div className="flex items-center justify-between mb-3">
-                  <h2 className="font-semibold text-lg">{b.name}</h2>
-                  <span className="text-xs text-slate-400">Business ID: {b.id}</span>
+                  <h2 className="font-semibold text-lg">{waba.name || 'WABA sin nombre'}</h2>
+                  <div className="text-xs text-slate-400">
+                    WABA ID: {waba.id}
+                    {waba.owner_business_id ? ` · Business ID: ${waba.owner_business_id}` : ''}
+                  </div>
                 </div>
 
-                {(wabas[b.id] || []).length === 0 ? (
-                  <p className="text-slate-400">
-                    No hay cuentas de WhatsApp Business (WABA) en este negocio.
-                  </p>
+                {phones.length === 0 ? (
+                  <p className="text-slate-400">No hay números en esta WABA.</p>
                 ) : (
-                  (wabas[b.id] || []).map((w) => (
-                    <div key={w.id} className="mt-3">
-                      <div className="font-medium text-slate-200">
-                        WABA: {w.name || 'sin nombre'}{' '}
-                        <span className="text-slate-400 text-xs">({w.id})</span>
+                  <div className="mt-2 grid gap-2">
+                    {phones.map((p) => (
+                      <div key={p.id} className="flex items-center justify-between bg-slate-900 border border-slate-700 rounded-lg px-3 py-2">
+                        <div>
+                          <div className="text-sm">{p.display_phone_number}</div>
+                          <div className="text-xs text-slate-500">Phone ID: {p.id}</div>
+                        </div>
+                        <button
+                          onClick={() => connectPhone({ waba, phones }, p)}
+                          className="text-sm px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 rounded"
+                        >
+                          Usar este número
+                        </button>
                       </div>
-                      <div className="mt-2 grid gap-2">
-                        {(phones[w.id] || []).length === 0 ? (
-                          <div className="text-slate-400 text-sm">No hay números en esta WABA.</div>
-                        ) : (
-                          (phones[w.id] || []).map((p) => (
-                            <div
-                              key={p.id}
-                              className="flex items-center justify-between bg-slate-900 border border-slate-700 rounded-lg px-3 py-2"
-                            >
-                              <div>
-                                <div className="text-sm">{p.display_phone_number}</div>
-                                <div className="text-xs text-slate-500">Phone ID: {p.id}</div>
-                              </div>
-                              <button
-                                onClick={() => connectPhone(w.id, p)}
-                                className="text-sm px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 rounded"
-                              >
-                                Usar este número
-                              </button>
-                            </div>
-                          ))
-                        )}
-                      </div>
-                    </div>
-                  ))
+                    ))}
+                  </div>
                 )}
               </div>
             ))}
