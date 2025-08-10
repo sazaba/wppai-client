@@ -7,8 +7,10 @@ import Swal from 'sweetalert2'
 import { useAuth } from '../../../context/AuthContext'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL
+// Para dev/prod, el redirect_uri lo maneja tu backend via META_REDIRECT_URI
+// Deja estas dos por si las necesitas en UI o validaciones
 const META_APP_ID = process.env.NEXT_PUBLIC_META_APP_ID
-const REDIRECT_URI = `https://wasaaa.com/dashboard/callback`
+const REDIRECT_URI = process.env.NEXT_PUBLIC_META_REDIRECT_URI || 'https://wasaaa.com/dashboard/callback'
 
 export default function WhatsappConfig() {
   const { usuario, token } = useAuth()
@@ -73,23 +75,24 @@ export default function WhatsappConfig() {
     localStorage.setItem('tempToken', token)
     localStorage.removeItem('oauthDone')
 
-    // Scopes correctos + re-consent
-    const scopes = [
-      'whatsapp_business_management',
-      'whatsapp_business_messaging',
-      'business_management',
-      'public_profile'
-    ].join(',')
+    // 🔐 Inicia OAuth desde backend (scopes y redirect_uri salen de ENV)
+    // auth_type=rerequest fuerza re-consent si faltó algún permiso
+    window.location.href = `${API_URL}/api/auth/auth?auth_type=rerequest`
+  }
 
-    const url =
-      `https://www.facebook.com/v20.0/dialog/oauth` +
-      `?client_id=${encodeURIComponent(String(META_APP_ID))}` +
-      `&redirect_uri=${encodeURIComponent(REDIRECT_URI)}` +
-      `&response_type=code` +
-      `&scope=${encodeURIComponent(scopes)}` +
-      `&auth_type=rerequest`
-
-    window.location.href = url
+  const abrirEmbeddedSignup = () => {
+    if (!token) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'Sesión requerida',
+        text: 'Inicia sesión para continuar.',
+        background: '#1f2937',
+        color: '#fff'
+      })
+      return
+    }
+    localStorage.setItem('tempToken', token)
+    window.location.href = '/dashboard/wa-embedded'
   }
 
   const eliminarWhatsapp = async () => {
@@ -161,12 +164,20 @@ export default function WhatsappConfig() {
       ) : (
         <>
           <p className="text-yellow-400 font-medium mb-4">⚠️ No conectado</p>
-          <button
-            onClick={conectarConMeta}
-            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 rounded-md text-sm"
-          >
-            Conectar con WhatsApp
-          </button>
+          <div className="flex flex-col sm:flex-row justify-center gap-3">
+            <button
+              onClick={conectarConMeta}
+              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 rounded-md text-sm"
+            >
+              Conectar con WhatsApp (OAuth)
+            </button>
+            <button
+              onClick={abrirEmbeddedSignup}
+              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 rounded-md text-sm"
+            >
+              Conectar (Embedded Signup)
+            </button>
+          </div>
         </>
       )}
     </div>
