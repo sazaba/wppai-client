@@ -19,9 +19,7 @@ export default function WhatsappConfig() {
   const [phoneNumberId, setPhoneNumberId] = useState('')
 
   useEffect(() => {
-    if (token) {
-      fetchEstado(token)
-    }
+    if (token) fetchEstado(token)
 
     const params = new URLSearchParams(window.location.search)
     if (params.get('success') === '1') {
@@ -42,7 +40,6 @@ export default function WhatsappConfig() {
       const res = await axios.get(`${API_URL}/api/whatsapp/estado`, {
         headers: { Authorization: `Bearer ${authToken}` }
       })
-
       if (res.data?.conectado) {
         setEstado('conectado')
         setDisplayPhone(res.data.displayPhoneNumber || res.data.phoneNumberId)
@@ -52,8 +49,7 @@ export default function WhatsappConfig() {
         setDisplayPhone('')
         setPhoneNumberId('')
       }
-    } catch (err) {
-      console.warn('No hay conexión activa:', err)
+    } catch {
       setEstado('desconectado')
       setDisplayPhone('')
       setPhoneNumberId('')
@@ -64,8 +60,8 @@ export default function WhatsappConfig() {
     if (!empresaId || !token) {
       Swal.fire({
         icon: 'warning',
-        title: 'Faltan datos',
-        text: 'No se pudo iniciar el proceso OAuth.',
+        title: 'No se pudo iniciar OAuth',
+        text: 'Inicia sesión nuevamente.',
         background: '#1f2937',
         color: '#fff',
         confirmButtonColor: '#f59e0b'
@@ -73,22 +69,27 @@ export default function WhatsappConfig() {
       return
     }
 
+    // guardamos el JWT para usarlo en /dashboard/callback
     localStorage.setItem('tempToken', token)
+
+    const scopes = [
+      'whatsapp_business_management',
+      'whatsapp_business_messaging',
+      'public_profile'
+    ].join(',')
 
     const url = `https://www.facebook.com/v20.0/dialog/oauth?client_id=${META_APP_ID}&redirect_uri=${encodeURIComponent(
       REDIRECT_URI
-    )}&response_type=code&scope=whatsapp_business_messaging,public_profile`
+    )}&response_type=code&scope=${scopes}`
 
-    console.log("🔗 OAuth URL:", url)
     window.location.href = url
   }
 
   const eliminarWhatsapp = async () => {
     if (!token) return
-
     const confirm = await Swal.fire({
       title: '¿Eliminar conexión?',
-      text: 'Esta acción desvinculará el número de WhatsApp de tu empresa.',
+      text: 'Esto desvinculará el número de tu empresa.',
       icon: 'warning',
       showCancelButton: true,
       confirmButtonText: 'Sí, eliminar',
@@ -98,36 +99,31 @@ export default function WhatsappConfig() {
       confirmButtonColor: '#ef4444',
       cancelButtonColor: '#6b7280'
     })
+    if (!confirm.isConfirmed) return
 
-    if (confirm.isConfirmed) {
-      try {
-        await axios.delete(`${API_URL}/api/whatsapp/eliminar`, {
-          headers: { Authorization: `Bearer ${token}` }
-        })
-
-        setDisplayPhone('')
-        setPhoneNumberId('')
-        setEstado('desconectado')
-        localStorage.removeItem('oauthDone')
-
-        Swal.fire({
-          icon: 'success',
-          title: 'Conexión eliminada',
-          background: '#1f2937',
-          color: '#fff',
-          confirmButtonColor: '#10b981'
-        })
-      } catch (err) {
-        console.error('Error al eliminar conexión:', err)
-        Swal.fire({
-          icon: 'error',
-          title: 'Error al eliminar',
-          text: 'No se pudo eliminar la conexión.',
-          background: '#1f2937',
-          color: '#fff',
-          confirmButtonColor: '#ef4444'
-        })
-      }
+    try {
+      await axios.delete(`${API_URL}/api/whatsapp/eliminar`, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      setDisplayPhone('')
+      setPhoneNumberId('')
+      setEstado('desconectado')
+      localStorage.removeItem('oauthDone')
+      Swal.fire({
+        icon: 'success',
+        title: 'Conexión eliminada',
+        background: '#1f2937',
+        color: '#fff',
+        confirmButtonColor: '#10b981'
+      })
+    } catch {
+      Swal.fire({
+        icon: 'error',
+        title: 'No se pudo eliminar',
+        background: '#1f2937',
+        color: '#fff',
+        confirmButtonColor: '#ef4444'
+      })
     }
   }
 
@@ -137,17 +133,13 @@ export default function WhatsappConfig() {
 
       {estado === 'conectado' ? (
         <>
-          <p className="text-green-400 font-medium mb-2 text-sm sm:text-base">✅ Conectado</p>
-          <p className="text-gray-300 text-sm sm:text-base mb-2">
-            Número: <strong>{displayPhone}</strong> <br />
+          <p className="text-green-400 font-medium mb-2">✅ Conectado</p>
+          <p className="text-gray-300 mb-2">
+            Número: <strong>{displayPhone}</strong><br />
             ID: <strong>{phoneNumberId}</strong>
           </p>
-
-          <div className="flex flex-col sm:flex-row justify-center gap-3 sm:gap-4">
-            <button
-              onClick={conectarConMeta}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-md text-sm"
-            >
+          <div className="flex flex-col sm:flex-row justify-center gap-3">
+            <button onClick={conectarConMeta} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-md text-sm">
               Re-conectar
             </button>
             <button
@@ -161,8 +153,7 @@ export default function WhatsappConfig() {
         </>
       ) : (
         <>
-          <p className="text-yellow-400 font-medium mb-4 text-sm sm:text-base">⚠️ No conectado</p>
-
+          <p className="text-yellow-400 font-medium mb-4">⚠️ No conectado</p>
           <button
             onClick={conectarConMeta}
             className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 rounded-md text-sm"
