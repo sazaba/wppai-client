@@ -69,18 +69,25 @@ export default function WhatsappConfig() {
       return
     }
 
-    // guardamos el JWT para usarlo en /dashboard/callback
+    // Guardar JWT para el callback
     localStorage.setItem('tempToken', token)
+    localStorage.removeItem('oauthDone')
 
+    // ⬇️ Agregamos business_management y forzamos re-consent
     const scopes = [
       'whatsapp_business_management',
       'whatsapp_business_messaging',
+      'business_management',
       'public_profile'
     ].join(',')
 
-    const url = `https://www.facebook.com/v20.0/dialog/oauth?client_id=${META_APP_ID}&redirect_uri=${encodeURIComponent(
-      REDIRECT_URI
-    )}&response_type=code&scope=${scopes}`
+    const url =
+      `https://www.facebook.com/v20.0/dialog/oauth` +
+      `?client_id=${encodeURIComponent(String(META_APP_ID))}` +
+      `&redirect_uri=${encodeURIComponent(REDIRECT_URI)}` +
+      `&response_type=code` +
+      `&scope=${encodeURIComponent(scopes)}` +
+      `&auth_type=rerequest`
 
     window.location.href = url
   }
