@@ -10,7 +10,12 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL
 
 type Business = { id: string; name: string }
 type WABA = { id: string; name?: string }
-type Phone = { id: string; display_phone_number: string }
+type Phone = {
+  id: string
+  display_phone_number: string
+  business_id: string
+  waba_id: string
+}
 
 export default function CallbackPage() {
   const searchParams = useSearchParams()
@@ -21,9 +26,25 @@ export default function CallbackPage() {
   const [wabas, setWabas] = useState<Record<string, WABA[]>>({})
   const [phones, setPhones] = useState<Record<string, Phone[]>>({})
 
+  // Muestra el error real si Meta envía ?error=...&error_description=...
   useEffect(() => {
-    const tokenFromQuery = searchParams.get('token') // string | null
-    const code = searchParams.get('code')            // string | null
+    const err = searchParams.get('error')
+    const errDesc = searchParams.get('error_description')
+    if (err) {
+      Swal.fire({
+        icon: 'error',
+        title: 'OAuth error',
+        text: errDesc || err,
+        background: '#111827',
+        color: '#fff'
+      })
+    }
+  }, [searchParams])
+
+  // Intercambia code -> token o toma token directo y carga assets
+  useEffect(() => {
+    const tokenFromQuery = searchParams.get('token')
+    const code = searchParams.get('code')
 
     ;(async () => {
       try {
@@ -31,7 +52,6 @@ export default function CallbackPage() {
           setAccessToken(tokenFromQuery)
           await loadAssets(tokenFromQuery)
         } else if (code) {
-          // Intercambia el "code" por un access_token en tu backend
           const r = await axios.post<{ access_token: string }>(
             `${API_URL}/api/auth/exchange-code`,
             { code }
@@ -43,10 +63,14 @@ export default function CallbackPage() {
           throw new Error('Missing token or code in callback URL')
         }
       } catch (err: any) {
+        const msg =
+          typeof err?.response?.data?.error === 'object'
+            ? JSON.stringify(err.response.data.error)
+            : err?.response?.data?.error || err.message
         Swal.fire({
           icon: 'error',
           title: 'OAuth error',
-          text: err?.response?.data?.error || err.message,
+          text: msg,
           background: '#111827',
           color: '#fff'
         })
@@ -70,21 +94,23 @@ export default function CallbackPage() {
     const pMap: Record<string, Phone[]> = {}
 
     for (const biz of list) {
-      // 2) WABAs
+      // 2) WABAs por negocio
       const wab = await axios.get(
         `https://graph.facebook.com/v20.0/${biz.id}/owned_whatsapp_business_accounts?fields=name&access_token=${at}`
       )
       const wabList: WABA[] = (wab.data?.data || []).map((w: any) => ({ id: w.id, name: w.name }))
       wMap[biz.id] = wabList
 
-      // 3) Números
+      // 3) Números por WABA (guardando contexto de negocio y WABA)
       for (const w of wabList) {
         const pn = await axios.get(
           `https://graph.facebook.com/v20.0/${w.id}/phone_numbers?fields=display_phone_number&access_token=${at}`
         )
         pMap[w.id] = (pn.data?.data || []).map((p: any) => ({
           id: p.id,
-          display_phone_number: p.display_phone_number
+          display_phone_number: p.display_phone_number,
+          business_id: biz.id,
+          waba_id: w.id
         }))
       }
     }
@@ -107,22 +133,32 @@ export default function CallbackPage() {
     }
     try {
       await axios.post(
-        `${API_URL}/api/whatsapp/conectar`,
+        `${API_URL}/api/whatsapp/vincular`,
         {
+          businessId: phone.business_id,
+          wabaId,
           phoneNumberId: phone.id,
           displayPhoneNumber: phone.display_phone_number,
-          wabaId,
           accessToken
         },
         { headers: { Authorization: `Bearer ${jwt}` } }
       )
-      Swal.fire({ icon: 'success', title: 'Número conectado', background: '#111827', color: '#fff' })
+      Swal.fire({
+        icon: 'success',
+        title: 'Número conectado',
+        background: '#111827',
+        color: '#fff'
+      })
       window.location.href = '/dashboard/settings?success=1'
     } catch (e: any) {
+      const txt =
+        typeof e?.response?.data?.error === 'object'
+          ? JSON.stringify(e.response.data.error)
+          : e?.response?.data?.error || e.message
       Swal.fire({
         icon: 'error',
         title: 'No se pudo conectar',
-        text: e?.response?.data?.error || e.message,
+        text: txt,
         background: '#111827',
         color: '#fff'
       })
@@ -153,19 +189,25 @@ export default function CallbackPage() {
                 </div>
 
                 {(wabas[b.id] || []).length === 0 ? (
-                  <p className="text-slate-400">No hay cuentas de WhatsApp Business (WABA) en este negocio.</p>
+                  <p className="text-slate-400">
+                    No hay cuentas de WhatsApp Business (WABA) en este negocio.
+                  </p>
                 ) : (
                   (wabas[b.id] || []).map((w) => (
                     <div key={w.id} className="mt-3">
                       <div className="font-medium text-slate-200">
-                        WABA: {w.name || 'sin nombre'} <span className="text-slate-400 text-xs">({w.id})</span>
+                        WABA: {w.name || 'sin nombre'}{' '}
+                        <span className="text-slate-400 text-xs">({w.id})</span>
                       </div>
                       <div className="mt-2 grid gap-2">
                         {(phones[w.id] || []).length === 0 ? (
                           <div className="text-slate-400 text-sm">No hay números en esta WABA.</div>
                         ) : (
                           (phones[w.id] || []).map((p) => (
-                            <div key={p.id} className="flex items-center justify-between bg-slate-900 border border-slate-700 rounded-lg px-3 py-2">
+                            <div
+                              key={p.id}
+                              className="flex items-center justify-between bg-slate-900 border border-slate-700 rounded-lg px-3 py-2"
+                            >
                               <div>
                                 <div className="text-sm">{p.display_phone_number}</div>
                                 <div className="text-xs text-slate-500">Phone ID: {p.id}</div>
