@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import axios from 'axios'
-import { Trash2, RefreshCw } from 'lucide-react'
+import { Trash2, RefreshCw, Send } from 'lucide-react'
 import Swal from 'sweetalert2'
 import 'sweetalert2/dist/sweetalert2.min.css'
 import { useAuth } from '../../../context/AuthContext'
@@ -23,18 +23,24 @@ export default function WhatsappConfig() {
   const [redirecting, setRedirecting] = useState(false)
   const [loadingEstado, setLoadingEstado] = useState(false)
 
-  // ---------- Helpers ----------
-  const alertError = (titulo: string, texto?: string) =>
-    Swal.fire({ icon: 'error', title: titulo, text: texto, background: '#111827', color: '#fff' })
+  // Manual: registrar / enviar prueba
+  const [pin, setPin] = useState('') // opcional
+  const [testTo, setTestTo] = useState('')
+  const [testBody, setTestBody] = useState('Hola! Prueba desde Wasaaa ✅')
+  const [loadingRegister, setLoadingRegister] = useState(false)
+  const [loadingSend, setLoadingSend] = useState(false)
 
-  const alertInfo = (titulo: string, html?: string) =>
-    Swal.fire({ icon: 'info', title: titulo, html, background: '#111827', color: '#fff' })
+  const alertError = (title: string, text?: string) =>
+    Swal.fire({ icon: 'error', title, text, background: '#111827', color: '#fff' })
 
-  const alertSuccess = (titulo: string, texto?: string) =>
+  const alertInfo = (title: string, html?: string) =>
+    Swal.fire({ icon: 'info', title, html, background: '#111827', color: '#fff' })
+
+  const alertSuccess = (title: string, text?: string) =>
     Swal.fire({
       icon: 'success',
-      title: titulo,
-      text: texto,
+      title,
+      text,
       background: '#111827',
       color: '#fff',
       confirmButtonColor: '#10b981'
@@ -50,13 +56,12 @@ export default function WhatsappConfig() {
           headers: { Authorization: `Bearer ${authToken}` }
         })
 
-        const acc = data?.whatsappAccount
-        if (acc) {
+        if (data?.conectado) {
           setEstado('conectado')
-          setDisplayPhone(acc.displayPhoneNumber || acc.phoneNumberId || '')
-          setPhoneNumberId(acc.phoneNumberId || '')
-          setWabaId(acc.wabaId || '')
-          setBusinessId(acc.businessId || '')
+          setDisplayPhone(data.displayPhoneNumber || data.phoneNumberId || '')
+          setPhoneNumberId(data.phoneNumberId || '')
+          setWabaId(data.wabaId || '')
+          setBusinessId(data.businessId || '')
           localStorage.removeItem('tempToken')
         } else {
           setEstado('desconectado')
@@ -93,7 +98,7 @@ export default function WhatsappConfig() {
     }
   }, [token, fetchEstado])
 
-  // ---------- Acciones ----------
+  // ---------- Acciones OAuth / Embedded ----------
   const iniciarOAuth = () => {
     if (!empresaId || !token) {
       alertInfo('Sesión requerida', 'Inicia sesión para conectar tu WhatsApp.')
@@ -105,7 +110,6 @@ export default function WhatsappConfig() {
     localStorage.removeItem('oauthDone')
 
     setRedirecting(true)
-    // auth_type=rerequest fuerza re-consentir si faltó business_management
     window.location.href = `${API_URL}/api/auth/whatsapp?auth_type=rerequest`
   }
 
@@ -115,7 +119,6 @@ export default function WhatsappConfig() {
       return
     }
     localStorage.setItem('tempToken', token)
-    // Tu flujo de Embedded Signup debe redirigir al mismo callback del dashboard
     window.location.href = '/dashboard/callback'
   }
 
@@ -157,9 +160,53 @@ export default function WhatsappConfig() {
     fetchEstado(token)
   }
 
-  // ---------- UI ----------
+  // ---------- Acciones Modo Manual ----------
+  const registrarNumero = async () => {
+    if (!token || !API_URL) return
+    if (!phoneNumberId) return alertInfo('Falta ID', 'Ingresa el Phone Number ID')
+    try {
+      setLoadingRegister(true)
+      const payload: any = { phoneNumberId }
+      if (pin && pin.length === 6) payload.pin = pin
+
+      const { data } = await axios.post(`${API_URL}/api/whatsapp/registrar`, payload, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      if (data?.ok) {
+        alertSuccess('Registro enviado', 'Espera 1–2 minutos y prueba el envío.')
+      } else {
+        alertError('No se pudo registrar', JSON.stringify(data?.error ?? ''))
+      }
+    } catch (e: any) {
+      alertError('Error al registrar', e?.response?.data?.error || e.message)
+    } finally {
+      setLoadingRegister(false)
+    }
+  }
+
+  const enviarPrueba = async () => {
+    if (!token || !API_URL) return
+    if (!phoneNumberId || !testTo || !testBody) {
+      return alertInfo('Campos requeridos', 'ID, destinatario y mensaje son obligatorios.')
+    }
+    try {
+      setLoadingSend(true)
+      const { data } = await axios.post(
+        `${API_URL}/api/whatsapp/enviar-prueba`,
+        { phoneNumberId, to: testTo, body: testBody },
+        { headers: { Authorization: `Bearer ${token}` } }
+      )
+      if (data?.ok) alertSuccess('Mensaje enviado', 'Revisa el celular destino.')
+      else alertError('No se pudo enviar', JSON.stringify(data?.error ?? ''))
+    } catch (e: any) {
+      alertError('Error al enviar', e?.response?.data?.error || e.message)
+    } finally {
+      setLoadingSend(false)
+    }
+  }
+
   return (
-    <div className="w-full sm:max-w-xl mx-auto bg-gray-900 text-white rounded-xl shadow-md p-6 mt-8">
+    <div className="w-full sm:max-w-2xl mx-auto bg-gray-900 text-white rounded-xl shadow-md p-6 mt-8">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-lg sm:text-xl font-semibold">Conexión con WhatsApp</h2>
         <button
@@ -178,9 +225,13 @@ export default function WhatsappConfig() {
           <div className="w-6 h-6 border-4 border-t-transparent border-indigo-500 rounded-full animate-spin" />
           <span className="text-sm text-gray-300">Verificando conexión…</span>
         </div>
-      ) : estado === 'conectado' ? (
+      ) : (
         <>
-          <p className="text-green-400 font-medium mb-3">✅ Conectado</p>
+          {estado === 'conectado' ? (
+            <p className="text-green-400 font-medium mb-3">✅ Conectado</p>
+          ) : (
+            <p className="text-yellow-400 font-medium mb-3">⚠️ No hay un número conectado</p>
+          )}
 
           <div className="grid gap-2 text-sm bg-slate-800/60 border border-slate-700 rounded-lg p-4 mb-4">
             <div className="flex items-center justify-between">
@@ -189,39 +240,74 @@ export default function WhatsappConfig() {
             </div>
             <div className="flex items-center justify-between">
               <span className="text-slate-400">ID del número</span>
-              <code className="text-slate-300">{phoneNumberId || '—'}</code>
+              <input
+                value={phoneNumberId}
+                onChange={(e) => setPhoneNumberId(e.target.value)}
+                placeholder="Phone Number ID"
+                className="bg-slate-900 border border-slate-700 rounded px-2 py-1 w-56 text-slate-200"
+              />
             </div>
             <div className="flex items-center justify-between">
               <span className="text-slate-400">ID de la WABA</span>
               <code className="text-slate-300">{wabaId || '—'}</code>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-slate-400">ID del negocio (Business)</span>
+              <span className="text-slate-400">ID del negocio</span>
               <code className="text-slate-300">{businessId || '—'}</code>
             </div>
           </div>
 
-          <div className="flex flex-col sm:flex-row justify-center gap-3">
-            <button
-              onClick={iniciarOAuth}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-md text-sm disabled:opacity-60"
-              disabled={redirecting}
-            >
-              {redirecting ? 'Redirigiendo…' : 'Volver a conectar'}
-            </button>
-            <button
-              onClick={eliminarWhatsapp}
-              className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-md text-sm flex items-center justify-center gap-2"
-            >
-              <Trash2 className="w-4 h-4" />
-              Desconectar
-            </button>
+          {/* MODO MANUAL: Registrar número */}
+          <div className="bg-slate-800/60 border border-slate-700 rounded-lg p-4 mb-4">
+            <h3 className="font-semibold mb-2 text-sm">Registro del número (Cloud API)</h3>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <input
+                value={pin}
+                onChange={(e) => setPin(e.target.value)}
+                placeholder="PIN de 6 dígitos (opcional)"
+                className="bg-slate-900 border border-slate-700 rounded px-3 py-2 text-sm"
+                maxLength={6}
+              />
+              <button
+                onClick={registrarNumero}
+                disabled={loadingRegister || !phoneNumberId}
+                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 rounded-md text-sm disabled:opacity-60"
+              >
+                {loadingRegister ? 'Registrando…' : 'Registrar número'}
+              </button>
+            </div>
+            <p className="text-xs text-slate-500 mt-2">
+              Si el PIN no está habilitado aún, deja el campo vacío.
+            </p>
           </div>
-        </>
-      ) : (
-        <>
-          <p className="text-yellow-400 font-medium mb-4">⚠️ No hay un número conectado</p>
 
+          {/* Enviar mensaje de prueba */}
+          <div className="bg-slate-800/60 border border-slate-700 rounded-lg p-4 mb-6">
+            <h3 className="font-semibold mb-2 text-sm">Enviar mensaje de prueba</h3>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <input
+                value={testTo}
+                onChange={(e) => setTestTo(e.target.value)}
+                placeholder="Destino en formato E.164 (ej. +57300...)"
+                className="bg-slate-900 border border-slate-700 rounded px-3 py-2 text-sm flex-1"
+              />
+              <input
+                value={testBody}
+                onChange={(e) => setTestBody(e.target.value)}
+                placeholder="Mensaje"
+                className="bg-slate-900 border border-slate-700 rounded px-3 py-2 text-sm flex-1"
+              />
+              <button
+                onClick={enviarPrueba}
+                disabled={loadingSend || !phoneNumberId}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-md text-sm flex items-center gap-2 disabled:opacity-60"
+              >
+                <Send className="w-4 h-4" /> {loadingSend ? 'Enviando…' : 'Enviar prueba'}
+              </button>
+            </div>
+          </div>
+
+          {/* Acciones de cuenta */}
           <div className="flex flex-col sm:flex-row justify-center gap-3">
             <button
               onClick={iniciarOAuth}
@@ -236,12 +322,21 @@ export default function WhatsappConfig() {
             >
               Conectar (Embedded Signup)
             </button>
+            {estado === 'conectado' && (
+              <button
+                onClick={eliminarWhatsapp}
+                className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-md text-sm flex items-center justify-center gap-2"
+              >
+                <Trash2 className="w-4 h-4" />
+                Desconectar
+              </button>
+            )}
           </div>
 
           <p className="text-xs text-slate-500 mt-4">
-            Tras la aprobación, el usuario deberá volver a otorgar{' '}
-            <code>business_management</code>. Luego, en el callback se mostrará la lista de Negocios →
-            Cuentas de WhatsApp (WABA) → Números para elegir y conectar.
+            Para listar WABAs/Números automáticamente se requiere el permiso{' '}
+            <code>business_management</code>. Mientras tanto, usa el modo manual con el{' '}
+            <code>Phone Number ID</code>.
           </p>
         </>
       )}
