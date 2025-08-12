@@ -23,6 +23,11 @@ export default function WhatsappConfig() {
   const [redirecting, setRedirecting] = useState(false)
   const [loadingEstado, setLoadingEstado] = useState(false)
 
+  // Token de System User
+  const [systemToken, setSystemToken] = useState('')
+  const [savingToken, setSavingToken] = useState(false)
+  const [syncingIds, setSyncingIds] = useState(false)
+
   // Manual: registrar / enviar prueba
   const [pin, setPin] = useState('') // opcional
   const [testTo, setTestTo] = useState('')
@@ -31,31 +36,27 @@ export default function WhatsappConfig() {
   const [loadingSend, setLoadingSend] = useState(false)
   const [loadingInfo, setLoadingInfo] = useState(false)
 
-  // NUEVOS loaders
+  // utilidades
   const [loadingReqCode, setLoadingReqCode] = useState(false)
   const [loadingVerify, setLoadingVerify] = useState(false)
   const [loadingDebug, setLoadingDebug] = useState(false)
   const [loadingHealth, setLoadingHealth] = useState(false)
 
-  // ---------- Alerts uniformes (muestran JSON bonito) ----------
   const alertError = (title: string, payload?: any) => {
     let html = ''
     try { html = `<pre style="text-align:left;white-space:pre-wrap">${JSON.stringify(payload, null, 2)}</pre>` }
     catch { html = String(payload || '') }
     return Swal.fire({ icon: 'error', title, html, background: '#111827', color: '#fff', width: 700 })
   }
-
   const alertInfo = (title: string, payload?: any) => {
     let html = ''
     try { html = `<pre style="text-align:left;white-space:pre-wrap">${JSON.stringify(payload, null, 2)}</pre>` }
     catch { html = String(payload || '') }
     return Swal.fire({ icon: 'info', title, html, background: '#111827', color: '#fff', width: 700 })
   }
-
   const alertSuccess = (title: string, text?: string) =>
     Swal.fire({ icon: 'success', title, text, background: '#111827', color: '#fff', confirmButtonColor: '#10b981' })
 
-  // ---------- Cargar estado actual ----------
   const fetchEstado = useCallback(
     async (authToken: string) => {
       if (!API_URL) return
@@ -114,10 +115,8 @@ export default function WhatsappConfig() {
       return
     }
     if (!API_URL) return
-
     localStorage.setItem('tempToken', token)
     localStorage.removeItem('oauthDone')
-
     const redirect = encodeURIComponent(`${window.location.origin}/dashboard/callback`)
     setRedirecting(true)
     window.location.href = `${API_URL}/api/auth/whatsapp?auth_type=rerequest&redirect_uri=${redirect}`
@@ -141,6 +140,48 @@ export default function WhatsappConfig() {
     }
     localStorage.setItem('tempToken', token)
     window.location.href = '/dashboard/callback'
+  }
+
+  // ---------- Guardar System User Token ----------
+  const guardarSystemToken = async () => {
+    if (!token || !API_URL) return
+    if (!systemToken || systemToken.length < 50) {
+      return alertInfo('Token requerido', 'Pega el System User token completo.')
+    }
+    try {
+      setSavingToken(true)
+      await axios.post(`${API_URL}/api/whatsapp/vincular-manual`,
+        { accessToken: systemToken, wabaId: wabaId || '', phoneNumberId: phoneNumberId || '', displayPhoneNumber: displayPhone || '', businessId: '' },
+        { headers: { Authorization: `Bearer ${token}` } }
+      )
+      setSystemToken('')
+      await alertSuccess('Token guardado', 'El System User token quedó almacenado.')
+    } catch (e:any) {
+      alertError('No se pudo guardar el token', e?.response?.data || e?.message)
+    } finally {
+      setSavingToken(false)
+    }
+  }
+
+  // ---------- Validar y persistir IDs (WABA + Phone) ----------
+  const sincronizarIds = async () => {
+    if (!token || !API_URL) return
+    if (!wabaId || !phoneNumberId) {
+      return alertInfo('Faltan datos', 'Completa WABA ID y Phone Number ID.')
+    }
+    try {
+      setSyncingIds(true)
+      await axios.post(`${API_URL}/api/whatsapp/actualizar-datos`,
+        { wabaId, phoneNumberId },
+        { headers: { Authorization: `Bearer ${token}` } }
+      )
+      await alertSuccess('IDs validados', 'WABA y Phone Number actualizados y validados contra Meta.')
+      fetchEstado(token)
+    } catch (e:any) {
+      alertError('No se pudo validar/persistir', e?.response?.data || e?.message)
+    } finally {
+      setSyncingIds(false)
+    }
   }
 
   const eliminarWhatsapp = async () => {
@@ -181,7 +222,7 @@ export default function WhatsappConfig() {
     fetchEstado(token)
   }
 
-  // ---------- Acciones Modo Manual ----------
+  // ---------- Cloud API: registrar / enviar / info ----------
   const registrarNumero = async () => {
     if (!token || !API_URL) return
     if (!phoneNumberId) return alertInfo('Falta ID', 'Ingresa el Phone Number ID')
@@ -211,10 +252,7 @@ export default function WhatsappConfig() {
     if (!phoneNumberId || !testTo || !testBody) {
       return alertInfo('Campos requeridos', 'ID, destinatario y mensaje son obligatorios.')
     }
-
-    // E.164 sin “+”, solo dígitos
     const toSanitized = String(testTo).replace(/\D+/g, '')
-
     try {
       setLoadingSend(true)
       const { data } = await axios.post(
@@ -222,7 +260,6 @@ export default function WhatsappConfig() {
         { phoneNumberId, to: toSanitized, body: testBody },
         { headers: { Authorization: `Bearer ${token}` } }
       )
-
       if (data?.ok) return alertSuccess('Mensaje enviado', 'Revisa el celular destino.')
       return alertError('No se pudo enviar', data?.error || data)
     } catch (e: any) {
@@ -251,6 +288,8 @@ export default function WhatsappConfig() {
               <div><b>display_phone_number:</b> ${n.display_phone_number ?? '—'}</div>
               <div><b>verified_name:</b> ${n.verified_name ?? '—'}</div>
               <div><b>name_status:</b> ${n.name_status ?? '—'}</div>
+              <div><b>wa_id:</b> ${n.wa_id ?? '—'}</div>
+              <div><b>account_mode:</b> ${n.account_mode ?? '—'}</div>
             </div>
           `,
           background: '#111827',
@@ -266,7 +305,7 @@ export default function WhatsappConfig() {
     }
   }
 
-  // ---------- NUEVOS: Request/Verify Code, Debug token, Health ----------
+  // ---------- utilidades ----------
   const requestCode = async () => {
     if (!token || !API_URL) return
     if (!phoneNumberId) return alertInfo('Falta ID', 'Ingresa el Phone Number ID')
@@ -415,31 +454,91 @@ export default function WhatsappConfig() {
             <p className="text-yellow-400 font-medium mb-3">⚠️ No hay un número conectado</p>
           )}
 
+          {/* Bloque: guardar System User Token */}
+          <div className="bg-slate-800/60 border border-slate-700 rounded-lg p-4 mb-4">
+            <h3 className="font-semibold mb-2 text-sm">System User Token</h3>
+            <textarea
+              value={systemToken}
+              onChange={(e)=>setSystemToken(e.target.value)}
+              placeholder="Pega aquí tu System User access token"
+              className="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-xs h-24"
+            />
+            <div className="flex justify-end mt-2">
+              <button
+                onClick={guardarSystemToken}
+                disabled={savingToken}
+                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 rounded-md text-sm disabled:opacity-60"
+              >
+                {savingToken ? 'Guardando…' : 'Guardar token'}
+              </button>
+            </div>
+            <p className="text-xs text-slate-500 mt-2">
+              Este token es el que usa la app para enviar mensajes. No es el token del callback de OAuth.
+            </p>
+          </div>
+
+          {/* Estado actual + IDs */}
           <div className="grid gap-2 text-sm bg-slate-800/60 border border-slate-700 rounded-lg p-4 mb-4">
             <div className="flex items-center justify-between">
               <span className="text-slate-400">Número mostrado</span>
-              <span className="font-medium">{displayPhone || '—'}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-slate-400">ID del número</span>
               <input
-                value={phoneNumberId}
-                onChange={(e) => setPhoneNumberId(e.target.value)}
-                placeholder="Phone Number ID"
+                value={displayPhone}
+                onChange={(e)=>setDisplayPhone(e.target.value)}
+                placeholder="+57 314 893 6662"
                 className="bg-slate-900 border border-slate-700 rounded px-2 py-1 w-56 text-slate-200"
               />
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-slate-400">ID de la WABA</span>
-              <code className="text-slate-300">{wabaId || '—'}</code>
+              <span className="text-slate-400">Phone Number ID</span>
+              <input
+                value={phoneNumberId}
+                onChange={(e) => setPhoneNumberId(e.target.value)}
+                placeholder="712725021933030"
+                className="bg-slate-900 border border-slate-700 rounded px-2 py-1 w-56 text-slate-200"
+              />
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-slate-400">ID del negocio</span>
+              <span className="text-slate-400">WABA ID</span>
+              <input
+                value={wabaId}
+                onChange={(e)=>setWabaId(e.target.value)}
+                placeholder="1384287482665374"
+                className="bg-slate-900 border border-slate-700 rounded px-2 py-1 w-56 text-slate-200"
+              />
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-slate-400">Business ID</span>
               <code className="text-slate-300">{businessId || '—'}</code>
+            </div>
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={async () => {
+                  if (!token || !API_URL) return
+                  try {
+                    await axios.post(`${API_URL}/api/whatsapp/vincular-manual`,
+                      { accessToken: '', wabaId, phoneNumberId, displayPhoneNumber: displayPhone, businessId: '' },
+                      { headers: { Authorization: `Bearer ${token}` } }
+                    )
+                    alertSuccess('Actualizado', 'Número mostrado guardado.')
+                  } catch (e:any) {
+                    alertError('No se pudo actualizar el número mostrado', e?.response?.data || e?.message)
+                  }
+                }}
+                className="px-3 py-2 bg-slate-700 hover:bg-slate-600 rounded-md text-sm"
+              >
+                Guardar display
+              </button>
+              <button
+                onClick={sincronizarIds}
+                disabled={syncingIds}
+                className="px-3 py-2 bg-indigo-600 hover:bg-indigo-700 rounded-md text-sm disabled:opacity-60"
+              >
+                {syncingIds ? 'Validando…' : 'Validar y guardar IDs'}
+              </button>
             </div>
           </div>
 
-          {/* MODO MANUAL: Registrar número */}
+          {/* Registro número (Cloud API) */}
           <div className="bg-slate-800/60 border border-slate-700 rounded-lg p-4 mb-4">
             <h3 className="font-semibold mb-2 text-sm">Registro del número (Cloud API)</h3>
 
@@ -521,7 +620,7 @@ export default function WhatsappConfig() {
               onClick={iniciarOAuthManual}
               className="px-4 py-2 bg-teal-600 hover:bg-teal-700 rounded-md text-sm"
             >
-              Conectar rápido (solo token)
+              Conectar rápido (solo IDs)
             </button>
             <button
               onClick={abrirEmbeddedSignup}
@@ -530,7 +629,6 @@ export default function WhatsappConfig() {
               Conectar (Embedded Signup)
             </button>
 
-            {/* NUEVOS: utilidades */}
             <button
               onClick={debugToken}
               disabled={loadingDebug}
@@ -558,9 +656,8 @@ export default function WhatsappConfig() {
           </div>
 
           <p className="text-xs text-slate-500 mt-4">
-            Para listar WABAs/Números automáticamente se requiere el permiso{' '}
-            <code>business_management</code>. Mientras tanto, usa el modo manual con el{' '}
-            <code>Phone Number ID</code>.
+            Para listar WABAs/Números automáticamente se requiere el permiso <code>business_management</code>.
+            Mientras tanto, usa el modo manual con el <code>Phone Number ID</code> y valida con “Validar y guardar IDs”.
           </p>
         </>
       )}
