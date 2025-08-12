@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import axios from 'axios'
-import { Trash2, RefreshCw, Send } from 'lucide-react'
+import { Trash2, RefreshCw, Send, Info } from 'lucide-react'
 import Swal from 'sweetalert2'
 import 'sweetalert2/dist/sweetalert2.min.css'
 import { useAuth } from '../../../context/AuthContext'
@@ -29,6 +29,7 @@ export default function WhatsappConfig() {
   const [testBody, setTestBody] = useState('Hola! Prueba desde Wasaaa ✅')
   const [loadingRegister, setLoadingRegister] = useState(false)
   const [loadingSend, setLoadingSend] = useState(false)
+  const [loadingInfo, setLoadingInfo] = useState(false)
 
   const alertError = (title: string, text?: string) =>
     Swal.fire({ icon: 'error', title, text, background: '#111827', color: '#fff' })
@@ -205,19 +206,63 @@ export default function WhatsappConfig() {
     }
   }
 
+  const consultarInfoNumero = async () => {
+    if (!token || !API_URL) return
+    if (!phoneNumberId) return alertInfo('Falta ID', 'Ingresa el Phone Number ID')
+    try {
+      setLoadingInfo(true)
+      const { data } = await axios.get(`${API_URL}/api/whatsapp/numero/${phoneNumberId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      if (data?.ok) {
+        const n = data.data || {}
+        Swal.fire({
+          icon: 'info',
+          title: 'Información del número',
+          html: `
+            <div style="text-align:left">
+              <div><b>display_phone_number:</b> ${n.display_phone_number ?? '—'}</div>
+              <div><b>verified_name:</b> ${n.verified_name ?? '—'}</div>
+              <div><b>name_status:</b> ${n.name_status ?? '—'}</div>
+            </div>
+          `,
+          background: '#111827',
+          color: '#fff'
+        })
+      } else {
+        alertError('No se pudo consultar', JSON.stringify(data?.error ?? ''))
+      }
+    } catch (e: any) {
+      alertError('Error al consultar', e?.response?.data?.error || e.message)
+    } finally {
+      setLoadingInfo(false)
+    }
+  }
+
   return (
     <div className="w-full sm:max-w-2xl mx-auto bg-gray-900 text-white rounded-xl shadow-md p-6 mt-8">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-lg sm:text-xl font-semibold">Conexión con WhatsApp</h2>
-        <button
-          onClick={recargar}
-          disabled={loadingEstado}
-          className="inline-flex items-center gap-2 px-3 py-2 rounded bg-slate-800 hover:bg-slate-700 border border-slate-700 text-sm disabled:opacity-60"
-          title="Refrescar estado"
-        >
-          <RefreshCw className="w-4 h-4" />
-          {loadingEstado ? 'Actualizando…' : 'Refrescar'}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={consultarInfoNumero}
+            disabled={!phoneNumberId || loadingInfo}
+            className="inline-flex items-center gap-2 px-3 py-2 rounded bg-slate-800 hover:bg-slate-700 border border-slate-700 text-sm disabled:opacity-60"
+            title="Consultar info del número"
+          >
+            <Info className="w-4 h-4" />
+            {loadingInfo ? 'Consultando…' : 'Info número'}
+          </button>
+          <button
+            onClick={recargar}
+            disabled={loadingEstado}
+            className="inline-flex items-center gap-2 px-3 py-2 rounded bg-slate-800 hover:bg-slate-700 border border-slate-700 text-sm disabled:opacity-60"
+            title="Refrescar estado"
+          >
+            <RefreshCw className="w-4 h-4" />
+            {loadingEstado ? 'Actualizando…' : 'Refrescar'}
+          </button>
+        </div>
       </div>
 
       {estado === 'cargando' ? (

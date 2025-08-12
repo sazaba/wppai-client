@@ -47,13 +47,41 @@ export default function CallbackPage() {
     }
   }, [searchParams])
 
+  // Helper: intenta /vincular, y si falta info, cae a /vincular-manual
+  async function vincularFlexible(
+    jwt: string,
+    payload: {
+      accessToken: string
+      wabaId?: string
+      phoneNumberId?: string
+      displayPhoneNumber?: string
+      businessId?: string
+    }
+  ) {
+    try {
+      await axios.post(`${API_URL}/api/whatsapp/vincular`, payload, {
+        headers: { Authorization: `Bearer ${jwt}` },
+      })
+    } catch (e: any) {
+      const status = e?.response?.status
+      const msg = e?.response?.data?.error || ''
+      if (status === 400 && /Faltan datos/i.test(String(msg))) {
+        await axios.post(`${API_URL}/api/whatsapp/vincular-manual`, payload, {
+          headers: { Authorization: `Bearer ${jwt}` },
+        })
+      } else {
+        throw e
+      }
+    }
+  }
+
   useEffect(() => {
     ;(async () => {
       setLoading(true)
       try {
         if (!API_URL) throw new Error('Falta NEXT_PUBLIC_API_URL')
 
-        // 1) Flujos especiales de Embedded Signup (trae code + waba_id + phone_number_id)
+        // 1) Embedded Signup (code + waba_id + phone_number_id)
         const code = searchParams.get('code')
         const wabaIdQS = searchParams.get('waba_id')
         const phoneIdQS = searchParams.get('phone_number_id')
@@ -84,18 +112,20 @@ export default function CallbackPage() {
           const jwt = localStorage.getItem('tempToken') || ''
           if (!jwt) throw new Error('Sesión expirada')
 
-          await axios.post(
-            `${API_URL}/api/whatsapp/vincular`,
-            { accessToken: at, wabaId: wabaIdQS, phoneNumberId: phoneIdQS, businessId, displayPhoneNumber },
-            { headers: { Authorization: `Bearer ${jwt}` } }
-          )
+          await vincularFlexible(jwt, {
+            accessToken: at,
+            wabaId: wabaIdQS,
+            phoneNumberId: phoneIdQS,
+            businessId,
+            displayPhoneNumber,
+          })
 
           localStorage.removeItem('tempToken')
           window.location.href = '/dashboard/settings?success=1'
           return
         }
 
-        // 2) Token directo (query) o intercambio por code
+        // 2) Token directo (?token) o intercambio por code
         let at = searchParams.get('token')
         if (!at) {
           const code2 = searchParams.get('code')
@@ -118,12 +148,11 @@ export default function CallbackPage() {
         }
 
         if (hasBM) {
-          // 4) Si hay business_management, carga WABAs y teléfonos por backend
+          // 4) Con business_management: cargar WABAs y teléfonos por backend
           await loadAssetsViaBackend(at)
         } else {
           // Sin business_management: abrir modo manual automáticamente
           setManualOpen(true)
-          // Si vienen hints por query, prefíltralos
           const hintWaba = searchParams.get('waba_hint')
           const hintPhone = searchParams.get('phone_hint')
           const hintDisplay = searchParams.get('display_hint')
@@ -206,17 +235,13 @@ export default function CallbackPage() {
       })
       return
     }
-    await axios.post(
-      `${API_URL}/api/whatsapp/vincular`,
-      {
-        businessId: waba.owner_business_id || 'unknown',
-        wabaId: waba.id,
-        phoneNumberId: phone.id,
-        displayPhoneNumber: phone.display_phone_number,
-        accessToken
-      },
-      { headers: { Authorization: `Bearer ${jwt}` } }
-    )
+    await vincularFlexible(jwt, {
+      accessToken,
+      wabaId: waba.id,
+      phoneNumberId: phone.id,
+      displayPhoneNumber: phone.display_phone_number,
+      businessId: waba.owner_business_id || 'unknown',
+    })
     Swal.fire({ icon: 'success', title: 'Número conectado', background: '#111827', color: '#fff' })
     localStorage.removeItem('tempToken')
     window.location.href = '/dashboard/settings?success=1'
@@ -246,17 +271,13 @@ export default function CallbackPage() {
       businessId = info.data?.owner_business_info?.id || 'unknown'
     } catch {}
 
-    await axios.post(
-      `${API_URL}/api/whatsapp/vincular`,
-      {
-        businessId,
-        wabaId: manualWabaId,
-        phoneNumberId: manualPhoneId,
-        displayPhoneNumber: manualDisplay,
-        accessToken
-      },
-      { headers: { Authorization: `Bearer ${jwt}` } }
-    )
+    await vincularFlexible(jwt, {
+      accessToken,
+      wabaId: manualWabaId,
+      phoneNumberId: manualPhoneId,
+      displayPhoneNumber: manualDisplay,
+      businessId,
+    })
     Swal.fire({ icon: 'success', title: 'Número conectado (manual)', background: '#111827', color: '#fff' })
     localStorage.removeItem('tempToken')
     window.location.href = '/dashboard/settings?success=1'
