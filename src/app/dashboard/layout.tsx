@@ -11,7 +11,7 @@ import {
   FileText
 } from "lucide-react"
 import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, usePathname } from "next/navigation"
 import clsx from "clsx"
 import { useAuth } from "../context/AuthContext"
 
@@ -20,18 +20,39 @@ export default function DashboardLayout({
 }: {
   children: React.ReactNode
 }) {
-  const [sidebarOpen, setSidebarOpen] = useState(false) // empieza colapsado en mobile
+  const [sidebarOpen, setSidebarOpen] = useState(false)
   const { isAuthenticated } = useAuth()
   const router = useRouter()
+  const pathname = usePathname()
 
+  // Rutas dentro de /dashboard que deben quedar libres (OAuth callbacks/embedded)
+  const OPEN_DASH_ROUTES = [
+    "/dashboard/callback",
+    "/dashboard/callback-manual",
+    "/dashboard/wa-embedded",
+  ]
+  const isOpenRoute = OPEN_DASH_ROUTES.some(p => pathname?.startsWith(p))
+
+  // Protege TODO lo demás bajo /dashboard excepto las rutas abiertas
   useEffect(() => {
-    if (!isAuthenticated) {
-      router.replace('/')
+    if (!isAuthenticated && !isOpenRoute) {
+      router.replace("/")
     }
-  }, [isAuthenticated, router])
+  }, [isAuthenticated, isOpenRoute, router])
 
-  if (!isAuthenticated) return null
+  // Si no está autenticado y NO es una ruta abierta, no renderizamos nada
+  if (!isAuthenticated && !isOpenRoute) return null
 
+  // Para callback/embedded: render sin sidebar/full width
+  if (isOpenRoute) {
+    return (
+      <main className="min-h-screen bg-gray-900 text-zinc-100">
+        {children}
+      </main>
+    )
+  }
+
+  // Layout normal para el resto del dashboard
   return (
     <div className="min-h-screen bg-gray-900 text-zinc-100 grid grid-cols-[auto_1fr]">
       {/* Sidebar */}
@@ -41,16 +62,13 @@ export default function DashboardLayout({
           sidebarOpen ? "w-64" : "w-16"
         )}
       >
-        {/* Contenido del sidebar */}
         <div className={clsx("flex flex-col", sidebarOpen ? "p-4 gap-6 items-start" : "pt-6 gap-4 items-center")}>
-          {/* Título */}
           {sidebarOpen && (
             <h2 className="text-2xl font-semibold tracking-tight flex items-center gap-2">
               🚀 Mi Panel
             </h2>
           )}
 
-          {/* Navegación */}
           <nav className={clsx("flex flex-col w-full", sidebarOpen ? "gap-4" : "gap-6 items-center")}>
             <Link
               href="/"
@@ -99,22 +117,21 @@ export default function DashboardLayout({
               <Settings2 className={clsx("transition-all", sidebarOpen ? "w-5 h-5" : "w-6 h-6")} />
               {sidebarOpen && <span>Configuración</span>}
             </Link>
-            <Link
-  href="/dashboard/templates"
-  className={clsx(
-    "flex items-center rounded-md hover:bg-slate-700 transition-colors px-3 py-2 w-full",
-    sidebarOpen ? "gap-3 justify-start text-sm" : "justify-center"
-  )}
-  title={!sidebarOpen ? "Plantillas" : ""}
->
-  <FileText className={clsx("transition-all", sidebarOpen ? "w-5 h-5" : "w-6 h-6")} />
-  {sidebarOpen && <span>Plantillas</span>}
-</Link>
 
+            <Link
+              href="/dashboard/templates"
+              className={clsx(
+                "flex items-center rounded-md hover:bg-slate-700 transition-colors px-3 py-2 w-full",
+                sidebarOpen ? "gap-3 justify-start text-sm" : "justify-center"
+              )}
+              title={!sidebarOpen ? "Plantillas" : ""}
+            >
+              <FileText className={clsx("transition-all", sidebarOpen ? "w-5 h-5" : "w-6 h-6")} />
+              {sidebarOpen && <span>Plantillas</span>}
+            </Link>
           </nav>
         </div>
 
-        {/* Botón para plegar/desplegar (solo desktop) */}
         <div className="hidden md:flex justify-end p-2 border-t border-slate-700">
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
@@ -130,7 +147,6 @@ export default function DashboardLayout({
         </div>
       </aside>
 
-      {/* Contenido principal */}
       <main className="transition-all duration-300 w-full h-screen overflow-hidden flex flex-col">
         <div className="flex-1 overflow-hidden">{children}</div>
       </main>
