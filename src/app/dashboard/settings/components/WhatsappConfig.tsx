@@ -100,6 +100,7 @@ export default function WhatsappConfig() {
   }, [token, fetchEstado])
 
   // ---------- Acciones OAuth / Embedded ----------
+  // (ACTUALIZADO) Forzamos redirect_uri al callback clásico
   const iniciarOAuth = () => {
     if (!empresaId || !token) {
       alertInfo('Sesión requerida', 'Inicia sesión para conectar tu WhatsApp.')
@@ -110,8 +111,21 @@ export default function WhatsappConfig() {
     localStorage.setItem('tempToken', token)
     localStorage.removeItem('oauthDone')
 
+    const redirect = encodeURIComponent(`${window.location.origin}/dashboard/callback`)
     setRedirecting(true)
-    window.location.href = `${API_URL}/api/auth/whatsapp?auth_type=rerequest`
+    window.location.href = `${API_URL}/api/auth/whatsapp?auth_type=rerequest&redirect_uri=${redirect}`
+  }
+
+  // (NUEVO) Flujo rápido: siempre muestra formulario manual en callback-manual
+  const iniciarOAuthManual = () => {
+    if (!empresaId || !token) {
+      alertInfo('Sesión requerida', 'Inicia sesión para conectar tu WhatsApp.')
+      return
+    }
+    if (!API_URL) return
+    localStorage.setItem('tempToken', token)
+    const redirect = encodeURIComponent(`${window.location.origin}/dashboard/callback-manual`)
+    window.location.href = `${API_URL}/api/auth/whatsapp?redirect_uri=${redirect}`
   }
 
   const abrirEmbeddedSignup = () => {
@@ -360,6 +374,12 @@ export default function WhatsappConfig() {
               disabled={redirecting}
             >
               {redirecting ? 'Redirigiendo…' : 'Conectar con WhatsApp (OAuth)'}
+            </button>
+            <button
+              onClick={iniciarOAuthManual}  
+              className="px-4 py-2 bg-teal-600 hover:bg-teal-700 rounded-md text-sm"
+            >
+              Conectar rápido (solo token)
             </button>
             <button
               onClick={abrirEmbeddedSignup}
