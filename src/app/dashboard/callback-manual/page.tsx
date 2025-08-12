@@ -1,5 +1,6 @@
 'use client'
-import { useEffect, useRef, useState } from 'react'
+
+import { Suspense, useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import axios from 'axios'
 import Swal from 'sweetalert2'
@@ -7,7 +8,11 @@ import Swal from 'sweetalert2'
 const API_URL = process.env.NEXT_PUBLIC_API_URL
 const FB_VERSION = 'v20.0'
 
-export default function CallbackManual() {
+// Evita prerender/SSG para este callback
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
+function CallbackManualInner() {
   const sp = useSearchParams()
   const mounted = useRef(true)
   const [accessToken, setAccessToken] = useState<string | null>(null)
@@ -16,7 +21,6 @@ export default function CallbackManual() {
   const [display, setDisplay] = useState('')
   const [saving, setSaving] = useState(false)
 
-  // helper fallback
   async function vincularFlexible(jwt: string, payload: any) {
     try {
       await axios.post(`${API_URL}/api/whatsapp/vincular`, payload, {
@@ -51,7 +55,7 @@ export default function CallbackManual() {
         const r = await axios.post<{ access_token: string }>(`${API_URL}/api/auth/exchange-code`, { code })
         setAccessToken(r.data.access_token)
 
-        // Si venían hints por query, prellenar
+        // Hints
         const hintW = sp.get('waba_hint'); if (hintW) setWabaId(hintW)
         const hintP = sp.get('phone_hint'); if (hintP) setPhoneId(hintP)
         const hintD = sp.get('display_hint'); if (hintD) setDisplay(hintD)
@@ -60,7 +64,7 @@ export default function CallbackManual() {
       }
     })()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [sp])
 
   const guardar = async () => {
     if (!accessToken) {
@@ -79,7 +83,6 @@ export default function CallbackManual() {
 
     try {
       setSaving(true)
-
       // intentar descubrir businessId (si se puede)
       let businessId = 'unknown'
       try {
@@ -89,10 +92,7 @@ export default function CallbackManual() {
         businessId = info.data?.owner_business_info?.id || 'unknown'
       } catch {}
 
-      await vincularFlexible(jwt, {
-        accessToken, wabaId, phoneNumberId: phoneId, displayPhoneNumber: display, businessId
-      })
-
+      await vincularFlexible(jwt, { accessToken, wabaId, phoneNumberId: phoneId, displayPhoneNumber: display, businessId })
       localStorage.removeItem('tempToken')
       window.location.href = '/dashboard/settings?success=1'
     } catch (err: any) {
@@ -134,5 +134,17 @@ export default function CallbackManual() {
         )}
       </div>
     </div>
+  )
+}
+
+export default function Page() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">
+        Procesando OAuth…
+      </div>
+    }>
+      <CallbackManualInner />
+    </Suspense>
   )
 }
