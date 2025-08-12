@@ -183,17 +183,21 @@ export default function WhatsappConfig() {
       setLoadingRegister(true)
       const payload: any = { phoneNumberId }
       if (pin && pin.length === 6) payload.pin = pin
-
+  
       const { data } = await axios.post(`${API_URL}/api/whatsapp/registrar`, payload, {
         headers: { Authorization: `Bearer ${token}` }
       })
       if (data?.ok) {
         alertSuccess('Registro enviado', 'Espera 1–2 minutos y prueba el envío.')
       } else {
-        alertError('No se pudo registrar', JSON.stringify(data?.error ?? ''))
+        const msg = typeof data?.error === 'object' ? JSON.stringify(data.error, null, 2) : (data?.error ?? '')
+        alertError('No se pudo registrar', msg)
       }
     } catch (e: any) {
-      alertError('Error al registrar', e?.response?.data?.error || e.message)
+      const msg = e?.response?.data
+        ? (typeof e.response.data === 'object' ? JSON.stringify(e.response.data, null, 2) : e.response.data)
+        : e.message
+      alertError('Error al registrar', msg)
     } finally {
       setLoadingRegister(false)
     }
