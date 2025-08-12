@@ -31,21 +31,29 @@ export default function WhatsappConfig() {
   const [loadingSend, setLoadingSend] = useState(false)
   const [loadingInfo, setLoadingInfo] = useState(false)
 
-  const alertError = (title: string, text?: string) =>
-    Swal.fire({ icon: 'error', title, text, background: '#111827', color: '#fff' })
+  // NUEVOS loaders
+  const [loadingReqCode, setLoadingReqCode] = useState(false)
+  const [loadingVerify, setLoadingVerify] = useState(false)
+  const [loadingDebug, setLoadingDebug] = useState(false)
+  const [loadingHealth, setLoadingHealth] = useState(false)
 
-  const alertInfo = (title: string, html?: string) =>
-    Swal.fire({ icon: 'info', title, html, background: '#111827', color: '#fff' })
+  // ---------- Alerts uniformes (muestran JSON bonito) ----------
+  const alertError = (title: string, payload?: any) => {
+    let html = ''
+    try { html = `<pre style="text-align:left;white-space:pre-wrap">${JSON.stringify(payload, null, 2)}</pre>` }
+    catch { html = String(payload || '') }
+    return Swal.fire({ icon: 'error', title, html, background: '#111827', color: '#fff', width: 700 })
+  }
+
+  const alertInfo = (title: string, payload?: any) => {
+    let html = ''
+    try { html = `<pre style="text-align:left;white-space:pre-wrap">${JSON.stringify(payload, null, 2)}</pre>` }
+    catch { html = String(payload || '') }
+    return Swal.fire({ icon: 'info', title, html, background: '#111827', color: '#fff', width: 700 })
+  }
 
   const alertSuccess = (title: string, text?: string) =>
-    Swal.fire({
-      icon: 'success',
-      title,
-      text,
-      background: '#111827',
-      color: '#fff',
-      confirmButtonColor: '#10b981'
-    })
+    Swal.fire({ icon: 'success', title, text, background: '#111827', color: '#fff', confirmButtonColor: '#10b981' })
 
   // ---------- Cargar estado actual ----------
   const fetchEstado = useCallback(
@@ -100,7 +108,6 @@ export default function WhatsappConfig() {
   }, [token, fetchEstado])
 
   // ---------- Acciones OAuth / Embedded ----------
-  // (ACTUALIZADO) Forzamos redirect_uri al callback clásico
   const iniciarOAuth = () => {
     if (!empresaId || !token) {
       alertInfo('Sesión requerida', 'Inicia sesión para conectar tu WhatsApp.')
@@ -116,7 +123,6 @@ export default function WhatsappConfig() {
     window.location.href = `${API_URL}/api/auth/whatsapp?auth_type=rerequest&redirect_uri=${redirect}`
   }
 
-  // (NUEVO) Flujo rápido: siempre muestra formulario manual en callback-manual
   const iniciarOAuthManual = () => {
     if (!empresaId || !token) {
       alertInfo('Sesión requerida', 'Inicia sesión para conectar tu WhatsApp.')
@@ -183,21 +189,18 @@ export default function WhatsappConfig() {
       setLoadingRegister(true)
       const payload: any = { phoneNumberId }
       if (pin && pin.length === 6) payload.pin = pin
-  
+
       const { data } = await axios.post(`${API_URL}/api/whatsapp/registrar`, payload, {
         headers: { Authorization: `Bearer ${token}` }
       })
       if (data?.ok) {
         alertSuccess('Registro enviado', 'Espera 1–2 minutos y prueba el envío.')
       } else {
-        const msg = typeof data?.error === 'object' ? JSON.stringify(data.error, null, 2) : (data?.error ?? '')
-        alertError('No se pudo registrar', msg)
+        alertError('No se pudo registrar', data?.error || data)
       }
     } catch (e: any) {
-      const msg = e?.response?.data
-        ? (typeof e.response.data === 'object' ? JSON.stringify(e.response.data, null, 2) : e.response.data)
-        : e.message
-      alertError('Error al registrar', msg)
+      const payload = e?.response?.data?.error || e?.response?.data || e?.message || e
+      alertError('Error al registrar', payload)
     } finally {
       setLoadingRegister(false)
     }
@@ -208,17 +211,23 @@ export default function WhatsappConfig() {
     if (!phoneNumberId || !testTo || !testBody) {
       return alertInfo('Campos requeridos', 'ID, destinatario y mensaje son obligatorios.')
     }
+
+    // E.164 sin “+”, solo dígitos
+    const toSanitized = String(testTo).replace(/\D+/g, '')
+
     try {
       setLoadingSend(true)
       const { data } = await axios.post(
         `${API_URL}/api/whatsapp/enviar-prueba`,
-        { phoneNumberId, to: testTo, body: testBody },
+        { phoneNumberId, to: toSanitized, body: testBody },
         { headers: { Authorization: `Bearer ${token}` } }
       )
-      if (data?.ok) alertSuccess('Mensaje enviado', 'Revisa el celular destino.')
-      else alertError('No se pudo enviar', JSON.stringify(data?.error ?? ''))
+
+      if (data?.ok) return alertSuccess('Mensaje enviado', 'Revisa el celular destino.')
+      return alertError('No se pudo enviar', data?.error || data)
     } catch (e: any) {
-      alertError('Error al enviar', e?.response?.data?.error || e.message)
+      const payload = e?.response?.data?.error || e?.response?.data || e?.message || e
+      return alertError('Error al enviar', payload)
     } finally {
       setLoadingSend(false)
     }
@@ -248,12 +257,122 @@ export default function WhatsappConfig() {
           color: '#fff'
         })
       } else {
-        alertError('No se pudo consultar', JSON.stringify(data?.error ?? ''))
+        alertError('No se pudo consultar', data?.error || data)
       }
     } catch (e: any) {
       alertError('Error al consultar', e?.response?.data?.error || e.message)
     } finally {
       setLoadingInfo(false)
+    }
+  }
+
+  // ---------- NUEVOS: Request/Verify Code, Debug token, Health ----------
+  const requestCode = async () => {
+    if (!token || !API_URL) return
+    if (!phoneNumberId) return alertInfo('Falta ID', 'Ingresa el Phone Number ID')
+
+    const { value: method } = await Swal.fire({
+      title: 'Método para recibir código',
+      input: 'select',
+      inputOptions: { SMS: 'SMS', VOICE: 'VOZ' },
+      inputValue: 'SMS',
+      showCancelButton: true,
+      background: '#111827',
+      color: '#fff'
+    })
+    if (!method) return
+
+    const { value: locale } = await Swal.fire({
+      title: 'Locale',
+      input: 'text',
+      inputLabel: 'ej: es_CO, es_ES, en_US',
+      inputValue: 'es_CO',
+      showCancelButton: true,
+      background: '#111827',
+      color: '#fff'
+    })
+    if (!locale) return
+
+    try {
+      setLoadingReqCode(true)
+      const { data } = await axios.post(
+        `${API_URL}/api/whatsapp/request-code`,
+        { phoneNumberId, method, locale },
+        { headers: { Authorization: `Bearer ${token}` } }
+      )
+      if (data?.ok) return alertSuccess('Código solicitado', 'Revisa el canal elegido.')
+      return alertError('No se pudo solicitar código', data?.error || data)
+    } catch (e: any) {
+      const payload = e?.response?.data?.error || e?.response?.data || e?.message || e
+      return alertError('Error al solicitar código', payload)
+    } finally {
+      setLoadingReqCode(false)
+    }
+  }
+
+  const verifyCode = async () => {
+    if (!token || !API_URL) return
+    if (!phoneNumberId) return alertInfo('Falta ID', 'Ingresa el Phone Number ID')
+
+    const { value: code } = await Swal.fire({
+      title: 'Ingresa el código recibido',
+      input: 'text',
+      inputPlaceholder: '######',
+      inputAttributes: { maxlength: '6', inputmode: 'numeric' },
+      showCancelButton: true,
+      background: '#111827',
+      color: '#fff'
+    })
+    if (!code) return
+
+    try {
+      setLoadingVerify(true)
+      const { data } = await axios.post(
+        `${API_URL}/api/whatsapp/verify-code`,
+        { phoneNumberId, code },
+        { headers: { Authorization: `Bearer ${token}` } }
+      )
+      if (data?.ok) return alertSuccess('Código verificado', 'Ahora puedes registrar el número si Meta exige PIN.')
+      return alertError('No se pudo verificar el código', data?.error || data)
+    } catch (e: any) {
+      const payload = e?.response?.data?.error || e?.response?.data || e?.message || e
+      return alertError('Error al verificar código', payload)
+    } finally {
+      setLoadingVerify(false)
+    }
+  }
+
+  const debugToken = async () => {
+    if (!token || !API_URL) return
+    try {
+      setLoadingDebug(true)
+      const { data } = await axios.get(`${API_URL}/api/whatsapp/debug-token`, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      if (data?.ok) return alertInfo('Debug token', data?.data)
+      return alertError('No se pudo depurar token', data?.error || data)
+    } catch (e: any) {
+      const payload = e?.response?.data?.error || e?.response?.data || e?.message || e
+      return alertError('Error en debug token', payload)
+    } finally {
+      setLoadingDebug(false)
+    }
+  }
+
+  const health = async () => {
+    if (!token || !API_URL) return
+    try {
+      setLoadingHealth(true)
+      const { data } = await axios.get(`${API_URL}/api/whatsapp/health`, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      if (data?.ok) return alertInfo('Health', data)
+      return alertError('Health con error', data?.error || data)
+    } catch (e: any) {
+      const payload = e?.response?.data?.error || e?.response?.data || e?.message || e
+      return alertError('Error en health', payload)
+    } finally {
+      setLoadingHealth(false)
     }
   }
 
@@ -323,7 +442,8 @@ export default function WhatsappConfig() {
           {/* MODO MANUAL: Registrar número */}
           <div className="bg-slate-800/60 border border-slate-700 rounded-lg p-4 mb-4">
             <h3 className="font-semibold mb-2 text-sm">Registro del número (Cloud API)</h3>
-            <div className="flex flex-col sm:flex-row gap-3">
+
+            <div className="flex flex-col sm:flex-row gap-3 mb-3">
               <input
                 value={pin}
                 onChange={(e) => setPin(e.target.value)}
@@ -339,8 +459,26 @@ export default function WhatsappConfig() {
                 {loadingRegister ? 'Registrando…' : 'Registrar número'}
               </button>
             </div>
+
+            <div className="flex flex-col sm:flex-row gap-3">
+              <button
+                onClick={requestCode}
+                disabled={loadingReqCode || !phoneNumberId}
+                className="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-md text-sm disabled:opacity-60"
+              >
+                {loadingReqCode ? 'Solicitando…' : 'Solicitar código'}
+              </button>
+              <button
+                onClick={verifyCode}
+                disabled={loadingVerify || !phoneNumberId}
+                className="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-md text-sm disabled:opacity-60"
+              >
+                {loadingVerify ? 'Verificando…' : 'Verificar código'}
+              </button>
+            </div>
+
             <p className="text-xs text-slate-500 mt-2">
-              Si el PIN no está habilitado aún, deja el campo vacío.
+              Flujo típico: Solicitar código → Verificar código → Registrar (con PIN si Meta lo exige).
             </p>
           </div>
 
@@ -380,7 +518,7 @@ export default function WhatsappConfig() {
               {redirecting ? 'Redirigiendo…' : 'Conectar con WhatsApp (OAuth)'}
             </button>
             <button
-              onClick={iniciarOAuthManual}  
+              onClick={iniciarOAuthManual}
               className="px-4 py-2 bg-teal-600 hover:bg-teal-700 rounded-md text-sm"
             >
               Conectar rápido (solo token)
@@ -391,6 +529,23 @@ export default function WhatsappConfig() {
             >
               Conectar (Embedded Signup)
             </button>
+
+            {/* NUEVOS: utilidades */}
+            <button
+              onClick={debugToken}
+              disabled={loadingDebug}
+              className="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-md text-sm disabled:opacity-60"
+            >
+              {loadingDebug ? 'Debug…' : 'Debug token'}
+            </button>
+            <button
+              onClick={health}
+              disabled={loadingHealth}
+              className="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-md text-sm disabled:opacity-60"
+            >
+              {loadingHealth ? 'Health…' : 'Health'}
+            </button>
+
             {estado === 'conectado' && (
               <button
                 onClick={eliminarWhatsapp}
