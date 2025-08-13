@@ -1,12 +1,14 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { FiArrowDown, FiClock } from 'react-icons/fi'
 
-interface Mensaje {
-  from: 'client' | 'bot'
+export interface Mensaje {
+  id?: number
+  externalId?: string // wamid si viene
+  from: 'client' | 'bot' | 'agent'
   contenido: string
-  timestamp: string
+  timestamp: string // ISO
 }
 
 interface ChatMessagesProps {
@@ -20,21 +22,30 @@ export default function ChatMessages({ mensajes, onLoadMore, hasMore }: ChatMess
   const scrollContainerRef = useRef<HTMLDivElement | null>(null)
   const [isAtBottom, setIsAtBottom] = useState(true)
 
+  // 🔒 Dedupe local por externalId si existe, o por firma (from+timestamp+contenido)
+  const list = useMemo(() => {
+    const seen = new Set<string>()
+    return mensajes.filter(m => {
+      const k = m.externalId ?? `${m.from}-${m.timestamp}-${m.contenido}`
+      if (seen.has(k)) return false
+      seen.add(k)
+      return true
+    })
+  }, [mensajes])
+
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
     const { scrollTop, scrollHeight, clientHeight } = e.currentTarget
     const isBottom = scrollHeight - scrollTop - clientHeight < 10
     setIsAtBottom(isBottom)
   }
 
-  const scrollToBottom = () => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }
+  const scrollToBottom = () => bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
 
+  // Solo auto-scroll cuando aumenta la longitud
+  const len = list.length
   useEffect(() => {
-    if (isAtBottom && bottomRef.current) {
-      bottomRef.current.scrollIntoView({ behavior: 'smooth' })
-    }
-  }, [mensajes])
+    if (isAtBottom) bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [len, isAtBottom])
 
   return (
     <div className="flex-1 overflow-hidden relative">
@@ -44,23 +55,19 @@ export default function ChatMessages({ mensajes, onLoadMore, hasMore }: ChatMess
         onScroll={handleScroll}
       >
         {hasMore && (
-          <button
-            onClick={onLoadMore}
-            className="text-xs text-[#00A884] hover:underline self-center"
-          >
+          <button onClick={onLoadMore} className="text-xs text-[#00A884] hover:underline self-center">
             Ver mensajes anteriores
           </button>
         )}
 
-        {mensajes.map((msg, index) => {
+        {list.map((msg) => {
           const esIA = msg.from !== 'client'
+          const key = msg.externalId ?? String(msg.id ?? `${msg.from}-${msg.timestamp}-${msg.contenido.slice(0,16)}`)
           return (
             <div
-              key={index}
+              key={key}
               className={`max-w-[75%] px-4 py-2 rounded-xl text-sm break-words whitespace-pre-wrap shadow-sm ${
-                esIA
-                  ? 'bg-[#005C4B] text-white self-end ml-auto'
-                  : 'bg-[#202C33] text-[#e9edef] self-start'
+                esIA ? 'bg-[#005C4B] text-white self-end ml-auto' : 'bg-[#202C33] text-[#e9edef] self-start'
               }`}
             >
               {msg.contenido}
@@ -70,10 +77,7 @@ export default function ChatMessages({ mensajes, onLoadMore, hasMore }: ChatMess
                 }`}
               >
                 <FiClock className="inline-block" />
-                {new Date(msg.timestamp).toLocaleTimeString([], {
-                  hour: '2-digit',
-                  minute: '2-digit',
-                })}
+                {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
               </div>
             </div>
           )

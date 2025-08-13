@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 import { FiClock } from 'react-icons/fi'
 import { responderConIA } from '@/lib/chatService'
 import socket from '@/lib/socket'
@@ -46,9 +46,31 @@ export default function ChatsPage() {
 
   const { token } = useAuth()
 
+  // ------- utils de dedupe/orden -------
+  const keyOf = useCallback((m: any) => {
+    // soporta backend con externalId o con firma
+    return m.externalId ?? `${m.from}|${m.timestamp}|${m.contenido}`
+  }, [])
+
+  const ordenarMensajes = useCallback(
+    (arr: any[]) => [...arr].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()),
+    []
+  )
+
+  const mergeUnique = useCallback((prev: any[], incoming: any[]) => {
+    const seen = new Set(prev.map(keyOf))
+    const toAdd = incoming.filter(m => {
+      const k = keyOf(m)
+      if (seen.has(k)) return false
+      seen.add(k)
+      return true
+    })
+    return ordenarMensajes([...prev, ...toAdd])
+  }, [keyOf, ordenarMensajes])
+
+  // ------- carga de chats -------
   useEffect(() => {
     if (!token) return
-
     const fetchChats = async () => {
       try {
         const res = await axios.get('/api/chats', {
@@ -61,48 +83,68 @@ export default function ChatsPage() {
         setLoading(false)
       }
     }
-
     fetchChats()
   }, [token])
 
-  useEffect(() => {
-    const handleNuevoMensaje = (msg: any) => {
-      const nuevo = { from: msg.from, contenido: msg.contenido, timestamp: msg.timestamp }
-      if (msg.conversationId === activoId) {
-        setMensajes((prev) => ordenarMensajes([...prev, nuevo]))
-      }
-      setChats((prev) => {
-        const existe = prev.find((c) => c.id === msg.conversationId)
-        if (existe) {
-          return prev.map((chat) =>
-            chat.id === msg.conversationId ? { ...chat, mensaje: msg.contenido, estado: msg.estado ?? chat.estado, fecha: msg.timestamp } : chat
-          )
-        } else {
-          return [
-            { id: msg.conversationId, nombre: msg.nombre ?? msg.conversationId, estado: msg.estado ?? 'pendiente', mensaje: msg.contenido, fecha: msg.timestamp },
-            ...prev
-          ]
-        }
-      })
+  // ------- socket listeners (con cleanup correcto y dedupe) -------
+  const handleNuevoMensaje = useCallback((msg: any) => {
+    // admitir shape {conversationId, message:{...}} o plano
+    const payload = msg.message ?? msg
+    const nuevo = {
+      id: payload.id,
+      externalId: payload.externalId, // si viene desde backend, aprovéchalo
+      from: payload.from,            // 'client' | 'bot' | 'agent'
+      contenido: payload.contenido ?? payload.body ?? '',
+      timestamp: payload.timestamp ?? payload.createdAt
     }
 
-    socket.on('nuevo_mensaje', handleNuevoMensaje)
-    socket.on('chat_actualizado', (data) => {
-      setChats((prev) => prev.map((chat) => (chat.id === data.id ? { ...chat, estado: data.estado } : chat)))
+    if (msg.conversationId === activoId) {
+      setMensajes(prev => mergeUnique(prev, [nuevo]))
+    }
+
+    // actualizar tarjeta de la lista
+    setChats(prev => {
+      const existe = prev.find(c => c.id === msg.conversationId)
+      if (existe) {
+        return prev.map(chat =>
+          chat.id === msg.conversationId
+            ? { ...chat, mensaje: nuevo.contenido, estado: msg.estado ?? chat.estado, fecha: nuevo.timestamp }
+            : chat
+        )
+      } else {
+        return [
+          { id: msg.conversationId, nombre: msg.nombre ?? msg.conversationId, estado: msg.estado ?? 'pendiente', mensaje: nuevo.contenido, fecha: nuevo.timestamp },
+          ...prev
+        ]
+      }
     })
+  }, [activoId, mergeUnique])
+
+  const handleChatActualizado = useCallback((data: any) => {
+    setChats(prev => prev.map(chat => (chat.id === data.id ? { ...chat, estado: data.estado } : chat)))
+  }, [])
+
+  useEffect(() => {
+    // primero quitamos posibles duplicados viejos del mismo handler
+    socket.off('nuevo_mensaje', handleNuevoMensaje)
+    socket.on('nuevo_mensaje', handleNuevoMensaje)
+
+    socket.off('chat_actualizado', handleChatActualizado)
+    socket.on('chat_actualizado', handleChatActualizado)
 
     return () => {
       socket.off('nuevo_mensaje', handleNuevoMensaje)
-      socket.off('chat_actualizado')
+      socket.off('chat_actualizado', handleChatActualizado)
     }
-  }, [activoId])
+  }, [handleNuevoMensaje, handleChatActualizado])
 
+  // ------- seleccionar chat / historial -------
   const handleSelectChat = async (chatId: number) => {
     setActivoId(chatId)
     setMensajes([])
     setPage(1)
     try {
-      const chatActual = chats.find((c) => c.id === chatId)
+      const chatActual = chats.find(c => c.id === chatId)
       if (chatActual?.estado === 'pendiente') {
         await axios.put(`/api/chats/${chatId}/estado`, { estado: 'en_proceso' }, {
           headers: { Authorization: `Bearer ${token}` }
@@ -111,13 +153,25 @@ export default function ChatsPage() {
       const res = await axios.get(`/api/chats/${chatId}/messages?page=1&limit=20`, {
         headers: { Authorization: `Bearer ${token}` }
       })
-      setMensajes(ordenarMensajes(res.data.messages))
+
+      // normalizamos al mismo shape que el socket
+      const mapped = res.data.messages.map((m: any) => ({
+        id: m.id,
+        externalId: m.externalId,
+        from: m.from, // o mapear desde m.fromRole si tu API lo envía así
+        contenido: m.contenido ?? m.body,
+        timestamp: m.timestamp ?? m.createdAt
+      }))
+
+      // set directo del historial (limpio) — si entra un socket con el mismo mensaje, el dedupe del listener lo frenará
+      setMensajes(ordenarMensajes(mapped))
       setHasMore(res.data.pagination.hasMore)
     } catch (err) {
       console.error('Error al cargar mensajes:', err)
     }
   }
 
+  // ------- paginación -------
   const handleLoadMore = async () => {
     if (!activoId) return
     const nextPage = page + 1
@@ -125,7 +179,14 @@ export default function ChatsPage() {
       const res = await axios.get(`/api/chats/${activoId}/messages?page=${nextPage}&limit=20`, {
         headers: { Authorization: `Bearer ${token}` }
       })
-      setMensajes((prev) => ordenarMensajes([...res.data.messages, ...prev]))
+      const mapped = res.data.messages.map((m: any) => ({
+        id: m.id,
+        externalId: m.externalId,
+        from: m.from,
+        contenido: m.contenido ?? m.body,
+        timestamp: m.timestamp ?? m.createdAt
+      }))
+      setMensajes(prev => mergeUnique(mapped, prev)) // prepend único + los previos
       setPage(nextPage)
       setHasMore(res.data.pagination.hasMore)
     } catch (err) {
@@ -133,35 +194,44 @@ export default function ChatsPage() {
     }
   }
 
+  // ------- enviar (manual/IA) -------
   const handleSendMessage = async () => {
     if (!respuesta.trim() || !activoId) return
-    const chatActual = chats.find((c) => c.id === activoId)
+    const chatActual = chats.find(c => c.id === activoId)
     const timestamp = new Date().toISOString()
+    const msgCliente = { from: 'client', contenido: respuesta, timestamp }
+
     setRespuesta('')
+
+    // si la conversación NO está cerrada → envío manual del agente
     if (chatActual?.estado !== 'cerrado') {
       try {
+        // mostramos de una vez el mensaje del agente (optimista seguro)
+        setMensajes(prev => mergeUnique(prev, [msgCliente]))
         await axios.post(`/api/chats/${activoId}/responder-manual`, { contenido: respuesta }, {
           headers: { Authorization: `Bearer ${token}` }
         })
-        setChats((prev) => prev.map((chat) => (chat.id === activoId ? { ...chat, estado: 'requiere_agente' } : chat)))
+        setChats(prev => prev.map(chat => (chat.id === activoId ? { ...chat, estado: 'requiere_agente' } : chat)))
       } catch (err) {
         console.error('Error al responder manualmente:', err)
       }
       return
     }
-    const nuevoMensaje = { from: 'client', contenido: respuesta, timestamp }
-    setMensajes((prev) => ordenarMensajes([...prev, nuevoMensaje]))
+
+    // si está cerrada y tu flujo usa IA directa: agregamos solo el mensaje del cliente.
+    setMensajes(prev => mergeUnique(prev, [msgCliente]))
+
     try {
       const res = await responderConIA({ chatId: activoId, mensaje: respuesta, intentosFallidos: 0 })
       if (res.estado === 'requiere_agente') {
-        setChats((prev) => prev.map((chat) => (chat.id === activoId ? { ...chat, estado: 'requiere_agente' } : chat)))
+        setChats(prev => prev.map(chat => (chat.id === activoId ? { ...chat, estado: 'requiere_agente' } : chat)))
         if (audioRef.current) audioRef.current.play()
         if (navigator.vibrate) navigator.vibrate(200)
         return
       }
-      const respuestaIA = { from: 'bot', contenido: res.mensaje, timestamp: new Date().toISOString() }
-      setMensajes((prev) => ordenarMensajes([...prev, respuestaIA]))
-      setChats((prev) => prev.map((chat) => (chat.id === activoId ? { ...chat, estado: 'respondido' } : chat)))
+      // ⚠️ No empujamos la respuesta del bot aquí.
+      // Deja que la inserte el backend y llegue por socket -> el dedupe evita dobles.
+      setChats(prev => prev.map(chat => (chat.id === activoId ? { ...chat, estado: 'respondido' } : chat)))
     } catch (err) {
       console.error('Error al responder con IA:', err)
     }
@@ -173,7 +243,7 @@ export default function ChatsPage() {
       await axios.put(`/api/chats/${activoId}/estado`, { estado: 'cerrado' }, {
         headers: { Authorization: `Bearer ${token}` }
       })
-      setChats((prev) => prev.map((chat) => (chat.id === activoId ? { ...chat, estado: 'cerrado' } : chat)))
+      setChats(prev => prev.map(chat => (chat.id === activoId ? { ...chat, estado: 'cerrado' } : chat)))
       if (estadoFiltro !== 'todos') {
         setActivoId(null)
         setMensajes([])
@@ -183,14 +253,12 @@ export default function ChatsPage() {
     }
   }
 
-  const ordenarMensajes = (mensajes: any[]) => [...mensajes].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
-
   const handleCrearConversacion = async (data: { nombre?: string; phone: string }) => {
     try {
       const res = await axios.post('/api/chats', data, {
         headers: { Authorization: `Bearer ${token}` }
       })
-      setChats((prev) => [res.data.chat, ...prev])
+      setChats(prev => [res.data.chat, ...prev])
       setActivoId(res.data.chat.id)
       await handleSelectChat(res.data.chat.id)
       await axios.put(`/api/chats/${res.data.chat.id}/estado`, { estado: 'en_proceso' }, {
@@ -216,15 +284,14 @@ export default function ChatsPage() {
         estadoIconos={estadoIconos}
         estadoEstilos={estadoEstilos}
         onNuevaConversacion={() => setMostrarModalCrear(true)}
-
       />
 
       <section className="flex-1 flex flex-col h-full bg-[#0B141A] overflow-hidden">
         {activoId ? (
           <>
             <ChatHeader
-              nombre={chats.find((c) => c.id === activoId)?.nombre || ''}
-              estado={chats.find((c) => c.id === activoId)?.estado || ''}
+              nombre={chats.find(c => c.id === activoId)?.nombre || ''}
+              estado={chats.find(c => c.id === activoId)?.estado || ''}
               onCerrar={() => setMostrarModalCerrar(true)}
               mostrarBotonCerrar={true}
             />
@@ -239,7 +306,7 @@ export default function ChatsPage() {
               value={respuesta}
               onChange={setRespuesta}
               onSend={handleSendMessage}
-              disabled={chats.find((c) => c.id === activoId)?.estado === 'cerrado'}
+              disabled={chats.find(c => c.id === activoId)?.estado === 'cerrado'}
             />
           </>
         ) : (
@@ -256,12 +323,11 @@ export default function ChatsPage() {
         />
       )}
       {mostrarModalCrear && (
-  <ChatModalCrear
-    onClose={() => setMostrarModalCrear(false)}
-    onCreate={handleCrearConversacion}
-  />
-)}
-
+        <ChatModalCrear
+          onClose={() => setMostrarModalCrear(false)}
+          onCreate={handleCrearConversacion}
+        />
+      )}
     </div>
   )
 }
