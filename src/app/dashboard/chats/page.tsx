@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState, useCallback } from 'react'
-import { FiClock } from 'react-icons/fi'
+import { FiClock, FiAlertTriangle } from 'react-icons/fi'
 import { responderConIA } from '@/lib/chatService'
 import socket from '@/lib/socket'
 import axios from '@/lib/axios'
@@ -43,6 +43,9 @@ export default function ChatsPage() {
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const [mostrarModalCerrar, setMostrarModalCerrar] = useState(false)
   const [mostrarModalCrear, setMostrarModalCrear] = useState(false)
+
+  // 🚨 Errores de política (24h cerrada) por conversación
+  const [policyErrors, setPolicyErrors] = useState<Record<number, { code?: number; message: string }>>({})
 
   const { token } = useAuth()
 
@@ -86,13 +89,13 @@ export default function ChatsPage() {
     fetchChats()
   }, [token])
 
-  // ------- socket listeners (con cleanup correcto y dedupe) -------
+  // ------- handlers de socket -------
   const handleNuevoMensaje = useCallback((msg: any) => {
     // admitir shape {conversationId, message:{...}} o plano
     const payload = msg.message ?? msg
     const nuevo = {
       id: payload.id,
-      externalId: payload.externalId, // si viene desde backend, aprovéchalo
+      externalId: payload.externalId,
       from: payload.from,            // 'client' | 'bot' | 'agent'
       contenido: payload.contenido ?? payload.body ?? '',
       timestamp: payload.timestamp ?? payload.createdAt
@@ -100,6 +103,15 @@ export default function ChatsPage() {
 
     if (msg.conversationId === activoId) {
       setMensajes(prev => mergeUnique(prev, [nuevo]))
+    }
+
+    // si el cliente vuelve a escribir, limpiamos el banner (reabrió 24h)
+    if (payload.from === 'client' && msg.conversationId) {
+      setPolicyErrors(prev => {
+        if (!(msg.conversationId in prev)) return prev
+        const { [msg.conversationId]: _omit, ...rest } = prev
+        return rest
+      })
     }
 
     // actualizar tarjeta de la lista
@@ -124,19 +136,34 @@ export default function ChatsPage() {
     setChats(prev => prev.map(chat => (chat.id === data.id ? { ...chat, estado: data.estado } : chat)))
   }, [])
 
+  const handlePolicyError = useCallback((payload: any) => {
+    const { conversationId, code, message } = payload || {}
+    if (!conversationId) return
+    setPolicyErrors(prev => ({
+      ...prev,
+      [conversationId]: {
+        code,
+        message: message || 'Ventana de 24h cerrada. Se requiere plantilla para iniciar la conversación.'
+      }
+    }))
+  }, [])
+
   useEffect(() => {
-    // primero quitamos posibles duplicados viejos del mismo handler
     socket.off('nuevo_mensaje', handleNuevoMensaje)
     socket.on('nuevo_mensaje', handleNuevoMensaje)
 
     socket.off('chat_actualizado', handleChatActualizado)
     socket.on('chat_actualizado', handleChatActualizado)
 
+    socket.off('wa_policy_error', handlePolicyError)
+    socket.on('wa_policy_error', handlePolicyError)
+
     return () => {
       socket.off('nuevo_mensaje', handleNuevoMensaje)
       socket.off('chat_actualizado', handleChatActualizado)
+      socket.off('wa_policy_error', handlePolicyError)
     }
-  }, [handleNuevoMensaje, handleChatActualizado])
+  }, [handleNuevoMensaje, handleChatActualizado, handlePolicyError])
 
   // ------- seleccionar chat / historial -------
   const handleSelectChat = async (chatId: number) => {
@@ -154,16 +181,14 @@ export default function ChatsPage() {
         headers: { Authorization: `Bearer ${token}` }
       })
 
-      // normalizamos al mismo shape que el socket
       const mapped = res.data.messages.map((m: any) => ({
         id: m.id,
         externalId: m.externalId,
-        from: m.from, // o mapear desde m.fromRole si tu API lo envía así
+        from: m.from,
         contenido: m.contenido ?? m.body,
         timestamp: m.timestamp ?? m.createdAt
       }))
 
-      // set directo del historial (limpio) — si entra un socket con el mismo mensaje, el dedupe del listener lo frenará
       setMensajes(ordenarMensajes(mapped))
       setHasMore(res.data.pagination.hasMore)
     } catch (err) {
@@ -186,7 +211,7 @@ export default function ChatsPage() {
         contenido: m.contenido ?? m.body,
         timestamp: m.timestamp ?? m.createdAt
       }))
-      setMensajes(prev => mergeUnique(mapped, prev)) // prepend único + los previos
+      setMensajes(prev => mergeUnique(mapped, prev)) // prepend único + previos
       setPage(nextPage)
       setHasMore(res.data.pagination.hasMore)
     } catch (err) {
@@ -206,7 +231,7 @@ export default function ChatsPage() {
     // si la conversación NO está cerrada → envío manual del agente
     if (chatActual?.estado !== 'cerrado') {
       try {
-        // mostramos de una vez el mensaje del agente (optimista seguro)
+        // optimista seguro (se guarda como "manual" en backend)
         setMensajes(prev => mergeUnique(prev, [msgCliente]))
         await axios.post(`/api/chats/${activoId}/responder-manual`, { contenido: respuesta }, {
           headers: { Authorization: `Bearer ${token}` }
@@ -229,8 +254,7 @@ export default function ChatsPage() {
         if (navigator.vibrate) navigator.vibrate(200)
         return
       }
-      // ⚠️ No empujamos la respuesta del bot aquí.
-      // Deja que la inserte el backend y llegue por socket -> el dedupe evita dobles.
+      // no empujamos la respuesta del bot aquí; la insertará el backend y llegará por socket
       setChats(prev => prev.map(chat => (chat.id === activoId ? { ...chat, estado: 'respondido' } : chat)))
     } catch (err) {
       console.error('Error al responder con IA:', err)
@@ -295,6 +319,36 @@ export default function ChatsPage() {
               onCerrar={() => setMostrarModalCerrar(true)}
               mostrarBotonCerrar={true}
             />
+
+            {/* Banner de ventana 24h cerrada */}
+            {policyErrors[activoId] && (
+              <div className="mx-6 mt-3 mb-1 rounded-lg border border-yellow-500/40 bg-yellow-500/10 text-yellow-200 px-4 py-3 text-sm">
+                <div className="flex items-start gap-2">
+                  <FiAlertTriangle className="mt-0.5 shrink-0" />
+                  <div className="flex-1">
+                    <div className="font-medium">Sesión de 24 h vencida</div>
+                    <div className="opacity-90">
+                      {policyErrors[activoId].message}
+                      {policyErrors[activoId].code ? ` (código ${policyErrors[activoId].code})` : null}
+                    </div>
+                    <div className="mt-1 text-xs opacity-80">
+                      Por ahora no se envían respuestas automáticas. Usa una plantilla aprobada para reabrir la conversación.
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setPolicyErrors(prev => {
+                        const { [activoId!]: _omit, ...rest } = prev
+                        return rest
+                      })
+                    }}
+                    className="text-yellow-200/80 hover:text-yellow-100 text-xs"
+                  >
+                    Cerrar
+                  </button>
+                </div>
+              </div>
+            )}
 
             <ChatMessages
               mensajes={mensajes}
