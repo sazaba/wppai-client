@@ -9,6 +9,11 @@ import { useAuth } from '../../../context/AuthContext'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL
 
+// ⬇️ Añadido: constantes para construir la URL de OAuth
+const META_APP_ID = process.env.NEXT_PUBLIC_META_APP_ID!
+const FB_VERSION = 'v20.0'
+const REDIRECT_URI = 'https://wasaaa.com/dashboard/callback' // Debe coincidir con tu config en Meta
+
 type Estado = 'conectado' | 'desconectado' | 'cargando'
 
 export default function WhatsappConfig() {
@@ -83,19 +88,39 @@ export default function WhatsappConfig() {
     }
   }, [token, fetchEstado])
 
-  // Iniciar único flujo OAuth
+  // ✅ Iniciar flujo OAuth desde el frontend con SCOPES correctos (incluye business_management)
   const iniciarOAuth = () => {
     if (!empresaId || !token) {
       alertInfo('Sesión requerida', 'Inicia sesión para conectar tu WhatsApp.')
       return
     }
-    if (!API_URL) return
+    if (!API_URL || !META_APP_ID) {
+      alertError('Config requerida', 'Falta NEXT_PUBLIC_API_URL o NEXT_PUBLIC_META_APP_ID')
+      return
+    }
 
-    localStorage.setItem('tempToken', token) // el callback lo usará para guardar en BD
+    // Guardamos el JWT para usarlo en el callback
+    localStorage.setItem('tempToken', token)
     localStorage.removeItem('oauthDone')
 
+    const scope = [
+      'whatsapp_business_messaging',
+      'whatsapp_business_management',
+      'business_management',
+      'pages_show_list', // opcional
+    ].join(',')
+
     setRedirecting(true)
-    window.location.href = `${API_URL}/api/auth/whatsapp?auth_type=rerequest`
+
+    const url =
+      `https://www.facebook.com/${FB_VERSION}/dialog/oauth` +
+      `?client_id=${META_APP_ID}` +
+      `&redirect_uri=${encodeURIComponent(REDIRECT_URI)}` +
+      `&response_type=code` +
+      `&scope=${encodeURIComponent(scope)}` +
+      `&auth_type=rerequest` // por si el usuario negó permisos antes
+
+    window.location.href = url
   }
 
   const eliminarWhatsapp = async () => {

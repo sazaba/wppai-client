@@ -4,9 +4,12 @@ import { useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import axios from 'axios'
 import Swal from 'sweetalert2'
+import 'sweetalert2/dist/sweetalert2.min.css'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL
 const FB_VERSION = 'v20.0'
+const META_APP_ID = process.env.NEXT_PUBLIC_META_APP_ID
+const REDIRECT_URI = 'https://wasaaa.com/dashboard/callback' // debe coincidir con el backend
 
 type WABA = { id: string; name?: string; owner_business_id?: string }
 type Phone = { id: string; display_phone_number: string }
@@ -20,13 +23,33 @@ export default function CallbackPage() {
   const [loading, setLoading] = useState(true)
   const [items, setItems] = useState<WabaWithPhones[]>([])
 
+  // ---- util para relanzar OAuth con scopes correctos
+  const startOAuth = () => {
+    if (!META_APP_ID) {
+      Swal.fire({ icon: 'error', title: 'Config faltante', text: 'NEXT_PUBLIC_META_APP_ID no está definido.' })
+      return
+    }
+    const scope = [
+      'whatsapp_business_messaging',
+      'whatsapp_business_management',
+      'business_management',
+      'pages_show_list', // opcional
+    ].join(',')
+    const url =
+      `https://www.facebook.com/${FB_VERSION}/dialog/oauth` +
+      `?client_id=${META_APP_ID}` +
+      `&redirect_uri=${encodeURIComponent(REDIRECT_URI)}` +
+      `&response_type=code` +
+      `&scope=${encodeURIComponent(scope)}`
+    window.location.href = url
+  }
+
   useEffect(() => {
     mounted.current = true
     return () => { mounted.current = false }
   }, [])
 
   useEffect(() => {
-    // Si Meta trae error en la URL
     const err = searchParams.get('error')
     const errDesc = searchParams.get('error_description')
     if (err) {
@@ -55,7 +78,14 @@ export default function CallbackPage() {
         const need = ['business_management', 'whatsapp_business_management', 'whatsapp_business_messaging']
         const missing = need.filter(p => !granted.includes(p))
         if (missing.length) {
-          throw new Error(`Faltan permisos: ${missing.join(', ')}. Repite la conexión y acepta todos.`)
+          await Swal.fire({
+            icon: 'error',
+            title: 'Faltan permisos',
+            html: `Tu inicio de sesión no otorgó: <b>${missing.join(', ')}</b>.<br/>Necesitamos esos permisos para listar tus cuentas de WhatsApp.`,
+            confirmButtonText: 'Conectar otra vez'
+          })
+          startOAuth()
+          return
         }
 
         // 3) Cargar Businesses → WABAs → Phones desde backend
@@ -65,7 +95,24 @@ export default function CallbackPage() {
           typeof err?.response?.data?.error === 'object'
             ? JSON.stringify(err.response.data.error)
             : err?.response?.data?.message || err?.response?.data?.error || err.message
-        Swal.fire({ icon: 'error', title: 'Error en el callback', text: msg, background: '#111827', color: '#fff' })
+
+        // casos típicos del (#200)
+        if (String(msg).includes('business_management') || String(msg).includes('code 200')) {
+          const { isConfirmed } = await Swal.fire({
+            icon: 'error',
+            title: 'Error en el callback',
+            html:
+              'Meta devolvió <b>(#200) business_management requerido</b> para gestionar el negocio.<br/>' +
+              'Pulsa continuar para relanzar el login con los permisos correctos.',
+            confirmButtonText: 'Continuar',
+            showCancelButton: true,
+            background: '#111827',
+            color: '#fff'
+          })
+          if (isConfirmed) startOAuth()
+        } else {
+          Swal.fire({ icon: 'error', title: 'Error en el callback', text: msg, background: '#111827', color: '#fff' })
+        }
       } finally {
         if (mounted.current) setLoading(false)
       }
@@ -73,9 +120,7 @@ export default function CallbackPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const checkScopes = async (
-    at: string
-  ): Promise<{ granted: string[] }> => {
+  const checkScopes = async (at: string): Promise<{ granted: string[] }> => {
     const { data } = await axios.get(
       `https://graph.facebook.com/${FB_VERSION}/me/permissions?access_token=${at}`
     )
@@ -126,14 +171,14 @@ export default function CallbackPage() {
       return
     }
 
-    // Si el backend no devolvió owner_business_id, lo resolvemos rápido
-    let businessId = waba.owner_business_id || 'unknown'
+    // Resolver owner_business_id si hace falta
+    let businessId = waba.owner_business_id || ''
     if (!businessId) {
       try {
         const info = await axios.get(
           `https://graph.facebook.com/${FB_VERSION}/${waba.id}?fields=owner_business_info&access_token=${accessToken}`
         )
-        businessId = info.data?.owner_business_info?.id || 'unknown'
+        businessId = info.data?.owner_business_info?.id || ''
       } catch {}
     }
 
@@ -165,9 +210,19 @@ export default function CallbackPage() {
             <span>Procesando OAuth…</span>
           </div>
         ) : !accessToken ? (
-          <p className="text-red-400">No se pudo obtener el access token.</p>
+          <div className="space-y-3">
+            <p className="text-red-400">No se pudo obtener el access token.</p>
+            <button onClick={startOAuth} className="px-4 py-2 rounded bg-indigo-600 hover:bg-indigo-700">
+              Reintentar conexión
+            </button>
+          </div>
         ) : items.length === 0 ? (
-          <div className="text-slate-300">No se encontraron WABAs o números disponibles.</div>
+          <div className="space-y-3">
+            <div className="text-slate-300">No se encontraron WABAs o números disponibles.</div>
+            <button onClick={startOAuth} className="px-4 py-2 rounded bg-indigo-600 hover:bg-indigo-700">
+              Probar de nuevo
+            </button>
+          </div>
         ) : (
           <div className="space-y-6">
             {items.map(({ waba, phones }) => (
