@@ -35,6 +35,7 @@ const EJEMPLOS: Record<string, string> = {
 
 export default function TemplatesPage() {
   const { token } = useAuth()
+
   const api: AxiosInstance = useMemo(() => {
     const instance = axios.create({
       baseURL: process.env.NEXT_PUBLIC_API_URL || '',
@@ -61,23 +62,25 @@ export default function TemplatesPage() {
   })
 
   const fetchTemplates = async () => {
+    if (!token) return
     setLoading(true)
     try {
-      // GET /api/templates — sincroniza con Meta y devuelve DB
-      const res = await api.get('/api/templates')
+      const res = await api.get('/api/templates') // sincroniza con Meta y devuelve DB
       setPlantillas(res.data)
     } catch (error: any) {
+      const msg = error?.response?.data?.error || 'No se pudo cargar'
       console.error('Error al cargar plantillas', error)
-      Swal.fire('Error', error?.response?.data?.error || 'No se pudo cargar', 'error')
+      Swal.fire('Error', msg, 'error')
     } finally {
       setLoading(false)
     }
   }
 
+  // ✅ Espera a tener token antes de pedir datos
   useEffect(() => {
-    fetchTemplates()
+    if (token) fetchTemplates()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [token])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target
@@ -110,9 +113,13 @@ export default function TemplatesPage() {
       setForm({ nombre: '', idioma: 'es', categoria: 'UTILITY', cuerpo: '', publicar: true })
       Swal.fire('Éxito', `Plantilla creada${form.publicar ? ' y enviada a Meta' : ''}`, 'success')
     } catch (error: any) {
-      console.error(error)
+      const status = error?.response?.status
       const msg = error?.response?.data?.error || 'No se pudo crear la plantilla'
-      Swal.fire('Error', msg, 'error')
+      if (status === 409) {
+        Swal.fire('Duplicado en Meta', msg, 'warning')
+      } else {
+        Swal.fire('Error', msg, 'error')
+      }
     }
   }
 
@@ -127,8 +134,7 @@ export default function TemplatesPage() {
     if (!confirm.isConfirmed) return
 
     try {
-      // Borrar también en Meta:
-      await api.delete(`/api/templates/${id}?borrarMeta=true`)
+      await api.delete(`/api/templates/${id}?borrarMeta=true`) // borra local + Meta
       await fetchTemplates()
       Swal.fire('Eliminada', 'La plantilla fue eliminada.', 'success')
     } catch (error: any) {
@@ -154,10 +160,17 @@ export default function TemplatesPage() {
       Swal.close()
       Swal.fire('Enviado', 'La plantilla fue enviada a Meta', 'success')
     } catch (error: any) {
-      console.error(error)
       Swal.close()
-      const msg = error?.response?.data?.details?.error?.message || 'Meta rechazó la plantilla'
-      Swal.fire('Error', msg, 'error')
+      const status = error?.response?.status
+      const serverMsg =
+        error?.response?.data?.error ||
+        error?.response?.data?.details?.error?.message ||
+        'Meta rechazó la plantilla'
+      if (status === 409) {
+        Swal.fire('Duplicado en Meta', serverMsg, 'warning')
+      } else {
+        Swal.fire('Error', serverMsg, 'error')
+      }
     } finally {
       setSendingId(null)
     }
@@ -172,7 +185,6 @@ export default function TemplatesPage() {
       Swal.close()
       Swal.fire('Estado actualizado', `Meta devolvió: ${res.data?.estado}`, 'info')
     } catch (error: any) {
-      console.error(error)
       Swal.close()
       const msg = error?.response?.data?.error || 'No se pudo consultar el estado en Meta'
       Swal.fire('Error', msg, 'error')
@@ -267,9 +279,9 @@ export default function TemplatesPage() {
           </div>
 
           <div className="sm:col-span-2">
-          <label className="block text-xs text-slate-400 mb-1">
-  {"Cuerpo (usa {{1}}, {{2}}, ...)"}
-</label>
+            <label className="block text-xs text-slate-400 mb-1">
+              {"Cuerpo (usa {{1}}, {{2}}, ...)"}
+            </label>
 
             <textarea
               name="cuerpo"
