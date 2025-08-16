@@ -138,7 +138,37 @@ body {
   * {
     @apply border-border outline-ring/50;
   }
+
   body {
     @apply bg-background text-foreground;
   }
+}
+
+/* Scrollbar sutil global */
+.scrollbar {
+  scrollbar-width: thin;
+  /* Firefox */
+  scrollbar-color: transparent transparent;
+}
+
+.scrollbar:hover {
+  scrollbar-color: #2A3942 transparent;
+}
+
+.scrollbar::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.scrollbar::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 9999px;
+}
+
+.scrollbar:hover::-webkit-scrollbar-thumb {
+  background: #2A3942;
+}
+
+.scrollbar::-webkit-scrollbar-track {
+  background: transparent;
 }

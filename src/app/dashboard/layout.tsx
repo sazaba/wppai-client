@@ -15,11 +15,7 @@ import { useRouter, usePathname } from "next/navigation"
 import clsx from "clsx"
 import { useAuth } from "../context/AuthContext"
 
-export default function DashboardLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
+export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const { isAuthenticated } = useAuth()
   const router = useRouter()
@@ -33,14 +29,10 @@ export default function DashboardLayout({
   ]
   const isOpenRoute = OPEN_DASH_ROUTES.some(p => pathname?.startsWith(p))
 
-  // Protege TODO lo demás bajo /dashboard excepto las rutas abiertas
   useEffect(() => {
-    if (!isAuthenticated && !isOpenRoute) {
-      router.replace("/")
-    }
+    if (!isAuthenticated && !isOpenRoute) router.replace("/")
   }, [isAuthenticated, isOpenRoute, router])
 
-  // Si no está autenticado y NO es una ruta abierta, no renderizamos nada
   if (!isAuthenticated && !isOpenRoute) return null
 
   // Para callback/embedded: render sin sidebar/full width
@@ -52,13 +44,14 @@ export default function DashboardLayout({
     )
   }
 
-  // Layout normal para el resto del dashboard
+  // Layout normal del dashboard
   return (
-    <div className="min-h-screen bg-gray-900 text-zinc-100 grid grid-cols-[auto_1fr]">
-      {/* Sidebar */}
+    // 🚫 Sin scroll del body; toda la app ocupa la pantalla
+    <div className="h-screen w-screen overflow-hidden bg-gray-900 text-zinc-100 grid grid-cols-[auto_1fr]">
+      {/* Sidebar fijo */}
       <aside
         className={clsx(
-          "h-screen bg-slate-800 border-r border-slate-700 shadow-md z-40 transition-all duration-300 ease-in-out flex flex-col justify-between",
+          "h-full bg-slate-800 border-r border-slate-700 shadow-md z-40 transition-all duration-300 ease-in-out flex flex-col justify-between sticky top-0",
           sidebarOpen ? "w-64" : "w-16"
         )}
       >
@@ -138,17 +131,21 @@ export default function DashboardLayout({
             className="w-full flex justify-center items-center py-2 hover:bg-slate-700 rounded transition"
             title={sidebarOpen ? "Ocultar menú" : "Mostrar menú"}
           >
-            {sidebarOpen ? (
-              <ChevronLeft className="w-5 h-5" />
-            ) : (
-              <ChevronRight className="w-5 h-5" />
-            )}
+            {sidebarOpen ? <ChevronLeft className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
           </button>
         </div>
       </aside>
 
-      <main className="transition-all duration-300 w-full h-screen overflow-hidden flex flex-col">
-        <div className="flex-1 overflow-hidden">{children}</div>
+      {/* Contenido: ÚNICA zona con scroll */}
+      <main
+        className="
+          h-full w-full overflow-y-auto
+          transition-all duration-300
+          scrollbar pr-1
+          hover:scrollbar-thumb-[#2A3942] scrollbar-thumb-rounded-full
+          "
+      >
+        <div className="p-6">{children}</div>
       </main>
     </div>
   )
