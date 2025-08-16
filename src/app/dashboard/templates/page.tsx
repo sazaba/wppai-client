@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import axios, { AxiosInstance } from 'axios'
-import { Trash2, RefreshCw, CheckCircle, Clock, XCircle, Send } from 'lucide-react'
+import { Trash2, RefreshCw, CheckCircle, Clock, XCircle, Send, ArrowUp } from 'lucide-react'
 import Swal from 'sweetalert2'
 import 'sweetalert2/dist/sweetalert2.min.css'
 import { useAuth } from '../../context/AuthContext'
@@ -35,20 +35,9 @@ const EJEMPLOS: Record<string, string> = {
 
 // ────────── UI helpers
 const Spinner = ({ size = 16, className = '' }: { size?: number; className?: string }) => (
-  <svg
-    className={`animate-spin ${className}`}
-    xmlns="http://www.w3.org/2000/svg"
-    fill="none"
-    viewBox="0 0 24 24"
-    width={size}
-    height={size}
-  >
-    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-    <path
-      className="opacity-75"
-      fill="currentColor"
-      d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
-    ></path>
+  <svg className={`animate-spin ${className}`} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" width={size} height={size}>
+    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
   </svg>
 )
 
@@ -77,10 +66,14 @@ export default function TemplatesPage() {
   }, [token])
 
   const [loading, setLoading] = useState(false)
-  const [creating, setCreating] = useState(false)        // ← NUEVO
+  const [creating, setCreating] = useState(false)
   const [plantillas, setPlantillas] = useState<MessageTemplate[]>([])
   const [sendingId, setSendingId] = useState<number | null>(null)
   const [checkingId, setCheckingId] = useState<number | null>(null)
+
+  const listRef = useRef<HTMLDivElement | null>(null)
+  const topRef = useRef<HTMLDivElement | null>(null)
+  const [isAtTop, setIsAtTop] = useState(true)
 
   const [form, setForm] = useState({
     nombre: '',
@@ -110,6 +103,13 @@ export default function TemplatesPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token])
 
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const el = e.currentTarget
+    setIsAtTop(el.scrollTop < 60)
+  }
+
+  const scrollToTop = () => topRef.current?.scrollIntoView({ behavior: 'smooth' })
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target
     if (type === 'checkbox') {
@@ -130,7 +130,7 @@ export default function TemplatesPage() {
       return Swal.fire('Campos requeridos', 'Completa todos los campos.', 'warning')
     }
     try {
-      setCreating(true) // ← muestra loader premium
+      setCreating(true)
       const params = form.publicar ? '?publicar=true' : ''
       await api.post(`/api/templates${params}`, {
         nombre: form.nombre,
@@ -141,6 +141,8 @@ export default function TemplatesPage() {
       await fetchTemplates()
       setForm({ nombre: '', idioma: 'es', categoria: 'UTILITY', cuerpo: '', publicar: true })
       Swal.fire('Éxito', `Plantilla creada${form.publicar ? ' y enviada a Meta' : ''}`, 'success')
+      // sube al inicio para ver la nueva arriba (si ordenas por fecha desc)
+      setTimeout(scrollToTop, 100)
     } catch (error: any) {
       const status = error?.response?.status
       const msg = error?.response?.data?.error || 'No se pudo crear la plantilla'
@@ -226,15 +228,9 @@ export default function TemplatesPage() {
 
   const renderEstado = (estado: string) => {
     const s = (estado || '').toLowerCase()
-    if (s.includes('approved')) {
-      return <span className="flex items-center gap-1 text-green-400 text-sm"><CheckCircle size={16} /> Aprobado</span>
-    }
-    if (s.includes('rejected')) {
-      return <span className="flex items-center gap-1 text-red-400 text-sm"><XCircle size={16} /> Rechazado</span>
-    }
-    if (s.includes('in_review') || s.includes('pending')) {
-      return <span className="flex items-center gap-1 text-yellow-400 text-sm"><Clock size={16} /> En revisión</span>
-    }
+    if (s.includes('approved')) return <span className="flex items-center gap-1 text-green-400 text-sm"><CheckCircle size={16} /> Aprobado</span>
+    if (s.includes('rejected')) return <span className="flex items-center gap-1 text-red-400 text-sm"><XCircle size={16} /> Rechazado</span>
+    if (s.includes('in_review') || s.includes('pending')) return <span className="flex items-center gap-1 text-yellow-400 text-sm"><Clock size={16} /> En revisión</span>
     return <span className="text-slate-400 text-sm capitalize">{estado || '—'}</span>
   }
 
@@ -263,6 +259,7 @@ export default function TemplatesPage() {
         </button>
       </div>
 
+      {/* Formulario */}
       <form onSubmit={handleSubmit} className="space-y-4 bg-slate-800 border border-slate-700 p-6 rounded-xl shadow-md">
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="sm:col-span-2">
@@ -376,7 +373,20 @@ export default function TemplatesPage() {
 
       <hr className="my-8 border-slate-700" />
 
-      <div className="space-y-4">
+      {/* LISTA con scroll sutil */}
+      <div
+        ref={listRef}
+        onScroll={handleScroll}
+        className="
+          relative max-h-[65vh] overflow-y-auto
+          space-y-4 pr-1
+          scrollbar scrollbar-thumb-transparent scrollbar-track-transparent
+          hover:scrollbar-thumb-[#2A3942] scrollbar-thumb-rounded-full
+          transition-all duration-300
+        "
+      >
+        <div ref={topRef} />
+
         {loading ? (
           <>
             <SkeletonCard />
@@ -428,12 +438,23 @@ export default function TemplatesPage() {
               </div>
             ))}
 
-            {plantillas.length === 0 && (
+            {!loading && plantillas.length === 0 && (
               <div className="text-slate-400 text-sm">Aún no hay plantillas.</div>
             )}
           </>
         )}
       </div>
+
+      {/* botón flotante para volver arriba, sutil como en el chat */}
+      {!isAtTop && (
+        <button
+          onClick={scrollToTop}
+          aria-label="Subir al inicio"
+          className="fixed bottom-6 right-6 z-20 bg-[#00A884] hover:bg-[#01976D] text-white w-9 h-9 flex items-center justify-center rounded-full shadow transition-all"
+        >
+          <ArrowUp className="w-4 h-4" />
+        </button>
+      )}
     </div>
   )
 }
