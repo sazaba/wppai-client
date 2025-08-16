@@ -10,7 +10,7 @@ interface ChatInputProps {
   onChange: (val: string) => void
   onSend: () => void
   disabled?: boolean
-  /** Opcional: si lo pasas, se usará para enviar el GIF como media */
+  /** Si se provee, se usa para enviar el GIF como media al backend */
   onSendGif?: (url: string, isMp4?: boolean) => void
 }
 
@@ -32,10 +32,15 @@ export default function ChatInput({
   const [gifQuery, setGifQuery] = useState('trending')
   const [gifResults, setGifResults] = useState<TenorItem[]>([])
   const [gifLoading, setGifLoading] = useState(false)
+  const [gifError, setGifError] = useState<string | null>(null)
 
   const areaRef = useRef<HTMLTextAreaElement | null>(null)
   const emojiRef = useRef<HTMLDivElement | null>(null)
   const gifRef = useRef<HTMLDivElement | null>(null)
+  const debounceRef = useRef<NodeJS.Timeout | null>(null)
+
+  const TENOR_KEY = process.env.NEXT_PUBLIC_TENOR_API_KEY
+  const tenorEnabled = Boolean(TENOR_KEY)
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -63,34 +68,51 @@ export default function ChatInput({
     return () => document.removeEventListener('mousedown', onClick)
   }, [showEmoji, showGifs])
 
-  // Buscar GIFs (Tenor v2)
-  const fetchGifs = useCallback(async (q: string) => {
-    const key = process.env.NEXT_PUBLIC_TENOR_API_KEY
-    if (!key) return
-    setGifLoading(true)
-    try {
-      const url = `https://tenor.googleapis.com/v2/${q === 'trending' ? 'featured' : 'search'}`
-      const { data } = await axios.get(url, {
-        params: {
-          key,
-          q: q === 'trending' ? undefined : q,
-          limit: 24,
-          media_filter: 'mp4,gif,tinygif,nanomp4,nanogif',
-          random: q === 'trending' ? true : undefined,
-        },
-      })
-      setGifResults(data?.results || [])
-    } catch (err) {
-      console.error('[Tenor] error:', err)
-      setGifResults([])
-    } finally {
-      setGifLoading(false)
-    }
-  }, [])
+  // Buscar GIFs (Tenor v2) con debounce
+  const doFetchGifs = useCallback(
+    async (q: string) => {
+      if (!TENOR_KEY) {
+        setGifError('Falta NEXT_PUBLIC_TENOR_API_KEY')
+        setGifResults([])
+        return
+      }
+      setGifError(null)
+      setGifLoading(true)
+      try {
+        const url = `https://tenor.googleapis.com/v2/${q === 'trending' ? 'featured' : 'search'}`
+        const { data } = await axios.get(url, {
+          params: {
+            key: TENOR_KEY,
+            q: q === 'trending' ? undefined : q,
+            limit: 24,
+            media_filter: 'mp4,gif,tinygif,nanomp4,nanogif',
+            random: q === 'trending' ? true : undefined,
+          },
+        })
+        setGifResults(data?.results || [])
+      } catch (err) {
+        console.error('[Tenor] error:', err)
+        setGifError('No se pudo cargar GIFs')
+        setGifResults([])
+      } finally {
+        setGifLoading(false)
+      }
+    },
+    [TENOR_KEY]
+  )
 
+  const fetchGifsDebounced = useCallback(
+    (q: string) => {
+      if (debounceRef.current) clearTimeout(debounceRef.current)
+      debounceRef.current = setTimeout(() => doFetchGifs(q), 400)
+    },
+    [doFetchGifs]
+  )
+
+  // Dispara búsqueda al abrir o al cambiar query
   useEffect(() => {
-    if (showGifs) fetchGifs(gifQuery)
-  }, [showGifs, gifQuery, fetchGifs])
+    if (showGifs) fetchGifsDebounced(gifQuery)
+  }, [showGifs, gifQuery, fetchGifsDebounced])
 
   const insertAtCursor = (text: string) => {
     const el = areaRef.current
@@ -111,6 +133,7 @@ export default function ChatInput({
   }
 
   const handlePickGif = (item: TenorItem) => {
+    // Preferimos MP4 para WhatsApp; fallback a tinygif si no hay mp4
     const mp4 =
       item.media_formats['mp4']?.url ||
       item.media_formats['nanomp4']?.url ||
@@ -145,13 +168,12 @@ export default function ChatInput({
           {showEmoji && (
             <div className="absolute bottom-14 left-0 z-50 rounded-xl shadow-xl overflow-hidden">
               <EmojiPicker
-  theme={Theme.DARK}
-  onEmojiClick={handleEmojiSelect}
-  lazyLoadEmojis
-  emojiStyle={EmojiStyle.NATIVE}   // ⬅️ antes estaba "native" (string)
-  previewConfig={{ showPreview: false }}
-/>
-
+                theme={Theme.DARK}
+                onEmojiClick={handleEmojiSelect}
+                lazyLoadEmojis
+                emojiStyle={EmojiStyle.NATIVE}
+                previewConfig={{ showPreview: false }}
+              />
             </div>
           )}
         </div>
@@ -161,10 +183,14 @@ export default function ChatInput({
           <button
             type="button"
             onClick={() => { setShowGifs(v => !v); setShowEmoji(false) }}
-            className="px-3 py-2 rounded-full bg-[#2A3942] text-white hover:bg-[#35464f] transition text-xs font-semibold"
-            disabled={disabled}
+            className={`px-3 py-2 rounded-full transition text-xs font-semibold ${
+              tenorEnabled
+                ? 'bg-[#2A3942] text-white hover:bg-[#35464f]'
+                : 'bg-[#2A3942] text-[#5B6B75] cursor-not-allowed'
+            }`}
+            disabled={disabled || !tenorEnabled}
             aria-label="GIFs"
-            title="GIFs"
+            title={tenorEnabled ? 'GIFs' : 'Configura NEXT_PUBLIC_TENOR_API_KEY'}
           >
             <span className="inline-flex items-center gap-2">
               <FiImage className="w-4 h-4" /> GIF
@@ -180,6 +206,9 @@ export default function ChatInput({
                 value={gifQuery}
                 onChange={(e) => setGifQuery(e.target.value || 'trending')}
               />
+              {gifError && (
+                <div className="text-xs text-red-400 mb-2">{gifError}</div>
+              )}
               {gifLoading ? (
                 <div className="text-[#8696a0] text-sm">Buscando…</div>
               ) : (

@@ -25,7 +25,7 @@ export default function ChatMessages({ mensajes, onLoadMore, hasMore }: ChatMess
   // 🔒 Dedupe local por externalId si existe, o por firma (from+timestamp+contenido)
   const list = useMemo(() => {
     const seen = new Set<string>()
-    return mensajes.filter(m => {
+    return mensajes.filter((m) => {
       const k = m.externalId ?? `${m.from}-${m.timestamp}-${m.contenido}`
       if (seen.has(k)) return false
       seen.add(k)
@@ -41,7 +41,7 @@ export default function ChatMessages({ mensajes, onLoadMore, hasMore }: ChatMess
 
   const scrollToBottom = () => bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
 
-  // Solo auto-scroll cuando aumenta la longitud
+  // Solo auto-scroll cuando aumenta la longitud y estamos ya al fondo
   const len = list.length
   useEffect(() => {
     if (isAtBottom) bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -49,13 +49,11 @@ export default function ChatMessages({ mensajes, onLoadMore, hasMore }: ChatMess
 
   /* ========================= Helpers de render ========================= */
 
-  const urlRegex =
-    /\b(https?:\/\/[^\s<>()\[\]{}"']+)(?<![.,!?;:])/gi // URL básica
+  const urlRegex = /\b(https?:\/\/[^\s<>()\[\]{}"']+)(?<![.,!?;:])/gi
 
   const isImageUrl = (u: string) =>
     /\.(png|jpe?g|gif|webp|bmp|svg)(\?.*)?$/i.test(u)
 
-  // Para Tenor/MP4/GIF como video
   const isVideoUrl = (u: string) =>
     /\.mp4(\?.*)?$/i.test(u) ||
     /tenor\.com\/.*|tenor\.googleapis\.com\/v2\/.*(mp4|nanomp4)/i.test(u)
@@ -69,7 +67,7 @@ export default function ChatMessages({ mensajes, onLoadMore, hasMore }: ChatMess
     return urls
   }
 
-  // Admite formato "[video] URL" o "[imagen] URL" que guardaste al enviar media
+  // Admite formato "[video] URL" o "[imagen] URL" guardado en DB
   const parseLabeledMedia = (text: string) => {
     const mVideo = text.match(/^\s*\[video\]\s+(https?:\/\/\S+)/i)
     if (mVideo) return { type: 'video' as const, url: mVideo[1], rest: '' }
@@ -93,7 +91,7 @@ export default function ChatMessages({ mensajes, onLoadMore, hasMore }: ChatMess
           href={match}
           target="_blank"
           rel="noopener noreferrer"
-          className="underline text-[#9de1fe]"
+          className="underline text-[#9de1fe] break-all"
         >
           {match}
         </a>
@@ -108,16 +106,20 @@ export default function ChatMessages({ mensajes, onLoadMore, hasMore }: ChatMess
   }
 
   const MediaPreview = ({ url, alignRight }: { url: string; alignRight: boolean }) => {
+    // Contenedor con overflow-hidden para que el border-radius se aplique al <video>
+    const common = 'rounded-lg overflow-hidden max-w-full max-h-[300px]'
     if (isVideoUrl(url)) {
       return (
-        <video
-          src={url}
-          controls
-          loop
-          muted
-          playsInline
-          className="rounded-lg max-w-full max-h-[300px] outline-none"
-        />
+        <div className={common}>
+          <video
+            src={url}
+            controls
+            loop
+            muted
+            playsInline
+            className="w-full h-auto outline-none"
+          />
+        </div>
       )
     }
     if (isImageUrl(url)) {
@@ -130,13 +132,12 @@ export default function ChatMessages({ mensajes, onLoadMore, hasMore }: ChatMess
         />
       )
     }
-    // Si no es media reconocida, deja linkeado
     return (
       <a
         href={url}
         target="_blank"
         rel="noopener noreferrer"
-        className={`underline ${alignRight ? 'text-white' : 'text-[#9de1fe]'}`}
+        className={`underline break-all ${alignRight ? 'text-white' : 'text-[#9de1fe]'}`}
       >
         {url}
       </a>
@@ -154,41 +155,57 @@ export default function ChatMessages({ mensajes, onLoadMore, hasMore }: ChatMess
     }
 
     const urls = extractUrls(msg.contenido)
-    // Si solo hay 1 URL y es media, muestra media + (si hay) texto sin esa URL
     if (urls.length) {
       const unique = Array.from(new Set(urls))
-      const hasMedia = unique.some(u => isImageUrl(u) || isVideoUrl(u))
+      const hasMedia = unique.some((u) => isImageUrl(u) || isVideoUrl(u))
       if (hasMedia) {
-        // texto sin URLs
         const textOnly = msg.contenido.replace(urlRegex, '').trim()
         return (
           <div className="flex flex-col gap-2">
             {unique.map((u, idx) => (
               <MediaPreview key={idx} url={u} alignRight={alignRight} />
             ))}
-            {textOnly && <div><LinkifiedText text={textOnly} /></div>}
+            {textOnly && (
+              <div className="leading-relaxed">
+                <LinkifiedText text={textOnly} />
+              </div>
+            )}
           </div>
         )
       }
     }
 
-    // Texto normal con links clicables
-    return <LinkifiedText text={msg.contenido} />
+    return (
+      <div className="leading-relaxed">
+        <LinkifiedText text={msg.contenido} />
+      </div>
+    )
   }
 
   /* ========================= Render ========================= */
 
   return (
-    <div className="flex-1 overflow-hidden relative">
+    <div className="flex-1 overflow-hidden relative bg-[#111B21]">
       <div
         ref={scrollContainerRef}
-        className="h-full overflow-y-auto px-6 py-4 flex flex-col gap-3 scrollbar scrollbar-thumb-transparent scrollbar-track-transparent hover:scrollbar-thumb-[#2A3942] scrollbar-thumb-rounded-full transition-all duration-300"
+        className="h-full overflow-y-auto px-4 sm:px-6 py-4 flex flex-col gap-2 sm:gap-3
+                   [scrollbar-width:thin] [scrollbar-color:#2A3942_transparent]
+                   hover:[scrollbar-color:#2A3942_transparent]"
         onScroll={handleScroll}
       >
         {hasMore && (
-          <button onClick={onLoadMore} className="text-xs text-[#00A884] hover:underline self-center">
+          <button
+            onClick={onLoadMore}
+            className="text-xs text-[#00A884] hover:underline self-center mb-2"
+          >
             Ver mensajes anteriores
           </button>
+        )}
+
+        {list.length === 0 && !hasMore && (
+          <div className="self-center text-sm text-[#8696a0] py-6">
+            No hay mensajes todavía.
+          </div>
         )}
 
         {list.map((msg) => {
@@ -200,9 +217,9 @@ export default function ChatMessages({ mensajes, onLoadMore, hasMore }: ChatMess
           return (
             <div
               key={key}
-              className={`max-w-[75%] px-3 py-2 rounded-xl text-sm break-words whitespace-pre-wrap shadow-sm ${
-                esIA ? 'bg-[#005C4B] text-white self-end ml-auto' : 'bg-[#202C33] text-[#e9edef] self-start'
-              }`}
+              className={`max-w-[90%] sm:max-w-[75%] px-4 py-2 rounded-2xl text-sm break-words whitespace-pre-wrap shadow-sm leading-relaxed
+                ${esIA ? 'bg-[#005C4B] text-white self-end ml-auto' : 'bg-[#202C33] text-[#e9edef] self-start'}
+              `}
             >
               {/* Contenido (texto, links o media) */}
               {renderBubbleContent(msg, esIA)}
@@ -214,7 +231,10 @@ export default function ChatMessages({ mensajes, onLoadMore, hasMore }: ChatMess
                 }`}
               >
                 <FiClock className="inline-block" />
-                {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                {new Date(msg.timestamp).toLocaleTimeString([], {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })}
               </div>
             </div>
           )
@@ -227,7 +247,7 @@ export default function ChatMessages({ mensajes, onLoadMore, hasMore }: ChatMess
         <button
           onClick={scrollToBottom}
           aria-label="Bajar al último mensaje"
-          className="absolute bottom-5 right-4 z-10 bg-[#00A884] hover:bg-[#01976D] text-white w-8 h-8 flex items-center justify-center rounded-full shadow transition-all"
+          className="absolute bottom-5 right-4 z-10 bg-[#00A884] hover:bg-[#01976D] text-white w-9 h-9 flex items-center justify-center rounded-full shadow transition-all"
         >
           <FiArrowDown className="w-4 h-4" />
         </button>

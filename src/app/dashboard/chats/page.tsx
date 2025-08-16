@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import ChatInput from './components/ChatInput'
-import { sendWhatsappMedia } from '../../../services/whatsapp.service'
+import { sendWhatsappMedia, sendOutboundMessage } from '../../../services/whatsapp.service'
 
 export default function ChatsPage() {
   const [respuesta, setRespuesta] = useState('')
@@ -10,22 +10,32 @@ export default function ChatsPage() {
   const [chats, setChats] = useState<any[]>([])
 
   // ⚠️ Ajusta según tu lógica real (probablemente venga del AuthContext o props)
-  const empresaId = 1 
-  const chatPhone = chats.find(c => c.id === activoId)?.telefono || ''
+  const empresaId = 1
+  const token: string | undefined = undefined // ej: useAuth()?.token
+  const chatPhone = chats.find((c) => c.id === activoId)?.telefono || ''
 
-  // 👉 Enviar texto normal
+  // 👉 Enviar texto normal (usa el service del frontend contra /api/whatsapp/enviar-prueba)
   const handleSendMessage = async () => {
-    if (!respuesta.trim()) return
+    const body = respuesta.trim()
+    if (!body) return
+    if (!chatPhone) {
+      console.warn('No hay número para este chat activo')
+      return
+    }
     try {
-      console.log('✉️ Enviar texto:', respuesta)
-      // Aquí pones tu lógica actual de enviar mensaje de texto al backend
+      await sendOutboundMessage({
+        empresaId,
+        to: chatPhone,
+        body,
+        token, // opcional si tu backend exige Bearer
+      })
       setRespuesta('')
     } catch (err) {
       console.error('❌ Error enviando mensaje:', err)
     }
   }
 
-  // 👉 Enviar media (imagen o video/gif)
+  // 👉 Enviar media (imagen o video/mp4 para GIFs)
   const handleSendMedia = async ({
     url,
     type,
@@ -33,8 +43,12 @@ export default function ChatsPage() {
     url: string
     type: 'image' | 'video'
   }) => {
+    if (!chatPhone) {
+      console.warn('No hay número para este chat activo')
+      return
+    }
     try {
-      await sendWhatsappMedia({ empresaId, to: chatPhone, url, type })
+      await sendWhatsappMedia({ empresaId, to: chatPhone, url, type, token })
       console.log('✅ Media enviada:', url)
     } catch (err) {
       console.error('❌ Error enviando media:', err)
@@ -43,7 +57,7 @@ export default function ChatsPage() {
 
   return (
     <div className="flex flex-col h-full">
-      {/* Aquí va tu header, sidebar, mensajes... */}
+      {/* Aquí va tu header, sidebar, lista de mensajes... */}
 
       <ChatInput
         value={respuesta}
