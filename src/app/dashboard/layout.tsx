@@ -2,13 +2,8 @@
 
 import Link from "next/link"
 import {
-  BrainCircuit,
-  MessageSquareText,
-  Settings2,
-  ChevronLeft,
-  ChevronRight,
-  Home,
-  FileText
+  BrainCircuit, MessageSquareText, Settings2,
+  ChevronLeft, ChevronRight, Home, FileText
 } from "lucide-react"
 import { useState, useEffect } from "react"
 import { useRouter, usePathname } from "next/navigation"
@@ -21,13 +16,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const router = useRouter()
   const pathname = usePathname()
 
-  // Rutas dentro de /dashboard que deben quedar libres (OAuth callbacks/embedded)
   const OPEN_DASH_ROUTES = [
     "/dashboard/callback",
     "/dashboard/callback-manual",
     "/dashboard/wa-embedded",
   ]
   const isOpenRoute = OPEN_DASH_ROUTES.some(p => pathname?.startsWith(p))
+  const isChatRoute = pathname?.startsWith("/dashboard/chats")
 
   useEffect(() => {
     if (!isAuthenticated && !isOpenRoute) router.replace("/")
@@ -35,18 +30,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   if (!isAuthenticated && !isOpenRoute) return null
 
-  // Para callback/embedded: render sin sidebar/full width
   if (isOpenRoute) {
-    return (
-      <main className="min-h-screen bg-gray-900 text-zinc-100">
-        {children}
-      </main>
-    )
+    return <main className="min-h-screen bg-gray-900 text-zinc-100">{children}</main>
   }
 
-  // Layout normal del dashboard
   return (
-    // 🚫 Sin scroll del body; toda la app ocupa la pantalla
     <div className="h-screen w-screen overflow-hidden bg-gray-900 text-zinc-100 grid grid-cols-[auto_1fr]">
       {/* Sidebar fijo */}
       <aside
@@ -56,72 +44,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         )}
       >
         <div className={clsx("flex flex-col", sidebarOpen ? "p-4 gap-6 items-start" : "pt-6 gap-4 items-center")}>
-          {sidebarOpen && (
-            <h2 className="text-2xl font-semibold tracking-tight flex items-center gap-2">
-              🚀 Mi Panel
-            </h2>
-          )}
-
+          {sidebarOpen && <h2 className="text-2xl font-semibold tracking-tight flex items-center gap-2">🚀 Mi Panel</h2>}
           <nav className={clsx("flex flex-col w-full", sidebarOpen ? "gap-4" : "gap-6 items-center")}>
-            <Link
-              href="/"
-              className={clsx(
-                "flex items-center rounded-md hover:bg-slate-700 transition-colors px-3 py-2 w-full",
-                sidebarOpen ? "gap-3 justify-start text-sm" : "justify-center"
-              )}
-              title={!sidebarOpen ? "Inicio" : ""}
-            >
-              <Home className={clsx("transition-all", sidebarOpen ? "w-5 h-5" : "w-6 h-6")} />
-              {sidebarOpen && <span>Inicio</span>}
-            </Link>
-
-            <Link
-              href="/dashboard"
-              className={clsx(
-                "flex items-center rounded-md hover:bg-slate-700 transition-colors px-3 py-2 w-full",
-                sidebarOpen ? "gap-3 justify-start text-sm" : "justify-center"
-              )}
-              title={!sidebarOpen ? "Resumen" : ""}
-            >
-              <BrainCircuit className={clsx("transition-all", sidebarOpen ? "w-5 h-5" : "w-6 h-6")} />
-              {sidebarOpen && <span>Resumen</span>}
-            </Link>
-
-            <Link
-              href="/dashboard/chats"
-              className={clsx(
-                "flex items-center rounded-md hover:bg-slate-700 transition-colors px-3 py-2 w-full",
-                sidebarOpen ? "gap-3 justify-start text-sm" : "justify-center"
-              )}
-              title={!sidebarOpen ? "Conversaciones" : ""}
-            >
-              <MessageSquareText className={clsx("transition-all", sidebarOpen ? "w-5 h-5" : "w-6 h-6")} />
-              {sidebarOpen && <span>Conversaciones</span>}
-            </Link>
-
-            <Link
-              href="/dashboard/settings"
-              className={clsx(
-                "flex items-center rounded-md hover:bg-slate-700 transition-colors px-3 py-2 w-full",
-                sidebarOpen ? "gap-3 justify-start text-sm" : "justify-center"
-              )}
-              title={!sidebarOpen ? "Configuración" : ""}
-            >
-              <Settings2 className={clsx("transition-all", sidebarOpen ? "w-5 h-5" : "w-6 h-6")} />
-              {sidebarOpen && <span>Configuración</span>}
-            </Link>
-
-            <Link
-              href="/dashboard/templates"
-              className={clsx(
-                "flex items-center rounded-md hover:bg-slate-700 transition-colors px-3 py-2 w-full",
-                sidebarOpen ? "gap-3 justify-start text-sm" : "justify-center"
-              )}
-              title={!sidebarOpen ? "Plantillas" : ""}
-            >
-              <FileText className={clsx("transition-all", sidebarOpen ? "w-5 h-5" : "w-6 h-6")} />
-              {sidebarOpen && <span>Plantillas</span>}
-            </Link>
+            <Link href="/"                className={navCls(sidebarOpen)} title={!sidebarOpen ? "Inicio" : ""}><Home className={icoCls(sidebarOpen)} />{sidebarOpen && <span>Inicio</span>}</Link>
+            <Link href="/dashboard"       className={navCls(sidebarOpen)} title={!sidebarOpen ? "Resumen" : ""}><BrainCircuit className={icoCls(sidebarOpen)} />{sidebarOpen && <span>Resumen</span>}</Link>
+            <Link href="/dashboard/chats" className={navCls(sidebarOpen)} title={!sidebarOpen ? "Conversaciones" : ""}><MessageSquareText className={icoCls(sidebarOpen)} />{sidebarOpen && <span>Conversaciones</span>}</Link>
+            <Link href="/dashboard/settings"  className={navCls(sidebarOpen)} title={!sidebarOpen ? "Configuración" : ""}><Settings2 className={icoCls(sidebarOpen)} />{sidebarOpen && <span>Configuración</span>}</Link>
+            <Link href="/dashboard/templates" className={navCls(sidebarOpen)} title={!sidebarOpen ? "Plantillas" : ""}><FileText className={icoCls(sidebarOpen)} />{sidebarOpen && <span>Plantillas</span>}</Link>
           </nav>
         </div>
 
@@ -136,17 +65,31 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </div>
       </aside>
 
-      {/* Contenido: ÚNICA zona con scroll */}
+      {/* Contenido */}
       <main
-        className="
-          h-full w-full overflow-y-auto
-          transition-all duration-300
-          scrollbar pr-1
-          hover:scrollbar-thumb-[#2A3942] scrollbar-thumb-rounded-full
-          "
+        className={clsx(
+          "h-full w-full transition-all duration-300",
+          // 🔽 Chats: el propio componente maneja sus scrolls (no padding, no overflow global)
+          isChatRoute
+            ? "overflow-hidden"
+            // Resto del dashboard: scroll sutil global + padding
+            : "overflow-y-auto scrollbar pr-1 hover:scrollbar-thumb-[#2A3942] scrollbar-thumb-rounded-full"
+        )}
       >
-        <div className="p-6">{children}</div>
+        <div className={clsx(isChatRoute ? "h-full" : "p-6")}>
+          {children}
+        </div>
       </main>
     </div>
   )
+}
+
+function navCls(open: boolean) {
+  return clsx(
+    "flex items-center rounded-md hover:bg-slate-700 transition-colors px-3 py-2 w-full",
+    open ? "gap-3 justify-start text-sm" : "justify-center"
+  )
+}
+function icoCls(open: boolean) {
+  return clsx("transition-all", open ? "w-5 h-5" : "w-6 h-6")
 }
