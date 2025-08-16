@@ -33,6 +33,34 @@ const EJEMPLOS: Record<string, string> = {
   notificacion_estado: 'Hola {{1}}, el estado de tu solicitud es: {{2}}.',
 }
 
+// ────────── UI helpers
+const Spinner = ({ size = 16, className = '' }: { size?: number; className?: string }) => (
+  <svg
+    className={`animate-spin ${className}`}
+    xmlns="http://www.w3.org/2000/svg"
+    fill="none"
+    viewBox="0 0 24 24"
+    width={size}
+    height={size}
+  >
+    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+    <path
+      className="opacity-75"
+      fill="currentColor"
+      d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+    ></path>
+  </svg>
+)
+
+const SkeletonCard = () => (
+  <div className="border border-slate-700 p-4 rounded bg-slate-800 shadow-sm">
+    <div className="h-4 w-32 bg-slate-700/60 rounded mb-2 animate-pulse" />
+    <div className="h-3 w-24 bg-slate-700/60 rounded mb-3 animate-pulse" />
+    <div className="h-3 w-full bg-slate-700/60 rounded mb-2 animate-pulse" />
+    <div className="h-3 w-2/3 bg-slate-700/60 rounded animate-pulse" />
+  </div>
+)
+
 export default function TemplatesPage() {
   const { token } = useAuth()
 
@@ -49,23 +77,24 @@ export default function TemplatesPage() {
   }, [token])
 
   const [loading, setLoading] = useState(false)
+  const [creating, setCreating] = useState(false)        // ← NUEVO
   const [plantillas, setPlantillas] = useState<MessageTemplate[]>([])
   const [sendingId, setSendingId] = useState<number | null>(null)
   const [checkingId, setCheckingId] = useState<number | null>(null)
 
   const [form, setForm] = useState({
     nombre: '',
-    idioma: 'es', // si Meta se queja con 'en', usa 'en_US'
+    idioma: 'es',
     categoria: 'UTILITY' as CategoriaMeta,
     cuerpo: '',
-    publicar: true, // publicar en Meta al crear
+    publicar: true,
   })
 
   const fetchTemplates = async () => {
     if (!token) return
     setLoading(true)
     try {
-      const res = await api.get('/api/templates') // sincroniza con Meta y devuelve DB
+      const res = await api.get('/api/templates')
       setPlantillas(res.data)
     } catch (error: any) {
       const msg = error?.response?.data?.error || 'No se pudo cargar'
@@ -76,7 +105,6 @@ export default function TemplatesPage() {
     }
   }
 
-  // ✅ Espera a tener token antes de pedir datos
   useEffect(() => {
     if (token) fetchTemplates()
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -102,6 +130,7 @@ export default function TemplatesPage() {
       return Swal.fire('Campos requeridos', 'Completa todos los campos.', 'warning')
     }
     try {
+      setCreating(true) // ← muestra loader premium
       const params = form.publicar ? '?publicar=true' : ''
       await api.post(`/api/templates${params}`, {
         nombre: form.nombre,
@@ -120,6 +149,8 @@ export default function TemplatesPage() {
       } else {
         Swal.fire('Error', msg, 'error')
       }
+    } finally {
+      setCreating(false)
     }
   }
 
@@ -134,7 +165,7 @@ export default function TemplatesPage() {
     if (!confirm.isConfirmed) return
 
     try {
-      await api.delete(`/api/templates/${id}?borrarMeta=true`) // borra local + Meta
+      await api.delete(`/api/templates/${id}?borrarMeta=true`)
       await fetchTemplates()
       Swal.fire('Eliminada', 'La plantilla fue eliminada.', 'success')
     } catch (error: any) {
@@ -208,16 +239,27 @@ export default function TemplatesPage() {
   }
 
   return (
-    <div className="max-w-3xl mx-auto p-6">
+    <div className="max-w-3xl mx-auto p-6 relative">
+      {/* overlay premium mientras crea */}
+      {creating && (
+        <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-[2px] rounded-lg z-10 flex items-center justify-center pointer-events-none">
+          <div className="flex items-center gap-3 text-slate-200 text-sm">
+            <Spinner size={18} className="text-blue-400" />
+            Creando plantilla…
+          </div>
+        </div>
+      )}
+
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold mb-6 text-white">Plantillas de Mensaje</h1>
         <button
           onClick={fetchTemplates}
-          className="flex items-center gap-2 text-sm text-slate-300 hover:text-white transition"
-          disabled={loading}
+          className="flex items-center gap-2 text-sm text-slate-300 hover:text-white transition disabled:opacity-60"
+          disabled={loading || creating}
           title="Refrescar"
         >
-          <RefreshCw size={16} /> {loading ? 'Actualizando…' : 'Refrescar'}
+          {loading ? <Spinner size={16} /> : <RefreshCw size={16} />}
+          {loading ? 'Actualizando…' : 'Refrescar'}
         </button>
       </div>
 
@@ -229,6 +271,7 @@ export default function TemplatesPage() {
               name="preset"
               onChange={handleNombrePreset}
               className="w-full bg-slate-900 text-white border border-slate-600 px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-600"
+              disabled={creating}
             >
               <option value="">— Sin preset —</option>
               <option value="saludo_basico">Saludo básico</option>
@@ -245,8 +288,9 @@ export default function TemplatesPage() {
               value={form.nombre}
               onChange={handleChange}
               placeholder="saludo_basico"
-              className="w-full bg-slate-900 text-white border border-slate-600 px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-600"
+              className="w-full bg-slate-900 text-white border border-slate-600 px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-600 disabled:opacity-60"
               required
+              disabled={creating}
             />
           </div>
 
@@ -257,6 +301,7 @@ export default function TemplatesPage() {
               value={form.idioma}
               onChange={handleChange}
               className="w-full bg-slate-900 text-white border border-slate-600 px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-600"
+              disabled={creating}
             >
               <option value="es">Español (es)</option>
               <option value="es_AR">Español (es_AR)</option>
@@ -271,6 +316,7 @@ export default function TemplatesPage() {
               value={form.categoria}
               onChange={handleChange}
               className="w-full bg-slate-900 text-white border border-slate-600 px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-600"
+              disabled={creating}
             >
               {CATEGORIAS_UI.map((c) => (
                 <option key={c.value} value={c.value}>{c.label}</option>
@@ -288,9 +334,10 @@ export default function TemplatesPage() {
               value={form.cuerpo}
               onChange={handleChange}
               placeholder="Hola {{1}}, tu pedido {{2}} está listo"
-              className="w-full bg-slate-900 text-white border border-slate-600 placeholder-slate-400 px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-600"
+              className="w-full bg-slate-900 text-white border border-slate-600 placeholder-slate-400 px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-600 disabled:opacity-60"
               rows={3}
               required
+              disabled={creating}
             />
           </div>
         </div>
@@ -302,13 +349,27 @@ export default function TemplatesPage() {
             checked={form.publicar}
             onChange={handleChange}
             className="accent-blue-600"
+            disabled={creating}
           />
           Publicar en Meta al crear
         </label>
 
         <div>
-          <button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded font-medium transition-all">
-            Crear plantilla {form.publicar && <span className="inline-flex items-center gap-1 ml-1"><Send size={14} /> y publicar</span>}
+          <button
+            type="submit"
+            disabled={creating}
+            className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-600/70 text-white px-4 py-2 rounded font-medium transition-all inline-flex items-center gap-2"
+          >
+            {creating ? (
+              <>
+                <Spinner size={16} className="text-white" />
+                Creando…
+              </>
+            ) : (
+              <>
+                Crear plantilla {form.publicar && <span className="inline-flex items-center gap-1 ml-1"><Send size={14} /> y publicar</span>}
+              </>
+            )}
           </button>
         </div>
       </form>
@@ -316,50 +377,61 @@ export default function TemplatesPage() {
       <hr className="my-8 border-slate-700" />
 
       <div className="space-y-4">
-        {plantillas.map((p) => (
-          <div key={p.id} className="border border-slate-700 p-4 rounded flex justify-between items-start bg-slate-800 shadow-sm text-white">
-            <div className="pr-4">
-              <p className="font-semibold">{p.nombre}</p>
-              <p className="text-sm text-slate-400">{p.idioma} • {p.categoria}</p>
-              {p.cuerpo && <p className="text-sm mt-1">{p.cuerpo}</p>}
-              <div className="text-xs mt-2 text-slate-500 flex items-center gap-2">
-                <span>Vars: {p.variables}</span>
-                <span>•</span>
-                {renderEstado(p.estado)}
+        {loading ? (
+          <>
+            <SkeletonCard />
+            <SkeletonCard />
+            <SkeletonCard />
+          </>
+        ) : (
+          <>
+            {plantillas.map((p) => (
+              <div key={p.id} className="border border-slate-700 p-4 rounded flex justify-between items-start bg-slate-800 shadow-sm text-white">
+                <div className="pr-4">
+                  <p className="font-semibold">{p.nombre}</p>
+                  <p className="text-sm text-slate-400">{p.idioma} • {p.categoria}</p>
+                  {p.cuerpo && <p className="text-sm mt-1">{p.cuerpo}</p>}
+                  <div className="text-xs mt-2 text-slate-500 flex items-center gap-2">
+                    <span>Vars: {p.variables}</span>
+                    <span>•</span>
+                    {renderEstado(p.estado)}
+                  </div>
+                </div>
+                <div className="flex flex-col items-end space-y-2 min-w-[160px]">
+                  <button
+                    onClick={() => enviarAMeta(p.id)}
+                    disabled={sendingId === p.id || creating}
+                    className="text-blue-400 hover:text-blue-500 text-sm underline disabled:opacity-50"
+                    title="Subir a Meta"
+                  >
+                    {sendingId === p.id ? 'Enviando…' : 'Enviar a Meta'}
+                  </button>
+
+                  <button
+                    onClick={() => consultarEstado(p.id)}
+                    disabled={checkingId === p.id || creating}
+                    className="text-slate-300 hover:text-white text-sm underline disabled:opacity-50 flex items-center gap-1"
+                    title="Consultar estado en Meta"
+                  >
+                    <RefreshCw size={14} /> {checkingId === p.id ? 'Consultando…' : 'Consultar estado'}
+                  </button>
+
+                  <button
+                    onClick={() => handleDelete(p.id)}
+                    disabled={creating}
+                    className="text-red-400 hover:text-red-500 text-sm flex items-center gap-1 disabled:opacity-50"
+                    title="Eliminar (DB + Meta)"
+                  >
+                    <Trash2 size={18} /> Eliminar
+                  </button>
+                </div>
               </div>
-            </div>
-            <div className="flex flex-col items-end space-y-2 min-w-[160px]">
-              <button
-                onClick={() => enviarAMeta(p.id)}
-                disabled={sendingId === p.id}
-                className="text-blue-400 hover:text-blue-500 text-sm underline disabled:opacity-50"
-                title="Subir a Meta"
-              >
-                {sendingId === p.id ? 'Enviando…' : 'Enviar a Meta'}
-              </button>
+            ))}
 
-              <button
-                onClick={() => consultarEstado(p.id)}
-                disabled={checkingId === p.id}
-                className="text-slate-300 hover:text-white text-sm underline disabled:opacity-50 flex items-center gap-1"
-                title="Consultar estado en Meta"
-              >
-                <RefreshCw size={14} /> {checkingId === p.id ? 'Consultando…' : 'Consultar estado'}
-              </button>
-
-              <button
-                onClick={() => handleDelete(p.id)}
-                className="text-red-400 hover:text-red-500 text-sm flex items-center gap-1"
-                title="Eliminar (DB + Meta)"
-              >
-                <Trash2 size={18} /> Eliminar
-              </button>
-            </div>
-          </div>
-        ))}
-
-        {!loading && plantillas.length === 0 && (
-          <div className="text-slate-400 text-sm">Aún no hay plantillas.</div>
+            {plantillas.length === 0 && (
+              <div className="text-slate-400 text-sm">Aún no hay plantillas.</div>
+            )}
+          </>
         )}
       </div>
     </div>
