@@ -5,7 +5,7 @@ import axios, { AxiosInstance } from 'axios'
 import { Trash2, RefreshCw, CheckCircle, Clock, XCircle, Send } from 'lucide-react'
 import Swal from 'sweetalert2'
 import 'sweetalert2/dist/sweetalert2.min.css'
-import { useAuth } from '@/app/context/AuthContext'
+import { useAuth } from '../../context/AuthContext'
 
 interface MessageTemplate {
   id: number
