@@ -65,16 +65,22 @@ export default function TemplatesPage() {
     return instance
   }, [token])
 
-  const [loading, setLoading] = useState(false)
-  const [creating, setCreating] = useState(false)
+  // estados
+  const [loading, setLoading] = useState(false) // para listado / skeleton
   const [plantillas, setPlantillas] = useState<MessageTemplate[]>([])
   const [sendingId, setSendingId] = useState<number | null>(null)
   const [checkingId, setCheckingId] = useState<number | null>(null)
 
+  // loader global unificado
+  const [busy, setBusy] = useState(false)
+  const [busyText, setBusyText] = useState<string>('Procesando…')
+
+  // refs scroll
   const listRef = useRef<HTMLDivElement | null>(null)
   const topRef = useRef<HTMLDivElement | null>(null)
   const [isAtTop, setIsAtTop] = useState(true)
 
+  // form
   const [form, setForm] = useState({
     nombre: '',
     idioma: 'es',
@@ -83,8 +89,19 @@ export default function TemplatesPage() {
     publicar: true,
   })
 
+  // helper genérico para mostrar loader global en cualquier acción
+  const withBusy = async (label: string, fn: () => Promise<void>) => {
+    setBusyText(label)
+    setBusy(true)
+    try {
+      await fn()
+    } finally {
+      setBusy(false)
+      setBusyText('Procesando…')
+    }
+  }
+
   const fetchTemplates = async () => {
-    if (!token) return
     setLoading(true)
     try {
       const res = await api.get('/api/templates')
@@ -129,8 +146,7 @@ export default function TemplatesPage() {
     if (!form.nombre || !form.idioma || !form.categoria || !form.cuerpo) {
       return Swal.fire('Campos requeridos', 'Completa todos los campos.', 'warning')
     }
-    try {
-      setCreating(true)
+    await withBusy(form.publicar ? 'Creando y publicando…' : 'Creando plantilla…', async () => {
       const params = form.publicar ? '?publicar=true' : ''
       await api.post(`/api/templates${params}`, {
         nombre: form.nombre,
@@ -141,19 +157,8 @@ export default function TemplatesPage() {
       await fetchTemplates()
       setForm({ nombre: '', idioma: 'es', categoria: 'UTILITY', cuerpo: '', publicar: true })
       Swal.fire('Éxito', `Plantilla creada${form.publicar ? ' y enviada a Meta' : ''}`, 'success')
-      // sube al inicio para ver la nueva arriba (si ordenas por fecha desc)
       setTimeout(scrollToTop, 100)
-    } catch (error: any) {
-      const status = error?.response?.status
-      const msg = error?.response?.data?.error || 'No se pudo crear la plantilla'
-      if (status === 409) {
-        Swal.fire('Duplicado en Meta', msg, 'warning')
-      } else {
-        Swal.fire('Error', msg, 'error')
-      }
-    } finally {
-      setCreating(false)
-    }
+    })
   }
 
   const handleDelete = async (id: number) => {
@@ -166,14 +171,11 @@ export default function TemplatesPage() {
     })
     if (!confirm.isConfirmed) return
 
-    try {
+    await withBusy('Eliminando…', async () => {
       await api.delete(`/api/templates/${id}?borrarMeta=true`)
       await fetchTemplates()
       Swal.fire('Eliminada', 'La plantilla fue eliminada.', 'success')
-    } catch (error: any) {
-      const msg = error?.response?.data?.error || 'No se pudo eliminar la plantilla'
-      Swal.fire('Error', msg, 'error')
-    }
+    })
   }
 
   const enviarAMeta = async (id: number) => {
@@ -185,45 +187,21 @@ export default function TemplatesPage() {
     })
     if (!confirm.isConfirmed) return
 
-    try {
-      setSendingId(id)
-      Swal.fire({ title: 'Enviando...', didOpen: () => Swal.showLoading(), allowOutsideClick: false })
+    setSendingId(id)
+    await withBusy('Enviando a Meta…', async () => {
       await api.post(`/api/templates/${id}/enviar`)
       await fetchTemplates()
-      Swal.close()
       Swal.fire('Enviado', 'La plantilla fue enviada a Meta', 'success')
-    } catch (error: any) {
-      Swal.close()
-      const status = error?.response?.status
-      const serverMsg =
-        error?.response?.data?.error ||
-        error?.response?.data?.details?.error?.message ||
-        'Meta rechazó la plantilla'
-      if (status === 409) {
-        Swal.fire('Duplicado en Meta', serverMsg, 'warning')
-      } else {
-        Swal.fire('Error', serverMsg, 'error')
-      }
-    } finally {
-      setSendingId(null)
-    }
+    }).catch(() => {}).finally(() => setSendingId(null))
   }
 
   const consultarEstado = async (id: number) => {
-    try {
-      setCheckingId(id)
-      Swal.fire({ title: 'Consultando estado...', didOpen: () => Swal.showLoading(), allowOutsideClick: false })
+    setCheckingId(id)
+    await withBusy('Consultando estado…', async () => {
       const res = await api.get(`/api/templates/${id}/estado`)
       await fetchTemplates()
-      Swal.close()
       Swal.fire('Estado actualizado', `Meta devolvió: ${res.data?.estado}`, 'info')
-    } catch (error: any) {
-      Swal.close()
-      const msg = error?.response?.data?.error || 'No se pudo consultar el estado en Meta'
-      Swal.fire('Error', msg, 'error')
-    } finally {
-      setCheckingId(null)
-    }
+    }).catch(() => {}).finally(() => setCheckingId(null))
   }
 
   const renderEstado = (estado: string) => {
@@ -236,12 +214,12 @@ export default function TemplatesPage() {
 
   return (
     <div className="max-w-3xl mx-auto p-6 relative">
-      {/* overlay premium mientras crea */}
-      {creating && (
-        <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-[2px] rounded-lg z-10 flex items-center justify-center pointer-events-none">
-          <div className="flex items-center gap-3 text-slate-200 text-sm">
-            <Spinner size={18} className="text-blue-400" />
-            Creando plantilla…
+      {/* Overlay global para cualquier acción */}
+      {busy && (
+        <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-[2px] rounded-lg z-20 flex items-center justify-center">
+          <div className="flex items-center gap-3 text-slate-100 text-sm">
+            <Spinner size={20} className="text-blue-400" />
+            {busyText}
           </div>
         </div>
       )}
@@ -249,13 +227,13 @@ export default function TemplatesPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold mb-6 text-white">Plantillas de Mensaje</h1>
         <button
-          onClick={fetchTemplates}
+          onClick={() => withBusy('Actualizando…', fetchTemplates)}
           className="flex items-center gap-2 text-sm text-slate-300 hover:text-white transition disabled:opacity-60"
-          disabled={loading || creating}
+          disabled={busy}
           title="Refrescar"
         >
-          {loading ? <Spinner size={16} /> : <RefreshCw size={16} />}
-          {loading ? 'Actualizando…' : 'Refrescar'}
+          {loading || busy ? <Spinner size={16} /> : <RefreshCw size={16} />}
+          {loading || busy ? 'Actualizando…' : 'Refrescar'}
         </button>
       </div>
 
@@ -268,7 +246,7 @@ export default function TemplatesPage() {
               name="preset"
               onChange={handleNombrePreset}
               className="w-full bg-slate-900 text-white border border-slate-600 px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-600"
-              disabled={creating}
+              disabled={busy}
             >
               <option value="">— Sin preset —</option>
               <option value="saludo_basico">Saludo básico</option>
@@ -287,7 +265,7 @@ export default function TemplatesPage() {
               placeholder="saludo_basico"
               className="w-full bg-slate-900 text-white border border-slate-600 px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-600 disabled:opacity-60"
               required
-              disabled={creating}
+              disabled={busy}
             />
           </div>
 
@@ -298,7 +276,7 @@ export default function TemplatesPage() {
               value={form.idioma}
               onChange={handleChange}
               className="w-full bg-slate-900 text-white border border-slate-600 px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-600"
-              disabled={creating}
+              disabled={busy}
             >
               <option value="es">Español (es)</option>
               <option value="es_AR">Español (es_AR)</option>
@@ -313,7 +291,7 @@ export default function TemplatesPage() {
               value={form.categoria}
               onChange={handleChange}
               className="w-full bg-slate-900 text-white border border-slate-600 px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-600"
-              disabled={creating}
+              disabled={busy}
             >
               {CATEGORIAS_UI.map((c) => (
                 <option key={c.value} value={c.value}>{c.label}</option>
@@ -334,7 +312,7 @@ export default function TemplatesPage() {
               className="w-full bg-slate-900 text-white border border-slate-600 placeholder-slate-400 px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-600 disabled:opacity-60"
               rows={3}
               required
-              disabled={creating}
+              disabled={busy}
             />
           </div>
         </div>
@@ -346,7 +324,7 @@ export default function TemplatesPage() {
             checked={form.publicar}
             onChange={handleChange}
             className="accent-blue-600"
-            disabled={creating}
+            disabled={busy}
           />
           Publicar en Meta al crear
         </label>
@@ -354,13 +332,13 @@ export default function TemplatesPage() {
         <div>
           <button
             type="submit"
-            disabled={creating}
+            disabled={busy}
             className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-600/70 text-white px-4 py-2 rounded font-medium transition-all inline-flex items-center gap-2"
           >
-            {creating ? (
+            {busy ? (
               <>
                 <Spinner size={16} className="text-white" />
-                Creando…
+                Procesando…
               </>
             ) : (
               <>
@@ -407,28 +385,28 @@ export default function TemplatesPage() {
                     {renderEstado(p.estado)}
                   </div>
                 </div>
-                <div className="flex flex-col items-end space-y-2 min-w-[160px]">
+                <div className="flex flex-col items-end space-y-2 min-w-[180px]">
                   <button
                     onClick={() => enviarAMeta(p.id)}
-                    disabled={sendingId === p.id || creating}
+                    disabled={busy}
                     className="text-blue-400 hover:text-blue-500 text-sm underline disabled:opacity-50"
                     title="Subir a Meta"
                   >
-                    {sendingId === p.id ? 'Enviando…' : 'Enviar a Meta'}
+                    {sendingId === p.id && busy ? 'Enviando…' : 'Enviar a Meta'}
                   </button>
 
                   <button
                     onClick={() => consultarEstado(p.id)}
-                    disabled={checkingId === p.id || creating}
+                    disabled={busy}
                     className="text-slate-300 hover:text-white text-sm underline disabled:opacity-50 flex items-center gap-1"
                     title="Consultar estado en Meta"
                   >
-                    <RefreshCw size={14} /> {checkingId === p.id ? 'Consultando…' : 'Consultar estado'}
+                    <RefreshCw size={14} /> {checkingId === p.id && busy ? 'Consultando…' : 'Consultar estado'}
                   </button>
 
                   <button
                     onClick={() => handleDelete(p.id)}
-                    disabled={creating}
+                    disabled={busy}
                     className="text-red-400 hover:text-red-500 text-sm flex items-center gap-1 disabled:opacity-50"
                     title="Eliminar (DB + Meta)"
                   >
@@ -445,12 +423,12 @@ export default function TemplatesPage() {
         )}
       </div>
 
-      {/* botón flotante para volver arriba, sutil como en el chat */}
+      {/* botón flotante volver arriba */}
       {!isAtTop && (
         <button
           onClick={scrollToTop}
           aria-label="Subir al inicio"
-          className="fixed bottom-6 right-6 z-20 bg-[#00A884] hover:bg-[#01976D] text-white w-9 h-9 flex items-center justify-center rounded-full shadow transition-all"
+          className="fixed bottom-6 right-6 z-10 bg-[#00A884] hover:bg-[#01976D] text-white w-9 h-9 flex items-center justify-center rounded-full shadow transition-all"
         >
           <ArrowUp className="w-4 h-4" />
         </button>
