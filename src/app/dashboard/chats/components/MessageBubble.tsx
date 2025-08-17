@@ -53,18 +53,21 @@ export default function MessageBubble({ message, isMine }: Props) {
   const time = formatTime(message.timestamp);
   const itsMedia = isMedia(mediaType);
 
-  // ✅ clave: inline-block + min-w para que nunca colapse a un “palito”
+  // ✅ burbuja con ancho mínimo legible y sin colapsar
   const bubbleBase = clsx(
     'relative inline-block align-top',
-    'max-w-[86%] sm:max-w-[70%] min-w-[8ch]',     // ancho mínimo legible
+    'max-w-[86%] sm:max-w-[70%] min-w-[8ch]',
     'px-3 py-2 rounded-2xl shadow-sm ring-1 ring-white/5 overflow-hidden isolate',
     isMine ? 'bg-[#005C4B] text-white ml-auto' : 'bg-[#202C33] text-[#E9EDEF]'
   );
 
-  // ✅ NO usamos anywhere; solo break-words normal
+  // ✅ no partir palabras cortas; solo cortar cadenas largas (URLs) cuando sea necesario
   const textClass = clsx(
     'text-[14px] leading-[1.45] antialiased',
-    'whitespace-pre-wrap break-words'
+    'whitespace-pre-wrap',
+    'break-normal',
+    '[overflow-wrap:anywhere]',
+    '[word-break:keep-all]'
   );
 
   const timeClass = clsx(
@@ -101,7 +104,11 @@ export default function MessageBubble({ message, isMine }: Props) {
         {showText && (
           <div className={bubbleBase}>
             <p className={textClass}>{sanitizeAggressive(contenido)}</p>
-            {time ? <div className="mt-1 text-right"><span className={timeClass}>{time}</span></div> : null}
+            {time ? (
+              <div className="mt-1 text-right">
+                <span className={timeClass}>{time}</span>
+              </div>
+            ) : null}
           </div>
         )}
       </div>
@@ -133,7 +140,7 @@ function MediaRenderer({
   const [errored, setErrored] = useState(false);
   const [loaded, setLoaded] = useState(false);
 
-  // ✅ ancho multimedia fijo y responsivo (no depende del texto de la burbuja)
+  // ✅ ancho multimedia fijo y responsivo (no depende del texto)
   const wideBox = 'w-[min(82vw,420px)] sm:w-[420px] max-w-full';
   const phBase = 'rounded-xl bg-black/20 flex items-center justify-center text-[12px] text-gray-400 w-full';
   const imgPh = clsx(phBase, 'min-h-[180px] sm:min-h-[220px]');
