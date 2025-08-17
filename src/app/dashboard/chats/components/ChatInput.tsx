@@ -1,16 +1,35 @@
 'use client'
 
 import { useEffect, useRef, useState, useCallback } from 'react'
-import { FiSend, FiSmile, FiImage } from 'react-icons/fi'
+import {
+  FiSend,
+  FiSmile,
+  FiImage,
+  FiPaperclip,
+  FiMic,
+  FiSquare
+} from 'react-icons/fi'
 import EmojiPicker, { EmojiClickData, Theme, EmojiStyle } from 'emoji-picker-react'
 import axios from 'axios'
+
+/** Ajusta esto si tu backend está en otra URL */
+const API_BASE =
+  process.env.NEXT_PUBLIC_API_BASE ||
+  process.env.NEXT_PUBLIC_API_URL ||
+  'http://localhost:4000'
 
 interface ChatInputProps {
   value: string
   onChange: (val: string) => void
   onSend: () => void
   disabled?: boolean
-  /** Si se provee, se usa para enviar el GIF como media al backend */
+
+  /** Teléfono del cliente (incluye país, solo dígitos) para /media-upload */
+  to?: string
+  /** conversationId para persistir el media en la DB (opcional) */
+  conversationId?: number
+
+  /** Si tu padre ya maneja el envío de GIF por link, te dejo este callback */
   onSendGif?: (url: string, isMp4?: boolean) => void
 }
 
@@ -26,7 +45,10 @@ export default function ChatInput({
   onSend,
   disabled,
   onSendGif,
+  to,
+  conversationId,
 }: ChatInputProps) {
+  // Emojis y GIFs
   const [showEmoji, setShowEmoji] = useState(false)
   const [showGifs, setShowGifs] = useState(false)
   const [gifQuery, setGifQuery] = useState('trending')
@@ -34,11 +56,20 @@ export default function ChatInput({
   const [gifLoading, setGifLoading] = useState(false)
   const [gifError, setGifError] = useState<string | null>(null)
 
+  // Grabación
+  const [isRecording, setIsRecording] = useState(false)
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
+  const chunksRef = useRef<Blob[]>([])
+
+  // File input
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
+
   const areaRef = useRef<HTMLTextAreaElement | null>(null)
   const emojiRef = useRef<HTMLDivElement | null>(null)
   const gifRef = useRef<HTMLDivElement | null>(null)
   const debounceRef = useRef<NodeJS.Timeout | null>(null)
 
+  // Tenor
   const TENOR_KEY = process.env.NEXT_PUBLIC_TENOR_API_KEY
   const tenorEnabled = Boolean(TENOR_KEY)
 
@@ -133,7 +164,6 @@ export default function ChatInput({
   }
 
   const handlePickGif = (item: TenorItem) => {
-    // Preferimos MP4 para WhatsApp; fallback a tinygif si no hay mp4
     const mp4 =
       item.media_formats['mp4']?.url ||
       item.media_formats['nanomp4']?.url ||
@@ -146,6 +176,95 @@ export default function ChatInput({
       insertAtCursor(` ${mp4} `)
     }
     setShowGifs(false)
+  }
+
+  /** ================== Uploads ================== */
+
+  const detectWaType = (mime: string): 'image' | 'video' | 'audio' | 'document' | null => {
+    if (mime.startsWith('image/')) return 'image'
+    if (mime.startsWith('video/')) return 'video'
+    if (mime.startsWith('audio/')) return 'audio'
+    if (mime === 'application/pdf') return 'document'
+    return null
+  }
+
+  const sendFile = async (file: File) => {
+    if (!to) {
+      alert('Falta el número destino (prop to)')
+      return
+    }
+    const type = detectWaType(file.type)
+    if (!type) {
+      alert('Tipo de archivo no permitido para WhatsApp')
+      return
+    }
+    const form = new FormData()
+    form.append('file', file)
+    form.append('to', to)
+    form.append('type', type)
+    if (conversationId) form.append('conversationId', String(conversationId))
+
+    await axios.post(`${API_BASE}/api/whatsapp/media-upload`, form, {
+      withCredentials: true,
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+  }
+
+  const onPickFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0]
+    if (!f) return
+    void sendFile(f)
+    // limpia selección para permitir mismo archivo de nuevo
+    e.currentTarget.value = ''
+  }
+
+  /** ================== Grabación Nota de Voz ================== */
+
+  const getPreferredAudioType = () => {
+    // Intentamos OGG/OPUS porque WhatsApp lo soporta mejor
+    const ogg = 'audio/ogg; codecs=opus'
+    if (typeof window !== 'undefined' && (window as any).MediaRecorder) {
+      if (MediaRecorder.isTypeSupported(ogg)) return ogg
+      if (MediaRecorder.isTypeSupported('audio/webm')) return 'audio/webm'
+    }
+    return '' // que el navegador decida
+  }
+
+  const startRecording = async () => {
+    try {
+      if (!to) {
+        alert('Falta el número destino (prop to)')
+        return
+      }
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      const mimeType = getPreferredAudioType()
+      const mr = new MediaRecorder(stream, mimeType ? { mimeType } : undefined)
+      chunksRef.current = []
+      mr.ondataavailable = (e) => {
+        if (e.data && e.data.size > 0) chunksRef.current.push(e.data)
+      }
+      mr.onstop = async () => {
+        const blob = new Blob(chunksRef.current, { type: mr.mimeType || 'audio/webm' })
+        const file = new File([blob], 'nota-voz.webm', { type: blob.type })
+        await sendFile(file) // lo mandamos como audio
+        // parar tracks
+        stream.getTracks().forEach(t => t.stop())
+      }
+      mediaRecorderRef.current = mr
+      mr.start()
+      setIsRecording(true)
+    } catch (e) {
+      console.error('[Mic] error:', e)
+      alert('No se pudo iniciar la grabación de audio.')
+    }
+  }
+
+  const stopRecording = () => {
+    const mr = mediaRecorderRef.current
+    if (mr && mr.state !== 'inactive') {
+      mr.stop()
+    }
+    setIsRecording(false)
   }
 
   return (
@@ -244,6 +363,53 @@ export default function ChatInput({
           )}
         </div>
 
+        {/* Botón Adjuntar archivo */}
+        <div className="relative">
+          <input
+            ref={fileInputRef}
+            type="file"
+            className="hidden"
+            onChange={onPickFile}
+            // WhatsApp: imagen/video/audio/pdf
+            accept="image/*,video/*,audio/*,application/pdf"
+          />
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            className="p-2 rounded-full bg-[#2A3942] text-white hover:bg-[#35464f] transition"
+            disabled={disabled}
+            aria-label="Adjuntar archivo"
+            title="Adjuntar archivo"
+          >
+            <FiPaperclip className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Botón Micrófono */}
+        {!isRecording ? (
+          <button
+            type="button"
+            onClick={startRecording}
+            className="p-2 rounded-full bg-[#2A3942] text-white hover:bg-[#35464f] transition"
+            disabled={disabled}
+            aria-label="Grabar nota de voz"
+            title="Grabar nota de voz"
+          >
+            <FiMic className="w-5 h-5" />
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={stopRecording}
+            className="p-2 rounded-full bg-red-600 text-white hover:bg-red-700 transition animate-pulse"
+            aria-label="Detener grabación"
+            title="Detener grabación"
+          >
+            <FiSquare className="w-5 h-5" />
+          </button>
+        )}
+
+        {/* Área de texto */}
         <textarea
           ref={areaRef}
           placeholder="Escribe un mensaje..."
@@ -256,6 +422,7 @@ export default function ChatInput({
           className="flex-1 resize-none bg-[#2A3942] text-white border border-[#2A3942] rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#00A884] placeholder-[#8696a0] disabled:opacity-60"
         />
 
+        {/* Enviar */}
         <button
           onClick={onSend}
           disabled={disabled || !value.trim()}
