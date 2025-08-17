@@ -32,7 +32,7 @@ function formatTime(ts?: string) {
   }
 }
 
-/** Limpia cortes y espacios raros */
+/** Limpia cortes raros */
 function sanitizeAggressive(raw: string) {
   if (!raw) return '';
   let s = raw
@@ -53,7 +53,6 @@ export default function MessageBubble({ message, isMine }: Props) {
   const time = formatTime(message.timestamp);
   const itsMedia = isMedia(mediaType);
 
-  // Detecta tokens largos (URLs, hashes) y aplica wrap agresivo solo ahí
   const needsAggressiveWrap = useMemo(() => {
     const text = (contenido || '').trim();
     if (!text) return false;
@@ -65,7 +64,7 @@ export default function MessageBubble({ message, isMine }: Props) {
     'relative inline-block align-top',
     'max-w-[86%] sm:max-w-[70%] min-w-[9ch]',
     'px-3 py-2 rounded-2xl shadow-sm ring-1 ring-white/5',
-    'overflow-hidden isolate',
+    'overflow-hidden isolate flex flex-col',
     isMine ? 'bg-[#005C4B] text-white ml-auto' : 'bg-[#202C33] text-[#E9EDEF]'
   );
 
@@ -78,7 +77,7 @@ export default function MessageBubble({ message, isMine }: Props) {
   );
 
   const timeClass = clsx(
-    'text-[11px] opacity-75 whitespace-nowrap select-none shrink-0',
+    'text-[11px] opacity-75 whitespace-nowrap select-none mt-1 self-end',
     isMine ? 'text-[#cfe5df]' : 'text-[#8696a0]'
   );
 
@@ -110,10 +109,8 @@ export default function MessageBubble({ message, isMine }: Props) {
         {/* BURBUJA DE TEXTO */}
         {showText && (
           <div className={bubbleBase}>
-            <div className="flex items-end justify-between gap-3">
-              <p className={clsx(textClass, 'flex-1')}>{sanitizeAggressive(contenido)}</p>
-              {time ? <span className={timeClass}>{time}</span> : null}
-            </div>
+            <p className={textClass}>{sanitizeAggressive(contenido)}</p>
+            {time ? <span className={timeClass}>{time}</span> : null}
           </div>
         )}
       </div>
@@ -152,7 +149,7 @@ function MediaRenderer({
 
   if (type === 'audio') {
     return (
-      <div className="w-full">
+      <div className="w-full flex flex-col">
         <p className="text-[14px] leading-[1.45]">
           <span className="font-medium">Transcripción: </span>
           {transcription?.trim() || 'Nota de voz (sin transcripción)'}
@@ -188,17 +185,13 @@ function MediaRenderer({
             onError={() => setErrored(true)}
             loading="lazy"
           />
-          {time ? (
-            <span className={clsx('absolute bottom-1 right-2 px-1.5 py-0.5 rounded bg-black/35 text-white', timeClass)}>
-              {time}
-            </span>
-          ) : null}
         </div>
         {caption ? (
           <figcaption className={clsx('text-[12px] opacity-90', isMine ? 'text-white/90' : 'text-[#E9EDEF]/90')}>
             {caption}
           </figcaption>
         ) : null}
+        {time ? <span className={timeClass}>{time}</span> : null}
       </figure>
     );
   }
@@ -225,23 +218,18 @@ function MediaRenderer({
             preload="metadata"
             className={clsx('block w-full h-auto max-h-[70vh] rounded-xl', loaded ? 'opacity-100' : 'opacity-0')}
           />
-          {time ? (
-            <span className={clsx('absolute bottom-1 right-2 px-1.5 py-0.5 rounded bg-black/35 text-white', timeClass)}>
-              {time}
-            </span>
-          ) : null}
         </div>
-
         {caption ? (
           <p className={clsx('text-[12px] opacity-90', isMine ? 'text-white/90' : 'text-[#E9EDEF]/90')}>{caption}</p>
         ) : null}
+        {time ? <span className={timeClass}>{time}</span> : null}
       </div>
     );
   }
 
   // document
   return (
-    <div className="flex flex-col items-end gap-1 max-w-full">
+    <div className="flex flex-col gap-1 max-w-full">
       <div className="flex items-center gap-2 min-w-0">
         <a
           href={url}
