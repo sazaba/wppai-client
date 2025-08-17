@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import clsx from 'clsx';
 
 export type ChatMessage = {
@@ -29,7 +29,7 @@ export default function MessageBubble({ message, isMine }: Props) {
   const { contenido, mediaType, mediaUrl, mimeType, caption, transcription } = message;
 
   const bubbleClass = clsx(
-    'max-w-[80%] rounded-2xl px-3 py-2 shadow-sm text-[14px] leading-snug',
+    'max-w-[85%] rounded-2xl px-3 py-2 shadow-sm',
     isMine ? 'bg-emerald-600 text-white ml-auto' : 'bg-white text-gray-900'
   );
 
@@ -37,15 +37,16 @@ export default function MessageBubble({ message, isMine }: Props) {
     ? new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     : '';
 
+  // — Render —
   return (
     <div className={clsx('w-full flex', isMine ? 'justify-end' : 'justify-start')}>
       <div className="flex flex-col gap-1">
-        {/* MEDIA */}
-        {isMedia(mediaType) && mediaUrl ? (
+        {/* MEDIA (sin reproductor para audio) */}
+        {isMedia(mediaType) ? (
           <div className={bubbleClass}>
             <MediaRenderer
               type={mediaType!}
-              url={mediaUrl}
+              url={mediaUrl || ''}
               mime={mimeType || undefined}
               caption={caption || undefined}
               transcription={transcription || undefined}
@@ -53,18 +54,21 @@ export default function MessageBubble({ message, isMine }: Props) {
           </div>
         ) : null}
 
-        {/* TEXTO (si hay contenido real) */}
-        {contenido &&
-          contenido !== '[imagen]' &&
-          contenido !== '[video]' &&
-          contenido !== '[nota de voz]' &&
-          contenido !== '[documento]' && (
-            <div className={bubbleClass}>
-              <p className="whitespace-pre-wrap break-words">{contenido}</p>
-            </div>
-          )}
+        {/* TEXTO (más pequeño y sin saltos raros) */}
+        {(!isMedia(mediaType) ||
+          (contenido &&
+            contenido !== '[imagen]' &&
+            contenido !== '[video]' &&
+            contenido !== '[nota de voz]' &&
+            contenido !== '[documento]')) && (
+          <div className={bubbleClass}>
+            <p className="whitespace-normal break-words hyphens-auto text-[14px] leading-snug">
+              {contenido}
+            </p>
+          </div>
+        )}
 
-        {/* timestamp */}
+        {/* Timestamp */}
         {time ? (
           <span className={clsx('text-[11px] text-gray-400 mt-0.5', isMine ? 'text-right' : 'text-left')}>
             {time}
@@ -88,16 +92,39 @@ function MediaRenderer({
   caption?: string;
   transcription?: string;
 }) {
+  // 🚫 Audio: NO usamos reproductor, solo mostramos la transcripción
+  if (type === 'audio') {
+    return (
+      <div className="space-y-1">
+        <p className="text-[13px]">
+          <span className="font-medium">Transcripción:</span>{' '}
+          {transcription?.trim() || 'Nota de voz (sin transcripción)'}
+        </p>
+      </div>
+    );
+  }
+
+  // Imagen con fallback si falla la carga
   if (type === 'image') {
+    const [error, setError] = useState(false);
+    if (!url || error) {
+      return (
+        <div className="w-28 h-28 rounded-xl bg-black/10 flex items-center justify-center text-xs text-gray-500">
+          imagen
+        </div>
+      );
+    }
     return (
       <figure className="flex flex-col gap-2">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={url}
           alt={caption || 'imagen'}
-          className="max-h-72 rounded-xl object-contain border border-gray-100"
+          className="max-h-72 max-w-[320px] rounded-xl object-cover border border-gray-100"
+          onError={() => setError(true)}
+          loading="lazy"
         />
-        {caption ? <figcaption className="text-xs opacity-80">{caption}</figcaption> : null}
+        {caption ? <figcaption className="text-[13px] opacity-90">{caption}</figcaption> : null}
       </figure>
     );
   }
@@ -105,33 +132,30 @@ function MediaRenderer({
   if (type === 'video') {
     return (
       <div className="flex flex-col gap-2">
-        <video src={url} controls preload="metadata" className="max-h-72 rounded-xl" />
-        {caption ? <p className="text-xs opacity-80">{caption}</p> : null}
+        <video
+          src={url}
+          controls
+          preload="metadata"
+          className="max-h-72 max-w-[360px] rounded-xl"
+        />
+        {caption ? <p className="text-[13px] opacity-90">{caption}</p> : null}
       </div>
     );
   }
 
-  if (type === 'audio') {
-    // 🔹 Solo mostramos la transcripción (sin reproductor)
-    return transcription ? (
-      <p className="text-sm opacity-90">{transcription}</p>
-    ) : (
-      <p className="text-sm italic text-gray-400">[Nota de voz sin transcripción]</p>
-    );
-  }
-
+  // Document
   return (
     <div className="flex items-center gap-2">
       <a
         href={url}
         target="_blank"
         rel="noreferrer"
-        className="text-sm underline hover:opacity-80"
-        title={mime || 'document'}
+        className="text-[13px] underline hover:opacity-80"
+        title={mime || 'documento'}
       >
         Descargar documento
       </a>
-      {caption ? <span className="text-xs opacity-80">— {caption}</span> : null}
+      {caption ? <span className="text-[13px] opacity-90">— {caption}</span> : null}
     </div>
   );
 }
