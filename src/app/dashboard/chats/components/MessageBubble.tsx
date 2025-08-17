@@ -48,8 +48,19 @@ function sanitizeAggressive(raw: string) {
   return s.trim();
 }
 
+/** 🔗 Convierte rutas relativas '/api/...' a absolutas usando NEXT_PUBLIC_API_URL */
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || '';
+function toAbsolute(u?: string | null) {
+  if (!u) return '';
+  if (/^https?:\/\//i.test(u)) return u;
+  // asegura que concatenar no duplique slash
+  const base = API_BASE.replace(/\/+$/, '');
+  const path = u.startsWith('/') ? u : `/${u}`;
+  return `${base}${path}`;
+}
+
 export default function MessageBubble({ message, isMine }: Props) {
-  const { contenido, mediaType, mediaUrl, mimeType, caption, transcription } = message;
+  const { contenido, mediaType, mediaUrl, mimeType, caption, transcription, mediaId } = message;
   const time = formatTime(message.timestamp);
   const itsMedia = isMedia(mediaType);
 
@@ -87,6 +98,16 @@ export default function MessageBubble({ message, isMine }: Props) {
       contenido &&
       !['[imagen]', '[video]', '[nota de voz]', '[documento]'].includes(contenido));
 
+  // ✅ Resolver URL final para media:
+  // 1) usar mediaUrl si viene
+  // 2) si no, intentar con mediaId → /api/whatsapp/media/:id
+  const resolvedMediaUrl = useMemo(() => {
+    const first = (mediaUrl || '').trim();
+    if (first) return toAbsolute(first);
+    if (mediaId) return toAbsolute(`/api/whatsapp/media/${mediaId}`);
+    return '';
+  }, [mediaUrl, mediaId]);
+
   return (
     <div className={clsx('w-full flex', isMine ? 'justify-end' : 'justify-start')}>
       <div className="flex flex-col gap-1 max-w-full">
@@ -95,7 +116,7 @@ export default function MessageBubble({ message, isMine }: Props) {
           <div className={bubbleBase}>
             <MediaRenderer
               type={mediaType as any}
-              url={mediaUrl || ''}
+              url={resolvedMediaUrl}
               mime={mimeType || undefined}
               caption={caption || undefined}
               transcription={transcription || undefined}
