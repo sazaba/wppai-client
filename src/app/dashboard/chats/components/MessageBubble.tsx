@@ -14,12 +14,10 @@ export type ChatMessage = {
   caption?: string | null;
   transcription?: string | null;
   isVoiceNote?: boolean;
+  mediaId?: string | null; // opcional por si lo necesitas
 };
 
-type Props = {
-  message: ChatMessage;
-  isMine?: boolean;
-};
+type Props = { message: ChatMessage; isMine?: boolean };
 
 function isMedia(m?: string | null) {
   return m === 'image' || m === 'video' || m === 'audio' || m === 'document';
@@ -33,9 +31,8 @@ export default function MessageBubble({ message, isMine }: Props) {
     : '';
 
   const bubbleBase = clsx(
-    'relative max-w-[78%] rounded-2xl px-3 py-2 shadow-sm',
-    'whitespace-pre-wrap break-words hyphens-none text-[13.5px] leading-[1.35]',
-    'pr-10', // reserva espacio para la hora
+    'relative inline-block max-w-[85%] rounded-2xl px-3 py-2 shadow-sm',
+    'whitespace-pre-wrap break-words text-[13.5px] leading-[1.35] pr-10',
     isMine ? 'bg-[#005C4B] text-white ml-auto' : 'bg-[#202C33] text-[#E9EDEF]'
   );
 
@@ -61,7 +58,7 @@ export default function MessageBubble({ message, isMine }: Props) {
               transcription={transcription || undefined}
               isMine={!!isMine}
             />
-            {time ? (
+            {time && (
               <span
                 className={clsx(
                   'absolute bottom-1 right-2 text-[11px] opacity-75',
@@ -70,14 +67,14 @@ export default function MessageBubble({ message, isMine }: Props) {
               >
                 {time}
               </span>
-            ) : null}
+            )}
           </div>
         )}
 
         {showTextBubble && (
           <div className={bubbleBase}>
             <p>{contenido}</p>
-            {time ? (
+            {time && (
               <span
                 className={clsx(
                   'absolute bottom-1 right-2 text-[11px] opacity-75',
@@ -86,15 +83,13 @@ export default function MessageBubble({ message, isMine }: Props) {
               >
                 {time}
               </span>
-            ) : null}
+            )}
           </div>
         )}
       </div>
     </div>
   );
 }
-
-/** ---- Media ---- */
 
 function MediaRenderer({
   type,
@@ -111,7 +106,6 @@ function MediaRenderer({
   transcription?: string;
   isMine: boolean;
 }) {
-  // ✅ Hooks arriba: una sola pareja de estados para manejar error/carga según el tipo
   const [errored, setErrored] = useState(false);
   const [loaded, setLoaded] = useState(false);
 
@@ -129,33 +123,26 @@ function MediaRenderer({
   if (type === 'image') {
     if (!url || errored) {
       return (
-        <div className="w-[280px] h-[220px] rounded-xl bg-black/20 flex items-center justify-center text-[12px] text-gray-400">
+        <div className="w-[300px] h-[220px] rounded-xl bg-black/20 flex items-center justify-center text-[12px] text-gray-400">
           imagen
         </div>
       );
     }
     return (
       <figure className="flex flex-col gap-2">
-        <div className="relative w-[280px] max-w-[320px]">
-          {/* skeleton / placeholder para evitar saltos */}
-          {!loaded && (
-            <div className="w-full h-[220px] rounded-xl bg-black/20 animate-pulse" />
+        {!loaded && <div className="w-[300px] h-[220px] rounded-xl bg-black/20 animate-pulse" />}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={url}
+          alt={caption || 'imagen'}
+          className={clsx(
+            'rounded-xl object-contain max-h-72 w-[300px]',
+            loaded ? 'block' : 'hidden'
           )}
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={url}
-            alt={caption || 'imagen'}
-            className={clsx(
-              'rounded-xl object-cover',
-              'w-full h-auto max-h-72',
-              loaded ? 'block' : 'hidden'
-            )}
-            referrerPolicy="no-referrer"
-            onLoad={() => setLoaded(true)}
-            onError={() => setErrored(true)}
-            loading="lazy"
-          />
-        </div>
+          onLoad={() => setLoaded(true)}
+          onError={() => setErrored(true)}
+          loading="lazy"
+        />
         {caption ? (
           <figcaption className={clsx('text-[12px] opacity-90', isMine ? 'text-white/90' : 'text-[#E9EDEF]/90')}>
             {caption}
@@ -182,7 +169,7 @@ function MediaRenderer({
           onLoadedData={() => setLoaded(true)}
           controls
           preload="metadata"
-          className={clsx('rounded-xl max-h-72 w-[320px] h-auto', loaded ? 'block' : 'hidden')}
+          className={clsx('rounded-xl max-h-72 w-[320px]', loaded ? 'block' : 'hidden')}
         />
         {caption ? (
           <p className={clsx('text-[12px] opacity-90', isMine ? 'text-white/90' : 'text-[#E9EDEF]/90')}>
@@ -193,7 +180,6 @@ function MediaRenderer({
     );
   }
 
-  // document
   return (
     <div className="flex items-center gap-2">
       <a
