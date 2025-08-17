@@ -15,6 +15,7 @@ export default function ChatMessages({ mensajes, onLoadMore, hasMore }: ChatMess
   const scrollContainerRef = useRef<HTMLDivElement | null>(null)
   const [isAtBottom, setIsAtBottom] = useState(true)
 
+  // Dedupe
   const list = useMemo(() => {
     const seen = new Set<string>()
     return mensajes.filter((m) => {
@@ -49,6 +50,7 @@ export default function ChatMessages({ mensajes, onLoadMore, hasMore }: ChatMess
           hover:[scrollbar-color:#2A3942_transparent]
         "
       >
+        {/* Limitador para simetría en desktop */}
         <div className="mx-auto w-full max-w-3xl flex flex-col gap-2 sm:gap-3">
           {hasMore && (
             <button
