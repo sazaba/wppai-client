@@ -12,25 +12,15 @@ import {
 import EmojiPicker, { EmojiClickData, Theme, EmojiStyle } from 'emoji-picker-react'
 import axios from 'axios'
 
-/** Ajusta esto si tu backend está en otra URL */
-const API_BASE =
-  process.env.NEXT_PUBLIC_API_BASE ||
-  process.env.NEXT_PUBLIC_API_URL ||
-  'http://localhost:4000'
-
 interface ChatInputProps {
   value: string
   onChange: (val: string) => void
   onSend: () => void
   disabled?: boolean
-
-  /** Teléfono del cliente (incluye país, solo dígitos) para /media-upload */
-  to?: string
-  /** conversationId para persistir el media en la DB (opcional) */
-  conversationId?: number
-
-  /** Si tu padre ya maneja el envío de GIF por link, te dejo este callback */
+  /** Enviar GIF por link (el padre hace la llamada) */
   onSendGif?: (url: string, isMp4?: boolean) => void
+  /** Nuevo: el padre envía el archivo (con conversationId) */
+  onUploadFile?: (file: File, type: 'image' | 'video' | 'audio' | 'document') => void | Promise<void>
 }
 
 type TenorItem = {
@@ -45,8 +35,7 @@ export default function ChatInput({
   onSend,
   disabled,
   onSendGif,
-  to,
-  conversationId,
+  onUploadFile,
 }: ChatInputProps) {
   // Emojis y GIFs
   const [showEmoji, setShowEmoji] = useState(false)
@@ -178,7 +167,7 @@ export default function ChatInput({
     setShowGifs(false)
   }
 
-  /** ================== Uploads ================== */
+  /** ================== Uploads (delegado al padre) ================== */
 
   const detectWaType = (mime: string): 'image' | 'video' | 'audio' | 'document' | null => {
     if (mime.startsWith('image/')) return 'image'
@@ -188,40 +177,26 @@ export default function ChatInput({
     return null
   }
 
-  const sendFile = async (file: File) => {
-    if (!to) {
-      alert('Falta el número destino (prop to)')
-      return
-    }
-    const type = detectWaType(file.type)
+  const onPickFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0]
+    if (!f) return
+    e.currentTarget.value = '' // permitir seleccionar el mismo archivo después
+
+    const type = detectWaType(f.type)
     if (!type) {
       alert('Tipo de archivo no permitido para WhatsApp')
       return
     }
-    const form = new FormData()
-    form.append('file', file)
-    form.append('to', to)
-    form.append('type', type)
-    if (conversationId) form.append('conversationId', String(conversationId))
-
-    await axios.post(`${API_BASE}/api/whatsapp/media-upload`, form, {
-      withCredentials: true,
-      headers: { 'Content-Type': 'multipart/form-data' },
-    })
-  }
-
-  const onPickFile = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const f = e.target.files?.[0]
-    if (!f) return
-    void sendFile(f)
-    // limpia selección para permitir mismo archivo de nuevo
-    e.currentTarget.value = ''
+    if (!onUploadFile) {
+      alert('Falta onUploadFile en el padre')
+      return
+    }
+    await onUploadFile(f, type)
   }
 
   /** ================== Grabación Nota de Voz ================== */
 
   const getPreferredAudioType = () => {
-    // Intentamos OGG/OPUS porque WhatsApp lo soporta mejor
     const ogg = 'audio/ogg; codecs=opus'
     if (typeof window !== 'undefined' && (window as any).MediaRecorder) {
       if (MediaRecorder.isTypeSupported(ogg)) return ogg
@@ -232,8 +207,8 @@ export default function ChatInput({
 
   const startRecording = async () => {
     try {
-      if (!to) {
-        alert('Falta el número destino (prop to)')
+      if (!onUploadFile) {
+        alert('Falta onUploadFile en el padre')
         return
       }
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
@@ -245,8 +220,9 @@ export default function ChatInput({
       }
       mr.onstop = async () => {
         const blob = new Blob(chunksRef.current, { type: mr.mimeType || 'audio/webm' })
-        const file = new File([blob], 'nota-voz.webm', { type: blob.type })
-        await sendFile(file) // lo mandamos como audio
+        const ext = blob.type.includes('ogg') ? 'ogg' : blob.type.includes('webm') ? 'webm' : 'm4a'
+        const file = new File([blob], `nota-voz.${ext}`, { type: blob.type })
+        await onUploadFile(file, 'audio')
         // parar tracks
         stream.getTracks().forEach(t => t.stop())
       }
@@ -370,7 +346,6 @@ export default function ChatInput({
             type="file"
             className="hidden"
             onChange={onPickFile}
-            // WhatsApp: imagen/video/audio/pdf
             accept="image/*,video/*,audio/*,application/pdf"
           />
           <button

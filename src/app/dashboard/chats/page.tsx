@@ -13,11 +13,8 @@ import ChatInput from './components/ChatInput'
 import ChatModalCerrar from './components/ChatModalCerrar'
 import ChatModalCrear from './components/ChatModalCrear'
 
-// ✅ usa la ruta correcta del contexto (desde /app/chats/page.tsx sube 1 nivel)
+// ✅ contexto de auth (token)
 import { useAuth } from '../../context/AuthContext'
-
-// ✅ usa alias para evitar rutas relativas frágiles
-import { sendWhatsappMedia, sendOutboundMessage } from '../../../services/whatsapp.service'
 
 const estadoIconos = {
   pendiente: <FiClock className="inline mr-1 animate-spin" />,
@@ -52,10 +49,8 @@ export default function ChatsPage() {
   // 🚨 Errores de política (24h)
   const [policyErrors, setPolicyErrors] = useState<Record<number, { code?: number; message: string }>>({})
 
-  // ✅ evita desestructurar si tu hook no expone exactamente { token, user }
   const auth = useAuth() as any
   const token: string | undefined = auth?.token
-  const empresaId: number = auth?.user?.empresaId ?? 1
 
   // ------- utils de dedupe/orden -------
   const keyOf = useCallback((m: any) => m.externalId ?? `${m.from}|${m.timestamp}|${m.contenido}`, [])
@@ -203,7 +198,7 @@ export default function ChatsPage() {
     }
   }
 
-  // ------- enviar TEXTO -------
+  // ------- enviar TEXTO (flujo actual de tu app) -------
   const handleSendMessage = async () => {
     const body = respuesta.trim()
     if (!body || !activoId) return
@@ -239,26 +234,57 @@ export default function ChatsPage() {
     }
   }
 
-  // ------- enviar MEDIA (imagen o video/mp4 para GIFs) -------
+  // ------- enviar MEDIA por LINK (GIF/imagen/video) SIN `to` -------
   const handleSendMedia = async ({ url, type }: { url: string; type: 'image' | 'video' }) => {
-    if (!activoId) return
-    const chatActual = chats.find(c => c.id === activoId)
-    const chatPhone: string = chatActual?.phone || chatActual?.telefono || chatActual?.wa || ''
-    if (!chatPhone) {
-      console.warn('No hay número para este chat activo')
-      return
-    }
-
+    if (!activoId || !token) return
     try {
-      await sendWhatsappMedia({ empresaId, to: chatPhone, url, type, token })
-      setMensajes(prev => mergeUnique(prev, [{
-        id: Date.now(),
-        from: 'bot',
-        contenido: type === 'image' ? `[imagen] ${url}` : `[video] ${url}`,
-        timestamp: new Date().toISOString(),
-      }]))
+      await axios.post(
+        '/api/whatsapp/media',
+        {
+          conversationId: activoId, // ✅ el backend resuelve el número
+          type,
+          url
+        },
+        { headers: { Authorization: `Bearer ${token}` } }
+      )
+
+      // Pinta en local la burbuja (opcional)
+      setMensajes(prev =>
+        mergeUnique(prev, [
+          {
+            id: Date.now(),
+            from: 'bot',
+            contenido: type === 'image' ? `[imagen] ${url}` : `[video] ${url}`,
+            timestamp: new Date().toISOString()
+          }
+        ])
+      )
     } catch (err) {
       console.error('❌ Error enviando media:', err)
+      alert('No se pudo enviar el archivo')
+    }
+  }
+
+  // ------- enviar ARCHIVO subido (nota de voz / imagen / video / pdf) SIN `to` -------
+  // (úsalo cuando tengas un input <input type="file" ...> y le pases aquí el File)
+  const handleUploadFile = async (file: File, type: 'image' | 'video' | 'audio' | 'document', caption?: string) => {
+    if (!activoId || !token) return
+    try {
+      const fd = new FormData()
+      fd.append('file', file)
+      fd.append('type', type)
+      fd.append('conversationId', String(activoId))
+      if (caption) fd.append('caption', caption)
+
+      await axios.post('/api/whatsapp/media-upload', fd, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'multipart/form-data'
+        }
+      })
+    } catch (err) {
+      console.error('❌ Error subiendo/enviando archivo:', err)
+      alert('No se pudo enviar el archivo')
     }
   }
 
@@ -347,14 +373,14 @@ export default function ChatsPage() {
             <ChatMessages mensajes={mensajes} onLoadMore={handleLoadMore} hasMore={hasMore} />
 
             <ChatInput
-              value={respuesta}
-              onChange={setRespuesta}
-              onSend={handleSendMessage}
-              onSendGif={(url, isMp4) =>
-                handleSendMedia({ url, type: isMp4 ? 'video' : 'image' })
-              }
-              disabled={chats.find(c => c.id === activoId)?.estado === 'cerrado'}
-            />
+  value={respuesta}
+  onChange={setRespuesta}
+  onSend={handleSendMessage}
+  onSendGif={(url, isMp4) => handleSendMedia({ url, type: isMp4 ? 'video' : 'image' })}
+  onUploadFile={(file, type) => handleUploadFile(file, type)}   // ⬅️ NUEVO
+  disabled={chats.find(c => c.id === activoId)?.estado === 'cerrado'}
+/>
+
           </>
         ) : (
           <div className="h-full flex items-center justify-center text-gray-400 text-sm">
