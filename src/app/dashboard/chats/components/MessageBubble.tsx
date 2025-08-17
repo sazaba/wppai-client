@@ -32,7 +32,7 @@ function formatTime(ts?: string) {
   }
 }
 
-/** Limpieza agresiva y estable para evitar cortes raros */
+/** Limpia cortes y espacios raros sin afectar el layout */
 function sanitizeAggressive(raw: string) {
   if (!raw) return '';
   let s = raw
@@ -53,22 +53,17 @@ export default function MessageBubble({ message, isMine }: Props) {
   const time = formatTime(message.timestamp);
   const itsMedia = isMedia(mediaType);
 
+  // 👇 clave: NO usar inline-flex; burbuja con ancho auto hasta un máximo.
   const bubbleBase = clsx(
-    // Layout
-    'relative inline-flex flex-col min-w-0 max-w-[82%] sm:max-w-[72%]',
+    'relative flex flex-col w-fit max-w-[86%] sm:max-w-[72%] min-w-0',
     'px-3 py-2 rounded-2xl shadow-sm ring-1 ring-white/5',
-    // Evitar desbordes y saltos
     'overflow-hidden isolate',
-    // Colores WhatsApp dark
     isMine ? 'bg-[#005C4B] text-white ml-auto' : 'bg-[#202C33] text-[#E9EDEF]'
   );
 
+  // 👇 clave: quitar `anywhere` para que no corte palabras normales.
   const textClass = clsx(
-    'text-[14px] leading-[1.45] whitespace-pre-line',
-    // Evitar desplazamientos por palabras largas / URLs
-    'break-words [overflow-wrap:anywhere] [word-break:break-word]',
-    // Estabilidad tipográfica
-    'antialiased'
+    'text-[14px] leading-[1.45] whitespace-pre-wrap break-words [word-break:break-word] antialiased'
   );
 
   const timeClass = clsx(
@@ -143,10 +138,8 @@ function MediaRenderer({
   const [errored, setErrored] = useState(false);
   const [loaded, setLoaded] = useState(false);
 
-  // Contenedor 100% fluido para evitar scroll X
   const mediaBox = 'relative w-full max-w-full';
-  const phBase =
-    'rounded-xl bg-black/20 flex items-center justify-center text-[12px] text-gray-400 w-full';
+  const phBase = 'rounded-xl bg-black/20 flex items-center justify-center text-[12px] text-gray-400 w-full';
   const imgPh = clsx(phBase, 'min-h-[180px] sm:min-h-[220px]');
   const vidPh = clsx(phBase, 'min-h-[160px] sm:min-h-[200px]');
 

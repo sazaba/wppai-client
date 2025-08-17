@@ -15,7 +15,7 @@ export default function ChatMessages({ mensajes, onLoadMore, hasMore }: ChatMess
   const scrollContainerRef = useRef<HTMLDivElement | null>(null)
   const [isAtBottom, setIsAtBottom] = useState(true)
 
-  // 🔒 Dedupe (prioriza id, luego contenido+timestamp)
+  // 🔒 Dedupe
   const list = useMemo(() => {
     const seen = new Set<string>()
     return mensajes.filter((m) => {
@@ -34,11 +34,9 @@ export default function ChatMessages({ mensajes, onLoadMore, hasMore }: ChatMess
 
   const scrollToBottom = () => bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
 
-  // Auto-scroll al fondo solo si ya estaba abajo
-  const len = list.length
   useEffect(() => {
     if (isAtBottom) bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [len, isAtBottom])
+  }, [list.length, isAtBottom])
 
   return (
     <div className="flex-1 overflow-hidden relative bg-[#111B21]">
@@ -52,7 +50,6 @@ export default function ChatMessages({ mensajes, onLoadMore, hasMore }: ChatMess
           hover:[scrollbar-color:#2A3942_transparent]
         "
       >
-        {/* Limitador de ancho para evitar líneas demasiado largas en desktop */}
         <div className="mx-auto w-full max-w-3xl flex flex-col gap-2 sm:gap-3">
           {hasMore && (
             <button
