@@ -32,7 +32,7 @@ function formatTime(ts?: string) {
   }
 }
 
-/** Limpia cortes y espacios raros sin afectar el layout */
+/** Limpia cortes y espacios raros sin afectar layout */
 function sanitizeAggressive(raw: string) {
   if (!raw) return '';
   let s = raw
@@ -53,17 +53,18 @@ export default function MessageBubble({ message, isMine }: Props) {
   const time = formatTime(message.timestamp);
   const itsMedia = isMedia(mediaType);
 
-  // 👇 clave: NO usar inline-flex; burbuja con ancho auto hasta un máximo.
+  // ✅ clave: inline-block + min-w para que nunca colapse a un “palito”
   const bubbleBase = clsx(
-    'relative flex flex-col w-fit max-w-[86%] sm:max-w-[72%] min-w-0',
-    'px-3 py-2 rounded-2xl shadow-sm ring-1 ring-white/5',
-    'overflow-hidden isolate',
+    'relative inline-block align-top',
+    'max-w-[86%] sm:max-w-[70%] min-w-[8ch]',     // ancho mínimo legible
+    'px-3 py-2 rounded-2xl shadow-sm ring-1 ring-white/5 overflow-hidden isolate',
     isMine ? 'bg-[#005C4B] text-white ml-auto' : 'bg-[#202C33] text-[#E9EDEF]'
   );
 
-  // 👇 clave: quitar `anywhere` para que no corte palabras normales.
+  // ✅ NO usamos anywhere; solo break-words normal
   const textClass = clsx(
-    'text-[14px] leading-[1.45] whitespace-pre-wrap break-words [word-break:break-word] antialiased'
+    'text-[14px] leading-[1.45] antialiased',
+    'whitespace-pre-wrap break-words'
   );
 
   const timeClass = clsx(
@@ -99,14 +100,8 @@ export default function MessageBubble({ message, isMine }: Props) {
         {/* BURBUJA DE TEXTO */}
         {showText && (
           <div className={bubbleBase}>
-            <div className="w-full">
-              <p className={textClass}>{sanitizeAggressive(contenido)}</p>
-            </div>
-            {time ? (
-              <div className="mt-1 flex justify-end">
-                <span className={timeClass}>{time}</span>
-              </div>
-            ) : null}
+            <p className={textClass}>{sanitizeAggressive(contenido)}</p>
+            {time ? <div className="mt-1 text-right"><span className={timeClass}>{time}</span></div> : null}
           </div>
         )}
       </div>
@@ -138,7 +133,8 @@ function MediaRenderer({
   const [errored, setErrored] = useState(false);
   const [loaded, setLoaded] = useState(false);
 
-  const mediaBox = 'relative w-full max-w-full';
+  // ✅ ancho multimedia fijo y responsivo (no depende del texto de la burbuja)
+  const wideBox = 'w-[min(82vw,420px)] sm:w-[420px] max-w-full';
   const phBase = 'rounded-xl bg-black/20 flex items-center justify-center text-[12px] text-gray-400 w-full';
   const imgPh = clsx(phBase, 'min-h-[180px] sm:min-h-[220px]');
   const vidPh = clsx(phBase, 'min-h-[160px] sm:min-h-[200px]');
@@ -158,7 +154,7 @@ function MediaRenderer({
   if (type === 'image') {
     if (!url || errored) {
       return (
-        <div className={clsx(mediaBox)}>
+        <div className={wideBox}>
           <div className={imgPh}>imagen</div>
           {time ? <span className={clsx('absolute bottom-1 right-2', timeClass)}>{time}</span> : null}
         </div>
@@ -167,7 +163,7 @@ function MediaRenderer({
 
     return (
       <figure className="flex flex-col gap-2 max-w-full">
-        <div className={clsx(mediaBox, 'overflow-hidden rounded-xl')}>
+        <div className={clsx(wideBox, 'relative overflow-hidden rounded-xl')}>
           {!loaded && <div className={clsx(imgPh, 'animate-pulse')} />}
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
@@ -199,7 +195,7 @@ function MediaRenderer({
   if (type === 'video') {
     if (!url || errored) {
       return (
-        <div className={clsx(mediaBox)}>
+        <div className={wideBox}>
           <div className={vidPh}>video</div>
           {time ? <span className={clsx('absolute bottom-1 right-2', timeClass)}>{time}</span> : null}
         </div>
@@ -208,7 +204,7 @@ function MediaRenderer({
 
     return (
       <div className="flex flex-col gap-2 max-w-full">
-        <div className={clsx(mediaBox, 'overflow-hidden rounded-xl')}>
+        <div className={clsx(wideBox, 'relative overflow-hidden rounded-xl')}>
           {!loaded && <div className={clsx(vidPh, 'animate-pulse')} />}
           <video
             src={url}

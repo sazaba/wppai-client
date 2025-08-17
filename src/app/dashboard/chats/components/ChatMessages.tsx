@@ -15,7 +15,6 @@ export default function ChatMessages({ mensajes, onLoadMore, hasMore }: ChatMess
   const scrollContainerRef = useRef<HTMLDivElement | null>(null)
   const [isAtBottom, setIsAtBottom] = useState(true)
 
-  // 🔒 Dedupe
   const list = useMemo(() => {
     const seen = new Set<string>()
     return mensajes.filter((m) => {
