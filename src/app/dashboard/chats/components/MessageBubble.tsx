@@ -32,6 +32,16 @@ function formatTime(ts?: string) {
   }
 }
 
+/** 🔗 Convierte rutas relativas '/api/...' a absolutas usando NEXT_PUBLIC_API_URL */
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || '';
+function toAbsolute(u?: string | null) {
+  if (!u) return '';
+  if (/^https?:\/\//i.test(u)) return u;
+  const base = API_BASE.replace(/\/+$/, '');
+  const path = u.startsWith('/') ? u : `/${u}`;
+  return `${base}${path}`;
+}
+
 /** Limpia cortes raros */
 function sanitizeAggressive(raw: string) {
   if (!raw) return '';
@@ -46,17 +56,6 @@ function sanitizeAggressive(raw: string) {
   s = s.replace(/(?<!\n)\n(?!\n)/g, ' ');
   s = s.replace(/[ \t]{2,}/g, ' ');
   return s.trim();
-}
-
-/** 🔗 Convierte rutas relativas '/api/...' a absolutas usando NEXT_PUBLIC_API_URL */
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || '';
-function toAbsolute(u?: string | null) {
-  if (!u) return '';
-  if (/^https?:\/\//i.test(u)) return u;
-  // asegura que concatenar no duplique slash
-  const base = API_BASE.replace(/\/+$/, '');
-  const path = u.startsWith('/') ? u : `/${u}`;
-  return `${base}${path}`;
 }
 
 export default function MessageBubble({ message, isMine }: Props) {
@@ -99,7 +98,7 @@ export default function MessageBubble({ message, isMine }: Props) {
       !['[imagen]', '[video]', '[nota de voz]', '[documento]'].includes(contenido));
 
   // ✅ Resolver URL final para media:
-  // 1) usar mediaUrl si viene
+  // 1) usar mediaUrl si viene (firmada por el backend)
   // 2) si no, intentar con mediaId → /api/whatsapp/media/:id
   const resolvedMediaUrl = useMemo(() => {
     const first = (mediaUrl || '').trim();
