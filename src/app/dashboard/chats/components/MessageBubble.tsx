@@ -32,32 +32,19 @@ function formatTime(ts?: string) {
   }
 }
 
-/** 🔧 Sanitizador agresivo para “Chocol\nate”, guiones de salto, espacios raros, etc. */
+/** 🔧 Sanitizador agresivo: limpia cortes dentro de palabras, guiones de salto y espacios raros */
 function sanitizeAggressive(raw: string) {
   if (!raw) return '';
   let s = raw
     .normalize('NFC')
     .replace(/\r/g, '')
-    .replace(/[\u200B-\u200D\uFEFF]/g, '') // zero-width
-    .replace(/\u00A0/g, ' '); // &nbsp;
-
-  // Párrafos: colapsa 3+ saltos → 2
-  s = s.replace(/\n{3,}/g, '\n\n');
-
-  // Quita guiones de salto: "palabra-\ncontinua" -> "palabracontinua"
-  s = s.replace(/([A-Za-zÁÉÍÓÚÜÑáéíóúüñ])-\s*\n\s*([A-Za-zÁÉÍÓÚÜÑáéíóúüñ])/g, '$1$2');
-
-  // Une cortes dentro de palabra (agresivo): "choco\nlate" -> "chocolate"
-  // Solo cuando ambos lados son minúsculas (reduce falsos positivos en nombres propios).
-  s = s.replace(/([a-záéíóúüñ])\s*\n\s*([a-záéíóúüñ])/g, '$1$2');
-
-  // Saltos simples restantes (no párrafos) -> espacio
-  // (preserva \n\n como salto de párrafo)
-  s = s.replace(/(?<!\n)\n(?!\n)/g, ' ');
-
-  // Colapsa espacios extras
+    .replace(/[\u200B-\u200D\uFEFF]/g, '')
+    .replace(/\u00A0/g, ' ');
+  s = s.replace(/\n{3,}/g, '\n\n'); // deja doble salto como párrafo
+  s = s.replace(/([A-Za-zÁÉÍÓÚÜÑáéíóúüñ])-\s*\n\s*([A-Za-zÁÉÍÓÚÜÑáéíóúüñ])/g, '$1$2'); // quita guion de salto
+  s = s.replace(/([a-záéíóúüñ])\s*\n\s*([a-záéíóúüñ])/g, '$1$2'); // une minúsculas separadas por \n
+  s = s.replace(/(?<!\n)\n(?!\n)/g, ' '); // salto simple -> espacio
   s = s.replace(/[ \t]{2,}/g, ' ');
-
   return s.trim();
 }
 
@@ -67,19 +54,18 @@ export default function MessageBubble({ message, isMine }: Props) {
   const itsMedia = isMedia(mediaType);
 
   const bubble = clsx(
-    'inline-flex flex-col items-end gap-1', // texto arriba, hora abajo
-    'max-w-[78%] min-w-[120px] rounded-2xl shadow-sm px-3 py-2', // min ancho para que la hora no se parta
-    isMine ? 'bg-[#005C4B] text-white ml-auto' : 'bg-[#202C33] text-[#E9EDEF]'
+    'inline-flex flex-col items-end gap-1 overflow-hidden', // evita overflow-x
+    'max-w-[86%] sm:max-w-[72%] rounded-2xl shadow-sm px-3 py-2',
+    isMine ? 'bg-[#005C4B] text-white ml-auto ring-1 ring-white/5' : 'bg-[#202C33] text-[#E9EDEF] ring-1 ring-white/5'
   );
 
   const textClass = clsx(
     'text-[14px] leading-[1.45] w-full text-left',
-    'whitespace-pre-line break-words',
-    'word-break:normal' // evita cortar palabras normales
+    'whitespace-pre-line break-words'
   );
 
   const timeClass = clsx(
-    'text-[11px] opacity-75 whitespace-nowrap', // ← no partir "a. m."
+    'text-[11px] opacity-75 whitespace-nowrap',
     isMine ? 'text-[#cfe5df]' : 'text-[#8696a0]'
   );
 
@@ -94,7 +80,7 @@ export default function MessageBubble({ message, isMine }: Props) {
 
   return (
     <div className={clsx('w-full flex', isMine ? 'justify-end' : 'justify-start')}>
-      <div className="flex flex-col gap-1">
+      <div className="flex flex-col gap-1 max-w-full">
         {/* BURBUJA MULTIMEDIA */}
         {itsMedia && (
           <div className={bubble}>
@@ -151,6 +137,13 @@ function MediaRenderer({
   const [errored, setErrored] = useState(false);
   const [loaded, setLoaded] = useState(false);
 
+  // contenedor responsivo sin anchos fijos ⇒ NO overflow-x
+  const mediaBox = 'relative w-full max-w-[88vw] sm:max-w-[420px]';
+  const phBase =
+    'rounded-xl bg-black/20 flex items-center justify-center text-[12px] text-gray-400 w-full';
+  const imgPh = clsx(phBase, 'min-h-[180px] sm:min-h-[220px]');
+  const vidPh = clsx(phBase, 'min-h-[160px] sm:min-h-[200px]');
+
   if (type === 'audio') {
     return (
       <div className="w-full">
@@ -164,38 +157,45 @@ function MediaRenderer({
   }
 
   if (type === 'image') {
-    const box = 'w-[320px] max-w-[86vw]';
-    const ph =
-      'h-[220px] rounded-xl bg-black/20 flex items-center justify-center text-[12px] text-gray-400';
-
     if (!url || errored) {
       return (
-        <div className={clsx('relative', box)}>
-          <div className={ph}>imagen</div>
+        <div className={clsx(mediaBox)}>
+          <div className={imgPh}>imagen</div>
           {time ? <span className={clsx('absolute bottom-1 right-2', timeClass)}>{time}</span> : null}
         </div>
       );
     }
 
     return (
-      <figure className="flex flex-col gap-2">
-        <div className={clsx('relative', box)}>
-          {!loaded && <div className={clsx(ph, 'animate-pulse')} />}
+      <figure className="flex flex-col gap-2 max-w-full">
+        <div className={clsx(mediaBox, 'overflow-hidden rounded-xl')}>
+          {!loaded && <div className={clsx(imgPh, 'animate-pulse')} />}
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={url}
             alt={caption || 'imagen'}
-            className={clsx('rounded-xl object-contain max-h-72 w-full', loaded ? 'block' : 'hidden')}
+            className={clsx(
+              'block w-full h-auto max-h-[70vh] object-contain select-none',
+              loaded ? 'opacity-100' : 'opacity-0'
+            )}
             onLoad={() => setLoaded(true)}
             onError={() => setErrored(true)}
             loading="lazy"
           />
-          {time ? <span className={clsx('absolute bottom-1 right-2', timeClass)}>{time}</span> : null}
+          {time ? (
+            <span
+              className={clsx(
+                'absolute bottom-1 right-2 px-1.5 py-0.5 rounded-md leading-none',
+                'bg-black/35 text-white shadow-sm',
+                timeClass
+              )}
+            >
+              {time}
+            </span>
+          ) : null}
         </div>
         {caption ? (
-          <figcaption
-            className={clsx('text-[12px] opacity-90', isMine ? 'text-white/90' : 'text-[#E9EDEF]/90')}
-          >
+          <figcaption className={clsx('text-[12px] opacity-90', isMine ? 'text-white/90' : 'text-[#E9EDEF]/90')}>
             {caption}
           </figcaption>
         ) : null}
@@ -204,32 +204,38 @@ function MediaRenderer({
   }
 
   if (type === 'video') {
-    const box = 'w-[340px] max-w-[90vw]';
-    const ph =
-      'h-[200px] rounded-xl bg-black/20 flex items-center justify-center text-[12px] text-gray-400';
-
     if (!url || errored) {
       return (
-        <div className={clsx('relative', box)}>
-          <div className={ph}>video</div>
+        <div className={clsx(mediaBox)}>
+          <div className={vidPh}>video</div>
           {time ? <span className={clsx('absolute bottom-1 right-2', timeClass)}>{time}</span> : null}
         </div>
       );
     }
 
     return (
-      <div className="flex flex-col gap-2">
-        <div className={clsx('relative', box)}>
-          {!loaded && <div className={clsx(ph, 'animate-pulse')} />}
+      <div className="flex flex-col gap-2 max-w-full">
+        <div className={clsx(mediaBox, 'overflow-hidden rounded-xl')}>
+          {!loaded && <div className={clsx(vidPh, 'animate-pulse')} />}
           <video
             src={url}
             onError={() => setErrored(true)}
             onLoadedData={() => setLoaded(true)}
             controls
             preload="metadata"
-            className={clsx('rounded-xl max-h-72 w-full', loaded ? 'block' : 'hidden')}
+            className={clsx('block w-full h-auto max-h-[70vh] rounded-xl', loaded ? 'opacity-100' : 'opacity-0')}
           />
-          {time ? <span className={clsx('absolute bottom-1 right-2', timeClass)}>{time}</span> : null}
+          {time ? (
+            <span
+              className={clsx(
+                'absolute bottom-1 right-2 px-1.5 py-0.5 rounded-md leading-none',
+                'bg-black/35 text-white shadow-sm',
+                timeClass
+              )}
+            >
+              {time}
+            </span>
+          ) : null}
         </div>
 
         {caption ? (
@@ -243,7 +249,7 @@ function MediaRenderer({
 
   // document
   return (
-    <div className="flex flex-col items-end gap-1">
+    <div className="flex flex-col items-end gap-1 max-w-full">
       <div className="flex items-center gap-2">
         <a
           href={url}
