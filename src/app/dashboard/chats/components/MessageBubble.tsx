@@ -32,8 +32,33 @@ function formatTime(ts?: string) {
   }
 }
 
-function normalizeText(txt: string) {
-  return txt.replace(/\r\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
+/** 🔧 Sanitizador agresivo para “Chocol\nate”, guiones de salto, espacios raros, etc. */
+function sanitizeAggressive(raw: string) {
+  if (!raw) return '';
+  let s = raw
+    .normalize('NFC')
+    .replace(/\r/g, '')
+    .replace(/[\u200B-\u200D\uFEFF]/g, '') // zero-width
+    .replace(/\u00A0/g, ' '); // &nbsp;
+
+  // Párrafos: colapsa 3+ saltos → 2
+  s = s.replace(/\n{3,}/g, '\n\n');
+
+  // Quita guiones de salto: "palabra-\ncontinua" -> "palabracontinua"
+  s = s.replace(/([A-Za-zÁÉÍÓÚÜÑáéíóúüñ])-\s*\n\s*([A-Za-zÁÉÍÓÚÜÑáéíóúüñ])/g, '$1$2');
+
+  // Une cortes dentro de palabra (agresivo): "choco\nlate" -> "chocolate"
+  // Solo cuando ambos lados son minúsculas (reduce falsos positivos en nombres propios).
+  s = s.replace(/([a-záéíóúüñ])\s*\n\s*([a-záéíóúüñ])/g, '$1$2');
+
+  // Saltos simples restantes (no párrafos) -> espacio
+  // (preserva \n\n como salto de párrafo)
+  s = s.replace(/(?<!\n)\n(?!\n)/g, ' ');
+
+  // Colapsa espacios extras
+  s = s.replace(/[ \t]{2,}/g, ' ');
+
+  return s.trim();
 }
 
 export default function MessageBubble({ message, isMine }: Props) {
@@ -42,14 +67,19 @@ export default function MessageBubble({ message, isMine }: Props) {
   const itsMedia = isMedia(mediaType);
 
   const bubble = clsx(
-    'inline-flex flex-col items-end gap-1', // ← texto arriba, hora abajo
-    'max-w-[78%] min-w-[44px] rounded-2xl shadow-sm px-3 py-2',
+    'inline-flex flex-col items-end gap-1', // texto arriba, hora abajo
+    'max-w-[78%] min-w-[120px] rounded-2xl shadow-sm px-3 py-2', // min ancho para que la hora no se parta
     isMine ? 'bg-[#005C4B] text-white ml-auto' : 'bg-[#202C33] text-[#E9EDEF]'
   );
 
-  const textClass = clsx('text-[14px] leading-[1.45]', 'whitespace-pre-line break-words');
+  const textClass = clsx(
+    'text-[14px] leading-[1.45] w-full text-left',
+    'whitespace-pre-line break-words',
+    'word-break:normal' // evita cortar palabras normales
+  );
+
   const timeClass = clsx(
-    'text-[11px] opacity-75',
+    'text-[11px] opacity-75 whitespace-nowrap', // ← no partir "a. m."
     isMine ? 'text-[#cfe5df]' : 'text-[#8696a0]'
   );
 
@@ -87,7 +117,7 @@ export default function MessageBubble({ message, isMine }: Props) {
         {showText && (
           <div className={bubble}>
             <div className="w-full text-left">
-              <p className={textClass}>{normalizeText(contenido)}</p>
+              <p className={textClass}>{sanitizeAggressive(contenido)}</p>
             </div>
             {time ? <span className={timeClass}>{time}</span> : null}
           </div>
@@ -123,12 +153,11 @@ function MediaRenderer({
 
   if (type === 'audio') {
     return (
-      <div className="space-y-1">
+      <div className="w-full">
         <p className="text-[14px] leading-[1.45]">
           <span className="font-medium">Transcripción: </span>
           {transcription?.trim() || 'Nota de voz (sin transcripción)'}
         </p>
-        {/* Hora abajo de la transcripción */}
         {time ? <span className={timeClass}>{time}</span> : null}
       </div>
     );
@@ -136,7 +165,8 @@ function MediaRenderer({
 
   if (type === 'image') {
     const box = 'w-[320px] max-w-[86vw]';
-    const ph = 'h-[220px] rounded-xl bg-black/20 flex items-center justify-center text-[12px] text-gray-400';
+    const ph =
+      'h-[220px] rounded-xl bg-black/20 flex items-center justify-center text-[12px] text-gray-400';
 
     if (!url || errored) {
       return (
@@ -155,32 +185,17 @@ function MediaRenderer({
           <img
             src={url}
             alt={caption || 'imagen'}
-            className={clsx(
-              'rounded-xl object-contain max-h-72',
-              loaded ? 'block' : 'hidden'
-            )}
+            className={clsx('rounded-xl object-contain max-h-72 w-full', loaded ? 'block' : 'hidden')}
             onLoad={() => setLoaded(true)}
             onError={() => setErrored(true)}
             loading="lazy"
           />
-          {/* Hora superpuesta abajo a la derecha */}
-          {time ? (
-            <span
-              className={clsx(
-                'absolute bottom-1 right-2',
-                'px-1 rounded-md',
-                // pequeño sombreado para legibilidad sobre fondos claros
-                'backdrop-blur-[1px]',
-                timeClass
-              )}
-            >
-              {time}
-            </span>
-          ) : null}
+          {time ? <span className={clsx('absolute bottom-1 right-2', timeClass)}>{time}</span> : null}
         </div>
-
         {caption ? (
-          <figcaption className={clsx('text-[12px] opacity-90', isMine ? 'text-white/90' : 'text-[#E9EDEF]/90')}>
+          <figcaption
+            className={clsx('text-[12px] opacity-90', isMine ? 'text-white/90' : 'text-[#E9EDEF]/90')}
+          >
             {caption}
           </figcaption>
         ) : null}
@@ -190,7 +205,8 @@ function MediaRenderer({
 
   if (type === 'video') {
     const box = 'w-[340px] max-w-[90vw]';
-    const ph = 'h-[200px] rounded-xl bg-black/20 flex items-center justify-center text-[12px] text-gray-400';
+    const ph =
+      'h-[200px] rounded-xl bg-black/20 flex items-center justify-center text-[12px] text-gray-400';
 
     if (!url || errored) {
       return (
