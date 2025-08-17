@@ -3,6 +3,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { FiArrowDown, FiClock, FiFileText, FiMic } from 'react-icons/fi'
 
+/** Usa tu API pública si el backend está en otro host/puerto. Si vas same-origin, puedes dejarlo vacío. */
+const API_BASE = (process.env.NEXT_PUBLIC_API_URL || '').replace(/\/+$/, '')
+
 export interface Mensaje {
   id?: number
   externalId?: string // wamid si viene
@@ -10,9 +13,10 @@ export interface Mensaje {
   contenido: string
   timestamp: string // ISO
 
-  /** Campos opcionales si tu API los retorna */
+  /** Opcionales desde tu API */
+  mediaId?: string      // ← NUEVO (stream vía /api/whatsapp/media/:mediaId)
   mediaType?: 'image' | 'video' | 'audio' | 'document'
-  mediaUrl?: string
+  mediaUrl?: string     // fallback cuando venga link público
   caption?: string
   transcription?: string
   mimeType?: string
@@ -29,11 +33,14 @@ export default function ChatMessages({ mensajes, onLoadMore, hasMore }: ChatMess
   const scrollContainerRef = useRef<HTMLDivElement | null>(null)
   const [isAtBottom, setIsAtBottom] = useState(true)
 
-  // 🔒 Dedupe local por externalId si existe, o por firma (from+timestamp+contenido)
+  // 🔒 Dedupe local (prioriza externalId y mediaId)
   const list = useMemo(() => {
     const seen = new Set<string>()
     return mensajes.filter((m) => {
-      const k = m.externalId ?? `${m.from}-${m.timestamp}-${m.contenido}`
+      const k =
+        m.externalId ??
+        m.mediaId ??
+        `${m.from}-${m.timestamp}-${m.contenido}`
       if (seen.has(k)) return false
       seen.add(k)
       return true
@@ -126,12 +133,20 @@ export default function ChatMessages({ mensajes, onLoadMore, hasMore }: ChatMess
     return <>{parts}</>
   }
 
-  const ImageOrVideo = ({ url }: { url: string }) => {
-    if (isVideoUrl(url)) {
+  /** Construye la URL de reproducción segura cuando hay mediaId, o usa mediaUrl como fallback */
+  const buildMediaSrc = (msg: Pick<Mensaje, 'mediaId' | 'mediaUrl'>) => {
+    if (msg.mediaId) return `${API_BASE}/api/whatsapp/media/${encodeURIComponent(msg.mediaId)}`
+    if (msg.mediaUrl) return msg.mediaUrl
+    return ''
+  }
+
+  const ImageOrVideo = ({ src }: { src: string }) => {
+    if (!src) return null
+    if (isVideoUrl(src)) {
       return (
         <div className="rounded-lg overflow-hidden max-w-full max-h-[300px]">
           <video
-            src={url}
+            src={src}
             controls
             loop
             muted
@@ -144,18 +159,20 @@ export default function ChatMessages({ mensajes, onLoadMore, hasMore }: ChatMess
     // eslint-disable-next-line @next/next/no-img-element
     return (
       <img
-        src={url}
+        src={src}
         alt="media"
         className="rounded-lg max-w-full max-h-[300px] object-cover"
       />
     )
   }
 
-  const AudioPreview = ({ url, fallback }: { url?: string; fallback?: string }) => {
-    if (url && isAudioUrl(url)) {
+  const AudioPreview = ({ src, fallback, type }: { src?: string; fallback?: string; type?: string }) => {
+    if (src) {
       return (
         <div className="rounded-lg overflow-hidden">
-          <audio controls src={url} className="w-full outline-none" />
+          <audio controls src={src} className="w-full outline-none">
+            {type ? <source src={src} type={type} /> : null}
+          </audio>
         </div>
       )
     }
@@ -168,14 +185,15 @@ export default function ChatMessages({ mensajes, onLoadMore, hasMore }: ChatMess
     )
   }
 
-  const DocumentPreview = ({ url, fileName }: { url: string; fileName?: string }) => {
-    const name = fileName || url.split('/').pop() || 'documento.pdf'
+  const DocumentPreview = ({ src, fileName }: { src: string; fileName?: string }) => {
+    if (!src) return null
+    const name = fileName || src.split('/').pop() || 'documento.pdf'
     return (
       <a
-        href={url}
+        href={src}
         target="_blank"
         rel="noopener noreferrer"
-        className="inline-flex items-center gap-2 px-3 py-2 rounded-md bg-black/20 hover:bg-black/30 transition underline-offset-2"
+        className="inline-flex items-center gap-2 px-3 py-2 rounded-md bg黑/20 hover:bg-black/30 transition underline-offset-2"
       >
         <FiFileText />
         <span className="truncate max-w-[220px]">{name}</span>
@@ -185,13 +203,15 @@ export default function ChatMessages({ mensajes, onLoadMore, hasMore }: ChatMess
 
   /** Decide qué mostrar según campos opcionales o parseo del contenido */
   const renderBubbleContent = (msg: Mensaje, alignRight: boolean) => {
-    // 1) Si el backend ya manda mediaType/mediaUrl, respetamos eso
-    if (msg.mediaType && msg.mediaUrl) {
+    // 1) Si el backend ya manda mediaType/mediaId/mediaUrl, priorizamos stream por mediaId
+    if (msg.mediaType && (msg.mediaId || msg.mediaUrl)) {
+      const src = buildMediaSrc(msg)
       const caption = msg.caption?.trim()
+
       if (msg.mediaType === 'image' || msg.mediaType === 'video') {
         return (
           <div className="flex flex-col gap-2">
-            <ImageOrVideo url={msg.mediaUrl} />
+            <ImageOrVideo src={src} />
             {caption && <div className="leading-relaxed"><LinkifiedText text={caption} /></div>}
           </div>
         )
@@ -199,7 +219,7 @@ export default function ChatMessages({ mensajes, onLoadMore, hasMore }: ChatMess
       if (msg.mediaType === 'audio') {
         return (
           <div className="flex flex-col gap-2">
-            <AudioPreview url={msg.mediaUrl} fallback="Nota de voz" />
+            <AudioPreview src={src} type={msg.mimeType} fallback="Nota de voz" />
             {msg.transcription && (
               <div className="text-xs opacity-80 leading-relaxed">
                 <span className="block mb-1">Transcripción:</span>
@@ -212,7 +232,7 @@ export default function ChatMessages({ mensajes, onLoadMore, hasMore }: ChatMess
       if (msg.mediaType === 'document') {
         return (
           <div className="flex flex-col gap-2">
-            <DocumentPreview url={msg.mediaUrl} />
+            <DocumentPreview src={src} />
             {caption && <div className="leading-relaxed"><LinkifiedText text={caption} /></div>}
           </div>
         )
@@ -225,15 +245,15 @@ export default function ChatMessages({ mensajes, onLoadMore, hasMore }: ChatMess
       if (labeled.type === 'image' || labeled.type === 'video') {
         return (
           <div className="flex flex-col gap-2">
-            <ImageOrVideo url={labeled.url} />
+            <ImageOrVideo src={labeled.url} />
           </div>
         )
       }
       if (labeled.type === 'audio') {
-        return <AudioPreview url={labeled.url} fallback="Nota de voz" />
+        return <AudioPreview src={labeled.url} fallback="Nota de voz" />
       }
       if (labeled.type === 'document') {
-        return <DocumentPreview url={labeled.url} />
+        return <DocumentPreview src={labeled.url} />
       }
     }
 
@@ -247,9 +267,9 @@ export default function ChatMessages({ mensajes, onLoadMore, hasMore }: ChatMess
         return (
           <div className="flex flex-col gap-2">
             {unique.map((u, idx) => {
-              if (isImageUrl(u) || isVideoUrl(u)) return <ImageOrVideo key={idx} url={u} />
-              if (isAudioUrl(u)) return <AudioPreview key={idx} url={u} />
-              if (isPdfUrl(u)) return <DocumentPreview key={idx} url={u} />
+              if (isImageUrl(u) || isVideoUrl(u)) return <ImageOrVideo key={idx} src={u} />
+              if (isAudioUrl(u)) return <AudioPreview key={idx} src={u} />
+              if (isPdfUrl(u)) return <DocumentPreview key={idx} src={u} />
               return (
                 <a
                   key={idx}
@@ -323,6 +343,7 @@ export default function ChatMessages({ mensajes, onLoadMore, hasMore }: ChatMess
           const esIA = msg.from !== 'client'
           const key =
             msg.externalId ??
+            msg.mediaId ??
             String(msg.id ?? `${msg.from}-${msg.timestamp}-${msg.contenido.slice(0, 16)}`)
 
           return (
