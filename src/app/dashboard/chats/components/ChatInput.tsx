@@ -11,9 +11,7 @@ interface Props {
   onChange: (v: string) => void
   onSend: () => void
   disabled?: boolean
-  /** Se mantiene para compatibilidad, pero no se usa (el botón de GIF ya no existe) */
-  onSendGif?: (url: string, isMp4: boolean) => void
-  /** Sigue igual: lo llamamos cuando se sube un archivo desde el botón de multimedia */
+  onSendGif?: (url: string, isMp4: boolean) => void // compat
   onUploadFile?: (file: File, type: MediaKind) => void
 }
 
@@ -22,20 +20,29 @@ export default function ChatInput({
   onChange,
   onSend,
   disabled,
-  onSendGif,      // <- compat (no usado)
+  onSendGif, // compat (no usado)
   onUploadFile,
 }: Props) {
   const [showEmoji, setShowEmoji] = useState(false)
   const fileRef = useRef<HTMLInputElement | null>(null)
+  const inputRef = useRef<HTMLInputElement | null>(null)
 
-  const handleEmojiClick = (e: EmojiClickData) => {
-    onChange(value + e.emoji)
+  const handleEmojiClick = (emojiData: EmojiClickData) => {
+    onChange(value + emojiData.emoji)
+    setShowEmoji(false)
+    // Devolvemos el foco al input para seguir escribiendo fluido
+    requestAnimationFrame(() => inputRef.current?.focus())
   }
 
   const handleKeyDown: React.KeyboardEventHandler<HTMLInputElement> = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
       if (!disabled && value.trim()) onSend()
+      return
+    }
+    // Cerrar el picker con Escape si está abierto
+    if (e.key === 'Escape' && showEmoji) {
+      setShowEmoji(false)
     }
   }
 
@@ -67,7 +74,14 @@ export default function ChatInput({
         </button>
 
         {showEmoji && (
-          <div className="absolute bottom-14 left-2 z-50">
+          <div
+            className="absolute bottom-14 left-2 z-50"
+            // Si haces click fuera del picker dentro de este contenedor, lo cerramos
+            onClick={(e) => {
+              // Evita que un click dentro del picker cierre por bubbling
+              if (e.target === e.currentTarget) setShowEmoji(false)
+            }}
+          >
             <EmojiPicker
               onEmojiClick={handleEmojiClick}
               theme={Theme.DARK}
@@ -94,12 +108,12 @@ export default function ChatInput({
           type="file"
           onChange={handleFileChange}
           className="hidden"
-          // admite imágenes, videos, audio y documentos comunes
           accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx"
         />
 
         {/* Campo de texto */}
         <input
+          ref={inputRef}
           type="text"
           value={value}
           onChange={(e) => onChange(e.target.value)}
