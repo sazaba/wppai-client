@@ -32,7 +32,7 @@ function formatTime(ts?: string) {
   }
 }
 
-/** 🔧 Sanitizador agresivo: limpia cortes dentro de palabras, guiones de salto y espacios raros */
+/** Limpieza agresiva y estable para evitar cortes raros */
 function sanitizeAggressive(raw: string) {
   if (!raw) return '';
   let s = raw
@@ -40,10 +40,10 @@ function sanitizeAggressive(raw: string) {
     .replace(/\r/g, '')
     .replace(/[\u200B-\u200D\uFEFF]/g, '')
     .replace(/\u00A0/g, ' ');
-  s = s.replace(/\n{3,}/g, '\n\n'); // deja doble salto como párrafo
-  s = s.replace(/([A-Za-zÁÉÍÓÚÜÑáéíóúüñ])-\s*\n\s*([A-Za-zÁÉÍÓÚÜÑáéíóúüñ])/g, '$1$2'); // quita guion de salto
-  s = s.replace(/([a-záéíóúüñ])\s*\n\s*([a-záéíóúüñ])/g, '$1$2'); // une minúsculas separadas por \n
-  s = s.replace(/(?<!\n)\n(?!\n)/g, ' '); // salto simple -> espacio
+  s = s.replace(/\n{3,}/g, '\n\n');
+  s = s.replace(/([A-Za-zÁÉÍÓÚÜÑáéíóúüñ])-\s*\n\s*([A-Za-zÁÉÍÓÚÜÑáéíóúüñ])/g, '$1$2');
+  s = s.replace(/([a-záéíóúüñ])\s*\n\s*([a-záéíóúüñ])/g, '$1$2');
+  s = s.replace(/(?<!\n)\n(?!\n)/g, ' ');
   s = s.replace(/[ \t]{2,}/g, ' ');
   return s.trim();
 }
@@ -53,19 +53,26 @@ export default function MessageBubble({ message, isMine }: Props) {
   const time = formatTime(message.timestamp);
   const itsMedia = isMedia(mediaType);
 
-  const bubble = clsx(
-    'inline-flex flex-col items-end gap-1 overflow-hidden', // evita overflow-x
-    'max-w-[86%] sm:max-w-[72%] rounded-2xl shadow-sm px-3 py-2',
-    isMine ? 'bg-[#005C4B] text-white ml-auto ring-1 ring-white/5' : 'bg-[#202C33] text-[#E9EDEF] ring-1 ring-white/5'
+  const bubbleBase = clsx(
+    // Layout
+    'relative inline-flex flex-col min-w-0 max-w-[82%] sm:max-w-[72%]',
+    'px-3 py-2 rounded-2xl shadow-sm ring-1 ring-white/5',
+    // Evitar desbordes y saltos
+    'overflow-hidden isolate',
+    // Colores WhatsApp dark
+    isMine ? 'bg-[#005C4B] text-white ml-auto' : 'bg-[#202C33] text-[#E9EDEF]'
   );
 
   const textClass = clsx(
-    'text-[14px] leading-[1.45] w-full text-left',
-    'whitespace-pre-line break-words'
+    'text-[14px] leading-[1.45] whitespace-pre-line',
+    // Evitar desplazamientos por palabras largas / URLs
+    'break-words [overflow-wrap:anywhere] [word-break:break-word]',
+    // Estabilidad tipográfica
+    'antialiased'
   );
 
   const timeClass = clsx(
-    'text-[11px] opacity-75 whitespace-nowrap',
+    'text-[11px] opacity-75 whitespace-nowrap select-none',
     isMine ? 'text-[#cfe5df]' : 'text-[#8696a0]'
   );
 
@@ -73,39 +80,38 @@ export default function MessageBubble({ message, isMine }: Props) {
     !itsMedia ||
     (mediaType !== 'audio' &&
       contenido &&
-      contenido !== '[imagen]' &&
-      contenido !== '[video]' &&
-      contenido !== '[nota de voz]' &&
-      contenido !== '[documento]');
+      !['[imagen]', '[video]', '[nota de voz]', '[documento]'].includes(contenido));
 
   return (
     <div className={clsx('w-full flex', isMine ? 'justify-end' : 'justify-start')}>
       <div className="flex flex-col gap-1 max-w-full">
         {/* BURBUJA MULTIMEDIA */}
         {itsMedia && (
-          <div className={bubble}>
-            <div className="w-full">
-              <MediaRenderer
-                type={mediaType as any}
-                url={mediaUrl || ''}
-                mime={mimeType || undefined}
-                caption={caption || undefined}
-                transcription={transcription || undefined}
-                isMine={!!isMine}
-                time={time}
-                timeClass={timeClass}
-              />
-            </div>
+          <div className={bubbleBase}>
+            <MediaRenderer
+              type={mediaType as any}
+              url={mediaUrl || ''}
+              mime={mimeType || undefined}
+              caption={caption || undefined}
+              transcription={transcription || undefined}
+              isMine={!!isMine}
+              time={time}
+              timeClass={timeClass}
+            />
           </div>
         )}
 
         {/* BURBUJA DE TEXTO */}
         {showText && (
-          <div className={bubble}>
-            <div className="w-full text-left">
+          <div className={bubbleBase}>
+            <div className="w-full">
               <p className={textClass}>{sanitizeAggressive(contenido)}</p>
             </div>
-            {time ? <span className={timeClass}>{time}</span> : null}
+            {time ? (
+              <div className="mt-1 flex justify-end">
+                <span className={timeClass}>{time}</span>
+              </div>
+            ) : null}
           </div>
         )}
       </div>
@@ -137,8 +143,8 @@ function MediaRenderer({
   const [errored, setErrored] = useState(false);
   const [loaded, setLoaded] = useState(false);
 
-  // contenedor responsivo sin anchos fijos ⇒ NO overflow-x
-  const mediaBox = 'relative w-full max-w-[88vw] sm:max-w-[420px]';
+  // Contenedor 100% fluido para evitar scroll X
+  const mediaBox = 'relative w-full max-w-full';
   const phBase =
     'rounded-xl bg-black/20 flex items-center justify-center text-[12px] text-gray-400 w-full';
   const imgPh = clsx(phBase, 'min-h-[180px] sm:min-h-[220px]');
@@ -183,13 +189,7 @@ function MediaRenderer({
             loading="lazy"
           />
           {time ? (
-            <span
-              className={clsx(
-                'absolute bottom-1 right-2 px-1.5 py-0.5 rounded-md leading-none',
-                'bg-black/35 text-white shadow-sm',
-                timeClass
-              )}
-            >
+            <span className={clsx('absolute bottom-1 right-2 px-1.5 py-0.5 rounded bg-black/35 text-white', timeClass)}>
               {time}
             </span>
           ) : null}
@@ -226,22 +226,14 @@ function MediaRenderer({
             className={clsx('block w-full h-auto max-h-[70vh] rounded-xl', loaded ? 'opacity-100' : 'opacity-0')}
           />
           {time ? (
-            <span
-              className={clsx(
-                'absolute bottom-1 right-2 px-1.5 py-0.5 rounded-md leading-none',
-                'bg-black/35 text-white shadow-sm',
-                timeClass
-              )}
-            >
+            <span className={clsx('absolute bottom-1 right-2 px-1.5 py-0.5 rounded bg-black/35 text-white', timeClass)}>
               {time}
             </span>
           ) : null}
         </div>
 
         {caption ? (
-          <p className={clsx('text-[12px] opacity-90', isMine ? 'text-white/90' : 'text-[#E9EDEF]/90')}>
-            {caption}
-          </p>
+          <p className={clsx('text-[12px] opacity-90', isMine ? 'text-white/90' : 'text-[#E9EDEF]/90')}>{caption}</p>
         ) : null}
       </div>
     );
@@ -250,18 +242,18 @@ function MediaRenderer({
   // document
   return (
     <div className="flex flex-col items-end gap-1 max-w-full">
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 min-w-0">
         <a
           href={url}
           target="_blank"
           rel="noreferrer"
-          className={clsx('underline hover:opacity-90 text-[13px]', isMine ? 'text-white' : 'text-[#9DE1FE]')}
+          className={clsx('underline hover:opacity-90 text-[13px] truncate', isMine ? 'text-white' : 'text-[#9DE1FE]')}
           title={mime || 'documento'}
         >
           Descargar documento
         </a>
         {caption ? (
-          <span className={clsx('text-[12px] opacity-90', isMine ? 'text-white/90' : 'text-[#E9EDEF]/90')}>
+          <span className={clsx('text-[12px] opacity-90 truncate', isMine ? 'text-white/90' : 'text-[#E9EDEF]/90')}>
             — {caption}
           </span>
         ) : null}

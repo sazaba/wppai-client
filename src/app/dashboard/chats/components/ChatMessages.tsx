@@ -44,34 +44,39 @@ export default function ChatMessages({ mensajes, onLoadMore, hasMore }: ChatMess
     <div className="flex-1 overflow-hidden relative bg-[#111B21]">
       <div
         ref={scrollContainerRef}
-        className="h-full overflow-y-auto px-4 sm:px-6 py-4 flex flex-col gap-2 sm:gap-3
-                   [scrollbar-width:thin] [scrollbar-color:#2A3942_transparent]
-                   hover:[scrollbar-color:#2A3942_transparent]"
         onScroll={handleScroll}
+        className="
+          h-full overflow-y-auto overflow-x-hidden
+          px-3 sm:px-5 py-4
+          [scrollbar-width:thin] [scrollbar-color:#2A3942_transparent]
+          hover:[scrollbar-color:#2A3942_transparent]
+        "
       >
-        {hasMore && (
-          <button
-            onClick={onLoadMore}
-            className="text-xs text-[#00A884] hover:underline self-center mb-2"
-          >
-            Ver mensajes anteriores
-          </button>
-        )}
+        {/* Limitador de ancho para evitar líneas demasiado largas en desktop */}
+        <div className="mx-auto w-full max-w-3xl flex flex-col gap-2 sm:gap-3">
+          {hasMore && (
+            <button
+              onClick={onLoadMore}
+              className="text-xs text-[#00A884] hover:underline self-center mb-2"
+            >
+              Ver mensajes anteriores
+            </button>
+          )}
 
-        {list.length === 0 && !hasMore && (
-          <div className="self-center text-sm text-[#8696a0] py-6">
-            No hay mensajes todavía.
-          </div>
-        )}
+          {list.length === 0 && !hasMore && (
+            <div className="self-center text-sm text-[#8696a0] py-6">
+              No hay mensajes todavía.
+            </div>
+          )}
 
-        {list.map((msg) => {
-          const key = String(msg.id ?? `${msg.from}-${msg.timestamp}-${msg.contenido}`)
-          const isMine = msg.from === 'bot' || msg.from === 'agent'
+          {list.map((msg) => {
+            const key = String(msg.id ?? `${msg.from}-${msg.timestamp}-${msg.contenido}`)
+            const isMine = msg.from === 'bot' || msg.from === 'agent'
+            return <MessageBubble key={key} message={msg} isMine={isMine} />
+          })}
 
-          return <MessageBubble key={key} message={msg} isMine={isMine} />
-        })}
-
-        <div ref={bottomRef} />
+          <div ref={bottomRef} />
+        </div>
       </div>
 
       {!isAtBottom && (
