@@ -32,7 +32,7 @@ function formatTime(ts?: string) {
   }
 }
 
-/** Limpia cortes y espacios raros sin afectar layout */
+/** Limpia cortes y espacios raros */
 function sanitizeAggressive(raw: string) {
   if (!raw) return '';
   let s = raw
@@ -53,37 +53,32 @@ export default function MessageBubble({ message, isMine }: Props) {
   const time = formatTime(message.timestamp);
   const itsMedia = isMedia(mediaType);
 
-  // Detecta tokens muy largos (URLs, hashes, etc.) y aplica wrap agresivo solo en esos casos.
+  // Detecta tokens largos (URLs, hashes) y aplica wrap agresivo solo ahí
   const needsAggressiveWrap = useMemo(() => {
     const text = (contenido || '').trim();
     if (!text) return false;
     const tokens = text.split(/\s+/);
-    // Si hay URLs o tokens >= 28 caracteres, activar wrap agresivo
     return tokens.some((t) => /^https?:\/\//i.test(t) || t.length >= 28);
   }, [contenido]);
 
-  // Burbuja: simetría + evitar colapso
   const bubbleBase = clsx(
     'relative inline-block align-top',
-    'max-w-[86%] sm:max-w-[70%] min-w-[9ch]', // mínimo legible
+    'max-w-[86%] sm:max-w-[70%] min-w-[9ch]',
     'px-3 py-2 rounded-2xl shadow-sm ring-1 ring-white/5',
     'overflow-hidden isolate',
     isMine ? 'bg-[#005C4B] text-white ml-auto' : 'bg-[#202C33] text-[#E9EDEF]'
   );
 
-  // Texto: no partir palabras cortas; si hay tokens largos, activamos break-all/words
   const textClass = clsx(
     'text-[14px] leading-[1.45] antialiased',
     'whitespace-pre-wrap',
     needsAggressiveWrap
-      ? // solo cuando haga falta
-        'break-words [word-break:break-word]'
-      : // comportamiento normal sin cortar palabras
-        'break-normal [word-break:keep-all] [overflow-wrap:normal]'
+      ? 'break-words [word-break:break-word]'
+      : 'break-normal [word-break:keep-all] [overflow-wrap:normal]'
   );
 
   const timeClass = clsx(
-    'text-[11px] opacity-75 whitespace-nowrap select-none',
+    'text-[11px] opacity-75 whitespace-nowrap select-none shrink-0',
     isMine ? 'text-[#cfe5df]' : 'text-[#8696a0]'
   );
 
@@ -115,12 +110,10 @@ export default function MessageBubble({ message, isMine }: Props) {
         {/* BURBUJA DE TEXTO */}
         {showText && (
           <div className={bubbleBase}>
-            <p className={textClass}>{sanitizeAggressive(contenido)}</p>
-            {time ? (
-              <div className="mt-1 text-right">
-                <span className={timeClass}>{time}</span>
-              </div>
-            ) : null}
+            <div className="flex items-end justify-between gap-3">
+              <p className={clsx(textClass, 'flex-1')}>{sanitizeAggressive(contenido)}</p>
+              {time ? <span className={timeClass}>{time}</span> : null}
+            </div>
           </div>
         )}
       </div>
@@ -152,7 +145,6 @@ function MediaRenderer({
   const [errored, setErrored] = useState(false);
   const [loaded, setLoaded] = useState(false);
 
-  // ancho multimedia fijo y responsivo (no depende del texto)
   const wideBox = 'w-[min(82vw,420px)] sm:w-[420px] max-w-full';
   const phBase = 'rounded-xl bg-black/20 flex items-center justify-center text-[12px] text-gray-400 w-full';
   const imgPh = clsx(phBase, 'min-h-[180px] sm:min-h-[220px]');
