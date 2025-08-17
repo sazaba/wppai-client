@@ -283,50 +283,102 @@ export default function ChatsPage() {
   // ——————————————————————————————
   // Enviar TEXTO
   // ——————————————————————————————
-  const handleSendMessage = async () => {
-    const body = respuesta.trim()
-    if (!body || !activoId) return
+// ——————————————————————————————
+// Enviar TEXTO (optimista + persistencia + replace)
+// ——————————————————————————————
+const handleSendMessage = async () => {
+  const body = respuesta.trim()
+  if (!body || !activoId) return
 
-    const chatActual = chats.find((c) => c.id === activoId)
-    const timestamp = new Date().toISOString()
-    const msgCliente = { from: 'client', contenido: body, timestamp }
-    setRespuesta('')
+  const chatActual = chats.find((c) => c.id === activoId)
+  const tempId = `temp-${Date.now()}`
+  const timestamp = new Date().toISOString()
 
-    if (chatActual?.estado !== 'cerrado') {
-      try {
-        setMensajes((prev) => mergeUnique(prev, [msgCliente]))
-        await axios.post(
-          `/api/chats/${activoId}/responder-manual`,
-          { contenido: body },
-          { headers: { Authorization: `Bearer ${token}` } }
+  // ✅ El mensaje manual lo envía un AGENTE
+  const msgOptimista = {
+    id: tempId,
+    from: 'agent',
+    contenido: body,
+    timestamp
+  }
+
+  // Limpia input y pinta optimista
+  setRespuesta('')
+  setMensajes((prev) => mergeUnique(prev, [msgOptimista]))
+
+  // Si la conversación no está cerrada, usa tu endpoint manual
+  if (chatActual?.estado !== 'cerrado') {
+    try {
+      const { data } = await axios.post(
+        `/api/chats/${activoId}/responder-manual`,
+        { contenido: body }, // el from='agent' que persiste lo debe fijar el backend
+        { headers: { Authorization: `Bearer ${token}` } }
+      )
+
+      // data.message debería venir con id real, createdAt/ timestamp consolidado, etc.
+      const real = data?.message ?? data
+
+      // 🔁 Reemplaza el optimista por el real
+      setMensajes((prev) =>
+        ordenarMensajes(
+          prev.map((m) => (m.id === tempId ? { ...m, ...real, id: real.id } : m))
         )
-        setChats((prev) =>
-          prev.map((chat) => (chat.id === activoId ? { ...chat, estado: 'requiere_agente' } : chat))
+      )
+
+      // Opcional: estado de la tarjeta tras responder manualmente
+      setChats((prev) =>
+        prev.map((chat) =>
+          chat.id === activoId ? { ...chat, estado: 'respondido' } : chat
         )
-      } catch (err) {
-        console.error('Error al responder manualmente:', err)
-      }
+      )
+    } catch (err) {
+      console.error('Error al responder manualmente:', err)
+      // Marca error visual en el optimista
+      setMensajes((prev) =>
+        prev.map((m) => (m.id === tempId ? { ...m, error: true } : m))
+      )
+    }
+    return
+  }
+
+  // Si está cerrada, mantienes tu flujo de IA (si así lo deseas)
+  try {
+    const res = await responderConIA({ chatId: activoId, mensaje: body, intentosFallidos: 0 })
+
+    // Reemplaza optimista con respuesta IA si te devuelve message
+    if (res?.message) {
+      setMensajes((prev) =>
+        ordenarMensajes(
+          prev.map((m) => (m.id === tempId ? { ...m, ...res.message, id: res.message.id } : m))
+        )
+      )
+    }
+
+    if (res.estado === 'requiere_agente') {
+      setChats((prev) =>
+        prev.map((chat) =>
+          chat.id === activoId ? { ...chat, estado: 'requiere_agente' } : chat
+        )
+      )
+      if (audioRef.current) audioRef.current.play()
+      if (navigator.vibrate) navigator.vibrate(200)
       return
     }
 
-    setMensajes((prev) => mergeUnique(prev, [msgCliente]))
-    try {
-      const res = await responderConIA({ chatId: activoId, mensaje: body, intentosFallidos: 0 })
-      if (res.estado === 'requiere_agente') {
-        setChats((prev) =>
-          prev.map((chat) => (chat.id === activoId ? { ...chat, estado: 'requiere_agente' } : chat))
-        )
-        if (audioRef.current) audioRef.current.play()
-        if (navigator.vibrate) navigator.vibrate(200)
-        return
-      }
-      setChats((prev) =>
-        prev.map((chat) => (chat.id === activoId ? { ...chat, estado: 'respondido' } : chat))
-      )
-    } catch (err) {
-      console.error('Error al responder con IA:', err)
-    }
+    setChats((prev) =>
+      prev.map((chat) => (chat.id === activoId ? { ...chat, estado: 'respondido' } : chat))
+    )
+  } catch (err) {
+    console.error('Error al responder con IA:', err)
+    setMensajes((prev) =>
+      prev.map((m) => (m.id === tempId ? { ...m, error: true } : m))
+    )
   }
+}
+
+
+
+
 
  // Enviar MEDIA por LINK (optimistic UI correcto)
 const handleSendMedia = async (
