@@ -32,7 +32,6 @@ function formatTime(ts?: string) {
   }
 }
 
-// Normaliza saltos raros que a veces vienen en transcripciones o mensajes pegados
 function normalizeText(txt: string) {
   return txt.replace(/\r\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
 }
@@ -43,20 +42,14 @@ export default function MessageBubble({ message, isMine }: Props) {
   const itsMedia = isMedia(mediaType);
 
   const bubble = clsx(
-    // grid: [contenido | hora] en la misma fila, hora se alinea al fondo
-    'inline-grid grid-cols-[1fr,auto] gap-x-2 items-end',
+    'inline-flex flex-col items-end gap-1', // ← texto arriba, hora abajo
     'max-w-[78%] min-w-[44px] rounded-2xl shadow-sm px-3 py-2',
     isMine ? 'bg-[#005C4B] text-white ml-auto' : 'bg-[#202C33] text-[#E9EDEF]'
   );
 
-  const textClass = clsx(
-    'text-[14px] leading-[1.45]',
-    // manejo de saltos/rupturas
-    'whitespace-pre-line break-words'
-  );
-
+  const textClass = clsx('text-[14px] leading-[1.45]', 'whitespace-pre-line break-words');
   const timeClass = clsx(
-    'text-[11px] opacity-75 pl-1',
+    'text-[11px] opacity-75',
     isMine ? 'text-[#cfe5df]' : 'text-[#8696a0]'
   );
 
@@ -72,9 +65,10 @@ export default function MessageBubble({ message, isMine }: Props) {
   return (
     <div className={clsx('w-full flex', isMine ? 'justify-end' : 'justify-start')}>
       <div className="flex flex-col gap-1">
+        {/* BURBUJA MULTIMEDIA */}
         {itsMedia && (
           <div className={bubble}>
-            <div className="col-start-1 row-start-1">
+            <div className="w-full">
               <MediaRenderer
                 type={mediaType as any}
                 url={mediaUrl || ''}
@@ -82,18 +76,20 @@ export default function MessageBubble({ message, isMine }: Props) {
                 caption={caption || undefined}
                 transcription={transcription || undefined}
                 isMine={!!isMine}
+                time={time}
+                timeClass={timeClass}
               />
             </div>
-            {time ? <span className={clsx('col-start-2 row-start-1', timeClass)}>{time}</span> : null}
           </div>
         )}
 
+        {/* BURBUJA DE TEXTO */}
         {showText && (
           <div className={bubble}>
-            <p className={clsx('col-start-1 row-start-1', textClass)}>
-              {normalizeText(contenido)}
-            </p>
-            {time ? <span className={clsx('col-start-2 row-start-1', timeClass)}>{time}</span> : null}
+            <div className="w-full text-left">
+              <p className={textClass}>{normalizeText(contenido)}</p>
+            </div>
+            {time ? <span className={timeClass}>{time}</span> : null}
           </div>
         )}
       </div>
@@ -110,6 +106,8 @@ function MediaRenderer({
   caption,
   transcription,
   isMine,
+  time,
+  timeClass,
 }: {
   type: 'image' | 'video' | 'audio' | 'document';
   url: string;
@@ -117,6 +115,8 @@ function MediaRenderer({
   caption?: string;
   transcription?: string;
   isMine: boolean;
+  time?: string;
+  timeClass: string;
 }) {
   const [errored, setErrored] = useState(false);
   const [loaded, setLoaded] = useState(false);
@@ -128,33 +128,57 @@ function MediaRenderer({
           <span className="font-medium">Transcripción: </span>
           {transcription?.trim() || 'Nota de voz (sin transcripción)'}
         </p>
+        {/* Hora abajo de la transcripción */}
+        {time ? <span className={timeClass}>{time}</span> : null}
       </div>
     );
   }
 
   if (type === 'image') {
-    // contenedor estable
     const box = 'w-[320px] max-w-[86vw]';
     const ph = 'h-[220px] rounded-xl bg-black/20 flex items-center justify-center text-[12px] text-gray-400';
 
-    if (!url || errored) return <div className={clsx(box, ph)}>imagen</div>;
+    if (!url || errored) {
+      return (
+        <div className={clsx('relative', box)}>
+          <div className={ph}>imagen</div>
+          {time ? <span className={clsx('absolute bottom-1 right-2', timeClass)}>{time}</span> : null}
+        </div>
+      );
+    }
 
     return (
       <figure className="flex flex-col gap-2">
-        {!loaded && <div className={clsx(box, ph, 'animate-pulse')} />}
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={url}
-          alt={caption || 'imagen'}
-          className={clsx(
-            'rounded-xl object-contain max-h-72',
-            box,
-            loaded ? 'block' : 'hidden'
-          )}
-          onLoad={() => setLoaded(true)}
-          onError={() => setErrored(true)}
-          loading="lazy"
-        />
+        <div className={clsx('relative', box)}>
+          {!loaded && <div className={clsx(ph, 'animate-pulse')} />}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={url}
+            alt={caption || 'imagen'}
+            className={clsx(
+              'rounded-xl object-contain max-h-72',
+              loaded ? 'block' : 'hidden'
+            )}
+            onLoad={() => setLoaded(true)}
+            onError={() => setErrored(true)}
+            loading="lazy"
+          />
+          {/* Hora superpuesta abajo a la derecha */}
+          {time ? (
+            <span
+              className={clsx(
+                'absolute bottom-1 right-2',
+                'px-1 rounded-md',
+                // pequeño sombreado para legibilidad sobre fondos claros
+                'backdrop-blur-[1px]',
+                timeClass
+              )}
+            >
+              {time}
+            </span>
+          ) : null}
+        </div>
+
         {caption ? (
           <figcaption className={clsx('text-[12px] opacity-90', isMine ? 'text-white/90' : 'text-[#E9EDEF]/90')}>
             {caption}
@@ -168,19 +192,30 @@ function MediaRenderer({
     const box = 'w-[340px] max-w-[90vw]';
     const ph = 'h-[200px] rounded-xl bg-black/20 flex items-center justify-center text-[12px] text-gray-400';
 
-    if (!url || errored) return <div className={clsx(box, ph)}>video</div>;
+    if (!url || errored) {
+      return (
+        <div className={clsx('relative', box)}>
+          <div className={ph}>video</div>
+          {time ? <span className={clsx('absolute bottom-1 right-2', timeClass)}>{time}</span> : null}
+        </div>
+      );
+    }
 
     return (
       <div className="flex flex-col gap-2">
-        {!loaded && <div className={clsx(box, ph, 'animate-pulse')} />}
-        <video
-          src={url}
-          onError={() => setErrored(true)}
-          onLoadedData={() => setLoaded(true)}
-          controls
-          preload="metadata"
-          className={clsx('rounded-xl max-h-72', box, loaded ? 'block' : 'hidden')}
-        />
+        <div className={clsx('relative', box)}>
+          {!loaded && <div className={clsx(ph, 'animate-pulse')} />}
+          <video
+            src={url}
+            onError={() => setErrored(true)}
+            onLoadedData={() => setLoaded(true)}
+            controls
+            preload="metadata"
+            className={clsx('rounded-xl max-h-72 w-full', loaded ? 'block' : 'hidden')}
+          />
+          {time ? <span className={clsx('absolute bottom-1 right-2', timeClass)}>{time}</span> : null}
+        </div>
+
         {caption ? (
           <p className={clsx('text-[12px] opacity-90', isMine ? 'text-white/90' : 'text-[#E9EDEF]/90')}>
             {caption}
@@ -192,19 +227,24 @@ function MediaRenderer({
 
   // document
   return (
-    <div className="flex items-center gap-2">
-      <a
-        href={url}
-        target="_blank"
-        rel="noreferrer"
-        className={clsx('underline hover:opacity-90 text-[13px]', isMine ? 'text-white' : 'text-[#9DE1FE]')}
-        title={mime || 'documento'}
-      >
-        Descargar documento
-      </a>
-      {caption ? (
-        <span className={clsx('text-[12px] opacity-90', isMine ? 'text-white/90' : 'text-[#E9EDEF]/90')}>— {caption}</span>
-      ) : null}
+    <div className="flex flex-col items-end gap-1">
+      <div className="flex items-center gap-2">
+        <a
+          href={url}
+          target="_blank"
+          rel="noreferrer"
+          className={clsx('underline hover:opacity-90 text-[13px]', isMine ? 'text-white' : 'text-[#9DE1FE]')}
+          title={mime || 'documento'}
+        >
+          Descargar documento
+        </a>
+        {caption ? (
+          <span className={clsx('text-[12px] opacity-90', isMine ? 'text-white/90' : 'text-[#E9EDEF]/90')}>
+            — {caption}
+          </span>
+        ) : null}
+      </div>
+      {time ? <span className={timeClass}>{time}</span> : null}
     </div>
   );
 }
