@@ -30,18 +30,26 @@ export default function MessageBubble({ message, isMine }: Props) {
 
   const bubbleClass = clsx(
     'max-w-[85%] rounded-2xl px-3 py-2 shadow-sm',
-    isMine ? 'bg-emerald-600 text-white ml-auto' : 'bg-white text-gray-900'
+    'whitespace-pre-wrap break-words text-[13px] leading-snug',
+    isMine ? 'bg-[#005C4B] text-white ml-auto' : 'bg-[#202C33] text-[#E9EDEF]'
   );
 
   const time = message.timestamp
     ? new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     : '';
 
-  // — Render —
+  const showTextBubble =
+    !isMedia(mediaType) ||
+    (mediaType !== 'audio' &&
+      contenido &&
+      contenido !== '[imagen]' &&
+      contenido !== '[video]' &&
+      contenido !== '[nota de voz]' &&
+      contenido !== '[documento]');
+
   return (
     <div className={clsx('w-full flex', isMine ? 'justify-end' : 'justify-start')}>
       <div className="flex flex-col gap-1">
-        {/* MEDIA (sin reproductor para audio) */}
         {isMedia(mediaType) ? (
           <div className={bubbleClass}>
             <MediaRenderer
@@ -50,27 +58,24 @@ export default function MessageBubble({ message, isMine }: Props) {
               mime={mimeType || undefined}
               caption={caption || undefined}
               transcription={transcription || undefined}
+              isMine={!!isMine}
             />
           </div>
         ) : null}
 
-        {/* TEXTO (más pequeño y sin saltos raros) */}
-        {(!isMedia(mediaType) ||
-          (contenido &&
-            contenido !== '[imagen]' &&
-            contenido !== '[video]' &&
-            contenido !== '[nota de voz]' &&
-            contenido !== '[documento]')) && (
+        {showTextBubble && (
           <div className={bubbleClass}>
-            <p className="whitespace-normal break-words hyphens-auto text-[14px] leading-snug">
-              {contenido}
-            </p>
+            <p>{contenido}</p>
           </div>
         )}
 
-        {/* Timestamp */}
         {time ? (
-          <span className={clsx('text-[11px] text-gray-400 mt-0.5', isMine ? 'text-right' : 'text-left')}>
+          <span
+            className={clsx(
+              'text-[11px] mt-0.5',
+              isMine ? 'text-[#d1d7db] text-right' : 'text-[#8696a0] text-left'
+            )}
+          >
             {time}
           </span>
         ) : null}
@@ -85,31 +90,31 @@ function MediaRenderer({
   mime,
   caption,
   transcription,
+  isMine,
 }: {
   type: 'image' | 'video' | 'audio' | 'document';
   url: string;
   mime?: string;
   caption?: string;
   transcription?: string;
+  isMine: boolean;
 }) {
-  // 🚫 Audio: NO usamos reproductor, solo mostramos la transcripción
   if (type === 'audio') {
     return (
       <div className="space-y-1">
-        <p className="text-[13px]">
-          <span className="font-medium">Transcripción:</span>{' '}
+        <p className="text-[13px] leading-snug">
+          <span className="font-medium">Transcripción: </span>
           {transcription?.trim() || 'Nota de voz (sin transcripción)'}
         </p>
       </div>
     );
   }
 
-  // Imagen con fallback si falla la carga
   if (type === 'image') {
     const [error, setError] = useState(false);
     if (!url || error) {
       return (
-        <div className="w-28 h-28 rounded-xl bg-black/10 flex items-center justify-center text-xs text-gray-500">
+        <div className="w-28 h-28 rounded-xl bg-black/20 flex items-center justify-center text-[12px] text-gray-400">
           imagen
         </div>
       );
@@ -120,42 +125,63 @@ function MediaRenderer({
         <img
           src={url}
           alt={caption || 'imagen'}
-          className="max-h-72 max-w-[320px] rounded-xl object-cover border border-gray-100"
+          className="max-h-72 max-w-[320px] rounded-xl object-cover"
+          referrerPolicy="no-referrer"
+          crossOrigin="anonymous"
           onError={() => setError(true)}
           loading="lazy"
         />
-        {caption ? <figcaption className="text-[13px] opacity-90">{caption}</figcaption> : null}
+        {caption ? (
+          <figcaption className={clsx('text-[12px] opacity-90', isMine ? 'text-white/90' : 'text-[#E9EDEF]/90')}>
+            {caption}
+          </figcaption>
+        ) : null}
       </figure>
     );
   }
 
   if (type === 'video') {
+    const [error, setError] = useState(false);
+    if (!url || error) {
+      return (
+        <div className="w-36 h-24 rounded-xl bg-black/20 flex items-center justify-center text-[12px] text-gray-400">
+          video
+        </div>
+      );
+    }
     return (
       <div className="flex flex-col gap-2">
         <video
           src={url}
+          onError={() => setError(true)}
           controls
           preload="metadata"
           className="max-h-72 max-w-[360px] rounded-xl"
+          crossOrigin="anonymous" // ← dejar solo crossOrigin en <video>
         />
-        {caption ? <p className="text-[13px] opacity-90">{caption}</p> : null}
+        {caption ? (
+          <p className={clsx('text-[12px] opacity-90', isMine ? 'text-white/90' : 'text-[#E9EDEF]/90')}>
+            {caption}
+          </p>
+        ) : null}
       </div>
     );
   }
 
-  // Document
   return (
     <div className="flex items-center gap-2">
       <a
         href={url}
         target="_blank"
         rel="noreferrer"
-        className="text-[13px] underline hover:opacity-80"
+        className={clsx('underline hover:opacity-90 text-[13px]', isMine ? 'text-white' : 'text-[#9DE1FE]')}
         title={mime || 'documento'}
       >
         Descargar documento
       </a>
-      {caption ? <span className="text-[13px] opacity-90">— {caption}</span> : null}
+      {caption ? (
+        <span className={clsx('text-[12px] opacity-90', isMine ? 'text-white/90' : 'text-[#E9EDEF]/90')}>— {caption}</span>
+      ) : null}
     </div>
   );
 }
