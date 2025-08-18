@@ -42,6 +42,16 @@ function toAbsolute(u?: string | null) {
   return `${base}${path}`;
 }
 
+/** 🔑 Lee el token de la app (para firmar /media/:id?t=JWT en <img>/<video>) */
+function getAppToken() {
+  if (typeof window === 'undefined') return '';
+  try {
+    return localStorage.getItem('token') || '';
+  } catch {
+    return '';
+  }
+}
+
 /** Limpia cortes raros */
 function sanitizeAggressive(raw: string) {
   if (!raw) return '';
@@ -98,12 +108,17 @@ export default function MessageBubble({ message, isMine }: Props) {
       !['[imagen]', '[video]', '[nota de voz]', '[documento]'].includes(contenido));
 
   // ✅ Resolver URL final para media:
-  // 1) usar mediaUrl si viene (firmada por el backend)
-  // 2) si no, intentar con mediaId → /api/whatsapp/media/:id
+  // 1) usar mediaUrl si viene (ya firmada por backend)
+  // 2) si no, construir con mediaId + ?t=JWT (para que el backend autorice el <img>/<video>)
   const resolvedMediaUrl = useMemo(() => {
     const first = (mediaUrl || '').trim();
     if (first) return toAbsolute(first);
-    if (mediaId) return toAbsolute(`/api/whatsapp/media/${mediaId}`);
+
+    if (mediaId) {
+      const t = getAppToken();
+      const qs = t ? `?t=${encodeURIComponent(t)}` : '';
+      return toAbsolute(`/api/whatsapp/media/${mediaId}${qs}`);
+    }
     return '';
   }, [mediaUrl, mediaId]);
 
