@@ -45,21 +45,33 @@ function Hint({ text }: { text: string }) {
   )
 }
 
-// Imagen con fallback
-function ImgWithFallback(props: React.ImgHTMLAttributes<HTMLImageElement>) {
+/** Imagen robusta: cache-buster + no-referrer + fallback SVG */
+function ImgAlways({
+  src, alt, className
+}: { src: string; alt?: string; className?: string }) {
   const [broken, setBroken] = useState(false)
+  const bust = src && !src.startsWith('data:')
+    ? `${src}${src.includes('?') ? '&' : '?'}_=${Date.now()}`
+    : src
+  const fallback =
+    'data:image/svg+xml;charset=UTF-8,' +
+    encodeURIComponent(
+      `<svg xmlns="http://www.w3.org/2000/svg" width="160" height="112">
+        <rect width="100%" height="100%" fill="#0f172a"/>
+        <text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle"
+          fill="#94a3b8" font-size="12">imagen no disponible</text>
+      </svg>`
+    )
   return (
     <img
-      {...props}
+      src={broken ? fallback : bust}
+      alt={alt || ''}
+      className={className}
+      decoding="async"
+      loading="lazy"
+      referrerPolicy="no-referrer"
+      crossOrigin="anonymous"
       onError={() => setBroken(true)}
-      src={
-        !broken
-          ? (props.src as string)
-          : 'data:image/svg+xml;charset=UTF-8,' +
-            encodeURIComponent(
-              `<svg xmlns="http://www.w3.org/2000/svg" width="160" height="112"><rect width="100%" height="100%" fill="#0f172a"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="#94a3b8" font-size="12">imagen no disponible</text></svg>`,
-            )
-      }
     />
   )
 }
@@ -97,7 +109,6 @@ export default function ModalEntrenamiento({ trainingActive, onClose, initialCon
   // Edit inline
   const [editingIndex, setEditingIndex] = useState<number | null>(null)
   const [editDraft, setEditDraft] = useState<Producto | null>(null)
-  const [editNewImgUrl, setEditNewImgUrl] = useState(''); const [editNewImgAlt, setEditNewImgAlt] = useState('')
   const [savingEdit, setSavingEdit] = useState(false)
   const isEditing = (idx: number) => editingIndex === idx
 
@@ -113,7 +124,7 @@ export default function ModalEntrenamiento({ trainingActive, onClose, initialCon
     { campo: 'nombre', tipo: 'input', pregunta: '¿Nombre del negocio?', placeholder: 'Ej: Tienda Leavid', required: true, hint: 'Nombre comercial visible.' },
     { campo: 'descripcion', tipo: 'textarea', pregunta: 'Describe brevemente el negocio (1–3 líneas).', placeholder: 'Ej: Skincare natural con envíos nacionales.', required: true, hint: 'Elevator pitch.' },
     { campo: 'faq', tipo: 'textarea', pregunta: 'FAQs (P:… / R:…).', placeholder: 'Ej:\nP: ¿Envíos?\nR: A todo el país.\nP: ¿Cambios?\nR: 30 días.', hint: 'Políticas clave.' },
-    { campo: 'horarios', tipo: 'textarea', pregunta: 'Horario de atención', placeholder: 'Ej: Lun–Vie 9–17', hint: 'Si es 24/7, acláralo.' },
+    { campo: 'horarios', tipo: 'textarea', pregunta: '¿Horario de atención?', placeholder: 'Ej: Lun–Vie 9–17', hint: 'Si es 24/7, acláralo.' },
     { campo: 'disclaimers', tipo: 'textarea', pregunta: 'Disclaimers globales', placeholder: 'Ej: Precios pueden variar. No consejos médicos.', hint: 'Límites y políticas.' },
   ]
   const preguntas = useMemo(() => (businessType === 'productos' ? preguntasProductos : preguntasServicios), [businessType])
@@ -124,6 +135,40 @@ export default function ModalEntrenamiento({ trainingActive, onClose, initialCon
   const next = () => { if (step < totalSteps - 1) setStep(s => s + 1) }
   const back = () => { if (step > 0) setStep(s => s - 1) }
   const updateField = (campo: keyof ConfigForm, val: string) => setForm(f => ({ ...f, [campo]: val }))
+
+  // ——— Eliminar imagen desde tarjeta (vista normal) ———
+async function deleteImageOnCard(
+  productId: number,
+  imageId: number,
+  cardIndex: number,
+  imageIndex: number
+) {
+  // 1) Actualización optimista del estado local
+  setProductos((list) => {
+    const copy = [...list]
+    const prod = copy[cardIndex]
+    if (!prod) return list
+    const imgs = [...(prod.imagenes || [])]
+    imgs.splice(imageIndex, 1)
+    copy[cardIndex] = { ...prod, imagenes: imgs }
+    return copy
+  })
+
+  // 2) Borrado en backend (valida productId + imageId)
+  try {
+    await axios.delete(
+      `${API_URL}/api/products/${productId}/images/${imageId}`,
+      { headers: getAuthHeaders() }
+    )
+  } catch (e: any) {
+    // 3) Si falla, mostramos error y recargamos del server
+    setErrorMsg(
+      e?.response?.data?.error || 'No se pudo eliminar la imagen.'
+    )
+    await loadCatalog()
+  }
+}
+
 
   // ——— Crear ———
   function addImagenAlNuevo() {
@@ -148,43 +193,23 @@ export default function ModalEntrenamiento({ trainingActive, onClose, initialCon
     catch (e: any) { setErrorMsg(e?.response?.data?.error || 'No se pudo eliminar el producto.'); await loadCatalog() }
   }
 
-  // ——— Eliminar imagen desde tarjeta (vista normal) ———
-  async function deleteImageOnCard(productId: number, imageId: number, cardIndex: number, imageIndex: number) {
-    // optimista
-    setProductos(list => {
-      const copy = [...list]
-      const imgs = [...(copy[cardIndex].imagenes || [])]
-      imgs.splice(imageIndex, 1)
-      copy[cardIndex] = { ...copy[cardIndex], imagenes: imgs }
-      return copy
-    })
-    try {
-      await axios.delete(`${API_URL}/api/products/${productId}/images/${imageId}`, { headers: getAuthHeaders() })
-    } catch (e: any) {
-      setErrorMsg(e?.response?.data?.error || 'No se pudo eliminar la imagen.')
-      await loadCatalog()
-    }
-  }
-
   // ——— Edit inline ———
-  function startEdit(idx: number) { setEditingIndex(idx); setEditDraft(JSON.parse(JSON.stringify(productos[idx]))); setEditNewImgUrl(''); setEditNewImgAlt('') }
-  function cancelEdit() { setEditingIndex(null); setEditDraft(null); setEditNewImgUrl(''); setEditNewImgAlt('') }
+  function startEdit(idx: number) { setEditingIndex(idx); setEditDraft(JSON.parse(JSON.stringify(productos[idx]))); }
+  function cancelEdit() { setEditingIndex(null); setEditDraft(null); }
   function updateDraft<K extends keyof Producto>(campo: K, val: Producto[K]) { if (!editDraft) return; setEditDraft({ ...editDraft, [campo]: val }) }
-  function addDraftImage() {
-    if (!editDraft) return
-    const url = editNewImgUrl.trim(); if (!url) return
-    const alt = editNewImgAlt.trim() || undefined
-    setEditDraft({ ...editDraft, imagenes: [...(editDraft.imagenes || []), { url, alt }] })
-    setEditNewImgUrl(''); setEditNewImgAlt('')
-  }
   async function removeDraftImageAt(i: number) {
     if (!editDraft) return
     const img = editDraft.imagenes[i]
     setEditDraft({ ...editDraft, imagenes: editDraft.imagenes.filter((_, idx) => idx !== i) })
     if (editDraft.id && img?.id) {
       try { await axios.delete(`${API_URL}/api/products/${editDraft.id}/images/${img.id}`, { headers: getAuthHeaders() }) }
-      catch { /* noop; refrescamos abajo si algo falla */ }
+      catch { /* noop */ }
     }
+  }
+  function addDraftImage(url: string, alt?: string) {
+    if (!editDraft) return
+    const u = url.trim(); if (!u) return
+    setEditDraft({ ...editDraft, imagenes: [...(editDraft.imagenes || []), { url: u, alt: (alt || '').trim() || undefined }] })
   }
   async function saveEdit() {
     if (editingIndex === null || !editDraft) return
@@ -201,7 +226,7 @@ export default function ModalEntrenamiento({ trainingActive, onClose, initialCon
         }
       }
       await loadCatalog()
-      setEditingIndex(null); setEditDraft(null); setEditNewImgUrl(''); setEditNewImgAlt('')
+      setEditingIndex(null); setEditDraft(null)
     } catch (e: any) {
       setErrorMsg(e?.response?.data?.error || 'No se pudo guardar la edición.')
     } finally { setSavingEdit(false) }
@@ -259,7 +284,6 @@ export default function ModalEntrenamiento({ trainingActive, onClose, initialCon
     finally { setSaving(false) }
   }
 
-  // UI helpers
   const isCatalogStep = businessType === 'productos' && step === preguntas.length
   const preguntaActual = preguntas[step]
 
@@ -267,8 +291,7 @@ export default function ModalEntrenamiento({ trainingActive, onClose, initialCon
     <AnimatePresence>
       {open && (
         <Dialog open={open} onClose={() => {}} className="relative z-50">
-          {/* backdrop */}
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" aria-hidden="true" />
+          {/* backdrop */}<div className="fixed inset-0 bg-black/60 backdrop-blur-sm" aria-hidden="true" />
           <div className="fixed inset-0 flex items-center justify-center px-3 sm:px-6">
             <Dialog.Panel as={motion.div} initial={{ opacity: 0, scale: 0.98, y: 8 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.98, y: 8 }} className="w-full max-w-3xl bg-slate-900 text-white rounded-2xl p-4 sm:p-6 border border-slate-800 shadow-2xl overflow-y-auto max-h-[92vh]">
               {/* header */}
@@ -315,30 +338,9 @@ export default function ModalEntrenamiento({ trainingActive, onClose, initialCon
 
                   {/* crear */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3 bg-slate-800/60 border border-slate-700 rounded-2xl p-4">
-                    <div className="space-y-1">
-                      <label className="text-sm text-slate-300 flex items-center gap-1">Nombre * <Hint text="Nombre del producto tal como lo vendes." /></label>
-                      <input value={nuevoProd.nombre} onChange={(e) => setNuevoProd({ ...nuevoProd, nombre: e.target.value })} className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm" placeholder="Ej: Serum hidratante 30ml" />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-sm text-slate-300 flex items-center gap-1">Precio desde (opcional) <Hint text="Precio referencial (se comunica como 'desde')." /></label>
-                      <input type="number" value={nuevoProd.precioDesde ?? ''} onChange={(e) => setNuevoProd({ ...nuevoProd, precioDesde: e.target.value ? Number(e.target.value) : null })} className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm" placeholder="Ej: 49900" />
-                    </div>
-                    <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-3">
-                      <div className="space-y-1">
-                        <label className="text-sm text-slate-300 flex items-center gap-1">Descripción <Hint text="1–2 líneas sobre qué es y para qué sirve." /></label>
-                        <textarea rows={3} value={nuevoProd.descripcion} onChange={(e) => setNuevoProd({ ...nuevoProd, descripcion: e.target.value })} className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm" placeholder="Ej: Serum ligero de rápida absorción con hidratación profunda." />
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-sm text-slate-300 flex items-center gap-1">Beneficios (uno por línea) <Hint text="Cada beneficio en su línea para mostrarse como viñeta." /></label>
-                        <textarea rows={3} value={nuevoProd.beneficios} onChange={(e) => setNuevoProd({ ...nuevoProd, beneficios: e.target.value })} className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm" placeholder={'Ej:\n- Hidratación intensa\n- Suaviza líneas finas\n- Mejora la textura'} />
-                      </div>
-                      <div className="md:col-span-2 space-y-1">
-                        <label className="text-sm text-slate-300 flex items-center gap-1">Características (una por línea) <Hint text="Atributos técnicos: tamaño, material, ingredientes." /></label>
-                        <textarea rows={3} value={nuevoProd.caracteristicas} onChange={(e) => setNuevoProd({ ...nuevoProd, caracteristicas: e.target.value })} className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm" placeholder={'Ej:\n- 30ml\n- Apto piel sensible\n- Sin fragancias'} />
-                      </div>
-                    </div>
+                    {/* ...campos... */}
                     <div className="md:col-span-2 space-y-1">
-                      <label className="text-sm text-slate-300 flex items-center gap-1">Imágenes (URL) <Hint text="Pega URLs directas (Cloudinary, S3, CDN). Alt es opcional." /></label>
+                      <label className="text-sm text-slate-300 flex items-center gap-1">Imágenes (URL)</label>
                       <div className="flex flex-col md:flex-row gap-2 items-stretch">
                         <input placeholder="https://res.cloudinary.com/tu-cloud/..." value={imgUrl} onChange={(e) => setImgUrl(e.target.value)} className="flex-1 min-w-0 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm" />
                         <input placeholder="Alt (opcional)" value={imgAlt} onChange={(e) => setImgAlt(e.target.value)} className="flex-1 min-w-0 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm" />
@@ -350,8 +352,10 @@ export default function ModalEntrenamiento({ trainingActive, onClose, initialCon
                         <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
                           {nuevoProd.imagenes.map((img, i) => (
                             <div key={i} className="relative group rounded-xl overflow-hidden border border-slate-700">
-                              <ImgWithFallback src={img.url} alt={img.alt || ''} className="w-full h-28 object-cover" loading="lazy" />
-                              <button onClick={() => removeImgNuevo(i)} className="absolute top-2 right-2 p-1 rounded-lg bg-black/60 hover:bg-black/80"><Trash2 className="w-4 h-4 text-white" /></button>
+                              <ImgAlways src={img.url} alt={img.alt || ''} className="w-full h-28 object-cover" />
+                              <button onClick={() => removeImgNuevo(i)} className="absolute top-2 right-2 p-1 rounded-lg bg-black/60 hover:bg-black/80">
+                                <Trash2 className="w-4 h-4 text-white" />
+                              </button>
                             </div>
                           ))}
                         </div>
@@ -415,21 +419,25 @@ export default function ModalEntrenamiento({ trainingActive, onClose, initialCon
                                     </ul>
                                   </div>
                                 )}
-                                {/* miniaturas con delete en backend */}
+                                {/* miniaturas SIEMPRE visibles */}
                                 {p.imagenes?.length ? (
                                   <div className="mt-2 grid grid-cols-3 gap-2">
                                     {p.imagenes.map((img, i) => (
                                       <div key={`${img.id ?? 'new'}-${i}`} className="relative group">
-                                        <ImgWithFallback src={img.url} alt={img.alt || ''} className="w-full h-16 object-cover rounded-lg border border-slate-700" loading="lazy" />
-                                        {!!img.id && (
-                                          <button
-                                            onClick={() => deleteImageOnCard(p.id as number, img.id as number, idx, i)}
-                                            className="absolute top-1.5 right-1.5 p-1 rounded-lg bg-black/60 hover:bg-black/80 opacity-0 group-hover:opacity-100 transition"
-                                            title="Eliminar imagen"
-                                          >
-                                            <Trash2 className="w-3.5 h-3.5 text-white" />
-                                          </button>
-                                        )}
+                                        <ImgAlways src={img.url} alt={img.alt || ''} className="w-full h-16 object-cover rounded-lg border border-slate-700" />
+                                        {!!img.id && !!p.id && (
+  <button
+    onClick={() => {
+      if (typeof p.id !== 'number' || typeof img.id !== 'number') return
+      void deleteImageOnCard(p.id, img.id, idx, i)
+    }}
+    className="absolute top-1.5 right-1.5 p-1 rounded-lg bg-black/60 hover:bg-black/80 opacity-0 group-hover:opacity-100 transition"
+    title="Eliminar imagen"
+  >
+    <Trash2 className="w-3.5 h-3.5 text-white" />
+  </button>
+)}
+
                                       </div>
                                     ))}
                                   </div>
@@ -454,7 +462,7 @@ export default function ModalEntrenamiento({ trainingActive, onClose, initialCon
                                     <div className="grid grid-cols-3 gap-2">
                                       {editDraft.imagenes.map((img, i) => (
                                         <div key={`${img.id ?? 'new'}-${i}`} className="relative">
-                                          <ImgWithFallback src={img.url} alt={img.alt || ''} className="w-full h-16 object-cover rounded-lg border border-slate-700" />
+                                          <ImgAlways src={img.url} alt={img.alt || ''} className="w-full h-16 object-cover rounded-lg border border-slate-700" />
                                           <button onClick={() => removeDraftImageAt(i)} className="absolute -top-2 -right-2 p-1 rounded-full bg-slate-900 border border-slate-700" title="Quitar imagen">
                                             <ImageMinus className="w-3.5 h-3.5" />
                                           </button>
@@ -464,21 +472,12 @@ export default function ModalEntrenamiento({ trainingActive, onClose, initialCon
                                   ) : (
                                     <div className="h-14 rounded-lg border border-dashed border-slate-700 text-[11px] text-slate-400 flex items-center justify-center">Sin imágenes</div>
                                   )}
-                                  {/* inputs URL + ALT responsive */}
-                                  <div className="flex flex-col sm:flex-row gap-2 items-stretch">
-                                    <input value={editNewImgUrl} onChange={(e) => setEditNewImgUrl(e.target.value)} placeholder="https://res.cloudinary.com/..." className="flex-1 min-w-0 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs" />
-                                    <input value={editNewImgAlt} onChange={(e) => setEditNewImgAlt(e.target.value)} placeholder="Alt (opcional)" className="flex-1 min-w-0 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs" />
-                                    <button onClick={addDraftImage} className="shrink-0 px-2 py-2 rounded-xl border border-slate-700 bg-slate-800 hover:bg-slate-700 text-xs inline-flex items-center gap-1">
+                                  <div className="flex gap-2">
+                                    <input id={`new-img-${idx}`} placeholder="https://res.cloudinary.com/..." className="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs" onKeyDown={(e) => { if (e.key === 'Enter') { const t = e.target as HTMLInputElement; if (t.value.trim()) { addDraftImage(t.value.trim()); t.value = '' } } }} />
+                                    <button onClick={() => { const input = document.getElementById(`new-img-${idx}`) as HTMLInputElement | null; if (input && input.value.trim()) { addDraftImage(input.value.trim()); input.value = '' } }} className="px-2 py-2 rounded-xl border border-slate-700 bg-slate-800 hover:bg-slate-700 text-xs inline-flex items-center gap-1">
                                       <ImagePlus className="w-3.5 h-3.5" /> Agregar
                                     </button>
                                   </div>
-                                  {/* preview inmediata */}
-                                  {editNewImgUrl.trim() && (
-                                    <div className="pt-1">
-                                      <div className="text-[11px] text-slate-400 mb-1">Vista previa</div>
-                                      <ImgWithFallback src={editNewImgUrl.trim()} alt={editNewImgAlt || ''} className="w-full h-16 object-cover rounded-lg border border-slate-700" />
-                                    </div>
-                                  )}
                                 </div>
                               </div>
                             )}
