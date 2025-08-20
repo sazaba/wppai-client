@@ -1,12 +1,12 @@
 'use client'
 
-import { useState, useEffect } from "react"
-import { Sparkles, RotateCw } from "lucide-react"
-import axios from "axios"
-import ModalEntrenamiento from "./components/ModalEntrenamiento"
-import WhatsappConfig from "./components/WhatsappConfig"
+import { useState, useEffect } from 'react'
+import { Sparkles, RotateCw } from 'lucide-react'
+import axios from 'axios'
+import ModalEntrenamiento from './components/ModalEntrenamiento'
+import WhatsappConfig from './components/WhatsappConfig'
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL
+const API_URL = process.env.NEXT_PUBLIC_API_URL as string
 
 type BusinessType = 'servicios' | 'productos'
 
@@ -21,7 +21,7 @@ interface ConfigForm {
   disclaimers?: string
 }
 
-function getAuthHeaders() {
+function getAuthHeaders(): Record<string, string> {
   if (typeof window === 'undefined') return {}
   const token = localStorage.getItem('token')
   return token ? { Authorization: `Bearer ${token}` } : {}
@@ -29,13 +29,13 @@ function getAuthHeaders() {
 
 export default function SettingsPage() {
   const [form, setForm] = useState<ConfigForm>({
-    nombre: "",
-    descripcion: "",
-    servicios: "",
-    faq: "",
-    horarios: "",
+    nombre: '',
+    descripcion: '',
+    servicios: '',
+    faq: '',
+    horarios: '',
     businessType: 'servicios',
-    disclaimers: ""
+    disclaimers: '',
   })
 
   const [configGuardada, setConfigGuardada] = useState<ConfigForm | null>(null)
@@ -50,17 +50,17 @@ export default function SettingsPage() {
         if (res.data) {
           setConfigGuardada(res.data)
           setForm({
-            nombre: res.data.nombre || "",
-            descripcion: res.data.descripcion || "",
-            servicios: res.data.servicios || "",
-            faq: res.data.faq || "",
-            horarios: res.data.horarios || "",
+            nombre: res.data.nombre || '',
+            descripcion: res.data.descripcion || '',
+            servicios: res.data.servicios || '',
+            faq: res.data.faq || '',
+            horarios: res.data.horarios || '',
             businessType: (res.data.businessType as BusinessType) || 'servicios',
-            disclaimers: res.data.disclaimers || ""
+            disclaimers: res.data.disclaimers || '',
           })
         }
       } catch (err) {
-        console.error("Error al cargar configuración existente:", err)
+        console.error('Error al cargar configuración existente:', err)
       } finally {
         setLoading(false)
       }
@@ -69,24 +69,40 @@ export default function SettingsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Reiniciar entrenamiento (resetea config con PUT)
+  // Reiniciar entrenamiento (elimina config y, opcional, catálogo)
   const reiniciarEntrenamiento = async () => {
     try {
-      const vacio: ConfigForm = {
-        nombre: "",
-        descripcion: "",
-        servicios: "",
-        faq: "",
-        horarios: "",
-        businessType: 'servicios',
-        disclaimers: ""
+      if (typeof window !== 'undefined') {
+        const ok = window.confirm(
+          '¿Reiniciar el entrenamiento?\n\nSe eliminará la configuración actual y se abrirá el asistente. ' +
+            'También se eliminará el catálogo si eliges continuar.',
+        )
+        if (!ok) return
       }
-      const { data } = await axios.put(`${API_URL}/api/config`, vacio, { headers: getAuthHeaders() })
-      setConfigGuardada(data)
+
+      // 🔥 borra configuración + catálogo (cambia a false si no quieres tocar productos)
+      await axios.delete(`${API_URL}/api/config`, {
+        params: { withCatalog: true },
+        headers: getAuthHeaders(),
+      })
+
+      // Deja el formulario vacío y abre el modal de entrenamiento
+      const vacio: ConfigForm = {
+        nombre: '',
+        descripcion: '',
+        servicios: '',
+        faq: '',
+        horarios: '',
+        businessType: 'servicios',
+        disclaimers: '',
+      }
+
+      setConfigGuardada(null)
       setForm(vacio)
       setTrainingActive(true)
-    } catch {
-      alert("Error al reiniciar configuración")
+    } catch (e: any) {
+      console.error('[reiniciarEntrenamiento] error:', e?.response?.data || e?.message || e)
+      alert('Error al reiniciar configuración')
     }
   }
 
@@ -95,7 +111,6 @@ export default function SettingsPage() {
   return (
     <div className="h-full overflow-y-auto max-h-screen px-4 sm:px-6 py-8 scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-transparent">
       <div className="max-w-5xl mx-auto space-y-6">
-
         {/* Header */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <h1 className="text-2xl font-bold text-white text-center">Entrenamiento de tu IA</h1>
@@ -113,7 +128,7 @@ export default function SettingsPage() {
                   const { data } = await axios.put(
                     `${API_URL}/api/config`,
                     { ...form, businessType: newType },
-                    { headers: getAuthHeaders() }
+                    { headers: getAuthHeaders() },
                   )
                   setConfigGuardada(data || null)
                 } catch (err) {
@@ -143,12 +158,24 @@ export default function SettingsPage() {
           <div className="bg-slate-800 border border-slate-700 p-6 rounded-2xl shadow-xl text-white space-y-4">
             <h2 className="text-xl font-bold">📦 Resumen de la configuración</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm break-words">
-              <div><strong>Nombre:</strong> {configGuardada.nombre}</div>
-              <div><strong>Descripción:</strong> {configGuardada.descripcion}</div>
-              <div><strong>Servicios/Productos:</strong> {configGuardada.servicios}</div>
-              <div><strong>FAQ:</strong> {configGuardada.faq}</div>
-              <div><strong>Horarios:</strong> {configGuardada.horarios}</div>
-              <div><strong>Tipo de negocio:</strong> {configGuardada.businessType}</div>
+              <div>
+                <strong>Nombre:</strong> {configGuardada.nombre}
+              </div>
+              <div>
+                <strong>Descripción:</strong> {configGuardada.descripcion}
+              </div>
+              <div>
+                <strong>Servicios/Productos:</strong> {configGuardada.servicios}
+              </div>
+              <div>
+                <strong>FAQ:</strong> {configGuardada.faq}
+              </div>
+              <div>
+                <strong>Horarios:</strong> {configGuardada.horarios}
+              </div>
+              <div>
+                <strong>Tipo de negocio:</strong> {configGuardada.businessType}
+              </div>
               {configGuardada.disclaimers && (
                 <div className="md:col-span-2">
                   <strong>Disclaimers:</strong> {configGuardada.disclaimers}
@@ -186,21 +213,23 @@ export default function SettingsPage() {
               setConfigGuardada(data || null)
               if (data) {
                 setForm({
-                  nombre: data.nombre || "",
-                  descripcion: data.descripcion || "",
-                  servicios: data.servicios || "",
-                  faq: data.faq || "",
-                  horarios: data.horarios || "",
+                  nombre: data.nombre || '',
+                  descripcion: data.descripcion || '',
+                  servicios: data.servicios || '',
+                  faq: data.faq || '',
+                  horarios: data.horarios || '',
                   businessType: (data.businessType as BusinessType) || 'servicios',
-                  disclaimers: data.disclaimers || ""
+                  disclaimers: data.disclaimers || '',
                 })
               }
-            } catch {}
+            } catch {
+              /* noop */
+            }
           }}
           initialConfig={{
             ...form,
             businessType: form.businessType as BusinessType,
-            disclaimers: form.disclaimers
+            disclaimers: form.disclaimers,
           }}
         />
 
