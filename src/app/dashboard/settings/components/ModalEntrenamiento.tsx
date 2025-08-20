@@ -40,7 +40,7 @@ interface ImagenProducto {
 }
 
 type Producto = {
-  id?: number // si existe, viene desde DB
+  id?: number
   nombre: string
   descripcion: string
   beneficios: string
@@ -208,7 +208,7 @@ export default function ModalEntrenamiento({
     }
     setStep(0)
     setErrorMsg(null)
-  }, [open]) // importante
+  }, [open])
 
   // Cambiar pestaña dentro del modal
   const handleSetProductosType = async () => {
@@ -235,7 +235,7 @@ export default function ModalEntrenamiento({
         { headers: getAuthHeaders() },
       )
 
-      // 2) Productos nuevos
+      // 2) Productos nuevos (sin id)
       if (businessType === 'productos' && productos.length) {
         const nuevos = productos.filter((p) => !p.id)
         for (const prod of nuevos) {
@@ -277,7 +277,6 @@ export default function ModalEntrenamiento({
   // Placeholder para imagen rota
   const onImgError = (ev: React.SyntheticEvent<HTMLImageElement>) => {
     const el = ev.currentTarget
-    // Evita loops infinitos
     if (el.dataset.fallback === '1') return
     el.dataset.fallback = '1'
     el.src =
@@ -515,7 +514,7 @@ export default function ModalEntrenamiento({
                               </button>
                             </div>
 
-                            {/* ⬇️ NUEVO: info del catálogo */}
+                            {/* info del catálogo */}
                             {p.descripcion && (
                               <div className="mt-2 text-xs text-slate-300 whitespace-pre-line">
                                 {p.descripcion}
@@ -550,7 +549,7 @@ export default function ModalEntrenamiento({
                               </div>
                             )}
 
-                            {/* Imágenes del producto existente */}
+                            {/* Imágenes */}
                             {p.imagenes?.length ? (
                               <div className="mt-2 grid grid-cols-3 gap-2">
                                 {p.imagenes.map((img, i) => (
