@@ -2,10 +2,8 @@
 
 import { useState, useEffect } from "react"
 import { Sparkles, RotateCw } from "lucide-react"
-import Swal from 'sweetalert2'
-import 'sweetalert2/dist/sweetalert2.min.css'
-import ModalEntrenamiento from "./components/ModalEntrenamiento"
 import axios from "axios"
+import ModalEntrenamiento from "./components/ModalEntrenamiento"
 import WhatsappConfig from "./components/WhatsappConfig"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL
@@ -17,51 +15,9 @@ interface ConfigForm {
   servicios: string
   faq: string
   horarios: string
-  escalarSiNoConfia: boolean
-  escalarPalabrasClave: string
-  escalarPorReintentos: number
+  businessType?: 'servicios' | 'infoproductos'
+  disclaimers?: string
 }
-
-type CampoConfig = keyof ConfigForm
-
-interface Pregunta {
-  campo: CampoConfig
-  tipo: "input" | "textarea"
-  pregunta: string
-}
-
-const preguntasEntrenamiento: Pregunta[] = [
-  {
-    campo: "nombre",
-    tipo: "input",
-    pregunta: "¿Cómo se llama tu empresa? Incluye el nombre completo y si aplica, siglas o marca comercial."
-  },
-  {
-    campo: "descripcion",
-    tipo: "textarea",
-    pregunta: "¿Qué hace tu empresa? Describe detalladamente a qué se dedica y qué la hace especial."
-  },
-  {
-    campo: "servicios",
-    tipo: "textarea",
-    pregunta: "¿Qué servicios o productos ofreces? Sé lo más específico posible e incluye ejemplos."
-  },
-  {
-    campo: "faq",
-    tipo: "textarea",
-    pregunta: "¿Qué preguntas frecuentes recibes de tus clientes? Enuméralas con posibles respuestas."
-  },
-  {
-    campo: "horarios",
-    tipo: "input",
-    pregunta: "¿Cuál es tu horario de atención? Incluye días y horas."
-  },
-  {
-    campo: "escalarPalabrasClave",
-    tipo: "input",
-    pregunta: "¿Qué palabras clave deberían hacer que la IA escale a un agente humano? (separadas por coma)"
-  }
-]
 
 export default function SettingsPage() {
   const [form, setForm] = useState<ConfigForm>({
@@ -70,27 +26,33 @@ export default function SettingsPage() {
     servicios: "",
     faq: "",
     horarios: "",
-    escalarSiNoConfia: true,
-    escalarPalabrasClave: "",
-    escalarPorReintentos: 2
+    businessType: 'servicios',
+    disclaimers: ""
   })
 
-  const [respuestaActual, setRespuestaActual] = useState<string>("")
   const [configGuardada, setConfigGuardada] = useState<ConfigForm | null>(null)
-  const [trainingStep, setTrainingStep] = useState(0)
   const [trainingActive, setTrainingActive] = useState(false)
-  const [showResumen, setShowResumen] = useState(false)
   const [loading, setLoading] = useState(true)
 
   const token = typeof window !== 'undefined' ? localStorage.getItem("token") : null
   const headers = token ? { Authorization: `Bearer ${token}` } : {}
 
+  // Cargar config inicial
   useEffect(() => {
     const fetchConfig = async () => {
       try {
         const res = await axios.get(`${API_URL}/api/config`, { headers })
-        if (Array.isArray(res.data) && res.data.length > 0) {
-          setConfigGuardada(res.data[0])
+        if (res.data) {
+          setConfigGuardada(res.data)
+          setForm({
+            nombre: res.data.nombre || "",
+            descripcion: res.data.descripcion || "",
+            servicios: res.data.servicios || "",
+            faq: res.data.faq || "",
+            horarios: res.data.horarios || "",
+            businessType: res.data.businessType || 'servicios',
+            disclaimers: res.data.disclaimers || ""
+          })
         }
       } catch (err) {
         console.error("Error al cargar configuración existente:", err)
@@ -99,61 +61,25 @@ export default function SettingsPage() {
       }
     }
     fetchConfig()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const avanzarPaso = async () => {
-    const campo = preguntasEntrenamiento[trainingStep].campo
-    const valor = respuestaActual.trim()
-
-    if (valor === "") {
-      Swal.fire({
-        icon: 'warning',
-        title: 'Campo vacío',
-        text: 'Por favor escribe una respuesta antes de continuar.',
-        background: '#1f2937',
-        color: '#fff',
-        confirmButtonColor: '#3b82f6',
-        iconColor: '#facc15'
-      })
-      return
-    }
-
-    const nuevoForm = { ...form, [campo]: valor } as ConfigForm
-    setForm(nuevoForm)
-    setRespuestaActual("")
-
-    if (trainingStep < preguntasEntrenamiento.length - 1) {
-      setTrainingStep(trainingStep + 1)
-    } else {
-      try {
-        const res = await axios.post(`${API_URL}/api/config`, nuevoForm, { headers })
-        setConfigGuardada(res.data.config)
-        setTrainingActive(false)
-        setShowResumen(true)
-      } catch (err) {
-        alert("❌ Error al guardar configuración")
-      }
-    }
-  }
-
-  const retrocederPaso = () => {
-    if (trainingStep > 0) {
-      const pasoAnterior = trainingStep - 1
-      const campo = preguntasEntrenamiento[pasoAnterior].campo
-      const respuestaAnterior = form[campo as keyof ConfigForm]
-      setRespuestaActual(typeof respuestaAnterior === 'string' ? respuestaAnterior : "")
-      setTrainingStep(pasoAnterior)
-    }
-  }
-
+  // Reiniciar entrenamiento (resetea config con PUT)
   const reiniciarEntrenamiento = async () => {
     try {
-      await axios.delete(`${API_URL}/api/config/${configGuardada?.id}`, { headers })
-      setConfigGuardada(null)
+      const vacio: ConfigForm = {
+        nombre: "",
+        descripcion: "",
+        servicios: "",
+        faq: "",
+        horarios: "",
+        businessType: 'servicios',
+        disclaimers: ""
+      }
+      const { data } = await axios.put(`${API_URL}/api/config`, vacio, { headers })
+      setConfigGuardada(data)
+      setForm(vacio)
       setTrainingActive(true)
-      setTrainingStep(0)
-      setRespuestaActual("")
-      setShowResumen(false)
     } catch {
       alert("Error al reiniciar configuración")
     }
@@ -164,8 +90,34 @@ export default function SettingsPage() {
   return (
     <div className="h-full overflow-y-auto max-h-screen px-4 sm:px-6 py-8 scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-transparent">
       <div className="max-w-5xl mx-auto space-y-6">
+
+        {/* Header */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <h1 className="text-2xl font-bold text-white text-center">Entrenamiento de tu IA</h1>
+
+          {/* Selector de tipo de negocio siempre visible */}
+          <div className="flex items-center gap-2">
+            <label className="text-sm text-slate-300">Tipo de negocio</label>
+            <select
+              value={form.businessType}
+              onChange={async (e) => {
+                const newType = e.target.value as 'servicios' | 'infoproductos'
+                setForm((f) => ({ ...f, businessType: newType }))
+                try {
+                  // Persistimos cambio inmediato de tipo
+                  const { data } = await axios.put(`${API_URL}/api/config`, { ...form, businessType: newType }, { headers })
+                  setConfigGuardada(data || null)
+                } catch (err) {
+                  console.error('No se pudo actualizar businessType:', err)
+                }
+              }}
+              className="bg-slate-800 border border-slate-700 text-white text-sm rounded-lg px-3 py-2"
+            >
+              <option value="servicios">Servicios</option>
+              <option value="infoproductos">Infoproductos</option>
+            </select>
+          </div>
+
           {!configGuardada && (
             <button
               onClick={() => setTrainingActive(true)}
@@ -176,7 +128,8 @@ export default function SettingsPage() {
             </button>
           )}
         </div>
-  
+
+        {/* Resumen */}
         {configGuardada && (
           <div className="bg-slate-800 border border-slate-700 p-6 rounded-2xl shadow-xl text-white space-y-4">
             <h2 className="text-xl font-bold">📦 Resumen de la configuración</h2>
@@ -186,33 +139,65 @@ export default function SettingsPage() {
               <div><strong>Servicios:</strong> {configGuardada.servicios}</div>
               <div><strong>FAQ:</strong> {configGuardada.faq}</div>
               <div><strong>Horarios:</strong> {configGuardada.horarios}</div>
-              <div><strong>Palabras clave para escalar:</strong> {configGuardada.escalarPalabrasClave}</div>
+              <div><strong>Tipo de negocio:</strong> {configGuardada.businessType}</div>
+              {configGuardada.disclaimers && (
+                <div className="md:col-span-2">
+                  <strong>Disclaimers:</strong> {configGuardada.disclaimers}
+                </div>
+              )}
             </div>
-            <button
-              onClick={reiniciarEntrenamiento}
-              className="mt-4 flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg shadow"
-            >
-              <RotateCw className="w-4 h-4" />
-              Reiniciar entrenamiento
-            </button>
+
+            <div className="flex flex-wrap gap-3">
+              <button
+                onClick={() => setTrainingActive(true)}
+                className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg shadow"
+              >
+                <Sparkles className="w-4 h-4" />
+                Actualizar entrenamiento
+              </button>
+
+              <button
+                onClick={reiniciarEntrenamiento}
+                className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg shadow"
+              >
+                <RotateCw className="w-4 h-4" />
+                Reiniciar entrenamiento
+              </button>
+            </div>
           </div>
         )}
-  
+
+        {/* Modal de entrenamiento */}
         <ModalEntrenamiento
           trainingActive={trainingActive}
-          trainingStep={trainingStep}
-          setTrainingStep={setTrainingStep}
-          respuestaActual={respuestaActual}
-          setRespuestaActual={setRespuestaActual}
-          avanzarPaso={avanzarPaso}
-          retrocederPaso={retrocederPaso}
-          preguntas={preguntasEntrenamiento}
+          onClose={async () => {
+            setTrainingActive(false)
+            try {
+              const { data } = await axios.get(`${API_URL}/api/config`, { headers })
+              setConfigGuardada(data || null)
+              if (data) {
+                setForm({
+                  nombre: data.nombre || "",
+                  descripcion: data.descripcion || "",
+                  servicios: data.servicios || "",
+                  faq: data.faq || "",
+                  horarios: data.horarios || "",
+                  businessType: data.businessType || 'servicios',
+                  disclaimers: data.disclaimers || ""
+                })
+              }
+            } catch {}
+          }}
+          initialConfig={{
+            ...form,
+            businessType: form.businessType,
+            disclaimers: form.disclaimers
+          }}
         />
-  
+
+        {/* Config WhatsApp (tu componente existente) */}
         <WhatsappConfig />
       </div>
     </div>
   )
-  
-  
 }
