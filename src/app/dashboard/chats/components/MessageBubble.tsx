@@ -107,20 +107,20 @@ export default function MessageBubble({ message, isMine }: Props) {
       contenido &&
       !['[imagen]', '[video]', '[nota de voz]', '[documento]'].includes(contenido));
 
-  // ✅ Resolver URL final para media:
-  // 1) usar mediaUrl si viene (ya firmada por backend)
-  // 2) si no, construir con mediaId + ?t=JWT (para que el backend autorice el <img>/<video>)
-  const resolvedMediaUrl = useMemo(() => {
-    const first = (mediaUrl || '').trim();
-    if (first) return toAbsolute(first);
+ // ✅ Resolver URL final para media:
+// 1) usar mediaUrl si viene (ya viene firmada con ?t= de signMediaToken)
+// 2) si no, construir sin token y que el backend resuelva por DB (fallback)
+const resolvedMediaUrl = useMemo(() => {
+  const first = (mediaUrl || '').trim();
+  if (first) return toAbsolute(first);
 
-    if (mediaId) {
-      const t = getAppToken();
-      const qs = t ? `?t=${encodeURIComponent(t)}` : '';
-      return toAbsolute(`/api/whatsapp/media/${mediaId}${qs}`);
-    }
-    return '';
-  }, [mediaUrl, mediaId]);
+  if (mediaId) {
+    // ⚠️ NO usar token de app aquí. Deja sin ?t= para que el back haga fallback por DB.
+    return toAbsolute(`/api/whatsapp/media/${mediaId}`);
+  }
+  return '';
+}, [mediaUrl, mediaId]);
+
 
   return (
     <div className={clsx('w-full flex', isMine ? 'justify-end' : 'justify-start')}>
