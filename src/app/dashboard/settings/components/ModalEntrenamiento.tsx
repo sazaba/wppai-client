@@ -6,7 +6,9 @@ import { AnimatePresence, motion } from 'framer-motion'
 import axios from 'axios'
 import { X, Plus, Trash2 } from 'lucide-react'
 
-type BusinessType = 'servicios' | 'infoproductos'
+const API_URL = process.env.NEXT_PUBLIC_API_URL || ''
+
+type BusinessType = 'servicios' | 'productos'
 
 interface Pregunta {
   campo: string
@@ -19,7 +21,6 @@ interface Pregunta {
 interface ModalEntrenamientoProps {
   trainingActive: boolean
   onClose?: () => void
-  // Si quieres precargar config:
   initialConfig?: Partial<{
     nombre: string
     descripcion: string
@@ -31,8 +32,6 @@ interface ModalEntrenamientoProps {
   }>
 }
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || ''
-
 type Producto = {
   id?: number
   nombre: string
@@ -43,6 +42,12 @@ type Producto = {
   imagenes: { url: string; alt?: string }[]
 }
 
+function getAuthHeaders() {
+  if (typeof window === 'undefined') return {}
+  const token = localStorage.getItem('token')
+  return token ? { Authorization: `Bearer ${token}` } : {}
+}
+
 export default function ModalEntrenamiento({
   trainingActive,
   onClose,
@@ -51,12 +56,12 @@ export default function ModalEntrenamiento({
   const [open, setOpen] = useState(trainingActive)
   useEffect(() => setOpen(trainingActive), [trainingActive])
 
-  // ----------------- UI State
+  // UI State
   const [step, setStep] = useState(0)
   const [saving, setSaving] = useState(false)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
 
-  // ----------------- Form state (config negocio)
+  // Form state (config negocio)
   const [businessType, setBusinessType] = useState<BusinessType>(
     (initialConfig?.businessType as BusinessType) || 'servicios'
   )
@@ -70,7 +75,7 @@ export default function ModalEntrenamiento({
     disclaimers: initialConfig?.disclaimers || '',
   })
 
-  // ----------------- Productos (solo para infoproductos)
+  // Productos (solo para 'productos')
   const [productos, setProductos] = useState<Producto[]>([])
   const [nuevoProd, setNuevoProd] = useState<Producto>({
     nombre: '',
@@ -83,17 +88,17 @@ export default function ModalEntrenamiento({
   const [imgUrl, setImgUrl] = useState('')
   const [imgAlt, setImgAlt] = useState('')
 
-  // ----------------- Preguntas por tipo
+  // Preguntas por tipo
   const preguntasServicios: Pregunta[] = [
     { campo: 'nombre', tipo: 'input', pregunta: '¿Cómo se llama tu negocio?', required: true },
     { campo: 'descripcion', tipo: 'textarea', pregunta: 'Describe brevemente el negocio (1–3 líneas).', required: true },
-    { campo: 'servicios', tipo: 'textarea', pregunta: 'Servicios (viñetas separadas por salto de línea).' },
+    { campo: 'servicios', tipo: 'textarea', pregunta: 'Servicios que ofreces (viñetas separadas por salto de línea).' },
     { campo: 'faq', tipo: 'textarea', pregunta: 'FAQs (usa formato P:… / R:…).' },
     { campo: 'horarios', tipo: 'textarea', pregunta: '¿Cuál es el horario de atención?' },
     { campo: 'disclaimers', tipo: 'textarea', pregunta: 'Disclaimers (reglas duras para la IA).' },
   ]
 
-  const preguntasInfoproductos: Pregunta[] = [
+  const preguntasProductos: Pregunta[] = [
     { campo: 'nombre', tipo: 'input', pregunta: '¿Nombre del negocio?', required: true },
     { campo: 'descripcion', tipo: 'textarea', pregunta: 'Describe brevemente el negocio (1–3 líneas).', required: true },
     { campo: 'faq', tipo: 'textarea', pregunta: 'FAQs (usa formato P:… / R:…).' },
@@ -102,16 +107,16 @@ export default function ModalEntrenamiento({
   ]
 
   const preguntas = useMemo(
-    () => (businessType === 'infoproductos' ? preguntasInfoproductos : preguntasServicios),
+    () => (businessType === 'productos' ? preguntasProductos : preguntasServicios),
     [businessType]
   )
 
   const totalSteps = useMemo(() => {
-    // Para infoproductos, +1 paso de "Catálogo"
-    return businessType === 'infoproductos' ? preguntas.length + 1 : preguntas.length
+    // Para productos, +1 paso de "Catálogo"
+    return businessType === 'productos' ? preguntas.length + 1 : preguntas.length
   }, [businessType, preguntas.length])
 
-  // ----------------- Handlers
+  // Handlers
   function close() {
     setOpen(false)
     onClose?.()
@@ -165,28 +170,34 @@ export default function ModalEntrenamiento({
       setSaving(true)
       setErrorMsg(null)
 
-      // 1) Guardar configuración
-      await axios.put(`${API_URL}/api/config`, {
-        ...form,
-        businessType
-      })
+      // 1) Guardar configuración (con Authorization)
+      await axios.put(
+        `${API_URL}/api/config`,
+        { ...form, businessType },
+        { headers: getAuthHeaders() }
+      )
 
-      // 2) Si es infoproductos, persistir productos creados en el wizard
-      if (businessType === 'infoproductos' && productos.length) {
+      // 2) Si es productos, persistir productos creados en el wizard (con Authorization)
+      if (businessType === 'productos' && productos.length) {
         for (const prod of productos) {
-          const { data: created } = await axios.post(`${API_URL}/api/products`, {
-            nombre: prod.nombre,
-            descripcion: prod.descripcion,
-            beneficios: prod.beneficios,
-            caracteristicas: prod.caracteristicas,
-            precioDesde: prod.precioDesde ?? null
-          })
+          const { data: created } = await axios.post(
+            `${API_URL}/api/products`,
+            {
+              nombre: prod.nombre,
+              descripcion: prod.descripcion,
+              beneficios: prod.beneficios,
+              caracteristicas: prod.caracteristicas,
+              precioDesde: prod.precioDesde ?? null
+            },
+            { headers: getAuthHeaders() }
+          )
           if (prod.imagenes?.length) {
             for (const img of prod.imagenes) {
-              await axios.post(`${API_URL}/api/products/${created.id}/images`, {
-                url: img.url,
-                alt: img.alt || ''
-              })
+              await axios.post(
+                `${API_URL}/api/products/${created.id}/images`,
+                { url: img.url, alt: img.alt || '' },
+                { headers: getAuthHeaders() }
+              )
             }
           }
         }
@@ -200,8 +211,8 @@ export default function ModalEntrenamiento({
     }
   }
 
-  // ----------------- UI blocks
-  const isCatalogStep = businessType === 'infoproductos' && step === preguntas.length
+  // UI blocks
+  const isCatalogStep = businessType === 'productos' && step === preguntas.length
   const preguntaActual = preguntas[step]
 
   return (
@@ -252,14 +263,14 @@ export default function ModalEntrenamiento({
                   Servicios
                 </button>
                 <button
-                  onClick={() => setBusinessType('infoproductos')}
+                  onClick={() => setBusinessType('productos')}
                   className={`rounded-xl px-3 py-2 text-sm border transition ${
-                    businessType === 'infoproductos'
+                    businessType === 'productos'
                       ? 'bg-blue-600/20 border-blue-500 text-blue-200'
                       : 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-800/70'
                   }`}
                 >
-                  Infoproductos
+                  Productos
                 </button>
               </div>
 
@@ -287,7 +298,7 @@ export default function ModalEntrenamiento({
                   )}
                 </div>
               ) : (
-                // Paso de Catálogo (solo infoproductos)
+                // Paso de Catálogo (solo productos)
                 <div className="space-y-5">
                   <h2 className="text-lg sm:text-xl font-semibold">Catálogo inicial (opcional)</h2>
 
@@ -366,7 +377,6 @@ export default function ModalEntrenamiento({
                         </button>
                       </div>
 
-                      {/* Preview imágenes */}
                       {!!nuevoProd.imagenes.length && (
                         <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
                           {nuevoProd.imagenes.map((img, i) => (
@@ -394,7 +404,6 @@ export default function ModalEntrenamiento({
                     </div>
                   </div>
 
-                  {/* Lista temporal de productos a crear */}
                   {!!productos.length && (
                     <div className="space-y-2">
                       <h3 className="text-sm text-slate-300">Productos a guardar ({productos.length})</h3>
@@ -440,7 +449,7 @@ export default function ModalEntrenamiento({
               {/* Footer actions */}
               <div className="mt-6 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
                 <div className="text-xs text-slate-400">
-                  {businessType === 'infoproductos'
+                  {businessType === 'productos'
                     ? 'Consejo: agrega al menos 1–2 productos para que la IA tenga contexto.'
                     : 'Completa la info clave para respuestas precisas.'}
                 </div>
@@ -461,9 +470,7 @@ export default function ModalEntrenamiento({
                     <button
                       onClick={next}
                       className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm disabled:opacity-60"
-                      disabled={
-                        (preguntaActual?.required && !(form as any)[preguntaActual.campo]?.trim())
-                      }
+                      disabled={(preguntaActual?.required && !(form as any)[preguntaActual.campo]?.trim())}
                     >
                       Siguiente
                     </button>

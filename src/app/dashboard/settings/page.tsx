@@ -8,6 +8,8 @@ import WhatsappConfig from "./components/WhatsappConfig"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL
 
+type BusinessType = 'servicios' | 'productos'
+
 interface ConfigForm {
   id?: number
   nombre: string
@@ -15,8 +17,14 @@ interface ConfigForm {
   servicios: string
   faq: string
   horarios: string
-  businessType?: 'servicios' | 'infoproductos'
+  businessType?: BusinessType
   disclaimers?: string
+}
+
+function getAuthHeaders() {
+  if (typeof window === 'undefined') return {}
+  const token = localStorage.getItem('token')
+  return token ? { Authorization: `Bearer ${token}` } : {}
 }
 
 export default function SettingsPage() {
@@ -34,14 +42,11 @@ export default function SettingsPage() {
   const [trainingActive, setTrainingActive] = useState(false)
   const [loading, setLoading] = useState(true)
 
-  const token = typeof window !== 'undefined' ? localStorage.getItem("token") : null
-  const headers = token ? { Authorization: `Bearer ${token}` } : {}
-
   // Cargar config inicial
   useEffect(() => {
     const fetchConfig = async () => {
       try {
-        const res = await axios.get(`${API_URL}/api/config`, { headers })
+        const res = await axios.get(`${API_URL}/api/config`, { headers: getAuthHeaders() })
         if (res.data) {
           setConfigGuardada(res.data)
           setForm({
@@ -50,7 +55,7 @@ export default function SettingsPage() {
             servicios: res.data.servicios || "",
             faq: res.data.faq || "",
             horarios: res.data.horarios || "",
-            businessType: res.data.businessType || 'servicios',
+            businessType: (res.data.businessType as BusinessType) || 'servicios',
             disclaimers: res.data.disclaimers || ""
           })
         }
@@ -76,7 +81,7 @@ export default function SettingsPage() {
         businessType: 'servicios',
         disclaimers: ""
       }
-      const { data } = await axios.put(`${API_URL}/api/config`, vacio, { headers })
+      const { data } = await axios.put(`${API_URL}/api/config`, vacio, { headers: getAuthHeaders() })
       setConfigGuardada(data)
       setForm(vacio)
       setTrainingActive(true)
@@ -101,11 +106,15 @@ export default function SettingsPage() {
             <select
               value={form.businessType}
               onChange={async (e) => {
-                const newType = e.target.value as 'servicios' | 'infoproductos'
+                const newType = e.target.value as BusinessType
                 setForm((f) => ({ ...f, businessType: newType }))
                 try {
                   // Persistimos cambio inmediato de tipo
-                  const { data } = await axios.put(`${API_URL}/api/config`, { ...form, businessType: newType }, { headers })
+                  const { data } = await axios.put(
+                    `${API_URL}/api/config`,
+                    { ...form, businessType: newType },
+                    { headers: getAuthHeaders() }
+                  )
                   setConfigGuardada(data || null)
                 } catch (err) {
                   console.error('No se pudo actualizar businessType:', err)
@@ -114,7 +123,7 @@ export default function SettingsPage() {
               className="bg-slate-800 border border-slate-700 text-white text-sm rounded-lg px-3 py-2"
             >
               <option value="servicios">Servicios</option>
-              <option value="infoproductos">Infoproductos</option>
+              <option value="productos">Productos</option>
             </select>
           </div>
 
@@ -136,7 +145,7 @@ export default function SettingsPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm break-words">
               <div><strong>Nombre:</strong> {configGuardada.nombre}</div>
               <div><strong>Descripción:</strong> {configGuardada.descripcion}</div>
-              <div><strong>Servicios:</strong> {configGuardada.servicios}</div>
+              <div><strong>Servicios/Productos:</strong> {configGuardada.servicios}</div>
               <div><strong>FAQ:</strong> {configGuardada.faq}</div>
               <div><strong>Horarios:</strong> {configGuardada.horarios}</div>
               <div><strong>Tipo de negocio:</strong> {configGuardada.businessType}</div>
@@ -173,7 +182,7 @@ export default function SettingsPage() {
           onClose={async () => {
             setTrainingActive(false)
             try {
-              const { data } = await axios.get(`${API_URL}/api/config`, { headers })
+              const { data } = await axios.get(`${API_URL}/api/config`, { headers: getAuthHeaders() })
               setConfigGuardada(data || null)
               if (data) {
                 setForm({
@@ -182,7 +191,7 @@ export default function SettingsPage() {
                   servicios: data.servicios || "",
                   faq: data.faq || "",
                   horarios: data.horarios || "",
-                  businessType: data.businessType || 'servicios',
+                  businessType: (data.businessType as BusinessType) || 'servicios',
                   disclaimers: data.disclaimers || ""
                 })
               }
@@ -190,12 +199,12 @@ export default function SettingsPage() {
           }}
           initialConfig={{
             ...form,
-            businessType: form.businessType,
+            businessType: form.businessType as BusinessType,
             disclaimers: form.disclaimers
           }}
         />
 
-        {/* Config WhatsApp (tu componente existente) */}
+        {/* Config WhatsApp */}
         <WhatsappConfig />
       </div>
     </div>
