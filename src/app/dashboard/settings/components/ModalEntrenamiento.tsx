@@ -15,6 +15,7 @@ import {
   ImagePlus,
   ImageMinus,
   HelpCircle,
+  Loader2,
 } from 'lucide-react'
 
 const API_URL = (process.env.NEXT_PUBLIC_API_URL || '') as string
@@ -79,7 +80,30 @@ function Hint({ text }: { text: string }) {
   )
 }
 
-export default function ModalEntrenamiento({ trainingActive, onClose, initialConfig }: ModalEntrenamientoProps) {
+// Imagen con fallback inline (evita loops)
+function ImgWithFallback(props: React.ImgHTMLAttributes<HTMLImageElement>) {
+  const [broken, setBroken] = useState(false)
+  return (
+    <img
+      {...props}
+      onError={() => setBroken(true)}
+      src={
+        !broken
+          ? (props.src as string)
+          : 'data:image/svg+xml;charset=UTF-8,' +
+            encodeURIComponent(
+              `<svg xmlns="http://www.w3.org/2000/svg" width="160" height="112"><rect width="100%" height="100%" fill="#0f172a"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="#94a3b8" font-size="12">imagen no disponible</text></svg>`,
+            )
+      }
+    />
+  )
+}
+
+export default function ModalEntrenamiento({
+  trainingActive,
+  onClose,
+  initialConfig,
+}: ModalEntrenamientoProps) {
   const [open, setOpen] = useState<boolean>(trainingActive)
   useEffect(() => setOpen(trainingActive), [trainingActive])
 
@@ -90,7 +114,9 @@ export default function ModalEntrenamiento({ trainingActive, onClose, initialCon
   const [reloading, setReloading] = useState<boolean>(false)
 
   // Form negocio
-  const [businessType, setBusinessType] = useState<BusinessType>((initialConfig?.businessType as BusinessType) || 'servicios')
+  const [businessType, setBusinessType] = useState<BusinessType>(
+    (initialConfig?.businessType as BusinessType) || 'servicios',
+  )
   const [form, setForm] = useState<ConfigForm>({
     nombre: initialConfig?.nombre || '',
     descripcion: initialConfig?.descripcion || '',
@@ -104,16 +130,26 @@ export default function ModalEntrenamiento({ trainingActive, onClose, initialCon
   // Catálogo
   const [productos, setProductos] = useState<Producto[]>([])
   const [catalogLoaded, setCatalogLoaded] = useState<boolean>(false)
-  const [nuevoProd, setNuevoProd] = useState<Producto>({ nombre: '', descripcion: '', beneficios: '', caracteristicas: '', precioDesde: null, imagenes: [] })
+  const [nuevoProd, setNuevoProd] = useState<Producto>({
+    nombre: '',
+    descripcion: '',
+    beneficios: '',
+    caracteristicas: '',
+    precioDesde: null,
+    imagenes: [],
+  })
   const [imgUrl, setImgUrl] = useState<string>('')
   const [imgAlt, setImgAlt] = useState<string>('')
 
   // EDIT inline
   const [editingIndex, setEditingIndex] = useState<number | null>(null)
   const [editDraft, setEditDraft] = useState<Producto | null>(null)
+  const [editNewImgUrl, setEditNewImgUrl] = useState<string>('') // para agregar durante edición
+  const [editNewImgAlt, setEditNewImgAlt] = useState<string>('')
+  const [savingEdit, setSavingEdit] = useState<boolean>(false)
   const isEditing = (idx: number) => editingIndex === idx
 
-  // Preguntas con placeholders + hints
+  // Preguntas (con placeholders + hints)
   const preguntasServicios: Pregunta[] = [
     {
       campo: 'nombre',
@@ -121,43 +157,46 @@ export default function ModalEntrenamiento({ trainingActive, onClose, initialCon
       pregunta: '¿Cómo se llama tu negocio?',
       placeholder: 'Ej: Clínica Dental Sonrisa Sana',
       required: true,
-      hint: 'Nombre comercial como lo verán tus clientes en WhatsApp y web.',
+      hint: 'Nombre comercial como lo verán tus clientes.',
     },
     {
       campo: 'descripcion',
       tipo: 'textarea',
       pregunta: 'Describe brevemente el negocio (1–3 líneas).',
-      placeholder: 'Ej: Centro odontológico especializado en estética y salud dental para toda la familia.',
+      placeholder:
+        'Ej: Centro odontológico especializado en estética y salud dental para toda la familia.',
       required: true,
-      hint: 'Resumen claro y directo. Evita jerga interna; enfócate en qué haces y para quién.',
+      hint: 'Resumen claro y directo. Enfócate en qué haces y para quién.',
     },
     {
       campo: 'servicios',
       tipo: 'textarea',
       pregunta: 'Lista los servicios que ofreces (uno por línea).',
       placeholder: 'Ej:\n- Limpieza dental\n- Ortodoncia\n- Blanqueamiento dental',
-      hint: 'Cada línea será una viñeta. Úsalo para que la IA sugiera servicios correctamente.',
+      hint: 'Cada línea será una viñeta para la IA.',
     },
     {
       campo: 'faq',
       tipo: 'textarea',
       pregunta: 'FAQs (usa formato P:… / R:…).',
-      placeholder: 'Ej:\nP: ¿Atienden fines de semana?\nR: Sí, de 8am a 2pm.\nP: ¿Métodos de pago?\nR: Efectivo, tarjeta y transferencias.',
-      hint: 'Incluye preguntas comunes de tus clientes para reducir tiempo de atención.',
+      placeholder:
+        'Ej:\nP: ¿Atienden fines de semana?\nR: Sí, de 8am a 2pm.\nP: ¿Métodos de pago?\nR: Efectivo, tarjeta y transferencia.',
+      hint: 'Incluye preguntas comunes para reducir atención humana.',
     },
     {
       campo: 'horarios',
       tipo: 'textarea',
       pregunta: '¿Cuál es el horario de atención?',
       placeholder: 'Ej: Lun–Vie 8:00–18:00 / Sáb 8:00–14:00 / Dom cerrado',
-      hint: 'Si tienes horario en temporada o festivos, indícalo también.',
+      hint: 'Si cambia en festivos, indícalo.',
     },
     {
       campo: 'disclaimers',
       tipo: 'textarea',
       pregunta: 'Disclaimers o reglas para la IA.',
-      placeholder: 'Ej: No dar diagnósticos médicos. Precios sujetos a confirmación. No reservar sin abono.',
-      hint: 'Reglas duras que la IA nunca debe romper al responder.',
+      placeholder:
+        'Ej: No dar diagnósticos médicos. Precios sujetos a confirmación. No reservar sin abono.',
+      hint: 'Reglas duras que la IA nunca debe romper.',
     },
   ]
 
@@ -168,13 +207,13 @@ export default function ModalEntrenamiento({ trainingActive, onClose, initialCon
       pregunta: '¿Nombre del negocio?',
       placeholder: 'Ej: Tienda Online de Belleza Leavid',
       required: true,
-      hint: 'Nombre comercial visible para tus compradores.',
+      hint: 'Nombre comercial visible.',
     },
     {
       campo: 'descripcion',
       tipo: 'textarea',
       pregunta: 'Describe brevemente el negocio (1–3 líneas).',
-      placeholder: 'Ej: Tienda de skincare con ingredientes naturales y envíos a todo el país.',
+      placeholder: 'Ej: Tienda de skincare natural con envíos a todo el país.',
       required: true,
       hint: 'Elevator pitch: qué vendes y tu diferencial.',
     },
@@ -182,27 +221,34 @@ export default function ModalEntrenamiento({ trainingActive, onClose, initialCon
       campo: 'faq',
       tipo: 'textarea',
       pregunta: 'FAQs (usa formato P:… / R:…).',
-      placeholder: 'Ej:\nP: ¿Hacen envíos nacionales?\nR: Sí, a todo Colombia.\nP: ¿Tienen cambios?\nR: Sí, dentro de 30 días.',
-      hint: 'Políticas clave (envíos, cambios, garantía) ayudan a cerrar ventas sin agente.',
+      placeholder:
+        'Ej:\nP: ¿Hacen envíos nacionales?\nR: Sí, a todo el país.\nP: ¿Cambios?\nR: Dentro de 30 días.',
+      hint: 'Políticas de envíos, cambios, garantía.',
     },
     {
       campo: 'horarios',
       tipo: 'textarea',
       pregunta: '¿Horario de atención?',
-      placeholder: 'Ej: Lun–Vie 9:00–17:00 (zona horaria de tu ciudad)',
-      hint: 'Si usas chat 24/7, indícalo y aclara tiempos de despacho.',
+      placeholder: 'Ej: Lun–Vie 9:00–17:00 (hora local)',
+      hint: 'Si es 24/7, aclara tiempos de despacho.',
     },
     {
       campo: 'disclaimers',
       tipo: 'textarea',
       pregunta: 'Disclaimers globales (reglas generales).',
-      placeholder: 'Ej: Los precios pueden variar sin previo aviso. No dar consejos médicos.',
-      hint: 'Límites de respuesta y políticas que la IA debe respetar.',
+      placeholder: 'Ej: Precios pueden variar sin aviso. No dar consejos médicos.',
+      hint: 'Límites y políticas que la IA debe respetar.',
     },
   ]
 
-  const preguntas = useMemo(() => (businessType === 'productos' ? preguntasProductos : preguntasServicios), [businessType])
-  const totalSteps = useMemo(() => (businessType === 'productos' ? preguntas.length + 1 : preguntas.length), [businessType, preguntas.length])
+  const preguntas = useMemo(
+    () => (businessType === 'productos' ? preguntasProductos : preguntasServicios),
+    [businessType],
+  )
+  const totalSteps = useMemo(
+    () => (businessType === 'productos' ? preguntas.length + 1 : preguntas.length),
+    [businessType, preguntas.length],
+  )
 
   // Helpers
   function close() {
@@ -237,7 +283,14 @@ export default function ModalEntrenamiento({ trainingActive, onClose, initialCon
       return
     }
     setProductos((arr) => [...arr, { ...nuevoProd }])
-    setNuevoProd({ nombre: '', descripcion: '', beneficios: '', caracteristicas: '', precioDesde: null, imagenes: [] })
+    setNuevoProd({
+      nombre: '',
+      descripcion: '',
+      beneficios: '',
+      caracteristicas: '',
+      precioDesde: null,
+      imagenes: [],
+    })
     setErrorMsg(null)
   }
 
@@ -245,10 +298,8 @@ export default function ModalEntrenamiento({ trainingActive, onClose, initialCon
   async function deleteProducto(idx: number) {
     const prod = productos[idx]
     if (!prod) return
-
     setProductos((arr) => arr.filter((_, i) => i !== idx)) // optimista
-
-    if (!prod.id) return // era nuevo, no existe en BD
+    if (!prod.id) return // era nuevo
 
     try {
       await axios.delete(`${API_URL}/api/products/${prod.id}`, { headers: getAuthHeaders() })
@@ -262,43 +313,51 @@ export default function ModalEntrenamiento({ trainingActive, onClose, initialCon
   function startEdit(idx: number) {
     setEditingIndex(idx)
     setEditDraft(JSON.parse(JSON.stringify(productos[idx])))
+    setEditNewImgUrl('')
+    setEditNewImgAlt('')
   }
   function cancelEdit() {
     setEditingIndex(null)
     setEditDraft(null)
+    setEditNewImgUrl('')
+    setEditNewImgAlt('')
   }
-
   function updateDraft<K extends keyof Producto>(campo: K, val: Producto[K]) {
     if (!editDraft) return
     setEditDraft({ ...editDraft, [campo]: val })
   }
 
-  function addDraftImage(url: string, alt?: string) {
-    if (!editDraft || !url.trim()) return
+  function addDraftImage() {
+    if (!editDraft) return
+    const url = editNewImgUrl.trim()
+    if (!url) return
+    const alt = editNewImgAlt.trim() || undefined
     setEditDraft({
       ...editDraft,
-      imagenes: [...(editDraft.imagenes || []), { url: url.trim(), alt: (alt || '').trim() || undefined }],
+      imagenes: [...(editDraft.imagenes || []), { url, alt }],
     })
+    setEditNewImgUrl('')
+    setEditNewImgAlt('')
   }
+
   async function removeDraftImageAt(i: number) {
     if (!editDraft) return
     const img = editDraft.imagenes[i]
-    const newImgs = editDraft.imagenes.filter((_, idx) => idx !== i)
-    setEditDraft({ ...editDraft, imagenes: newImgs })
-
+    setEditDraft({ ...editDraft, imagenes: editDraft.imagenes.filter((_, idx) => idx !== i) })
     if (editDraft.id && img?.id) {
       try {
         await axios.delete(`${API_URL}/api/products/${editDraft.id}/images/${img.id}`, {
           headers: getAuthHeaders(),
         })
-      } catch (e) {
-        /* opcional: revertir si falla */
+      } catch {
+        // silencio: la UI ya quitó la imagen, al refrescar catálogo quedará consistente
       }
     }
   }
 
   async function saveEdit() {
     if (editingIndex === null || !editDraft) return
+    setSavingEdit(true)
     try {
       // 1) Actualiza campos del producto
       if (editDraft.id) {
@@ -315,7 +374,7 @@ export default function ModalEntrenamiento({ trainingActive, onClose, initialCon
         )
       }
 
-      // 2) Sube imágenes NUEVAS (sin id)
+      // 2) Crea imágenes nuevas (sin id)
       if (editDraft.id) {
         const nuevas = (editDraft.imagenes || []).filter((im) => !im.id)
         for (const img of nuevas) {
@@ -327,11 +386,16 @@ export default function ModalEntrenamiento({ trainingActive, onClose, initialCon
         }
       }
 
+      // 3) Refresca catálogo para sincronizar IDs y estado
       await loadCatalog()
       setEditingIndex(null)
       setEditDraft(null)
+      setEditNewImgUrl('')
+      setEditNewImgAlt('')
     } catch (e: any) {
       setErrorMsg(e?.response?.data?.error || 'No se pudo guardar la edición.')
+    } finally {
+      setSavingEdit(false)
     }
   }
 
@@ -347,7 +411,11 @@ export default function ModalEntrenamiento({ trainingActive, onClose, initialCon
         beneficios: p.beneficios ?? '',
         caracteristicas: p.caracteristicas ?? '',
         precioDesde: p.precioDesde ?? null,
-        imagenes: (p.imagenes || []).map((img: any) => ({ id: img.id, url: img.url, alt: img.alt || '' })),
+        imagenes: (p.imagenes || []).map((img: any) => ({
+          id: img.id,
+          url: img.url,
+          alt: img.alt || '',
+        })),
       }))
       setProductos(mapped)
       setCatalogLoaded(true)
@@ -446,19 +514,9 @@ export default function ModalEntrenamiento({ trainingActive, onClose, initialCon
     }
   }
 
+  // UI
   const isCatalogStep = businessType === 'productos' && step === preguntas.length
   const preguntaActual = preguntas[step]
-
-  const onImgError = (ev: React.SyntheticEvent<HTMLImageElement>) => {
-    const el = ev.currentTarget
-    if (el.dataset.fallback === '1') return
-    el.dataset.fallback = '1'
-    el.src =
-      'data:image/svg+xml;charset=UTF-8,' +
-      encodeURIComponent(
-        `<svg xmlns="http://www.w3.org/2000/svg" width="160" height="112"><rect width="100%" height="100%" fill="#0f172a"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="#94a3b8" font-size="12">imagen no disponible</text></svg>`,
-      )
-  }
 
   return (
     <AnimatePresence>
@@ -551,7 +609,7 @@ export default function ModalEntrenamiento({ trainingActive, onClose, initialCon
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <h2 className="text-lg sm:text-xl font-semibold">Catálogo (crear / editar)</h2>
-                      <Hint text="Agrega 1–5 productos clave para que la IA tenga contexto (nombre, breve descripción, beneficios y características)." />
+                      <Hint text="Agrega 1–5 productos clave para que la IA tenga contexto." />
                     </div>
                     <button
                       onClick={loadCatalog}
@@ -562,22 +620,22 @@ export default function ModalEntrenamiento({ trainingActive, onClose, initialCon
                     </button>
                   </div>
 
-                  {/* Form producto */}
+                  {/* Form producto nuevo */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3 bg-slate-800/60 border border-slate-700 rounded-2xl p-4">
                     <div className="space-y-1">
                       <label className="text-sm text-slate-300 flex items-center gap-1">
-                        Nombre * <Hint text="Nombre del producto tal como lo vendes (corto y claro)." />
+                        Nombre * <Hint text="Nombre del producto tal como lo vendes." />
                       </label>
                       <input
                         value={nuevoProd.nombre}
                         onChange={(e) => setNuevoProd({ ...nuevoProd, nombre: e.target.value })}
                         className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm"
-                        placeholder="Ej: Serum hidratante de ácido hialurónico 30ml"
+                        placeholder="Ej: Serum hidratante 30ml"
                       />
                     </div>
                     <div className="space-y-1">
                       <label className="text-sm text-slate-300 flex items-center gap-1">
-                        Precio desde (opcional) <Hint text="Precio referencial. La IA lo comunicará como ‘desde’." />
+                        Precio desde (opcional) <Hint text="Precio referencial. La IA dirá 'desde'." />
                       </label>
                       <input
                         type="number"
@@ -595,46 +653,51 @@ export default function ModalEntrenamiento({ trainingActive, onClose, initialCon
                     <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-3">
                       <div className="space-y-1">
                         <label className="text-sm text-slate-300 flex items-center gap-1">
-                          Descripción <Hint text="1–2 líneas que expliquen qué es y para qué sirve." />
+                          Descripción <Hint text="1–2 líneas sobre qué es y para qué sirve." />
                         </label>
                         <textarea
                           rows={3}
                           value={nuevoProd.descripcion}
                           onChange={(e) => setNuevoProd({ ...nuevoProd, descripcion: e.target.value })}
                           className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm"
-                          placeholder="Ej: Serum ligero de rápida absorción que aporta hidratación profunda y mejora la elasticidad de la piel."
+                          placeholder="Ej: Serum ligero de rápida absorción con hidratación profunda."
                         />
                       </div>
                       <div className="space-y-1">
                         <label className="text-sm text-slate-300 flex items-center gap-1">
-                          Beneficios (uno por línea) <Hint text="Lista breve: cada beneficio en su propia línea para que sea una viñeta." />
+                          Beneficios (uno por línea){' '}
+                          <Hint text="Cada beneficio en su propia línea para mostrarse como viñeta." />
                         </label>
                         <textarea
                           rows={3}
                           value={nuevoProd.beneficios}
                           onChange={(e) => setNuevoProd({ ...nuevoProd, beneficios: e.target.value })}
                           className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm"
-                          placeholder={"Ej:\n- Hidratación intensa\n- Suaviza líneas finas\n- Mejora la textura"}
+                          placeholder={'Ej:\n- Hidratación intensa\n- Suaviza líneas finas\n- Mejora la textura'}
                         />
                       </div>
                       <div className="md:col-span-2 space-y-1">
                         <label className="text-sm text-slate-300 flex items-center gap-1">
-                          Características (una por línea) <Hint text="Datos técnicos o atributos: tamaño, material, ingredientes, etc." />
+                          Características (una por línea){' '}
+                          <Hint text="Atributos técnicos: tamaño, material, ingredientes, etc." />
                         </label>
                         <textarea
                           rows={3}
                           value={nuevoProd.caracteristicas}
-                          onChange={(e) => setNuevoProd({ ...nuevoProd, caracteristicas: e.target.value })}
+                          onChange={(e) =>
+                            setNuevoProd({ ...nuevoProd, caracteristicas: e.target.value })
+                          }
                           className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm"
-                          placeholder={"Ej:\n- 30ml\n- Apto para piel sensible\n- Sin fragancias"}
+                          placeholder={'Ej:\n- 30ml\n- Apto piel sensible\n- Sin fragancias'}
                         />
                       </div>
                     </div>
 
-                    {/* Imágenes */}
+                    {/* Imágenes nuevo */}
                     <div className="md:col-span-2 space-y-1">
                       <label className="text-sm text-slate-300 flex items-center gap-1">
-                        Imágenes (URL) <Hint text="Pega URLs directas (Cloudinary, S3 o CDN). Una buena miniatura ayuda a la IA a describir mejor el producto." />
+                        Imágenes (URL){' '}
+                        <Hint text="Pega URLs directas (Cloudinary, S3, CDN). Alt es opcional." />
                       </label>
                       <div className="flex flex-col md:flex-row gap-2">
                         <input
@@ -661,11 +724,10 @@ export default function ModalEntrenamiento({ trainingActive, onClose, initialCon
                         <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
                           {nuevoProd.imagenes.map((img, i) => (
                             <div key={i} className="relative group rounded-xl overflow-hidden border border-slate-700">
-                              <img
+                              <ImgWithFallback
                                 src={img.url}
                                 alt={img.alt || ''}
                                 className="w-full h-28 object-cover"
-                                onError={onImgError}
                                 loading="lazy"
                               />
                               <button
@@ -690,6 +752,7 @@ export default function ModalEntrenamiento({ trainingActive, onClose, initialCon
                     </div>
                   </div>
 
+                  {/* Listado / Edición */}
                   {!!productos.length && (
                     <div className="space-y-2">
                       <h3 className="text-sm text-slate-300">
@@ -699,7 +762,9 @@ export default function ModalEntrenamiento({ trainingActive, onClose, initialCon
                         {productos.map((p, idx) => (
                           <div
                             key={`${p.id ?? 'nuevo'}-${idx}`}
-                            className="rounded-2xl border border-slate-700 bg-slate-800/60 p-3"
+                            className={`rounded-2xl border border-slate-700 bg-slate-800/60 p-3 ${
+                              isEditing(idx) ? 'ring-1 ring-blue-500/40' : ''
+                            }`}
                           >
                             <div className="flex items-start justify-between gap-2">
                               <div>
@@ -720,14 +785,20 @@ export default function ModalEntrenamiento({ trainingActive, onClose, initialCon
                                   <>
                                     <button
                                       onClick={saveEdit}
-                                      className="p-1.5 rounded-lg hover:bg-emerald-700/30"
+                                      disabled={savingEdit}
+                                      className="p-1.5 rounded-lg hover:bg-emerald-700/30 disabled:opacity-60"
                                       title="Guardar cambios"
                                     >
-                                      <Check className="w-4 h-4 text-emerald-400" />
+                                      {savingEdit ? (
+                                        <Loader2 className="w-4 h-4 animate-spin text-emerald-400" />
+                                      ) : (
+                                        <Check className="w-4 h-4 text-emerald-400" />
+                                      )}
                                     </button>
                                     <button
                                       onClick={cancelEdit}
-                                      className="p-1.5 rounded-lg hover:bg-red-700/30"
+                                      disabled={savingEdit}
+                                      className="p-1.5 rounded-lg hover:bg-red-700/30 disabled:opacity-60"
                                       title="Cancelar edición"
                                     >
                                       <XCircle className="w-4 h-4 text-red-300" />
@@ -794,12 +865,11 @@ export default function ModalEntrenamiento({ trainingActive, onClose, initialCon
                                 {p.imagenes?.length ? (
                                   <div className="mt-2 grid grid-cols-3 gap-2">
                                     {p.imagenes.map((img, i) => (
-                                      <img
+                                      <ImgWithFallback
                                         key={i}
                                         src={img.url}
                                         alt={img.alt || ''}
                                         className="w-full h-16 object-cover rounded-lg"
-                                        onError={onImgError}
                                         loading="lazy"
                                       />
                                     ))}
@@ -811,9 +881,8 @@ export default function ModalEntrenamiento({ trainingActive, onClose, initialCon
                                 )}
                               </>
                             ) : (
-                              // ——— EDITOR INLINE ———
+                              // — EDITOR INLINE —
                               <div className="mt-3 space-y-2">
-                                <label className="sr-only">Nombre</label>
                                 <input
                                   value={editDraft?.nombre || ''}
                                   onChange={(e) => updateDraft('nombre', e.target.value)}
@@ -824,7 +893,9 @@ export default function ModalEntrenamiento({ trainingActive, onClose, initialCon
                                   <input
                                     type="number"
                                     value={editDraft?.precioDesde ?? ''}
-                                    onChange={(e) => updateDraft('precioDesde', e.target.value ? Number(e.target.value) : null)}
+                                    onChange={(e) =>
+                                      updateDraft('precioDesde', e.target.value ? Number(e.target.value) : null)
+                                    }
                                     className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs"
                                     placeholder="Precio desde"
                                   />
@@ -852,18 +923,15 @@ export default function ModalEntrenamiento({ trainingActive, onClose, initialCon
 
                                 {/* CRUD imágenes del draft */}
                                 <div className="space-y-2">
-                                  <div className="text-xs text-slate-400 flex items-center gap-1">
-                                    Imágenes <Hint text="Puedes eliminar las actuales o agregar nuevas URLs. Las nuevas se guardarán al pulsar ‘Guardar cambios’." />
-                                  </div>
+                                  <div className="text-xs text-slate-400">Imágenes</div>
                                   {editDraft?.imagenes?.length ? (
                                     <div className="grid grid-cols-3 gap-2">
                                       {editDraft.imagenes.map((img, i) => (
-                                        <div key={i} className="relative">
-                                          <img
+                                        <div key={`${img.id ?? 'new'}-${i}`} className="relative">
+                                          <ImgWithFallback
                                             src={img.url}
                                             alt={img.alt || ''}
                                             className="w-full h-16 object-cover rounded-lg border border-slate-700"
-                                            onError={onImgError}
                                           />
                                           <button
                                             onClick={() => removeDraftImageAt(i)}
@@ -880,25 +948,42 @@ export default function ModalEntrenamiento({ trainingActive, onClose, initialCon
                                       Sin imágenes
                                     </div>
                                   )}
-                                  <div className="flex gap-2">
+
+                                  {/* Agregar nueva imagen a un producto en edición */}
+                                  <div className="flex flex-col sm:flex-row gap-2 items-stretch">
                                     <input
-                                      id={`new-img-${idx}`}
+                                      value={editNewImgUrl}
+                                      onChange={(e) => setEditNewImgUrl(e.target.value)}
                                       placeholder="https://res.cloudinary.com/..."
                                       className="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs"
                                     />
+                                    <input
+                                      value={editNewImgAlt}
+                                      onChange={(e) => setEditNewImgAlt(e.target.value)}
+                                      placeholder="Alt (opcional)"
+                                      className="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs"
+                                    />
                                     <button
-                                      onClick={() => {
-                                        const input = document.getElementById(`new-img-${idx}`) as HTMLInputElement | null
-                                        if (input && input.value.trim()) {
-                                          addDraftImage(input.value.trim())
-                                          input.value = ''
-                                        }
-                                      }}
+                                      onClick={addDraftImage}
                                       className="px-2 py-2 rounded-xl border border-slate-700 bg-slate-800 hover:bg-slate-700 text-xs inline-flex items-center gap-1"
                                     >
                                       <ImagePlus className="w-3.5 h-3.5" /> Agregar
                                     </button>
                                   </div>
+
+                                  {/* Preview inmediato del input nuevo (si hay URL) */}
+                                  {editNewImgUrl.trim() && (
+                                    <div className="pt-1">
+                                      <div className="text-[11px] text-slate-400 mb-1">
+                                        Vista previa de la nueva imagen
+                                      </div>
+                                      <ImgWithFallback
+                                        src={editNewImgUrl.trim()}
+                                        alt={editNewImgAlt || ''}
+                                        className="w-full h-16 object-cover rounded-lg border border-slate-700"
+                                      />
+                                    </div>
+                                  )}
                                 </div>
                               </div>
                             )}
