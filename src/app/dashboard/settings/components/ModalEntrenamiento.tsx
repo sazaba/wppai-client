@@ -6,7 +6,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import axios from 'axios'
 import {
   X, Plus, Trash2, PencilLine, Check, XCircle, RefreshCw,
-  ImagePlus, ImageMinus, HelpCircle, Loader2, Upload
+  ImageMinus, HelpCircle, Loader2, Upload
 } from 'lucide-react'
 
 const API_URL = (process.env.NEXT_PUBLIC_API_URL || '') as string
@@ -45,10 +45,7 @@ function Hint({ text }: { text: string }) {
   )
 }
 
-/** Imagen robusta: cache-buster + no-referrer + fallback SVG */
-function ImgAlways({
-  src, alt, className
-}: { src: string; alt?: string; className?: string }) {
+function ImgAlways({ src, alt, className }: { src: string; alt?: string; className?: string }) {
   const [broken, setBroken] = useState(false)
   const bust = src && !src.startsWith('data:')
     ? `${src}${src.includes('?') ? '&' : '?'}_=${Date.now()}`
@@ -60,8 +57,7 @@ function ImgAlways({
         <rect width="100%" height="100%" fill="#0f172a"/>
         <text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle"
           fill="#94a3b8" font-size="12">imagen no disponible</text>
-      </svg>`
-    )
+      </svg>`)
 
   return (
     <img
@@ -107,7 +103,6 @@ export default function ModalEntrenamiento({ trainingActive, onClose, initialCon
   const [nuevoProd, setNuevoProd] = useState<Producto>({
     nombre: '', descripcion: '', beneficios: '', caracteristicas: '', precioDesde: null, imagenes: [],
   })
-  const [imgUrl, setImgUrl] = useState(''); const [imgAlt, setImgAlt] = useState('')
 
   // Carga por tarjeta / editor
   const [uploadingCardIndex, setUploadingCardIndex] = useState<number | null>(null)
@@ -137,13 +132,12 @@ export default function ModalEntrenamiento({ trainingActive, onClose, initialCon
   const preguntas = useMemo(() => (businessType === 'productos' ? preguntasProductos : preguntasServicios), [businessType])
   const totalSteps = useMemo(() => (businessType === 'productos' ? preguntas.length + 1 : preguntas.length), [businessType, preguntas.length])
 
-  // Helpers
   const close = () => { setOpen(false); onClose?.() }
   const next = () => { if (step < totalSteps - 1) setStep(s => s + 1) }
   const back = () => { if (step > 0) setStep(s => s - 1) }
   const updateField = (campo: keyof ConfigForm, val: string) => setForm(f => ({ ...f, [campo]: val }))
 
-  // ---------- Subida real a R2 ----------
+  // ----- subida real a R2 -----
   async function uploadImageFile(productId: number, file: File, alt?: string, isPrimary?: boolean) {
     const fd = new FormData()
     fd.append('file', file)
@@ -155,17 +149,11 @@ export default function ModalEntrenamiento({ trainingActive, onClose, initialCon
       fd,
       { headers: { ...getAuthHeaders() } }
     )
-    const newImg: ImagenProducto = { id: data?.id, url: data?.url || '', alt: alt || '' }
-    return newImg
+    return { id: data?.id, url: data?.url || '', alt: alt || '' } as ImagenProducto
   }
 
-  // ——— Eliminar imagen desde tarjeta (vista normal) ———
-  async function deleteImageOnCard(
-    productId: number,
-    imageId: number,
-    cardIndex: number,
-    imageIndex: number
-  ) {
+  // Eliminar imagen desde tarjeta
+  async function deleteImageOnCard(productId: number, imageId: number, cardIndex: number, imageIndex: number) {
     setProductos((list) => {
       const copy = [...list]
       const prod = copy[cardIndex]
@@ -175,33 +163,46 @@ export default function ModalEntrenamiento({ trainingActive, onClose, initialCon
       copy[cardIndex] = { ...prod, imagenes: imgs }
       return copy
     })
-
     try {
-      await axios.delete(
-        `${API_URL}/api/products/${productId}/images/${imageId}`,
-        { headers: getAuthHeaders() }
-      )
+      await axios.delete(`${API_URL}/api/products/${productId}/images/${imageId}`, { headers: getAuthHeaders() })
     } catch (e: any) {
       setErrorMsg(e?.response?.data?.error || 'No se pudo eliminar la imagen.')
       await loadCatalog()
     }
   }
 
-  // ——— Crear ———
-  function addImagenAlNuevo() {
-    if (!imgUrl.trim()) return
-    setNuevoProd(p => ({ ...p, imagenes: [...p.imagenes, { url: imgUrl.trim(), alt: imgAlt.trim() || undefined }] }))
-    setImgUrl(''); setImgAlt('')
-  }
-  const removeImgNuevo = (idx: number) => setNuevoProd(p => ({ ...p, imagenes: p.imagenes.filter((_, i) => i !== idx) }))
-  function pushProducto() {
+  // Crear producto (POST inmediato; luego subes imágenes en su tarjeta)
+  async function crearProducto() {
     if (!nuevoProd.nombre.trim()) { setErrorMsg('El producto necesita al menos un nombre.'); return }
-    setProductos(arr => [...arr, { ...nuevoProd }])
-    setNuevoProd({ nombre: '', descripcion: '', beneficios: '', caracteristicas: '', precioDesde: null, imagenes: [] })
-    setErrorMsg(null)
+    try {
+      const { data: created } = await axios.post(`${API_URL}/api/products`, {
+        nombre: nuevoProd.nombre,
+        descripcion: nuevoProd.descripcion,
+        beneficios: nuevoProd.beneficios,
+        caracteristicas: nuevoProd.caracteristicas,
+        precioDesde: nuevoProd.precioDesde ?? null,
+      }, { headers: getAuthHeaders() })
+
+      // lo añadimos a la lista
+      setProductos(arr => [...arr, {
+        id: created.id,
+        nombre: created.nombre,
+        descripcion: created.descripcion || '',
+        beneficios: created.beneficios || '',
+        caracteristicas: created.caracteristicas || '',
+        precioDesde: created.precioDesde ?? null,
+        imagenes: [],
+      }])
+
+      // limpiamos el formulario
+      setNuevoProd({ nombre: '', descripcion: '', beneficios: '', caracteristicas: '', precioDesde: null, imagenes: [] })
+      setErrorMsg(null)
+    } catch (e: any) {
+      setErrorMsg(e?.response?.data?.error || 'No se pudo crear el producto.')
+    }
   }
 
-  // ——— Eliminar producto ———
+  // Eliminar producto
   async function deleteProducto(idx: number) {
     const prod = productos[idx]; if (!prod) return
     setProductos(arr => arr.filter((_, i) => i !== idx)) // optimista
@@ -210,7 +211,7 @@ export default function ModalEntrenamiento({ trainingActive, onClose, initialCon
     catch (e: any) { setErrorMsg(e?.response?.data?.error || 'No se pudo eliminar el producto.'); await loadCatalog() }
   }
 
-  // ——— Edit inline ———
+  // Edit inline
   function startEdit(idx: number) { setEditingIndex(idx); setEditDraft(JSON.parse(JSON.stringify(productos[idx]))); }
   function cancelEdit() { setEditingIndex(null); setEditDraft(null); }
   function updateDraft<K extends keyof Producto>(campo: K, val: Producto[K]) { if (!editDraft) return; setEditDraft({ ...editDraft, [campo]: val }) }
@@ -223,12 +224,6 @@ export default function ModalEntrenamiento({ trainingActive, onClose, initialCon
       catch { /* noop */ }
     }
   }
-  function addDraftImage(url: string, alt?: string) {
-    if (!editDraft) return
-    const u = url.trim(); if (u) setEditDraft({ ...editDraft, imagenes: [...(editDraft.imagenes || []), { url: u, alt: (alt || '').trim() || undefined }] })
-  }
-
-  // NUEVO: subir archivo en editor inline
   async function uploadFileInEditor(file: File) {
     if (!editDraft?.id) return
     try {
@@ -241,7 +236,6 @@ export default function ModalEntrenamiento({ trainingActive, onClose, initialCon
       setUploadingEdit(false)
     }
   }
-
   async function saveEdit() {
     if (editingIndex === null || !editDraft) return
     setSavingEdit(true)
@@ -251,10 +245,6 @@ export default function ModalEntrenamiento({ trainingActive, onClose, initialCon
           nombre: editDraft.nombre, descripcion: editDraft.descripcion, beneficios: editDraft.beneficios,
           caracteristicas: editDraft.caracteristicas, precioDesde: editDraft.precioDesde ?? null,
         }, { headers: getAuthHeaders() })
-        const nuevas = (editDraft.imagenes || []).filter(im => !im.id)
-        for (const img of nuevas) {
-          await axios.post(`${API_URL}/api/products/${editDraft.id}/images`, { url: img.url, alt: img.alt || '' }, { headers: getAuthHeaders() })
-        }
       }
       await loadCatalog()
       setEditingIndex(null); setEditDraft(null)
@@ -263,7 +253,7 @@ export default function ModalEntrenamiento({ trainingActive, onClose, initialCon
     } finally { setSavingEdit(false) }
   }
 
-  // ——— Cargar catálogo ———
+  // Cargar catálogo
   async function loadCatalog() {
     try {
       setReloading(true)
@@ -279,7 +269,7 @@ export default function ModalEntrenamiento({ trainingActive, onClose, initialCon
     finally { setReloading(false) }
   }
 
-  // ——— Abrir modal ———
+  // Abrir modal
   useEffect(() => {
     if (!open) return
     const bt = (initialConfig?.businessType as BusinessType) || 'servicios'
@@ -292,23 +282,11 @@ export default function ModalEntrenamiento({ trainingActive, onClose, initialCon
   const handleSetProductosType = async () => { setBusinessType('productos'); setForm(f => ({ ...f, businessType: 'productos' })); if (!catalogLoaded) await loadCatalog() }
   const handleSetServiciosType = () => { setBusinessType('servicios'); setForm(f => ({ ...f, businessType: 'servicios' })); setProductos([]); setCatalogLoaded(false) }
 
-  // ——— Guardar todo ———
+  // Guardar todo (solo config negocio + nada especial de imágenes aquí)
   async function guardarTodo() {
     try {
       setSaving(true); setErrorMsg(null)
       await axios.put(`${API_URL}/api/config`, { ...form, businessType }, { headers: getAuthHeaders() })
-      if (businessType === 'productos' && productos.length) {
-        const nuevos = productos.filter(p => !p.id)
-        for (const prod of nuevos) {
-          const { data: created } = await axios.post(`${API_URL}/api/products`, {
-            nombre: prod.nombre, descripcion: prod.descripcion, beneficios: prod.beneficios,
-            caracteristicas: prod.caracteristicas, precioDesde: prod.precioDesde ?? null,
-          }, { headers: getAuthHeaders() })
-          for (const img of (prod.imagenes || [])) {
-            await axios.post(`${API_URL}/api/products/${created.id}/images`, { url: img.url, alt: img.alt || '' }, { headers: getAuthHeaders() })
-          }
-        }
-      }
       if (businessType === 'productos') await loadCatalog()
       close()
     } catch (e: any) { setErrorMsg(e?.response?.data?.error || e?.message || 'Error guardando cambios.') }
@@ -322,7 +300,7 @@ export default function ModalEntrenamiento({ trainingActive, onClose, initialCon
     <AnimatePresence>
       {open && (
         <Dialog open={open} onClose={() => {}} className="relative z-50">
-          {/* backdrop */}<div className="fixed inset-0 bg-black/60 backdrop-blur-sm" aria-hidden="true" />
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" aria-hidden="true" />
           <div className="fixed inset-0 flex items-center justify-center px-3 sm:px-6">
             <Dialog.Panel as={motion.div} initial={{ opacity: 0, scale: 0.98, y: 8 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.98, y: 8 }} className="w-full max-w-3xl bg-slate-900 text-white rounded-2xl p-4 sm:p-6 border border-slate-800 shadow-2xl overflow-y-auto max-h-[92vh]">
               {/* header */}
@@ -403,48 +381,24 @@ export default function ModalEntrenamiento({ trainingActive, onClose, initialCon
                       className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm"
                     />
 
-                    {/* Imágenes por URL (para nuevos sin id aún) */}
-                    <div className="md:col-span-2 space-y-1">
-                      <label className="text-sm text-slate-300 flex items-center gap-1">Imágenes (URL)</label>
-                      <div className="flex flex-col md:flex-row gap-2 items-stretch">
-                        <input placeholder="https://res.cloudinary.com/tu-cloud/..." value={imgUrl} onChange={(e) => setImgUrl(e.target.value)} className="flex-1 min-w-0 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm" />
-                        <input placeholder="Alt (opcional)" value={imgAlt} onChange={(e) => setImgAlt(e.target.value)} className="flex-1 min-w-0 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm" />
-                        <button onClick={addImagenAlNuevo} className="shrink-0 inline-flex items-center justify-center gap-2 bg-slate-700 hover:bg-slate-600 border border-slate-600 rounded-xl px-3 py-2 text-sm">
-                          <Plus className="w-4 h-4" /> Agregar
-                        </button>
-                      </div>
-                      {!!nuevoProd.imagenes.length && (
-                        <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-                          {nuevoProd.imagenes.map((img, i) => (
-                            <div key={i} className="relative group rounded-xl overflow-hidden border border-slate-700">
-                              <ImgAlways src={img.url} alt={img.alt || ''} className="w-full h-28 object-cover" />
-                              <button onClick={() => removeImgNuevo(i)} className="absolute top-2 right-2 p-1 rounded-lg bg-black/60 hover:bg-black/80">
-                                <Trash2 className="w-4 h-4 text-white" />
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-
                     <div className="md:col-span-2">
-                      <button onClick={pushProducto} className="w-full inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl px-4 py-2 text-sm">
-                        <Plus className="w-4 h-4" /> Añadir al catálogo
+                      <button onClick={crearProducto} className="w-full inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl px-4 py-2 text-sm">
+                        <Plus className="w-4 h-4" /> Crear producto
                       </button>
                     </div>
                   </div>
 
-                  {/* LISTADO / EDICIÓN */}
+                  {/* LISTADO */}
                   {!!productos.length && (
                     <div className="space-y-2">
-                      <h3 className="text-sm text-slate-300">Productos actuales / a guardar ({productos.length})</h3>
+                      <h3 className="text-sm text-slate-300">Productos ({productos.length})</h3>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         {productos.map((p, idx) => (
                           <div key={`${p.id ?? 'nuevo'}-${idx}`} className={`rounded-2xl border border-slate-700 bg-slate-800/60 p-3 ${isEditing(idx) ? 'ring-1 ring-blue-500/40' : ''}`}>
                             <div className="flex items-start justify-between gap-2">
                               <div>
                                 <div className="font-medium">
-                                  {p.nombre} {p.id ? (<span className="ml-2 text-[10px] px-1.5 py-0.5 rounded bg-slate-700 text-slate-200">existente</span>) : null}
+                                  {p.nombre} {p.id ? (<span className="ml-2 text-[10px] px-1.5 py-0.5 rounded bg-slate-700 text-slate-200">id #{p.id}</span>) : null}
                                 </div>
                                 {p.precioDesde != null && (<div className="text-xs text-slate-400">Desde: {p.precioDesde}</div>)}
                               </div>
@@ -505,7 +459,7 @@ export default function ModalEntrenamiento({ trainingActive, onClose, initialCon
                               </div>
                             </div>
 
-                            {/* vista normal */}
+                            {/* vista */}
                             {!isEditing(idx) ? (
                               <>
                                 {p.descripcion && (<div className="mt-2 text-xs text-slate-300 whitespace-pre-line">{p.descripcion}</div>)}
@@ -525,7 +479,6 @@ export default function ModalEntrenamiento({ trainingActive, onClose, initialCon
                                     </ul>
                                   </div>
                                 )}
-                                {/* miniaturas */}
                                 {p.imagenes?.length ? (
                                   <div className="mt-2 grid grid-cols-3 gap-2">
                                     {p.imagenes.map((img, i) => (
@@ -551,7 +504,6 @@ export default function ModalEntrenamiento({ trainingActive, onClose, initialCon
                                 )}
                               </>
                             ) : (
-                              // editor inline
                               <div className="mt-3 space-y-2">
                                 <input value={editDraft?.nombre || ''} onChange={(e) => updateDraft('nombre', e.target.value)} className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs" placeholder="Nombre" />
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -560,7 +512,6 @@ export default function ModalEntrenamiento({ trainingActive, onClose, initialCon
                                 </div>
                                 <textarea rows={3} value={editDraft?.beneficios || ''} onChange={(e) => updateDraft('beneficios', e.target.value)} className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs" placeholder={'Beneficios (uno por línea)'} />
                                 <textarea rows={3} value={editDraft?.caracteristicas || ''} onChange={(e) => updateDraft('caracteristicas', e.target.value)} className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs" placeholder={'Características (una por línea)'} />
-                                {/* imágenes */}
                                 <div className="space-y-2">
                                   <div className="flex items-center justify-between">
                                     <div className="text-xs text-slate-400">Imágenes</div>
@@ -583,7 +534,7 @@ export default function ModalEntrenamiento({ trainingActive, onClose, initialCon
                                           disabled={uploadingEdit}
                                           className="px-2 py-1 rounded-lg border border-slate-700 bg-slate-800 hover:bg-slate-700 text-xs inline-flex items-center gap-1 disabled:opacity-60"
                                         >
-                                          {uploadingEdit ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <><Upload className="w-3.5 h-3.5" /> Subir imagen</>}
+                                          {uploadingEdit ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <>Subir <Upload className="w-3.5 h-3.5" /></>}
                                         </button>
                                       </>
                                     )}
@@ -603,12 +554,6 @@ export default function ModalEntrenamiento({ trainingActive, onClose, initialCon
                                   ) : (
                                     <div className="h-14 rounded-lg border border-dashed border-slate-700 text-[11px] text-slate-400 flex items-center justify-center">Sin imágenes</div>
                                   )}
-                                  <div className="flex gap-2">
-                                    <input id={`new-img-${idx}`} placeholder="https://res.cloudinary.com/..." className="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs" onKeyDown={(e) => { if (e.key === 'Enter') { const t = e.target as HTMLInputElement; if (t.value.trim()) { addDraftImage(t.value.trim()); t.value = '' } } }} />
-                                    <button onClick={() => { const input = document.getElementById(`new-img-${idx}`) as HTMLInputElement | null; if (input && input.value.trim()) { addDraftImage(input.value.trim()); input.value = '' } }} className="px-2 py-2 rounded-xl border border-slate-700 bg-slate-800 hover:bg-slate-700 text-xs inline-flex items-center gap-1">
-                                      <ImagePlus className="w-3.5 h-3.5" /> Agregar
-                                    </button>
-                                  </div>
                                 </div>
                               </div>
                             )}
@@ -625,7 +570,7 @@ export default function ModalEntrenamiento({ trainingActive, onClose, initialCon
               {/* footer */}
               <div className="mt-6 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
                 <div className="text-xs text-slate-400">
-                  {businessType === 'productos' ? 'Consejo: agrega 1–5 productos clave para que la IA tenga buen contexto.' : 'Completa la info clave para respuestas precisas.'}
+                  {businessType === 'productos' ? 'Crea el producto y luego súbele sus fotos.' : 'Completa la info clave para respuestas precisas.'}
                 </div>
                 <div className="flex items-center gap-2">
                   {step > 0 ? (
