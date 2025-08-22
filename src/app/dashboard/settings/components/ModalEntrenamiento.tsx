@@ -102,6 +102,8 @@ export default function ModalEntrenamiento({ trainingActive, onClose, initialCon
   // Catálogo
   const [productos, setProductos] = useState<Producto[]>([])
   const [catalogLoaded, setCatalogLoaded] = useState(false)
+
+  // Form de “nuevo producto”
   const [nuevoProd, setNuevoProd] = useState<Producto>({
     nombre: '', descripcion: '', beneficios: '', caracteristicas: '', precioDesde: null, imagenes: [],
   })
@@ -153,7 +155,6 @@ export default function ModalEntrenamiento({ trainingActive, onClose, initialCon
       fd,
       { headers: { ...getAuthHeaders() } }
     )
-    // El backend devuelve { id, url, objectKey, ... } — usamos id/url
     const newImg: ImagenProducto = { id: data?.id, url: data?.url || '', alt: alt || '' }
     return newImg
   }
@@ -165,7 +166,6 @@ export default function ModalEntrenamiento({ trainingActive, onClose, initialCon
     cardIndex: number,
     imageIndex: number
   ) {
-    // 1) Actualización optimista del estado local
     setProductos((list) => {
       const copy = [...list]
       const prod = copy[cardIndex]
@@ -176,17 +176,13 @@ export default function ModalEntrenamiento({ trainingActive, onClose, initialCon
       return copy
     })
 
-    // 2) Borrado en backend (valida productId + imageId)
     try {
       await axios.delete(
         `${API_URL}/api/products/${productId}/images/${imageId}`,
         { headers: getAuthHeaders() }
       )
     } catch (e: any) {
-      // 3) Si falla, mostramos error y recargamos del server
-      setErrorMsg(
-        e?.response?.data?.error || 'No se pudo eliminar la imagen.'
-      )
+      setErrorMsg(e?.response?.data?.error || 'No se pudo eliminar la imagen.')
       await loadCatalog()
     }
   }
@@ -371,9 +367,43 @@ export default function ModalEntrenamiento({ trainingActive, onClose, initialCon
                     </button>
                   </div>
 
-                  {/* crear */}
+                  {/* CREAR NUEVO PRODUCTO */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3 bg-slate-800/60 border border-slate-700 rounded-2xl p-4">
-                    {/* ...campos... (no tocados) */}
+                    <input
+                      placeholder="Nombre del producto *"
+                      value={nuevoProd.nombre}
+                      onChange={(e) => setNuevoProd(p => ({ ...p, nombre: e.target.value }))}
+                      className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm"
+                    />
+                    <input
+                      type="number"
+                      placeholder="Precio desde (opcional)"
+                      value={nuevoProd.precioDesde ?? ''}
+                      onChange={(e) => setNuevoProd(p => ({ ...p, precioDesde: e.target.value ? Number(e.target.value) : null }))}
+                      className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm"
+                    />
+                    <input
+                      placeholder="Descripción corta"
+                      value={nuevoProd.descripcion}
+                      onChange={(e) => setNuevoProd(p => ({ ...p, descripcion: e.target.value }))}
+                      className="md:col-span-2 w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm"
+                    />
+                    <textarea
+                      rows={3}
+                      placeholder="Beneficios (uno por línea)"
+                      value={nuevoProd.beneficios}
+                      onChange={(e) => setNuevoProd(p => ({ ...p, beneficios: e.target.value }))}
+                      className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm"
+                    />
+                    <textarea
+                      rows={3}
+                      placeholder="Características (una por línea)"
+                      value={nuevoProd.caracteristicas}
+                      onChange={(e) => setNuevoProd(p => ({ ...p, caracteristicas: e.target.value }))}
+                      className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm"
+                    />
+
+                    {/* Imágenes por URL (para nuevos sin id aún) */}
                     <div className="md:col-span-2 space-y-1">
                       <label className="text-sm text-slate-300 flex items-center gap-1">Imágenes (URL)</label>
                       <div className="flex flex-col md:flex-row gap-2 items-stretch">
@@ -396,6 +426,7 @@ export default function ModalEntrenamiento({ trainingActive, onClose, initialCon
                         </div>
                       )}
                     </div>
+
                     <div className="md:col-span-2">
                       <button onClick={pushProducto} className="w-full inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl px-4 py-2 text-sm">
                         <Plus className="w-4 h-4" /> Añadir al catálogo
@@ -403,7 +434,7 @@ export default function ModalEntrenamiento({ trainingActive, onClose, initialCon
                     </div>
                   </div>
 
-                  {/* listado */}
+                  {/* LISTADO / EDICIÓN */}
                   {!!productos.length && (
                     <div className="space-y-2">
                       <h3 className="text-sm text-slate-300">Productos actuales / a guardar ({productos.length})</h3>
@@ -427,7 +458,7 @@ export default function ModalEntrenamiento({ trainingActive, onClose, initialCon
                                   </>
                                 ) : (
                                   <>
-                                    {/* NUEVO: subir imagen en vista normal */}
+                                    {/* Subida de archivo a R2 (solo productos existentes con id) */}
                                     {p.id && (
                                       <>
                                         <input
@@ -494,7 +525,7 @@ export default function ModalEntrenamiento({ trainingActive, onClose, initialCon
                                     </ul>
                                   </div>
                                 )}
-                                {/* miniaturas SIEMPRE visibles */}
+                                {/* miniaturas */}
                                 {p.imagenes?.length ? (
                                   <div className="mt-2 grid grid-cols-3 gap-2">
                                     {p.imagenes.map((img, i) => (
