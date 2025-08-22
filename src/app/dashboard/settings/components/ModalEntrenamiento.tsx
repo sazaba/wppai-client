@@ -6,7 +6,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import axios from 'axios'
 import {
   X, Plus, Trash2, PencilLine, Check, XCircle, RefreshCw,
-  ImagePlus, ImageMinus, HelpCircle, Loader2
+  ImagePlus, ImageMinus, HelpCircle, Loader2, Upload
 } from 'lucide-react'
 
 const API_URL = (process.env.NEXT_PUBLIC_API_URL || '') as string
@@ -62,6 +62,7 @@ function ImgAlways({
           fill="#94a3b8" font-size="12">imagen no disponible</text>
       </svg>`
     )
+
   return (
     <img
       src={broken ? fallback : bust}
@@ -106,6 +107,10 @@ export default function ModalEntrenamiento({ trainingActive, onClose, initialCon
   })
   const [imgUrl, setImgUrl] = useState(''); const [imgAlt, setImgAlt] = useState('')
 
+  // Carga por tarjeta / editor
+  const [uploadingCardIndex, setUploadingCardIndex] = useState<number | null>(null)
+  const [uploadingEdit, setUploadingEdit] = useState(false)
+
   // Edit inline
   const [editingIndex, setEditingIndex] = useState<number | null>(null)
   const [editDraft, setEditDraft] = useState<Producto | null>(null)
@@ -136,39 +141,55 @@ export default function ModalEntrenamiento({ trainingActive, onClose, initialCon
   const back = () => { if (step > 0) setStep(s => s - 1) }
   const updateField = (campo: keyof ConfigForm, val: string) => setForm(f => ({ ...f, [campo]: val }))
 
-  // ——— Eliminar imagen desde tarjeta (vista normal) ———
-async function deleteImageOnCard(
-  productId: number,
-  imageId: number,
-  cardIndex: number,
-  imageIndex: number
-) {
-  // 1) Actualización optimista del estado local
-  setProductos((list) => {
-    const copy = [...list]
-    const prod = copy[cardIndex]
-    if (!prod) return list
-    const imgs = [...(prod.imagenes || [])]
-    imgs.splice(imageIndex, 1)
-    copy[cardIndex] = { ...prod, imagenes: imgs }
-    return copy
-  })
+  // ---------- Subida real a R2 ----------
+  async function uploadImageFile(productId: number, file: File, alt?: string, isPrimary?: boolean) {
+    const fd = new FormData()
+    fd.append('file', file)
+    if (alt) fd.append('alt', alt)
+    if (isPrimary) fd.append('isPrimary', 'true')
 
-  // 2) Borrado en backend (valida productId + imageId)
-  try {
-    await axios.delete(
-      `${API_URL}/api/products/${productId}/images/${imageId}`,
-      { headers: getAuthHeaders() }
+    const { data } = await axios.post(
+      `${API_URL}/api/products/${productId}/images/upload`,
+      fd,
+      { headers: { ...getAuthHeaders() } }
     )
-  } catch (e: any) {
-    // 3) Si falla, mostramos error y recargamos del server
-    setErrorMsg(
-      e?.response?.data?.error || 'No se pudo eliminar la imagen.'
-    )
-    await loadCatalog()
+    // El backend devuelve { id, url, objectKey, ... } — usamos id/url
+    const newImg: ImagenProducto = { id: data?.id, url: data?.url || '', alt: alt || '' }
+    return newImg
   }
-}
 
+  // ——— Eliminar imagen desde tarjeta (vista normal) ———
+  async function deleteImageOnCard(
+    productId: number,
+    imageId: number,
+    cardIndex: number,
+    imageIndex: number
+  ) {
+    // 1) Actualización optimista del estado local
+    setProductos((list) => {
+      const copy = [...list]
+      const prod = copy[cardIndex]
+      if (!prod) return list
+      const imgs = [...(prod.imagenes || [])]
+      imgs.splice(imageIndex, 1)
+      copy[cardIndex] = { ...prod, imagenes: imgs }
+      return copy
+    })
+
+    // 2) Borrado en backend (valida productId + imageId)
+    try {
+      await axios.delete(
+        `${API_URL}/api/products/${productId}/images/${imageId}`,
+        { headers: getAuthHeaders() }
+      )
+    } catch (e: any) {
+      // 3) Si falla, mostramos error y recargamos del server
+      setErrorMsg(
+        e?.response?.data?.error || 'No se pudo eliminar la imagen.'
+      )
+      await loadCatalog()
+    }
+  }
 
   // ——— Crear ———
   function addImagenAlNuevo() {
@@ -208,9 +229,23 @@ async function deleteImageOnCard(
   }
   function addDraftImage(url: string, alt?: string) {
     if (!editDraft) return
-    const u = url.trim(); if (!u) return
-    setEditDraft({ ...editDraft, imagenes: [...(editDraft.imagenes || []), { url: u, alt: (alt || '').trim() || undefined }] })
+    const u = url.trim(); if (u) setEditDraft({ ...editDraft, imagenes: [...(editDraft.imagenes || []), { url: u, alt: (alt || '').trim() || undefined }] })
   }
+
+  // NUEVO: subir archivo en editor inline
+  async function uploadFileInEditor(file: File) {
+    if (!editDraft?.id) return
+    try {
+      setUploadingEdit(true)
+      const newImg = await uploadImageFile(editDraft.id, file)
+      setEditDraft(d => d ? { ...d, imagenes: [...(d.imagenes || []), newImg] } : d)
+    } catch (e: any) {
+      setErrorMsg(e?.response?.data?.error || 'No se pudo subir la imagen.')
+    } finally {
+      setUploadingEdit(false)
+    }
+  }
+
   async function saveEdit() {
     if (editingIndex === null || !editDraft) return
     setSavingEdit(true)
@@ -338,7 +373,7 @@ async function deleteImageOnCard(
 
                   {/* crear */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3 bg-slate-800/60 border border-slate-700 rounded-2xl p-4">
-                    {/* ...campos... */}
+                    {/* ...campos... (no tocados) */}
                     <div className="md:col-span-2 space-y-1">
                       <label className="text-sm text-slate-300 flex items-center gap-1">Imágenes (URL)</label>
                       <div className="flex flex-col md:flex-row gap-2 items-stretch">
@@ -392,6 +427,46 @@ async function deleteImageOnCard(
                                   </>
                                 ) : (
                                   <>
+                                    {/* NUEVO: subir imagen en vista normal */}
+                                    {p.id && (
+                                      <>
+                                        <input
+                                          id={`upload-card-${idx}`}
+                                          type="file"
+                                          accept="image/*"
+                                          className="hidden"
+                                          onChange={async (e) => {
+                                            const file = e.target.files?.[0]
+                                            if (!file || !p.id) return
+                                            try {
+                                              setUploadingCardIndex(idx)
+                                              const newImg = await uploadImageFile(p.id, file)
+                                              setProductos(list => {
+                                                const copy = [...list]
+                                                const prod = copy[idx]
+                                                if (!prod) return list
+                                                const imgs = [...(prod.imagenes || []), newImg]
+                                                copy[idx] = { ...prod, imagenes: imgs }
+                                                return copy
+                                              })
+                                            } catch (err: any) {
+                                              setErrorMsg(err?.response?.data?.error || 'No se pudo subir la imagen.')
+                                            } finally {
+                                              setUploadingCardIndex(null)
+                                              e.currentTarget.value = ''
+                                            }
+                                          }}
+                                        />
+                                        <button
+                                          onClick={() => document.getElementById(`upload-card-${idx}`)?.click()}
+                                          disabled={uploadingCardIndex === idx}
+                                          className="p-1.5 rounded-lg hover:bg-slate-700 disabled:opacity-60"
+                                          title="Subir imagen"
+                                        >
+                                          {uploadingCardIndex === idx ? <Loader2 className="w-4 h-4 animate-spin text-slate-200" /> : <Upload className="w-4 h-4 text-slate-200" />}
+                                        </button>
+                                      </>
+                                    )}
                                     <button onClick={() => startEdit(idx)} className="p-1.5 rounded-lg hover:bg-slate-700" title="Editar"><PencilLine className="w-4 h-4 text-slate-200" /></button>
                                     <button onClick={() => deleteProducto(idx)} className="p-1.5 rounded-lg hover:bg-slate-700" title="Eliminar"><Trash2 className="w-4 h-4 text-slate-200" /></button>
                                   </>
@@ -426,18 +501,17 @@ async function deleteImageOnCard(
                                       <div key={`${img.id ?? 'new'}-${i}`} className="relative group">
                                         <ImgAlways src={img.url} alt={img.alt || ''} className="w-full h-16 object-cover rounded-lg border border-slate-700" />
                                         {!!img.id && !!p.id && (
-  <button
-    onClick={() => {
-      if (typeof p.id !== 'number' || typeof img.id !== 'number') return
-      void deleteImageOnCard(p.id, img.id, idx, i)
-    }}
-    className="absolute top-1.5 right-1.5 p-1 rounded-lg bg-black/60 hover:bg-black/80 opacity-0 group-hover:opacity-100 transition"
-    title="Eliminar imagen"
-  >
-    <Trash2 className="w-3.5 h-3.5 text-white" />
-  </button>
-)}
-
+                                          <button
+                                            onClick={() => {
+                                              if (typeof p.id !== 'number' || typeof img.id !== 'number') return
+                                              void deleteImageOnCard(p.id, img.id, idx, i)
+                                            }}
+                                            className="absolute top-1.5 right-1.5 p-1 rounded-lg bg-black/60 hover:bg-black/80 opacity-0 group-hover:opacity-100 transition"
+                                            title="Eliminar imagen"
+                                          >
+                                            <Trash2 className="w-3.5 h-3.5 text-white" />
+                                          </button>
+                                        )}
                                       </div>
                                     ))}
                                   </div>
@@ -457,7 +531,33 @@ async function deleteImageOnCard(
                                 <textarea rows={3} value={editDraft?.caracteristicas || ''} onChange={(e) => updateDraft('caracteristicas', e.target.value)} className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs" placeholder={'Características (una por línea)'} />
                                 {/* imágenes */}
                                 <div className="space-y-2">
-                                  <div className="text-xs text-slate-400">Imágenes</div>
+                                  <div className="flex items-center justify-between">
+                                    <div className="text-xs text-slate-400">Imágenes</div>
+                                    {editDraft?.id && (
+                                      <>
+                                        <input
+                                          id={`upload-edit-${idx}`}
+                                          type="file"
+                                          accept="image/*"
+                                          className="hidden"
+                                          onChange={async (e) => {
+                                            const file = e.target.files?.[0]
+                                            if (!file) return
+                                            await uploadFileInEditor(file)
+                                            e.currentTarget.value = ''
+                                          }}
+                                        />
+                                        <button
+                                          onClick={() => document.getElementById(`upload-edit-${idx}`)?.click()}
+                                          disabled={uploadingEdit}
+                                          className="px-2 py-1 rounded-lg border border-slate-700 bg-slate-800 hover:bg-slate-700 text-xs inline-flex items-center gap-1 disabled:opacity-60"
+                                        >
+                                          {uploadingEdit ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <><Upload className="w-3.5 h-3.5" /> Subir imagen</>}
+                                        </button>
+                                      </>
+                                    )}
+                                  </div>
+
                                   {editDraft?.imagenes?.length ? (
                                     <div className="grid grid-cols-3 gap-2">
                                       {editDraft.imagenes.map((img, i) => (
