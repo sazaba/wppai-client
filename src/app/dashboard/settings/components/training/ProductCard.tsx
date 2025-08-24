@@ -27,39 +27,57 @@ type Props = {
   saving?: boolean
 }
 
+/** Base del API (opcional). Si no está definida, usamos rewrite de Next. */
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE || ''
+
 /** Devuelve el src a usar contra el PROXY del backend.
  *  Preferimos objectKey si está disponible; si no, extraemos productId y file desde la URL actual.
+ *  Endurecido para evitar casos como /api/products/wasaaa.com/images/... y para URL sin /products/.
  */
 function buildProxiedSrc(img: Partial<ImagenProducto>, fallbackProductId?: number | string) {
-  // 1) Si viene objectKey (ej: "products/18/archivo.png"), úsalo directamente.
+  // 1) objectKey: "products/<id>/<file>"
   if (img.objectKey) {
-    // objectKey: products/<id>/<file>
-    const parts = img.objectKey.split('/').filter(Boolean)
-    const productId = parts[1]
-    const file = parts.slice(2).join('/') // por si algún día soportas subcarpetas
-    if (productId && file) return `/api/products/${productId}/images/${file}`
-  }
-
-  // 2) Si solo tenemos URL (presigned), parseamos para obtener /products/<id>/<file>
-  const url = img.url || ''
-  try {
-    const u = new URL(url, typeof window !== 'undefined' ? window.location.href : undefined)
-    // pathname: /products/18/archivo.png
-    const p = u.pathname.split('/').filter(Boolean)
-    const productId = p[1] || String(fallbackProductId || '')
-    const file = p.slice(2).join('/')
-    if (productId && file) return `/api/products/${productId}/images/${file}`
-  } catch {
-    // no es URL absoluta; puede que ya sea relative path "products/18/archivo.png"
-    const p = url.replace(/^\/+/, '').split('/').filter(Boolean) // sin leading slash
-    if (p[0] === 'products') {
-      const productId = p[1] || String(fallbackProductId || '')
-      const file = p.slice(2).join('/')
-      if (productId && file) return `/api/products/${productId}/images/${file}`
+    const parts = img.objectKey.split('/').filter(Boolean) // ['products','18','archivo.png']
+    if (parts[0] === 'products' && parts.length >= 3) {
+      const productId = parts[1]
+      const file = parts.slice(2).join('/')
+      const base = API_BASE ? API_BASE : ''
+      return `${base}/api/products/${encodeURIComponent(productId)}/images/${encodeURIComponent(file)}`
     }
   }
 
-  // 3) Último recurso: deja el url tal cual (servirá si alguna imagen es externa)
+  // 2) URL con /products/<id>/ en el pathname
+  const url = img.url || ''
+  try {
+    const u = new URL(url, typeof window !== 'undefined' ? window.location.href : undefined)
+    if (u.pathname.includes('/products/')) {
+      const p = u.pathname.split('/').filter(Boolean) // ['products','18','archivo.png']
+      const idxProducts = p.indexOf('products')
+      const productId = p[idxProducts + 1] || String(fallbackProductId || '')
+      const file = p.slice(idxProducts + 2).join('/')
+      if (productId && file) {
+        const base = API_BASE ? API_BASE : ''
+        return `${base}/api/products/${encodeURIComponent(productId)}/images/${encodeURIComponent(file)}`
+      }
+    }
+  } catch {
+    // ignoramos, seguimos con path relativo
+  }
+
+  // 3) path relativo que empieza con products/
+  if (url.startsWith('products/') || url.startsWith('/products/')) {
+    const p = url.replace(/^\/+/, '').split('/').filter(Boolean)
+    if (p[0] === 'products' && p.length >= 3) {
+      const productId = p[1] || String(fallbackProductId || '')
+      const file = p.slice(2).join('/')
+      if (productId && file) {
+        const base = API_BASE ? API_BASE : ''
+        return `${base}/api/products/${encodeURIComponent(productId)}/images/${encodeURIComponent(file)}`
+      }
+    }
+  }
+
+  // 4) No podemos construir proxy => devolvemos la URL tal cual
   return url
 }
 

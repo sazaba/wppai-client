@@ -3,7 +3,6 @@ const nextConfig = {
     eslint: { ignoreDuringBuilds: true },
     typescript: { ignoreBuildErrors: true },
 
-    // Por si vuelves a usar <Image> de next
     images: {
         remotePatterns: [
             {
@@ -12,8 +11,6 @@ const nextConfig = {
                 pathname: '/**',
             },
         ],
-        // Si el optimizer te diera problemas con URLs firmadas, activa esto:
-        // unoptimized: true,
     },
 
     async headers() {
@@ -21,7 +18,6 @@ const nextConfig = {
             {
                 source: '/:path*',
                 headers: [
-                    // Permite cargar imágenes externas desde tu bucket R2 y data: (para el placeholder)
                     {
                         key: 'Content-Security-Policy',
                         value: [
@@ -33,9 +29,18 @@ const nextConfig = {
                             "frame-ancestors 'self'",
                         ].join('; '),
                     },
-                    // (Opcional) para diagnósticos en dev
-                    // { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
                 ],
+            },
+        ];
+    },
+
+    // 🔴 NUEVO: proxy de imágenes al backend
+    async rewrites() {
+        const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'https://wppai-server.onrender.com';
+        return [
+            {
+                source: '/api/products/:id/images/:file*',
+                destination: `${API_BASE}/api/products/:id/images/:file*`,
             },
         ];
     },
