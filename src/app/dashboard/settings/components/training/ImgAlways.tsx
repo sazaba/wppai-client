@@ -6,9 +6,7 @@ type Props = {
   src: string
   alt?: string
   className?: string
-  /** reintentos si falla la carga (solo para URLs NO firmadas) */
   retries?: number
-  /** desactivar cache-busting manualmente */
   disableBust?: boolean
 }
 
@@ -17,7 +15,6 @@ function isSignedUrl(url: string) {
   try {
     const u = new URL(url, typeof window !== 'undefined' ? window.location.href : undefined)
     const q = u.searchParams
-    // señales típicas de presigned (AWS/R2)
     return (
       q.has('X-Amz-Signature') ||
       q.has('X-Amz-Algorithm') ||
@@ -41,16 +38,16 @@ export default function ImgAlways({
 }: Props) {
   const [attempt, setAttempt] = useState(0)
   const [showFallback, setShowFallback] = useState(false)
+  const [retryOnceForSigned, setRetryOnceForSigned] = useState(false)
 
-  // reset al cambiar src
   useEffect(() => {
     setAttempt(0)
     setShowFallback(false)
+    setRetryOnceForSigned(false)
   }, [src])
 
   const signed = useMemo(() => isSignedUrl(src), [src])
 
-  // Solo bust para NO firmadas
   const effectiveSrc = useMemo(() => {
     if (!src) return ''
     if (src.startsWith('data:')) return src
@@ -70,16 +67,24 @@ export default function ImgAlways({
     )
 
   const handleError = () => {
-    // en firmadas NO reintentamos con bust (rompería la firma)
+    // Para firmadas: 1 reintento suave sin modificar la URL (no rompemos la firma)
+    if (signed && !retryOnceForSigned) {
+      setRetryOnceForSigned(true)
+      // Fuerza un recambio de src recreando el nodo <img> con una key distinta
+      // (tip: los navegadores a veces no reintentan con el mismo elemento)
+      setTimeout(() => setAttempt((a) => a + 1), 50)
+      return
+    }
+
+    // No firmadas: reintentos con cache-busting
     if (!signed && attempt < retries) {
       const next = attempt + 1
-      setTimeout(() => setAttempt(next), 250 * next) // backoff suave
+      setTimeout(() => setAttempt(next), 250 * next)
     } else {
       setShowFallback(true)
     }
   }
 
-  // Props de <img>: en firmadas, evitar crossOrigin / referrerPolicy
   const imgCommonProps = {
     alt,
     className,
@@ -91,6 +96,7 @@ export default function ImgAlways({
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img
+      key={signed ? (retryOnceForSigned ? 'signed-retry' : 'signed') : `u-${attempt}`}
       src={showFallback ? fallback : effectiveSrc}
       {...imgCommonProps}
       {...(!signed && { crossOrigin: 'anonymous' })}
