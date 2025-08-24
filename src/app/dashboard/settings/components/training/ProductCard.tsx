@@ -1,6 +1,6 @@
 'use client'
 
-import { memo, useEffect, useMemo, useState } from 'react'
+import { memo, useEffect, useState } from 'react'
 import type { Producto, ImagenProducto } from './types'
 import { Check, Loader2, PencilLine, Trash2, Upload, XCircle } from 'lucide-react'
 import ImgAlways from './ImgAlways'
@@ -25,6 +25,42 @@ type Props = {
   // estados opcionales para UI
   uploading?: boolean
   saving?: boolean
+}
+
+/** Devuelve el src a usar contra el PROXY del backend.
+ *  Preferimos objectKey si está disponible; si no, extraemos productId y file desde la URL actual.
+ */
+function buildProxiedSrc(img: Partial<ImagenProducto>, fallbackProductId?: number | string) {
+  // 1) Si viene objectKey (ej: "products/18/archivo.png"), úsalo directamente.
+  if (img.objectKey) {
+    // objectKey: products/<id>/<file>
+    const parts = img.objectKey.split('/').filter(Boolean)
+    const productId = parts[1]
+    const file = parts.slice(2).join('/') // por si algún día soportas subcarpetas
+    if (productId && file) return `/api/products/${productId}/images/${file}`
+  }
+
+  // 2) Si solo tenemos URL (presigned), parseamos para obtener /products/<id>/<file>
+  const url = img.url || ''
+  try {
+    const u = new URL(url, typeof window !== 'undefined' ? window.location.href : undefined)
+    // pathname: /products/18/archivo.png
+    const p = u.pathname.split('/').filter(Boolean)
+    const productId = p[1] || String(fallbackProductId || '')
+    const file = p.slice(2).join('/')
+    if (productId && file) return `/api/products/${productId}/images/${file}`
+  } catch {
+    // no es URL absoluta; puede que ya sea relative path "products/18/archivo.png"
+    const p = url.replace(/^\/+/, '').split('/').filter(Boolean) // sin leading slash
+    if (p[0] === 'products') {
+      const productId = p[1] || String(fallbackProductId || '')
+      const file = p.slice(2).join('/')
+      if (productId && file) return `/api/products/${productId}/images/${file}`
+    }
+  }
+
+  // 3) Último recurso: deja el url tal cual (servirá si alguna imagen es externa)
+  return url
 }
 
 function listFromText(text?: string) {
@@ -56,9 +92,9 @@ function ProductCardBase({
   // control de subida al presionar check
   const [savingAll, setSavingAll] = useState(false)
 
-  // compat: preview antiguo durante “subida inmediata” (ya no se usa para subir)
+  // compat: preview antiguo durante “subida inmediata”
   const [tempPreviewUrl, setTempPreviewUrl] = useState<string | null>(null)
-  const hasPreview = !!tempPreviewUrl // se mantiene para no romper nada visual si lo usabas
+  const hasPreview = !!tempPreviewUrl
 
   useEffect(() => {
     if (isEditing) setDraft(producto)
@@ -67,7 +103,6 @@ function ProductCardBase({
 
   useEffect(() => {
     return () => {
-      // liberar URLs locales
       pendingImages.forEach((p) => URL.revokeObjectURL(p.preview))
       if (tempPreviewUrl) URL.revokeObjectURL(tempPreviewUrl)
     }
@@ -77,15 +112,12 @@ function ProductCardBase({
   const validateFile = (file: File) => {
     const sizeMB = file.size / (1024 * 1024)
     if (sizeMB > MAX_SIZE_MB) {
-      alert(
-        `El archivo "${file.name}" pesa ${sizeMB.toFixed(1)} MB. Máximo permitido: ${MAX_SIZE_MB} MB.`
-      )
+      alert(`El archivo "${file.name}" pesa ${sizeMB.toFixed(1)} MB. Máximo permitido: ${MAX_SIZE_MB} MB.`)
       return false
     }
     return true
   }
 
-  // --- NUEVO: seleccionar archivo -> SOLO agregar a pendientes y mostrar preview local ---
   const handleSelectFile = async (file: File | undefined | null) => {
     if (!file) return
     if (!validateFile(file)) return
@@ -94,44 +126,33 @@ function ProductCardBase({
     setPendingImages((prev) => [...prev, { id, file, preview: url }])
   }
 
-  // --- NUEVO: limpiar pendientes (por ejemplo al cancelar) ---
   const clearPendings = () => {
     pendingImages.forEach((p) => URL.revokeObjectURL(p.preview))
     setPendingImages([])
   }
 
-  // --- NUEVO: guardar (check verde) -> sube pendientes y guarda patch del producto ---
   const handleSaveAll = async () => {
     try {
       setSavingAll(true)
-      // 1) Subir imágenes pendientes (si hay)
       if (onUpload && pendingImages.length > 0) {
         for (const p of pendingImages) {
-          // subida secuencial para simplificar estados/errores
           await onUpload(p.file)
         }
       }
-      // 2) Guardar cambios del producto
       await onSave?.(draft)
-      // 3) Limpiar cola local
       clearPendings()
     } finally {
       setSavingAll(false)
     }
   }
 
-  // cancelar edición: limpia pendientes y deja que el padre maneje el resto
   const handleCancel = () => {
     clearPendings()
     onCancel?.()
   }
 
   return (
-    <div
-      className={`rounded-2xl border border-slate-700 bg-slate-800/60 p-3 ${
-        isEditing ? 'ring-1 ring-blue-500/40' : ''
-      }`}
-    >
+    <div className={`rounded-2xl border border-slate-700 bg-slate-800/60 p-3 ${isEditing ? 'ring-1 ring-blue-500/40' : ''}`}>
       {/* Header */}
       <div className="flex items-start justify-between gap-2">
         <div>
@@ -178,7 +199,6 @@ function ProductCardBase({
             </>
           ) : (
             <>
-              {/* Subida rápida (ahora SOLO agrega a pendientes; no sube a BD) */}
               {producto.id && (
                 <>
                   <input
@@ -193,9 +213,7 @@ function ProductCardBase({
                     }}
                   />
                   <button
-                    onClick={() =>
-                      document.getElementById(`upload-card-${idx}`)?.click()
-                    }
+                    onClick={() => document.getElementById(`upload-card-${idx}`)?.click()}
                     disabled={uploading}
                     className="p-1.5 rounded-lg hover:bg-slate-700 disabled:opacity-60"
                     title="Agregar imagen (pendiente)"
@@ -265,29 +283,32 @@ function ProductCardBase({
           )}
 
           <div className="mt-2 grid grid-cols-3 gap-2">
-            {/* imágenes reales */}
-            {producto.imagenes?.map((img) => (
-              <div key={img.id ?? img.url} className="relative group">
-                <ImgAlways
-                  src={img.url}
-                  alt={img.alt || ''}
-                  className="w-full h-16 object-cover rounded-lg border border-slate-700"
-                />
-                {img.id && (
-                  <button
-                    onClick={() => img.id && onRemoveImage?.(img.id)}
-                    className="absolute top-1.5 right-1.5 p-1 rounded-lg bg-black/60 hover:bg-black/80 opacity-0 group-hover:opacity-100 transition"
-                    title="Eliminar imagen"
-                    aria-label="Eliminar imagen"
-                    type="button"
-                  >
-                    <Trash2 className="w-3.5 h-3.5 text-white" />
-                  </button>
-                )}
-              </div>
-            ))}
+            {/* imágenes persistidas (vista) */}
+            {producto.imagenes?.map((img) => {
+              const proxied = buildProxiedSrc(img, producto.id)
+              return (
+                <div key={img.id ?? img.url} className="relative group">
+                  <ImgAlways
+                    src={proxied || img.url}
+                    alt={img.alt || ''}
+                    className="w-full h-16 object-cover rounded-lg border border-slate-700"
+                  />
+                  {img.id && (
+                    <button
+                      onClick={() => img.id && onRemoveImage?.(img.id)}
+                      className="absolute top-1.5 right-1.5 p-1 rounded-lg bg-black/60 hover:bg-black/80 opacity-0 group-hover:opacity-100 transition"
+                      title="Eliminar imagen"
+                      aria-label="Eliminar imagen"
+                      type="button"
+                    >
+                      <Trash2 className="w-3.5 h-3.5 text-white" />
+                    </button>
+                  )}
+                </div>
+              )
+            })}
 
-            {/* NUEVO: previews locales pendientes (cuando no estás editando también se pueden ver) */}
+            {/* previews locales pendientes */}
             {pendingImages.map((p) => (
               <div key={p.id} className="relative">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -302,7 +323,7 @@ function ProductCardBase({
               </div>
             ))}
 
-            {/* si no hay nada */}
+            {/* estado vacío */}
             {!hasPreview &&
               !hasPendings &&
               (!producto.imagenes || producto.imagenes.length === 0) && (
@@ -397,29 +418,32 @@ function ProductCardBase({
 
             <div className="grid grid-cols-3 gap-2">
               {/* Imágenes persistidas */}
-              {producto.imagenes?.map((img: ImagenProducto) => (
-                <div key={img.id ?? img.url} className="relative">
-                  <ImgAlways
-                    src={img.url}
-                    alt={img.alt || ''}
-                    className="w-full h-16 object-cover rounded-lg border border-slate-700"
-                    disableBust
-                  />
-                  {img.id && (
-                    <button
-                      onClick={() => img.id && onRemoveImage?.(img.id)}
-                      className="absolute -top-2 -right-2 p-1 rounded-full bg-slate-900 border border-slate-700"
-                      title="Quitar imagen"
-                      aria-label="Quitar imagen"
-                      type="button"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  )}
-                </div>
-              ))}
+              {producto.imagenes?.map((img: ImagenProducto) => {
+                const proxied = buildProxiedSrc(img, producto.id)
+                return (
+                  <div key={img.id ?? img.url} className="relative">
+                    <ImgAlways
+                      src={proxied || img.url}
+                      alt={img.alt || ''}
+                      className="w-full h-16 object-cover rounded-lg border border-slate-700"
+                      disableBust
+                    />
+                    {img.id && (
+                      <button
+                        onClick={() => img.id && onRemoveImage?.(img.id)}
+                        className="absolute -top-2 -right-2 p-1 rounded-full bg-slate-900 border border-slate-700"
+                        title="Quitar imagen"
+                        aria-label="Quitar imagen"
+                        type="button"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+                )
+              })}
 
-              {/* NUEVO: previews de pendientes (solo locales, NO en BD) */}
+              {/* previews de pendientes */}
               {pendingImages.map((p) => (
                 <div key={p.id} className="relative">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -431,7 +455,6 @@ function ProductCardBase({
                   <span className="absolute bottom-1 left-1 text-[10px] px-1.5 py-0.5 rounded bg-amber-500 text-black">
                     Pendiente
                   </span>
-                  {/* botón para quitar de pendientes antes de guardar */}
                   <button
                     onClick={() => {
                       URL.revokeObjectURL(p.preview)
@@ -447,7 +470,6 @@ function ProductCardBase({
                 </div>
               ))}
 
-              {/* estado vacío */}
               {!hasPreview &&
                 !hasPendings &&
                 (!producto.imagenes || producto.imagenes.length === 0) && (

@@ -16,6 +16,7 @@ export interface ImagenProducto {
     id?: number
     url: string
     alt?: string
+    objectKey?: string | null
 }
 
 export interface Producto {
