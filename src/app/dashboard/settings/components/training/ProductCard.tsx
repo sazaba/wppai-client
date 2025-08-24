@@ -1,6 +1,6 @@
 'use client'
 
-import { memo, useEffect, useState } from 'react'
+import { memo, useEffect, useMemo, useState } from 'react'
 import type { Producto, ImagenProducto } from './types'
 import { Check, Loader2, PencilLine, Trash2, Upload, XCircle } from 'lucide-react'
 import ImgAlways from './ImgAlways'
@@ -49,13 +49,21 @@ function ProductCardBase({
 }: Props) {
   const [draft, setDraft] = useState<Producto>(producto)
 
-  // Resetear draft correctamente cuando cambia el modo o el producto
+  // preview optimista durante la subida
+  const [tempPreviewUrl, setTempPreviewUrl] = useState<string | null>(null)
+  const hasPreview = !!tempPreviewUrl
+
   useEffect(() => {
     if (isEditing) setDraft(producto)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isEditing, producto.id])
 
-  // validación tamaño
+  useEffect(() => {
+    return () => {
+      if (tempPreviewUrl) URL.revokeObjectURL(tempPreviewUrl)
+    }
+  }, [tempPreviewUrl])
+
   const validateFile = (file: File) => {
     const sizeMB = file.size / (1024 * 1024)
     if (sizeMB > MAX_SIZE_MB) {
@@ -65,6 +73,21 @@ function ProductCardBase({
       return false
     }
     return true
+  }
+
+  const handleSelectFile = async (file: File | undefined | null) => {
+    if (!file) return
+    if (!validateFile(file)) return
+    // preview optimista
+    const url = URL.createObjectURL(file)
+    setTempPreviewUrl(url)
+    try {
+      await onUpload?.(file)
+    } finally {
+      // dejamos al padre actualizar la lista con la URL real; limpiamos preview
+      URL.revokeObjectURL(url)
+      setTempPreviewUrl(null)
+    }
   }
 
   return (
@@ -98,6 +121,7 @@ function ProductCardBase({
                 className="p-1.5 rounded-lg hover:bg-emerald-700/30 disabled:opacity-60"
                 title="Guardar cambios"
                 aria-label="Guardar cambios"
+                type="button"
               >
                 {saving ? (
                   <Loader2 className="w-4 h-4 animate-spin text-emerald-400" />
@@ -106,11 +130,12 @@ function ProductCardBase({
                 )}
               </button>
               <button
-                onClick={() => onCancel?.( )}
+                onClick={() => onCancel?.()}
                 disabled={!!saving}
                 className="p-1.5 rounded-lg hover:bg-red-700/30 disabled:opacity-60"
                 title="Cancelar edición"
                 aria-label="Cancelar edición"
+                type="button"
               >
                 <XCircle className="w-4 h-4 text-red-300" />
               </button>
@@ -127,16 +152,8 @@ function ProductCardBase({
                     className="hidden"
                     onChange={async (e) => {
                       const file = e.target.files?.[0]
-                      if (!file) return
-                      if (!validateFile(file)) {
-                        e.currentTarget.value = ''
-                        return
-                      }
-                      try {
-                        await onUpload?.(file)
-                      } finally {
-                        e.currentTarget.value = ''
-                      }
+                      await handleSelectFile(file)
+                      if (e.currentTarget) e.currentTarget.value = ''
                     }}
                   />
                   <button
@@ -182,7 +199,6 @@ function ProductCardBase({
 
       {/* Cuerpo */}
       {!isEditing ? (
-        // VISTA
         <>
           {producto.descripcion && (
             <div className="mt-2 text-xs text-slate-300 whitespace-pre-line">
@@ -212,35 +228,51 @@ function ProductCardBase({
             </div>
           )}
 
-          {producto.imagenes?.length ? (
-            <div className="mt-2 grid grid-cols-3 gap-2">
-              {producto.imagenes.map((img) => (
-                <div key={img.id ?? img.url} className="relative group">
-                  <ImgAlways
-                    src={img.url}
-                    alt={img.alt || ''}
-                    className="w-full h-16 object-cover rounded-lg border border-slate-700"
-                  />
+          <div className="mt-2 grid grid-cols-3 gap-2">
+            {/* imágenes reales */}
+            {producto.imagenes?.map((img) => (
+              <div key={img.id ?? img.url} className="relative group">
+                <ImgAlways
+                  src={img.url}
+                  alt={img.alt || ''}
+                  className="w-full h-16 object-cover rounded-lg border border-slate-700"
+                />
+                {img.id && (
+                  <button
+                    onClick={() => img.id && onRemoveImage?.(img.id)}
+                    className="absolute top-1.5 right-1.5 p-1 rounded-lg bg-black/60 hover:bg-black/80 opacity-0 group-hover:opacity-100 transition"
+                    title="Eliminar imagen"
+                    aria-label="Eliminar imagen"
+                    type="button"
+                  >
+                    <Trash2 className="w-3.5 h-3.5 text-white" />
+                  </button>
+                )}
+              </div>
+            ))}
 
-                  {img.id && (
-                    <button
-                      onClick={() => img.id && onRemoveImage?.(img.id)}
-                      className="absolute top-1.5 right-1.5 p-1 rounded-lg bg-black/60 hover:bg-black/80 opacity-0 group-hover:opacity-100 transition"
-                      title="Eliminar imagen"
-                      aria-label="Eliminar imagen"
-                      type="button"
-                    >
-                      <Trash2 className="w-3.5 h-3.5 text-white" />
-                    </button>
-                  )}
+            {/* preview optimista mientras sube */}
+            {hasPreview && (
+              <div className="relative">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={tempPreviewUrl!}
+                  alt="preview"
+                  className="w-full h-16 object-cover rounded-lg border border-slate-700 opacity-70"
+                />
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <Loader2 className="w-5 h-5 animate-spin" />
                 </div>
-              ))}
-            </div>
-          ) : (
-            <div className="mt-2 h-16 rounded-lg border border-slate-700 flex items-center justify-center text-[11px] text-slate-400">
-              Sin imágenes
-            </div>
-          )}
+              </div>
+            )}
+
+            {/* si no hay nada */}
+            {!hasPreview && (!producto.imagenes || producto.imagenes.length === 0) && (
+              <div className="col-span-3 h-16 rounded-lg border border-slate-700 flex items-center justify-center text-[11px] text-slate-400">
+                Sin imágenes
+              </div>
+            )}
+          </div>
         </>
       ) : (
         // EDICIÓN
@@ -267,9 +299,7 @@ function ProductCardBase({
             />
             <input
               value={draft.descripcion || ''}
-              onChange={(e) =>
-                setDraft((d) => ({ ...d, descripcion: e.target.value }))
-              }
+              onChange={(e) => setDraft((d) => ({ ...d, descripcion: e.target.value }))}
               className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs"
               placeholder="Descripción corta"
             />
@@ -277,18 +307,14 @@ function ProductCardBase({
           <textarea
             rows={3}
             value={draft.beneficios || ''}
-            onChange={(e) =>
-              setDraft((d) => ({ ...d, beneficios: e.target.value }))
-            }
+            onChange={(e) => setDraft((d) => ({ ...d, beneficios: e.target.value }))}
             className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs"
             placeholder="Beneficios (uno por línea)"
           />
           <textarea
             rows={3}
             value={draft.caracteristicas || ''}
-            onChange={(e) =>
-              setDraft((d) => ({ ...d, caracteristicas: e.target.value }))
-            }
+            onChange={(e) => setDraft((d) => ({ ...d, caracteristicas: e.target.value }))}
             className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs"
             placeholder="Características (una por línea)"
           />
@@ -306,22 +332,12 @@ function ProductCardBase({
                     className="hidden"
                     onChange={async (e) => {
                       const file = e.target.files?.[0]
-                      if (!file) return
-                      if (!validateFile(file)) {
-                        e.currentTarget.value = ''
-                        return
-                      }
-                      try {
-                        await onUpload?.(file)
-                      } finally {
-                        e.currentTarget.value = ''
-                      }
+                      await handleSelectFile(file)
+                      if (e.currentTarget) e.currentTarget.value = ''
                     }}
                   />
                   <button
-                    onClick={() =>
-                      document.getElementById(`upload-edit-${idx}`)?.click()
-                    }
+                    onClick={() => document.getElementById(`upload-edit-${idx}`)?.click()}
                     disabled={uploading}
                     className="px-2 py-1 rounded-lg border border-slate-700 bg-slate-800 hover:bg-slate-700 text-xs inline-flex items-center gap-1 disabled:opacity-60"
                     type="button"
@@ -339,34 +355,48 @@ function ProductCardBase({
               )}
             </div>
 
-            {producto.imagenes?.length ? (
-              <div className="grid grid-cols-3 gap-2">
-                {producto.imagenes.map((img: ImagenProducto) => (
-                  <div key={img.id ?? img.url} className="relative">
-                    <ImgAlways
-                      src={img.url}
-                      alt={img.alt || ''}
-                      className="w-full h-16 object-cover rounded-lg border border-slate-700"
-                    />
-                    {img.id && (
-                      <button
-                        onClick={() => img.id && onRemoveImage?.(img.id)}
-                        className="absolute -top-2 -right-2 p-1 rounded-full bg-slate-900 border border-slate-700"
-                        title="Quitar imagen"
-                        aria-label="Quitar imagen"
-                        type="button"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    )}
+            <div className="grid grid-cols-3 gap-2">
+              {producto.imagenes?.map((img: ImagenProducto) => (
+                <div key={img.id ?? img.url} className="relative">
+                  <ImgAlways
+                    src={img.url}
+                    alt={img.alt || ''}
+                    className="w-full h-16 object-cover rounded-lg border border-slate-700"
+                  />
+                  {img.id && (
+                    <button
+                      onClick={() => img.id && onRemoveImage?.(img.id)}
+                      className="absolute -top-2 -right-2 p-1 rounded-full bg-slate-900 border border-slate-700"
+                      title="Quitar imagen"
+                      aria-label="Quitar imagen"
+                      type="button"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+              ))}
+
+              {hasPreview && (
+                <div className="relative">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={tempPreviewUrl!}
+                    alt="preview"
+                    className="w-full h-16 object-cover rounded-lg border border-slate-700 opacity-70"
+                  />
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <Loader2 className="w-5 h-5 animate-spin" />
                   </div>
-                ))}
-              </div>
-            ) : (
-              <div className="h-14 rounded-lg border border-dashed border-slate-700 text-[11px] text-slate-400 flex items-center justify-center">
-                Sin imágenes
-              </div>
-            )}
+                </div>
+              )}
+
+              {!hasPreview && (!producto.imagenes || producto.imagenes.length === 0) && (
+                <div className="col-span-3 h-14 rounded-lg border border-dashed border-slate-700 text-[11px] text-slate-400 flex items-center justify-center">
+                  Sin imágenes
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
