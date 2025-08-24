@@ -1,3 +1,4 @@
+// src/app/dashboard/settings/components/training/ImgAlways.tsx
 'use client'
 
 import { useState } from 'react'
@@ -8,13 +9,12 @@ type Props = {
   className?: string
 }
 
-export default function ImgAlways({ src, alt = '', className }: Props) {
+/**
+ * ImgAlways: NO modifica la URL.
+ * Evita romper URLs firmadas (R2/Cloudflare) y muestra un SVG de fallback si falla.
+ */
+export default function ImgAlways({ src, alt, className }: Props) {
   const [broken, setBroken] = useState(false)
-
-  const bust =
-    src && !src.startsWith('data:')
-      ? `${src}${src.includes('?') ? '&' : '?'}_=${Date.now()}`
-      : src
 
   const fallback =
     'data:image/svg+xml;charset=UTF-8,' +
@@ -27,9 +27,10 @@ export default function ImgAlways({ src, alt = '', className }: Props) {
     )
 
   return (
+    // eslint-disable-next-line @next/next/no-img-element
     <img
-      src={broken ? fallback : bust}
-      alt={alt}
+      src={broken ? fallback : src}
+      alt={alt || ''}
       className={className}
       decoding="async"
       loading="lazy"

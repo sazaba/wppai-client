@@ -17,7 +17,7 @@ type Props = {
   isEditing: (idx: number) => boolean
   onEdit: (idx: number) => void
   onDelete: (idx: number) => void
-  onSave: (idx: number, patch: Partial<Producto>) => void   // <-- cambiado
+  onSave: (idx: number, patch: Partial<Producto>) => void   // <-- patch desde ProductCard
   onCancel: (idx: number) => void
   onUpload: (idx: number, file: File) => Promise<void> | void
   onRemoveImage: (idx: number, imageId: number) => void
@@ -124,7 +124,7 @@ function CatalogPanelBase({
                 isEditing={isEditing(idx)}
                 onEdit={() => onEdit(idx)}
                 onDelete={() => onDelete(idx)}
-                onSave={(patch) => onSave(idx, patch)}           
+                onSave={(patch) => onSave(idx, patch)}
                 onCancel={() => onCancel(idx)}
                 onUpload={(file) => onUpload(idx, file)}
                 onRemoveImage={(imageId) => onRemoveImage(idx, imageId)}
