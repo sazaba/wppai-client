@@ -25,25 +25,20 @@ const nextConfig = {
                             "img-src 'self' data: blob: https://wppai-products.a9d4a6cfaa683e47a3f47ab28525f5f0.r2.cloudflarestorage.com",
                             "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
                             "style-src 'self' 'unsafe-inline'",
-                            "connect-src 'self' https:",
+                            // 🔽 añade wss: y tu backend https
+                            "connect-src 'self' https: wss: https://wppai-server.onrender.com",
                             "frame-ancestors 'self'",
                         ].join('; '),
                     },
                 ],
             },
-        ];
+        ]
     },
-
-    // 🔴 NUEVO: proxy de imágenes al backend
     async rewrites() {
-        const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'https://wppai-server.onrender.com';
+        const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'https://wppai-server.onrender.com'
         return [
-            {
-                source: '/api/products/:id/images/:file*',
-                destination: `${API_BASE}/api/products/:id/images/:file*`,
-            },
-        ];
+            { source: '/api/products/:id/images/:file*', destination: `${API_BASE}/api/products/:id/images/:file*` },
+        ]
     },
-};
-
-module.exports = nextConfig;
+}
+module.exports = nextConfig
