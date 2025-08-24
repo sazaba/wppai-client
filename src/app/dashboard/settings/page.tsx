@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { Sparkles, RotateCw } from 'lucide-react'
 import axios from 'axios'
-import ModalEntrenamiento from './components/ModalEntrenamiento'
+import ModalEntrenamiento from './components/training/ModalEntrenamiento'
 import WhatsappConfig from './components/WhatsappConfig'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL as string
