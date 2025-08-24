@@ -15,7 +15,7 @@ type Props = {
   onDelete: () => void
 
   // acciones de edición
-  onSave?: (patch: Partial<Producto>) => void
+  onSave?: (patch: Partial<Producto>) => Promise<void> | void
   onCancel?: () => void
 
   // imágenes
@@ -49,9 +49,16 @@ function ProductCardBase({
 }: Props) {
   const [draft, setDraft] = useState<Producto>(producto)
 
-  // preview optimista durante la subida
+  // --- NUEVO: cola local de imágenes pendientes (no se suben aún) ---
+  const [pendingImages, setPendingImages] = useState<Array<{ id: string; file: File; preview: string }>>([])
+  const hasPendings = pendingImages.length > 0
+
+  // control de subida al presionar check
+  const [savingAll, setSavingAll] = useState(false)
+
+  // compat: preview antiguo durante “subida inmediata” (ya no se usa para subir)
   const [tempPreviewUrl, setTempPreviewUrl] = useState<string | null>(null)
-  const hasPreview = !!tempPreviewUrl
+  const hasPreview = !!tempPreviewUrl // se mantiene para no romper nada visual si lo usabas
 
   useEffect(() => {
     if (isEditing) setDraft(producto)
@@ -60,9 +67,12 @@ function ProductCardBase({
 
   useEffect(() => {
     return () => {
+      // liberar URLs locales
+      pendingImages.forEach((p) => URL.revokeObjectURL(p.preview))
       if (tempPreviewUrl) URL.revokeObjectURL(tempPreviewUrl)
     }
-  }, [tempPreviewUrl])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const validateFile = (file: File) => {
     const sizeMB = file.size / (1024 * 1024)
@@ -75,19 +85,45 @@ function ProductCardBase({
     return true
   }
 
+  // --- NUEVO: seleccionar archivo -> SOLO agregar a pendientes y mostrar preview local ---
   const handleSelectFile = async (file: File | undefined | null) => {
     if (!file) return
     if (!validateFile(file)) return
-    // preview optimista
     const url = URL.createObjectURL(file)
-    setTempPreviewUrl(url)
+    const id = `${file.name}-${Date.now()}-${Math.random().toString(36).slice(2)}`
+    setPendingImages((prev) => [...prev, { id, file, preview: url }])
+  }
+
+  // --- NUEVO: limpiar pendientes (por ejemplo al cancelar) ---
+  const clearPendings = () => {
+    pendingImages.forEach((p) => URL.revokeObjectURL(p.preview))
+    setPendingImages([])
+  }
+
+  // --- NUEVO: guardar (check verde) -> sube pendientes y guarda patch del producto ---
+  const handleSaveAll = async () => {
     try {
-      await onUpload?.(file)
+      setSavingAll(true)
+      // 1) Subir imágenes pendientes (si hay)
+      if (onUpload && pendingImages.length > 0) {
+        for (const p of pendingImages) {
+          // subida secuencial para simplificar estados/errores
+          await onUpload(p.file)
+        }
+      }
+      // 2) Guardar cambios del producto
+      await onSave?.(draft)
+      // 3) Limpiar cola local
+      clearPendings()
     } finally {
-      // dejamos al padre actualizar la lista con la URL real; limpiamos preview
-      URL.revokeObjectURL(url)
-      setTempPreviewUrl(null)
+      setSavingAll(false)
     }
+  }
+
+  // cancelar edición: limpia pendientes y deja que el padre maneje el resto
+  const handleCancel = () => {
+    clearPendings()
+    onCancel?.()
   }
 
   return (
@@ -116,22 +152,22 @@ function ProductCardBase({
           {isEditing ? (
             <>
               <button
-                onClick={() => onSave?.(draft)}
-                disabled={!!saving}
+                onClick={handleSaveAll}
+                disabled={!!saving || savingAll}
                 className="p-1.5 rounded-lg hover:bg-emerald-700/30 disabled:opacity-60"
                 title="Guardar cambios"
                 aria-label="Guardar cambios"
                 type="button"
               >
-                {saving ? (
+                {saving || savingAll ? (
                   <Loader2 className="w-4 h-4 animate-spin text-emerald-400" />
                 ) : (
                   <Check className="w-4 h-4 text-emerald-400" />
                 )}
               </button>
               <button
-                onClick={() => onCancel?.()}
-                disabled={!!saving}
+                onClick={handleCancel}
+                disabled={!!saving || savingAll}
                 className="p-1.5 rounded-lg hover:bg-red-700/30 disabled:opacity-60"
                 title="Cancelar edición"
                 aria-label="Cancelar edición"
@@ -142,7 +178,7 @@ function ProductCardBase({
             </>
           ) : (
             <>
-              {/* Subida rápida */}
+              {/* Subida rápida (ahora SOLO agrega a pendientes; no sube a BD) */}
               {producto.id && (
                 <>
                   <input
@@ -162,8 +198,8 @@ function ProductCardBase({
                     }
                     disabled={uploading}
                     className="p-1.5 rounded-lg hover:bg-slate-700 disabled:opacity-60"
-                    title="Subir imagen"
-                    aria-label="Subir imagen"
+                    title="Agregar imagen (pendiente)"
+                    aria-label="Agregar imagen (pendiente)"
                     type="button"
                   >
                     {uploading ? (
@@ -251,27 +287,29 @@ function ProductCardBase({
               </div>
             ))}
 
-            {/* preview optimista mientras sube */}
-            {hasPreview && (
-              <div className="relative">
+            {/* NUEVO: previews locales pendientes (cuando no estás editando también se pueden ver) */}
+            {pendingImages.map((p) => (
+              <div key={p.id} className="relative">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src={tempPreviewUrl!}
-                  alt="preview"
-                  className="w-full h-16 object-cover rounded-lg border border-slate-700 opacity-70"
+                  src={p.preview}
+                  alt="pendiente"
+                  className="w-full h-16 object-cover rounded-lg border border-slate-700 opacity-80"
                 />
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                </div>
+                <span className="absolute bottom-1 left-1 text-[10px] px-1.5 py-0.5 rounded bg-amber-500 text-black">
+                  Pendiente
+                </span>
               </div>
-            )}
+            ))}
 
             {/* si no hay nada */}
-            {!hasPreview && (!producto.imagenes || producto.imagenes.length === 0) && (
-              <div className="col-span-3 h-16 rounded-lg border border-slate-700 flex items-center justify-center text-[11px] text-slate-400">
-                Sin imágenes
-              </div>
-            )}
+            {!hasPreview &&
+              !hasPendings &&
+              (!producto.imagenes || producto.imagenes.length === 0) && (
+                <div className="col-span-3 h-16 rounded-lg border border-slate-700 flex items-center justify-center text-[11px] text-slate-400">
+                  Sin imágenes
+                </div>
+              )}
           </div>
         </>
       ) : (
@@ -322,7 +360,9 @@ function ProductCardBase({
           {/* Imágenes en edición */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <div className="text-xs text-slate-400">Imágenes</div>
+              <div className="text-xs text-slate-400">
+                Imágenes {hasPendings && <span className="ml-1 text-amber-400">(pendientes: {pendingImages.length})</span>}
+              </div>
               {producto.id && (
                 <>
                   <input
@@ -338,11 +378,11 @@ function ProductCardBase({
                   />
                   <button
                     onClick={() => document.getElementById(`upload-edit-${idx}`)?.click()}
-                    disabled={uploading}
+                    disabled={uploading || savingAll}
                     className="px-2 py-1 rounded-lg border border-slate-700 bg-slate-800 hover:bg-slate-700 text-xs inline-flex items-center gap-1 disabled:opacity-60"
                     type="button"
                   >
-                    {uploading ? (
+                    {uploading || savingAll ? (
                       <Loader2 className="w-3.5 h-3.5 animate-spin" />
                     ) : (
                       <>
@@ -356,15 +396,15 @@ function ProductCardBase({
             </div>
 
             <div className="grid grid-cols-3 gap-2">
+              {/* Imágenes persistidas */}
               {producto.imagenes?.map((img: ImagenProducto) => (
                 <div key={img.id ?? img.url} className="relative">
                   <ImgAlways
-  src={img.url}
-  alt={img.alt || ''}
-  className="w-full h-16 object-cover rounded-lg border border-slate-700"
-  disableBust
-/>
-
+                    src={img.url}
+                    alt={img.alt || ''}
+                    className="w-full h-16 object-cover rounded-lg border border-slate-700"
+                    disableBust
+                  />
                   {img.id && (
                     <button
                       onClick={() => img.id && onRemoveImage?.(img.id)}
@@ -379,25 +419,42 @@ function ProductCardBase({
                 </div>
               ))}
 
-              {hasPreview && (
-                <div className="relative">
+              {/* NUEVO: previews de pendientes (solo locales, NO en BD) */}
+              {pendingImages.map((p) => (
+                <div key={p.id} className="relative">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
-                    src={tempPreviewUrl!}
-                    alt="preview"
-                    className="w-full h-16 object-cover rounded-lg border border-slate-700 opacity-70"
+                    src={p.preview}
+                    alt="pendiente"
+                    className="w-full h-16 object-cover rounded-lg border border-slate-700 opacity-80"
                   />
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                  </div>
+                  <span className="absolute bottom-1 left-1 text-[10px] px-1.5 py-0.5 rounded bg-amber-500 text-black">
+                    Pendiente
+                  </span>
+                  {/* botón para quitar de pendientes antes de guardar */}
+                  <button
+                    onClick={() => {
+                      URL.revokeObjectURL(p.preview)
+                      setPendingImages((prev) => prev.filter((x) => x.id !== p.id))
+                    }}
+                    className="absolute -top-2 -right-2 p-1 rounded-full bg-slate-900 border border-slate-700"
+                    title="Quitar de pendientes"
+                    aria-label="Quitar de pendientes"
+                    type="button"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
                 </div>
-              )}
+              ))}
 
-              {!hasPreview && (!producto.imagenes || producto.imagenes.length === 0) && (
-                <div className="col-span-3 h-14 rounded-lg border border-dashed border-slate-700 text-[11px] text-slate-400 flex items-center justify-center">
-                  Sin imágenes
-                </div>
-              )}
+              {/* estado vacío */}
+              {!hasPreview &&
+                !hasPendings &&
+                (!producto.imagenes || producto.imagenes.length === 0) && (
+                  <div className="col-span-3 h-14 rounded-lg border border-dashed border-slate-700 text-[11px] text-slate-400 flex items-center justify-center">
+                    Sin imágenes
+                  </div>
+                )}
             </div>
           </div>
         </div>
