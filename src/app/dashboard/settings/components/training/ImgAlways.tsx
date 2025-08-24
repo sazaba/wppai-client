@@ -17,16 +17,15 @@ function isSignedUrl(url: string) {
   try {
     const u = new URL(url, typeof window !== 'undefined' ? window.location.href : undefined)
     const q = u.searchParams
-    // señales típicas de URLs firmadas (S3/R2/presigned/secure)
+    // señales típicas de presigned (AWS/R2)
     return (
       q.has('X-Amz-Signature') ||
       q.has('X-Amz-Algorithm') ||
       q.has('X-Amz-Credential') ||
       q.has('X-Amz-Security-Token') ||
-      q.has('signature') ||
-      q.has('token') ||
-      q.has('expires') ||
-      q.has('sig')
+      q.has('X-Amz-Date') ||
+      q.has('X-Amz-Expires') ||
+      q.has('signature') || q.has('sig') || q.has('token') || q.has('expires')
     )
   } catch {
     return false
@@ -51,8 +50,8 @@ export default function ImgAlways({
 
   const signed = useMemo(() => isSignedUrl(src), [src])
 
-  // Solo hacemos bust si NO está firmada y no se desactivó
-  const busted = useMemo(() => {
+  // Solo bust para NO firmadas
+  const effectiveSrc = useMemo(() => {
     if (!src) return ''
     if (src.startsWith('data:')) return src
     if (disableBust || signed) return src
@@ -71,7 +70,7 @@ export default function ImgAlways({
     )
 
   const handleError = () => {
-    // si la URL está firmada, no reintentamos con bust porque romperíamos la firma
+    // en firmadas NO reintentamos con bust (rompería la firma)
     if (!signed && attempt < retries) {
       const next = attempt + 1
       setTimeout(() => setAttempt(next), 250 * next) // backoff suave
@@ -80,17 +79,22 @@ export default function ImgAlways({
     }
   }
 
+  // Props de <img>: en firmadas, evitar crossOrigin / referrerPolicy
+  const imgCommonProps = {
+    alt,
+    className,
+    decoding: 'async' as const,
+    loading: 'lazy' as const,
+    onError: handleError,
+  }
+
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img
-      src={showFallback ? fallback : busted}
-      alt={alt}
-      className={className}
-      decoding="async"
-      loading="lazy"
-      crossOrigin="anonymous"
-      referrerPolicy="no-referrer"
-      onError={handleError}
+      src={showFallback ? fallback : effectiveSrc}
+      {...imgCommonProps}
+      {...(!signed && { crossOrigin: 'anonymous' })}
+      {...(!signed && { referrerPolicy: 'no-referrer' as const })}
     />
   )
 }
