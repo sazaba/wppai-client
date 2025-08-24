@@ -23,12 +23,10 @@ type Props = {
   onUpload?: (idx: number, file: File) => Promise<void> | void
   onRemoveImage: (idx: number, imageId: number) => void
 
-  /** Opcionales: si no los pasas, el panel maneja su propio estado */
   uploadingIndex?: number | null
   savingIndex?: number | null
 }
 
-/** Pequeño helper para leer width/height del file (opcional) */
 async function getImageMeta(file: File): Promise<{ width?: number; height?: number }> {
   try {
     const bmp = await createImageBitmap(file)
@@ -52,20 +50,18 @@ function CatalogPanelBase({
   onDelete,
   onSave,
   onCancel,
-  onUpload,            // <- si viene, se usa; si no, usamos interno
+  onUpload,
   onRemoveImage,
   uploadingIndex,
   savingIndex,
 }: Props) {
-  // Estados internos (fallback) si no te pasan uploadingIndex/savingIndex
   const [localUploadingIdx, setLocalUploadingIdx] = useState<number | null>(null)
-
   const effectiveUploadingIndex = useMemo(
     () => (typeof uploadingIndex === 'number' || uploadingIndex === null ? uploadingIndex : localUploadingIdx),
     [uploadingIndex, localUploadingIdx]
   )
 
-  // --- Flujo interno: presign → PUT (R2) → confirm (DB)
+  // Presign → PUT (R2) → Confirm
   const uploadWithPresign = useCallback(
     async (idx: number, file: File) => {
       const product = productos[idx]
@@ -79,24 +75,18 @@ function CatalogPanelBase({
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ filename: file.name, mimeType: file.type }),
         })
-        if (!pres.ok) {
-          const t = await pres.text().catch(() => '')
-          throw new Error(`No se pudo firmar la URL (${pres.status}) ${t}`)
-        }
+        if (!pres.ok) throw new Error(`No se pudo firmar la URL (${pres.status})`)
         const { url, objectKey } = await pres.json()
 
-        // B) PUT directo a R2 (sin Authorization)
+        // B) PUT directo a R2 (SIN Authorization)
         const put = await fetch(url, {
           method: 'PUT',
           headers: { 'Content-Type': file.type || 'application/octet-stream' },
           body: file,
         })
-        if (!put.ok) {
-          const t = await put.text().catch(() => '')
-          throw new Error(`Fallo el PUT a R2 (${put.status}) ${t}`)
-        }
+        if (!put.ok) throw new Error(`Fallo el PUT a R2 (${put.status})`)
 
-        // C) confirm (guarda en DB)
+        // C) confirm (DB)
         const meta = await getImageMeta(file)
         const conf = await fetch(`/api/products/${product.id}/images/confirm`, {
           method: 'POST',
@@ -111,12 +101,8 @@ function CatalogPanelBase({
             height: meta.height,
           }),
         })
-        if (!conf.ok) {
-          const t = await conf.text().catch(() => '')
-          throw new Error(`No se pudo confirmar la imagen (${conf.status}) ${t}`)
-        }
+        if (!conf.ok) throw new Error(`No se pudo confirmar la imagen (${conf.status})`)
 
-        // Refresca catálogo
         onReload()
       } finally {
         setLocalUploadingIdx(null)
@@ -125,11 +111,10 @@ function CatalogPanelBase({
     [productos, onReload]
   )
 
-  // Adaptador: si el padre pasa onUpload, úsalo; si no, usa el interno
   const handleUpload = useCallback(
     async (idx: number, file: File) => {
-      if (onUpload) return onUpload(idx, file)
-      return uploadWithPresign(idx, file)
+      if (onUpload) return onUpload(idx, file) // si el padre lo provee, lo respeta
+      return uploadWithPresign(idx, file)      // si no, usa presign interno
     },
     [onUpload, uploadWithPresign]
   )
