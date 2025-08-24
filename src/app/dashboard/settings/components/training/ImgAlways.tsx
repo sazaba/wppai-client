@@ -6,8 +6,31 @@ type Props = {
   src: string
   alt?: string
   className?: string
-  /** cuántos reintentos hacer si falla la carga (por latencia del CDN) */
+  /** reintentos si falla la carga (solo para URLs NO firmadas) */
   retries?: number
+  /** desactivar cache-busting manualmente */
+  disableBust?: boolean
+}
+
+function isSignedUrl(url: string) {
+  if (!url) return false
+  try {
+    const u = new URL(url, typeof window !== 'undefined' ? window.location.href : undefined)
+    const q = u.searchParams
+    // señales típicas de URLs firmadas (S3/R2/presigned/secure)
+    return (
+      q.has('X-Amz-Signature') ||
+      q.has('X-Amz-Algorithm') ||
+      q.has('X-Amz-Credential') ||
+      q.has('X-Amz-Security-Token') ||
+      q.has('signature') ||
+      q.has('token') ||
+      q.has('expires') ||
+      q.has('sig')
+    )
+  } catch {
+    return false
+  }
 }
 
 export default function ImgAlways({
@@ -15,23 +38,27 @@ export default function ImgAlways({
   alt = '',
   className,
   retries = 4,
+  disableBust = false,
 }: Props) {
   const [attempt, setAttempt] = useState(0)
   const [showFallback, setShowFallback] = useState(false)
 
-  // Si cambia la src “base”, resetea el estado de error e intentos
+  // reset al cambiar src
   useEffect(() => {
     setAttempt(0)
     setShowFallback(false)
   }, [src])
 
-  // bust evita cache; incluye el número de intento
+  const signed = useMemo(() => isSignedUrl(src), [src])
+
+  // Solo hacemos bust si NO está firmada y no se desactivó
   const busted = useMemo(() => {
     if (!src) return ''
     if (src.startsWith('data:')) return src
+    if (disableBust || signed) return src
     const sep = src.includes('?') ? '&' : '?'
     return `${src}${sep}_=${Date.now()}-${attempt}`
-  }, [src, attempt])
+  }, [src, attempt, disableBust, signed])
 
   const fallback =
     'data:image/svg+xml;charset=UTF-8,' +
@@ -44,8 +71,8 @@ export default function ImgAlways({
     )
 
   const handleError = () => {
-    // Reintenta algunas veces (R2/CDN puede tardar un poco en servir la nueva imagen)
-    if (attempt < retries) {
+    // si la URL está firmada, no reintentamos con bust porque romperíamos la firma
+    if (!signed && attempt < retries) {
       const next = attempt + 1
       setTimeout(() => setAttempt(next), 250 * next) // backoff suave
     } else {
