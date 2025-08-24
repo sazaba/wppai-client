@@ -28,7 +28,7 @@ export default function ModalEntrenamiento({
   useEffect(() => setOpen(trainingActive), [trainingActive])
 
   // UI
-  const [step, setStep] = useState(0) // 0 = formulario negocio, 1 = catálogo (si businessType === 'productos')
+  const [step, setStep] = useState(0)
   const [saving, setSaving] = useState(false)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
   const [reloading, setReloading] = useState(false)
@@ -47,7 +47,7 @@ export default function ModalEntrenamiento({
     businessType: ((initialConfig?.businessType as BusinessType) || 'servicios') as BusinessType,
   })
 
-  // Catálogo (solo aplica para productos)
+  // Catálogo
   const [productos, setProductos] = useState<Producto[]>([])
   const [catalogLoaded, setCatalogLoaded] = useState(false)
 
@@ -61,27 +61,18 @@ export default function ModalEntrenamiento({
     imagenes: [],
   })
 
-  // Edición/estado por tarjeta
   const [editingIndex, setEditingIndex] = useState<number | null>(null)
   const [uploadingCardIndex, setUploadingCardIndex] = useState<number | null>(null)
   const [savingIndex, setSavingIndex] = useState<number | null>(null)
 
-  // Pasos: servicios = 1 paso; productos = 2 pasos (form + catálogo)
   const totalSteps = useMemo(() => (businessType === 'productos' ? 2 : 1), [businessType])
   const isCatalogStep = businessType === 'productos' && step === 1
 
-  const close = () => {
-    setOpen(false)
-    onClose?.()
-  }
-  const next = () => {
-    if (step < totalSteps - 1) setStep((s) => s + 1)
-  }
-  const back = () => {
-    if (step > 0) setStep((s) => s - 1)
-  }
+  const close = () => { setOpen(false); onClose?.() }
+  const next = () => { if (step < totalSteps - 1) setStep((s) => s + 1) }
+  const back = () => { if (step > 0) setStep((s) => s - 1) }
 
-  // ----- API helpers -----
+  // --- API ---
   async function uploadImageFile(productId: number, file: File, alt?: string, isPrimary?: boolean) {
     const fd = new FormData()
     fd.append('file', file)
@@ -102,7 +93,6 @@ export default function ModalEntrenamiento({
     cardIndex: number,
     imageIndex: number
   ) {
-    // optimista
     setProductos((list) => {
       const copy = [...list]
       const prod = copy[cardIndex]
@@ -123,10 +113,7 @@ export default function ModalEntrenamiento({
   }
 
   async function crearProducto() {
-    if (!nuevoProd.nombre.trim()) {
-      setErrorMsg('El producto necesita al menos un nombre.')
-      return
-    }
+    if (!nuevoProd.nombre.trim()) { setErrorMsg('El producto necesita al menos un nombre.'); return }
     try {
       const { data: created } = await axios.post(
         `${API_URL}/api/products`,
@@ -153,12 +140,7 @@ export default function ModalEntrenamiento({
         },
       ])
       setNuevoProd({
-        nombre: '',
-        descripcion: '',
-        beneficios: '',
-        caracteristicas: '',
-        precioDesde: null,
-        imagenes: [],
+        nombre: '', descripcion: '', beneficios: '', caracteristicas: '', precioDesde: null, imagenes: [],
       })
       setErrorMsg(null)
     } catch (e: any) {
@@ -169,7 +151,6 @@ export default function ModalEntrenamiento({
   async function deleteProducto(idx: number) {
     const prod = productos[idx]
     if (!prod) return
-    // optimista
     setProductos((arr) => arr.filter((_, i) => i !== idx))
     if (!prod.id) return
     try {
@@ -180,20 +161,12 @@ export default function ModalEntrenamiento({
     }
   }
 
-  function startEdit(idx: number) {
-    setEditingIndex(idx)
-  }
-  function cancelEdit() {
-    setEditingIndex(null)
-  }
+  function startEdit(idx: number) { setEditingIndex(idx) }
+  function cancelEdit() { setEditingIndex(null) }
 
-  // onSave desde ProductCard -> recibimos patch del draft
   async function saveProduct(idx: number, patch: Partial<Producto>) {
     const prod = productos[idx]
-    if (!prod?.id) {
-      setEditingIndex(null)
-      return
-    }
+    if (!prod?.id) { setEditingIndex(null); return }
     try {
       setSavingIndex(idx)
       await axios.put(
@@ -204,18 +177,13 @@ export default function ModalEntrenamiento({
           beneficios: patch.beneficios ?? prod.beneficios,
           caracteristicas: patch.caracteristicas ?? prod.caracteristicas,
           precioDesde:
-            typeof patch.precioDesde !== 'undefined' ? patch.precioDesde : prod.precioDesde ?? null,
+            typeof patch.precioDesde !== 'undefined' ? patch.precioDesde : (prod.precioDesde ?? null),
         },
         { headers: getAuthHeaders() }
       )
-
-      // Actualiza local sin necesidad de recargar todo
       setProductos((list) => {
         const copy = [...list]
-        copy[idx] = {
-          ...prod,
-          ...patch,
-        }
+        copy[idx] = { ...copy[idx], ...patch }
         return copy
       })
       setEditingIndex(null)
@@ -227,23 +195,45 @@ export default function ModalEntrenamiento({
     }
   }
 
+  // *** SUBIDA CON PREVIEW OPTIMISTA ***
   async function handleUploadAt(idx: number, file: File) {
     const prod = productos[idx]
     if (!prod?.id) return
+
+    // 1) preview optimista con ObjectURL
+    const tmpUrl = URL.createObjectURL(file)
+    setProductos((list) => {
+      const copy = [...list]
+      const imgs = [...(copy[idx].imagenes || []), { url: tmpUrl, alt: 'subiendo...' } as ImagenProducto]
+      copy[idx] = { ...copy[idx], imagenes: imgs }
+      return copy
+    })
+
     try {
       setUploadingCardIndex(idx)
-      const newImg = await uploadImageFile(prod.id, file)
+      // 2) subida real
+      const uploaded = await uploadImageFile(prod.id, file)
+      // 3) sustituir preview por la imagen real
       setProductos((list) => {
         const copy = [...list]
-        const current = copy[idx]
-        if (!current) return list
-        copy[idx] = { ...current, imagenes: [...(current.imagenes || []), newImg] }
+        const imgs = (copy[idx].imagenes || []).map((im) => (im.url === tmpUrl ? uploaded : im))
+        copy[idx] = { ...copy[idx], imagenes: imgs }
         return copy
       })
     } catch (e: any) {
+      // si falla, quita la imagen temporal
+      setProductos((list) => {
+        const copy = [...list]
+        copy[idx] = {
+          ...copy[idx],
+          imagenes: (copy[idx].imagenes || []).filter((im) => im.url !== tmpUrl),
+        }
+        return copy
+      })
       setErrorMsg(e?.response?.data?.error || 'No se pudo subir la imagen.')
     } finally {
       setUploadingCardIndex(null)
+      URL.revokeObjectURL(tmpUrl)
     }
   }
 
@@ -274,7 +264,6 @@ export default function ModalEntrenamiento({
     }
   }
 
-  // Al abrir modal, resetea y carga según tipo
   useEffect(() => {
     if (!open) return
     const bt = (initialConfig?.businessType as BusinessType) || 'servicios'
@@ -288,18 +277,10 @@ export default function ModalEntrenamiento({
       disclaimers: initialConfig?.disclaimers || '',
       businessType: bt,
     })
-    if (bt === 'productos') {
-      void loadCatalog()
-      setStep(0)
-    } else {
-      setProductos([])
-      setCatalogLoaded(false)
-      setStep(0)
-    }
-    setErrorMsg(null)
+    if (bt === 'productos') { void loadCatalog() } else { setProductos([]); setCatalogLoaded(false) }
+    setStep(0); setErrorMsg(null)
   }, [open])
 
-  // Cambiar tipo (tabs)
   async function handleChangeType(t: BusinessType) {
     if (t === 'productos') {
       setBusinessType('productos')
@@ -309,22 +290,14 @@ export default function ModalEntrenamiento({
     } else {
       setBusinessType('servicios')
       setForm((f) => ({ ...f, businessType: 'servicios' }))
-      setProductos([])
-      setCatalogLoaded(false)
-      setStep(0)
+      setProductos([]); setCatalogLoaded(false); setStep(0)
     }
   }
 
-  // Guardar toda la configuración (form)
   async function guardarTodo() {
     try {
-      setSaving(true)
-      setErrorMsg(null)
-      await axios.put(
-        `${API_URL}/api/config`,
-        { ...form, businessType },
-        { headers: getAuthHeaders() }
-      )
+      setSaving(true); setErrorMsg(null)
+      await axios.put(`${API_URL}/api/config`, { ...form, businessType }, { headers: getAuthHeaders() })
       if (businessType === 'productos') await loadCatalog()
       close()
     } catch (e: any) {
@@ -353,32 +326,19 @@ export default function ModalEntrenamiento({
                   <div className="px-2 py-1 rounded-lg bg-slate-800 text-xs font-medium border border-slate-700">
                     Entrenamiento de IA
                   </div>
-                  <span className="text-slate-400 text-sm">
-                    Paso {step + 1} de {totalSteps}
-                  </span>
+                  <span className="text-slate-400 text-sm">Paso {step + 1} de {totalSteps}</span>
                 </div>
-                <button
-                  onClick={close}
-                  className="p-2 rounded-lg hover:bg-slate-800 border border-transparent hover:border-slate-700 transition"
-                  aria-label="Cerrar"
-                  type="button"
-                >
+                <button onClick={close} className="p-2 rounded-lg hover:bg-slate-800 border border-transparent hover:border-slate-700 transition" aria-label="Cerrar" type="button">
                   <X className="w-5 h-5 text-slate-300" />
                 </button>
               </div>
 
-              {/* tabs */}
               <div className="mb-4">
                 <TypeTabs value={businessType} onChange={handleChangeType} loading={reloading} />
               </div>
 
-              {/* contenido */}
               {!isCatalogStep ? (
-                <BusinessForm
-                  value={form}
-                  businessType={businessType}
-                  onChange={(patch) => setForm((f) => ({ ...f, ...patch, businessType }))}
-                />
+                <BusinessForm value={form} businessType={businessType} onChange={(patch) => setForm((f) => ({ ...f, ...patch, businessType }))} />
               ) : (
                 <CatalogPanel
                   productos={productos}
@@ -419,32 +379,18 @@ export default function ModalEntrenamiento({
                 </div>
                 <div className="flex items-center gap-2">
                   {step > 0 ? (
-                    <button
-                      onClick={back}
-                      className="px-4 py-2 rounded-xl border border-slate-700 bg-slate-800 hover:bg-slate-700 text-sm"
-                      type="button"
-                    >
+                    <button onClick={back} className="px-4 py-2 rounded-xl border border-slate-700 bg-slate-800 hover:bg-slate-700 text-sm" type="button">
                       Atrás
                     </button>
                   ) : (
                     <div className="hidden sm:block w-[84px]" />
                   )}
                   {step < totalSteps - 1 ? (
-                    <button
-                      onClick={next}
-                      className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm disabled:opacity-60"
-                      disabled={false}
-                      type="button"
-                    >
+                    <button onClick={next} className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm disabled:opacity-60" type="button">
                       Siguiente
                     </button>
                   ) : (
-                    <button
-                      onClick={guardarTodo}
-                      disabled={saving}
-                      className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm disabled:opacity-60"
-                      type="button"
-                    >
+                    <button onClick={guardarTodo} disabled={saving} className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm disabled:opacity-60" type="button">
                       {saving ? 'Guardando…' : 'Finalizar y guardar'}
                     </button>
                   )}

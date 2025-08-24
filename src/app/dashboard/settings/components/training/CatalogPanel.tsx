@@ -13,16 +13,14 @@ type Props = {
   onChangeNuevo: (patch: Partial<Producto>) => void
   onCrear: () => void
 
-  // por producto (indexado)
   isEditing: (idx: number) => boolean
   onEdit: (idx: number) => void
   onDelete: (idx: number) => void
-  onSave: (idx: number, patch: Partial<Producto>) => void   // <-- patch desde ProductCard
+  onSave: (idx: number, patch: Partial<Producto>) => void
   onCancel: (idx: number) => void
   onUpload: (idx: number, file: File) => Promise<void> | void
   onRemoveImage: (idx: number, imageId: number) => void
 
-  // opcionales de UI (por índice)
   uploadingIndex?: number | null
   savingIndex?: number | null
 }
@@ -46,9 +44,8 @@ function CatalogPanelBase({
 }: Props) {
   return (
     <div className="space-y-5">
-      {/* Header */}
       <div className="flex items-center justify-between">
-        <h2 className="text-lg sm:text-xl font-semibold"> Crear Producto</h2>
+        <h2 className="text-lg sm:text-xl font-semibold">Catálogo (crear / editar)</h2>
         <button
           onClick={onReload}
           disabled={reloading}
@@ -60,7 +57,6 @@ function CatalogPanelBase({
         </button>
       </div>
 
-      {/* Crear nuevo */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 bg-slate-800/60 border border-slate-700 rounded-2xl p-4">
         <input
           placeholder="Nombre del producto *"
@@ -111,7 +107,6 @@ function CatalogPanelBase({
         </div>
       </div>
 
-      {/* Listado */}
       {!!productos.length && (
         <div className="space-y-2">
           <h3 className="text-sm text-slate-300">Productos ({productos.length})</h3>
