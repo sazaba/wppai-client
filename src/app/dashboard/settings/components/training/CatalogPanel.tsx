@@ -124,7 +124,7 @@ function CatalogPanelBase({
                 isEditing={isEditing(idx)}
                 onEdit={() => onEdit(idx)}
                 onDelete={() => onDelete(idx)}
-                onSave={(patch) => onSave(idx, patch)}           {/* <-- cambiado */}
+                onSave={(patch) => onSave(idx, patch)}           
                 onCancel={() => onCancel(idx)}
                 onUpload={(file) => onUpload(idx, file)}
                 onRemoveImage={(imageId) => onRemoveImage(idx, imageId)}
