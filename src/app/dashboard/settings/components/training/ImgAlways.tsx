@@ -1,20 +1,37 @@
-// src/app/dashboard/settings/components/training/ImgAlways.tsx
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
 type Props = {
   src: string
   alt?: string
   className?: string
+  /** cuántos reintentos hacer si falla la carga (por latencia del CDN) */
+  retries?: number
 }
 
-/**
- * ImgAlways: NO modifica la URL.
- * Evita romper URLs firmadas (R2/Cloudflare) y muestra un SVG de fallback si falla.
- */
-export default function ImgAlways({ src, alt, className }: Props) {
-  const [broken, setBroken] = useState(false)
+export default function ImgAlways({
+  src,
+  alt = '',
+  className,
+  retries = 4,
+}: Props) {
+  const [attempt, setAttempt] = useState(0)
+  const [showFallback, setShowFallback] = useState(false)
+
+  // Si cambia la src “base”, resetea el estado de error e intentos
+  useEffect(() => {
+    setAttempt(0)
+    setShowFallback(false)
+  }, [src])
+
+  // bust evita cache; incluye el número de intento
+  const busted = useMemo(() => {
+    if (!src) return ''
+    if (src.startsWith('data:')) return src
+    const sep = src.includes('?') ? '&' : '?'
+    return `${src}${sep}_=${Date.now()}-${attempt}`
+  }, [src, attempt])
 
   const fallback =
     'data:image/svg+xml;charset=UTF-8,' +
@@ -26,17 +43,27 @@ export default function ImgAlways({ src, alt, className }: Props) {
       </svg>`
     )
 
+  const handleError = () => {
+    // Reintenta algunas veces (R2/CDN puede tardar un poco en servir la nueva imagen)
+    if (attempt < retries) {
+      const next = attempt + 1
+      setTimeout(() => setAttempt(next), 250 * next) // backoff suave
+    } else {
+      setShowFallback(true)
+    }
+  }
+
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img
-      src={broken ? fallback : src}
-      alt={alt || ''}
+      src={showFallback ? fallback : busted}
+      alt={alt}
       className={className}
       decoding="async"
       loading="lazy"
-      referrerPolicy="no-referrer"
       crossOrigin="anonymous"
-      onError={() => setBroken(true)}
+      referrerPolicy="no-referrer"
+      onError={handleError}
     />
   )
 }
