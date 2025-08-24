@@ -1,7 +1,7 @@
 'use client'
 
 import { Plus, RefreshCw } from 'lucide-react'
-import { memo } from 'react'
+import { memo, useCallback, useMemo, useState } from 'react'
 import type { Producto } from './types'
 import ProductCard from './ProductCard'
 
@@ -18,11 +18,26 @@ type Props = {
   onDelete: (idx: number) => void
   onSave: (idx: number, patch: Partial<Producto>) => void
   onCancel: (idx: number) => void
-  onUpload: (idx: number, file: File) => Promise<void> | void
+
+  /** Opcional: si lo pasas, se usará en vez del flujo interno presign→PUT→confirm */
+  onUpload?: (idx: number, file: File) => Promise<void> | void
   onRemoveImage: (idx: number, imageId: number) => void
 
+  /** Opcionales: si no los pasas, el panel maneja su propio estado */
   uploadingIndex?: number | null
   savingIndex?: number | null
+}
+
+/** Pequeño helper para leer width/height del file (opcional) */
+async function getImageMeta(file: File): Promise<{ width?: number; height?: number }> {
+  try {
+    const bmp = await createImageBitmap(file)
+    const meta = { width: bmp.width, height: bmp.height }
+    bmp.close()
+    return meta
+  } catch {
+    return {}
+  }
 }
 
 function CatalogPanelBase({
@@ -37,11 +52,88 @@ function CatalogPanelBase({
   onDelete,
   onSave,
   onCancel,
-  onUpload,
+  onUpload,            // <- si viene, se usa; si no, usamos interno
   onRemoveImage,
   uploadingIndex,
   savingIndex,
 }: Props) {
+  // Estados internos (fallback) si no te pasan uploadingIndex/savingIndex
+  const [localUploadingIdx, setLocalUploadingIdx] = useState<number | null>(null)
+
+  const effectiveUploadingIndex = useMemo(
+    () => (typeof uploadingIndex === 'number' || uploadingIndex === null ? uploadingIndex : localUploadingIdx),
+    [uploadingIndex, localUploadingIdx]
+  )
+
+  // --- Flujo interno: presign → PUT (R2) → confirm (DB)
+  const uploadWithPresign = useCallback(
+    async (idx: number, file: File) => {
+      const product = productos[idx]
+      if (!product?.id) throw new Error('Producto sin id')
+
+      setLocalUploadingIdx(idx)
+      try {
+        // A) presign
+        const pres = await fetch(`/api/products/${product.id}/images/presign`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ filename: file.name, mimeType: file.type }),
+        })
+        if (!pres.ok) {
+          const t = await pres.text().catch(() => '')
+          throw new Error(`No se pudo firmar la URL (${pres.status}) ${t}`)
+        }
+        const { url, objectKey } = await pres.json()
+
+        // B) PUT directo a R2 (sin Authorization)
+        const put = await fetch(url, {
+          method: 'PUT',
+          headers: { 'Content-Type': file.type || 'application/octet-stream' },
+          body: file,
+        })
+        if (!put.ok) {
+          const t = await put.text().catch(() => '')
+          throw new Error(`Fallo el PUT a R2 (${put.status}) ${t}`)
+        }
+
+        // C) confirm (guarda en DB)
+        const meta = await getImageMeta(file)
+        const conf = await fetch(`/api/products/${product.id}/images/confirm`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            objectKey,
+            alt: '',
+            isPrimary: false,
+            mimeType: file.type,
+            sizeBytes: file.size,
+            width: meta.width,
+            height: meta.height,
+          }),
+        })
+        if (!conf.ok) {
+          const t = await conf.text().catch(() => '')
+          throw new Error(`No se pudo confirmar la imagen (${conf.status}) ${t}`)
+        }
+
+        // Refresca catálogo
+        onReload()
+      } finally {
+        setLocalUploadingIdx(null)
+      }
+    },
+    [productos, onReload]
+  )
+
+  // Adaptador: si el padre pasa onUpload, úsalo; si no, usa el interno
+  const handleUpload = useCallback(
+    async (idx: number, file: File) => {
+      if (onUpload) return onUpload(idx, file)
+      return uploadWithPresign(idx, file)
+    },
+    [onUpload, uploadWithPresign]
+  )
+
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
@@ -121,10 +213,10 @@ function CatalogPanelBase({
                 onDelete={() => onDelete(idx)}
                 onSave={(patch) => onSave(idx, patch)}
                 onCancel={() => onCancel(idx)}
-                onUpload={(file) => onUpload(idx, file)}
+                onUpload={(file) => handleUpload(idx, file)}
                 onRemoveImage={(imageId) => onRemoveImage(idx, imageId)}
-                uploading={uploadingIndex === idx}
-                saving={savingIndex === idx}
+                uploading={effectiveUploadingIndex === idx}
+                saving={savingIndex === idx ?? false}
               />
             ))}
           </div>
