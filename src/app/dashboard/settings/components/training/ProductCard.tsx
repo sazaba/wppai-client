@@ -359,10 +359,12 @@ function ProductCardBase({
               {producto.imagenes?.map((img: ImagenProducto) => (
                 <div key={img.id ?? img.url} className="relative">
                   <ImgAlways
-                    src={img.url}
-                    alt={img.alt || ''}
-                    className="w-full h-16 object-cover rounded-lg border border-slate-700"
-                  />
+  src={img.url}
+  alt={img.alt || ''}
+  className="w-full h-16 object-cover rounded-lg border border-slate-700"
+  disableBust
+/>
+
                   {img.id && (
                     <button
                       onClick={() => img.id && onRemoveImage?.(img.id)}
