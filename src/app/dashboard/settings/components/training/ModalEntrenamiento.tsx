@@ -72,62 +72,19 @@ export default function ModalEntrenamiento({
   const next = () => { if (step < totalSteps - 1) setStep((s) => s + 1) }
   const back = () => { if (step > 0) setStep((s) => s - 1) }
 
-  // --- API (NUEVO FLUJO): presign → PUT (R2) → confirm ---
+  // --- API ---
   async function uploadImageFile(productId: number, file: File, alt?: string, isPrimary?: boolean) {
-    // A) pedir URL firmada
-    const pres = await axios.post(
-      `${API_URL}/api/products/${productId}/images/presign`,
-      { filename: file.name, mimeType: file.type },
-      { headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' } }
+    const fd = new FormData()
+    fd.append('file', file)
+    if (alt) fd.append('alt', alt)
+    if (isPrimary) fd.append('isPrimary', 'true')
+
+    const { data } = await axios.post(
+      `${API_URL}/api/products/${productId}/images/upload`,
+      fd,
+      { headers: { ...getAuthHeaders() } }
     )
-    const { url, objectKey } = pres.data as { url: string; objectKey: string }
-
-    // B) PUT directo al bucket R2 (¡sin Authorization!)
-    let putRes: Response | null = null
-    try {
-      putRes = await fetch(url, {
-        method: 'PUT',
-        headers: { 'Content-Type': file.type || 'application/octet-stream' },
-        body: file, // o await file.arrayBuffer()
-        referrerPolicy: 'no-referrer',
-        mode: 'cors',
-      })
-    } catch (err: any) {
-      throw new Error(`PUT a R2 falló (CORS/preflight). Detalle: ${err?.message || err}`)
-    }
-    if (!putRes.ok) {
-      const t = await putRes.text().catch(() => '')
-      throw new Error(`PUT a R2 respondió ${putRes.status}. ${t}`)
-    }
-
-    // C) confirmar en backend para guardar en DB
-    let width: number | undefined; let height: number | undefined
-    try {
-      const bmp = await createImageBitmap(file)
-      width = bmp.width; height = bmp.height; bmp.close()
-    } catch { /* ignore */ }
-
-    const confirm = await axios.post(
-      `${API_URL}/api/products/${productId}/images/confirm`,
-      {
-        objectKey,
-        alt: alt || '',
-        isPrimary: !!isPrimary,
-        mimeType: file.type,
-        sizeBytes: file.size,
-        width, height,
-      },
-      { headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' } }
-    )
-
-    // normalizamos lo que regresamos a la tarjeta
-    const data = confirm.data
-    return {
-      id: data?.id,
-      url: data?.url || '',
-      alt: alt || '',
-      objectKey: data?.objectKey,
-    } as ImagenProducto
+    return { id: data?.id, url: data?.url || '', alt: alt || '' } as ImagenProducto
   }
 
   async function deleteImageOnCard(
@@ -273,8 +230,7 @@ export default function ModalEntrenamiento({
         }
         return copy
       })
-      const msg = e?.response?.data?.error || e?.message || 'No se pudo subir la imagen.'
-      setErrorMsg(msg)
+      setErrorMsg(e?.response?.data?.error || 'No se pudo subir la imagen.')
     } finally {
       setUploadingCardIndex(null)
       URL.revokeObjectURL(tmpUrl)

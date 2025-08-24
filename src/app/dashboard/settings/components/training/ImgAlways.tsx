@@ -66,6 +66,7 @@ export default function ImgAlways({
     )
 
   const handleError = () => {
+    // Log claro para ver el motivo real en consola
     console.error('[ImgAlways] error cargando imagen:', { src: effectiveSrc, signed, attempt })
 
     if (signed && !retryOnceForSigned) {
@@ -88,6 +89,7 @@ export default function ImgAlways({
     decoding: 'async' as const,
     loading: 'lazy' as const,
     onError: handleError,
+    // Forzamos no enviar referrer (algunos buckets con hotlink blockean por referrer)
     referrerPolicy: 'no-referrer' as const,
   }
 

@@ -1,7 +1,7 @@
 'use client'
 
 import { Plus, RefreshCw } from 'lucide-react'
-import { memo, useCallback, useMemo, useState } from 'react'
+import { memo } from 'react'
 import type { Producto } from './types'
 import ProductCard from './ProductCard'
 
@@ -18,24 +18,11 @@ type Props = {
   onDelete: (idx: number) => void
   onSave: (idx: number, patch: Partial<Producto>) => void
   onCancel: (idx: number) => void
-
-  /** Opcional: si lo pasas, se usará en vez del flujo interno presign→PUT→confirm */
-  onUpload?: (idx: number, file: File) => Promise<void> | void
+  onUpload: (idx: number, file: File) => Promise<void> | void
   onRemoveImage: (idx: number, imageId: number) => void
 
   uploadingIndex?: number | null
   savingIndex?: number | null
-}
-
-async function getImageMeta(file: File): Promise<{ width?: number; height?: number }> {
-  try {
-    const bmp = await createImageBitmap(file)
-    const meta = { width: bmp.width, height: bmp.height }
-    bmp.close()
-    return meta
-  } catch {
-    return {}
-  }
 }
 
 function CatalogPanelBase({
@@ -55,70 +42,6 @@ function CatalogPanelBase({
   uploadingIndex,
   savingIndex,
 }: Props) {
-  const [localUploadingIdx, setLocalUploadingIdx] = useState<number | null>(null)
-  const effectiveUploadingIndex = useMemo(
-    () => (typeof uploadingIndex === 'number' || uploadingIndex === null ? uploadingIndex : localUploadingIdx),
-    [uploadingIndex, localUploadingIdx]
-  )
-
-  // Presign → PUT (R2) → Confirm
-  const uploadWithPresign = useCallback(
-    async (idx: number, file: File) => {
-      const product = productos[idx]
-      if (!product?.id) throw new Error('Producto sin id')
-
-      setLocalUploadingIdx(idx)
-      try {
-        // A) presign
-        const pres = await fetch(`/api/products/${product.id}/images/presign`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ filename: file.name, mimeType: file.type }),
-        })
-        if (!pres.ok) throw new Error(`No se pudo firmar la URL (${pres.status})`)
-        const { url, objectKey } = await pres.json()
-
-        // B) PUT directo a R2 (SIN Authorization)
-        const put = await fetch(url, {
-          method: 'PUT',
-          headers: { 'Content-Type': file.type || 'application/octet-stream' },
-          body: file,
-        })
-        if (!put.ok) throw new Error(`Fallo el PUT a R2 (${put.status})`)
-
-        // C) confirm (DB)
-        const meta = await getImageMeta(file)
-        const conf = await fetch(`/api/products/${product.id}/images/confirm`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            objectKey,
-            alt: '',
-            isPrimary: false,
-            mimeType: file.type,
-            sizeBytes: file.size,
-            width: meta.width,
-            height: meta.height,
-          }),
-        })
-        if (!conf.ok) throw new Error(`No se pudo confirmar la imagen (${conf.status})`)
-
-        onReload()
-      } finally {
-        setLocalUploadingIdx(null)
-      }
-    },
-    [productos, onReload]
-  )
-
-  const handleUpload = useCallback(
-    async (idx: number, file: File) => {
-      if (onUpload) return onUpload(idx, file) // si el padre lo provee, lo respeta
-      return uploadWithPresign(idx, file)      // si no, usa presign interno
-    },
-    [onUpload, uploadWithPresign]
-  )
-
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
@@ -198,10 +121,10 @@ function CatalogPanelBase({
                 onDelete={() => onDelete(idx)}
                 onSave={(patch) => onSave(idx, patch)}
                 onCancel={() => onCancel(idx)}
-                onUpload={(file) => handleUpload(idx, file)}
+                onUpload={(file) => onUpload(idx, file)}
                 onRemoveImage={(imageId) => onRemoveImage(idx, imageId)}
-                uploading={effectiveUploadingIndex === idx}
-                saving={savingIndex === idx ?? false}
+                uploading={uploadingIndex === idx}
+                saving={savingIndex === idx}
               />
             ))}
           </div>
