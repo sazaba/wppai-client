@@ -12,7 +12,12 @@ const nextConfig = {
                 hostname: '*.r2.cloudflarestorage.com',
                 pathname: '/**',
             },
-            // si usas un custom domain para R2_PUBLIC_BASE_URL, agrégalo aquí:
+            {
+                protocol: 'https',
+                hostname: 'imagedelivery.net',
+                pathname: '/**', // 👈 habilita todas las imágenes Cloudflare Images
+            },
+            // Si usas dominio propio, añade aquí:
             // { protocol: 'https', hostname: 'wppai-products.example.com', pathname: '/**' },
         ],
     },
@@ -26,10 +31,10 @@ const nextConfig = {
                         key: 'Content-Security-Policy',
                         value: [
                             "default-src 'self'",
-                            "img-src 'self' data: blob: https://*.r2.cloudflarestorage.com",
+                            // 👇 habilita ambos buckets (R2 y Cloudflare Images)
+                            "img-src 'self' data: blob: https://*.r2.cloudflarestorage.com https://imagedelivery.net",
                             "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
                             "style-src 'self' 'unsafe-inline'",
-                            // 🔽 permite llamadas a tu backend y websockets
                             `connect-src 'self' https: wss: ${API_BASE}`,
                             "frame-ancestors 'self'",
                         ].join('; '),
