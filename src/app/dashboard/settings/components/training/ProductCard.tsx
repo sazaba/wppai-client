@@ -17,8 +17,9 @@ type Props = {
   onSave?: (patch: Partial<Producto>) => Promise<void> | void
   onCancel?: () => void
 
-  onUpload?: (file: File) => Promise<void> | void
-  onRemoveImage?: (imageId: number) => void
+  /** Ideal: que retorne la imagen creada { id, url, alt?, updatedAt? } */
+  onUpload?: (file: File) => Promise<ImagenProducto | void> | ImagenProducto | void
+  onRemoveImage?: (imageId: number) => Promise<void> | void
 
   uploading?: boolean
   saving?: boolean
@@ -29,6 +30,13 @@ function listFromText(text?: string) {
     .split('\n')
     .map((s) => s.trim())
     .filter(Boolean)
+}
+
+/** agrega cache-buster para evitar caché luego de subir */
+function withBuster(url: string, updatedAt?: string | null) {
+  const sep = url.includes('?') ? '&' : '?'
+  const v = updatedAt ? new Date(updatedAt).getTime() : Date.now()
+  return `${url}${sep}v=${v}`
 }
 
 function ProductCardBase({
@@ -45,15 +53,25 @@ function ProductCardBase({
   saving,
 }: Props) {
   const [draft, setDraft] = useState<Producto>(producto)
+
+  /** >>> NUEVO: estado local de imágenes (fuente única para renderizar) */
+  const [images, setImages] = useState<ImagenProducto[]>(producto.imagenes || [])
+
+  /** imágenes “pendientes” (previews optimistas) */
   const [pendingImages, setPendingImages] = useState<Array<{ id: string; file: File; preview: string }>>([])
   const hasPendings = pendingImages.length > 0
+
   const [savingAll, setSavingAll] = useState(false)
 
+  /** sincroniza cuando cambia el producto desde afuera */
   useEffect(() => {
     if (isEditing) setDraft(producto)
+    // también sincronizamos imágenes reales
+    setImages(producto.imagenes || [])
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isEditing, producto.id])
+  }, [isEditing, producto.id, JSON.stringify(producto.imagenes || [])])
 
+  /** limpia blobs al desmontar */
   useEffect(() => {
     return () => pendingImages.forEach((p) => URL.revokeObjectURL(p.preview))
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -68,12 +86,40 @@ function ProductCardBase({
     return true
   }
 
+  /** >>> NUEVO: subida inmediata con preview optimista */
   const handleSelectFile = async (file: File | undefined | null) => {
     if (!file) return
     if (!validateFile(file)) return
-    const url = URL.createObjectURL(file)
-    const id = `${file.name}-${Date.now()}-${Math.random().toString(36).slice(2)}`
-    setPendingImages((prev) => [...prev, { id, file, preview: url }])
+
+    const preview = URL.createObjectURL(file)
+    const tempId = `${file.name}-${Date.now()}-${Math.random().toString(36).slice(2)}`
+
+    // pinta el preview de una
+    setPendingImages((prev) => [...prev, { id: tempId, file, preview }])
+
+    try {
+      // dispara la subida (ideal: que onUpload devuelva la imagen creada en DB/R2)
+      const created = (await onUpload?.(file)) as ImagenProducto | void
+
+      // remueve el preview de la lista de pendientes
+      setPendingImages((prev) => prev.filter((p) => p.id !== tempId))
+      URL.revokeObjectURL(preview)
+
+      if (created && created.url) {
+        // agrega la imagen real al grid inmediatamente
+        setImages((prev) => [...prev, created])
+      } else {
+        // fallback: forzamos un “refetch” visual usando el cache-buster en el mismo preview
+        // y mantenemos consistencia hasta que el padre nos pase las imágenes desde el backend
+        // (opcional: podrías disparar un refetch en el contenedor)
+        setImages((prev) => [...prev, { id: -Date.now(), url: preview } as any])
+      }
+    } catch (e) {
+      // si falla, quita el preview
+      setPendingImages((prev) => prev.filter((p) => p.id !== tempId))
+      URL.revokeObjectURL(preview)
+      console.error('[upload image] error', e)
+    }
   }
 
   const clearPendings = () => {
@@ -81,14 +127,24 @@ function ProductCardBase({
     setPendingImages([])
   }
 
+  /** guarda texto/num + (si quedaran) pendientes */
   const handleSaveAll = async () => {
     try {
       setSavingAll(true)
+
+      // si por alguna razón quedan pendientes, súbelas ahora
       if (onUpload && pendingImages.length > 0) {
-        for (const p of pendingImages) await onUpload(p.file)
+        for (const p of pendingImages) {
+          const created = (await onUpload(p.file)) as ImagenProducto | void
+          if (created && created.url) {
+            setImages((prev) => [...prev, created])
+          }
+          URL.revokeObjectURL(p.preview)
+        }
+        setPendingImages([])
       }
+
       await onSave?.(draft)
-      clearPendings()
     } finally {
       setSavingAll(false)
     }
@@ -97,6 +153,18 @@ function ProductCardBase({
   const handleCancel = () => {
     clearPendings()
     onCancel?.()
+  }
+
+  /** >>> NUEVO: eliminación optimista */
+  const handleRemove = async (imageId: number) => {
+    // UI optimista
+    setImages((prev) => prev.filter((img) => img.id !== imageId))
+    try {
+      await onRemoveImage?.(imageId)
+    } catch (e) {
+      // si falla, podrías reponer o hacer un refetch en el contenedor
+      console.error('[remove image] error', e)
+    }
   }
 
   return (
@@ -198,17 +266,16 @@ function ProductCardBase({
           )}
 
           <div className="mt-2 grid grid-cols-3 gap-2">
-            {producto.imagenes?.map((img: ImagenProducto) => (
+            {images.map((img: ImagenProducto) => (
               <div key={img.id ?? img.url} className="relative group">
-                {/* la URL ya viene con la variante desde el backend */}
                 <ImgAlways
-                  src={img.url}
+                  src={withBuster(img.url, (img as any).updatedAt)}
                   alt={img.alt || ''}
                   className="w-full h-16 object-cover rounded-lg border border-slate-700"
                 />
                 {img.id && (
                   <button
-                    onClick={() => img.id && onRemoveImage?.(img.id)}
+                    onClick={() => img.id && handleRemove(img.id)}
                     className="absolute top-1.5 right-1.5 p-1 rounded-lg bg-black/60 hover:bg-black/80 opacity-0 group-hover:opacity-100 transition"
                     title="Eliminar imagen"
                     type="button"
@@ -226,7 +293,7 @@ function ProductCardBase({
               </div>
             ))}
 
-            {!hasPendings && (!producto.imagenes || producto.imagenes.length === 0) && (
+            {!hasPendings && images.length === 0 && (
               <div className="col-span-3 h-16 rounded-lg border border-slate-700 flex items-center justify-center text-[11px] text-slate-400">
                 Sin imágenes
               </div>
@@ -287,15 +354,7 @@ function ProductCardBase({
                     className="hidden"
                     onChange={async (e) => {
                       const file = e.target.files?.[0]
-                      if (!file) return
-                      const sizeMB = file.size / (1024 * 1024)
-                      if (sizeMB > MAX_SIZE_MB) {
-                        alert(`El archivo "${file.name}" pesa ${sizeMB.toFixed(1)} MB. Máximo permitido: ${MAX_SIZE_MB} MB.`)
-                        return
-                      }
-                      const url = URL.createObjectURL(file)
-                      const id = `${file.name}-${Date.now()}-${Math.random().toString(36).slice(2)}`
-                      setPendingImages((prev) => [...prev, { id, file, preview: url }])
+                      await handleSelectFile(file)
                       if (e.currentTarget) e.currentTarget.value = ''
                     }}
                   />
@@ -312,18 +371,16 @@ function ProductCardBase({
             </div>
 
             <div className="grid grid-cols-3 gap-2">
-              {producto.imagenes?.map((img: ImagenProducto) => (
+              {images.map((img: ImagenProducto) => (
                 <div key={img.id ?? img.url} className="relative">
-                  {/* la URL ya viene con la variante desde el backend */}
                   <ImgAlways
-                    src={img.url}
+                    src={withBuster(img.url, (img as any).updatedAt)}
                     alt={img.alt || ''}
                     className="w-full h-16 object-cover rounded-lg border border-slate-700"
-                  
                   />
                   {img.id && (
                     <button
-                      onClick={() => img.id && onRemoveImage?.(img.id)}
+                      onClick={() => img.id && handleRemove(img.id)}
                       className="absolute -top-2 -right-2 p-1 rounded-full bg-slate-900 border border-slate-700"
                       title="Quitar imagen"
                       type="button"
@@ -341,7 +398,7 @@ function ProductCardBase({
                 </div>
               ))}
 
-              {!hasPendings && (!producto.imagenes || producto.imagenes.length === 0) && (
+              {!hasPendings && images.length === 0 && (
                 <div className="col-span-3 h-14 rounded-lg border border-dashed border-slate-700 text-[11px] text-slate-400 flex items-center justify-center">
                   Sin imágenes
                 </div>
