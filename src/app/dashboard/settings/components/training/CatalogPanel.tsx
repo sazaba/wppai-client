@@ -1,8 +1,8 @@
 'use client'
 
 import { Plus, RefreshCw } from 'lucide-react'
-import { memo } from 'react'
-import type { Producto } from './types'
+import { memo, useEffect, useState } from 'react'
+import type { Producto, ImagenProducto } from './types'
 import ProductCard from './ProductCard'
 
 type Props = {
@@ -18,8 +18,10 @@ type Props = {
   onDelete: (idx: number) => void
   onSave: (idx: number, patch: Partial<Producto>) => void
   onCancel: (idx: number) => void
-  onUpload: (idx: number, file: File) => Promise<void> | void
-  onRemoveImage: (idx: number, imageId: number) => void
+
+  /** 👉 Actualiza para que retorne la imagen creada */
+  onUpload: (idx: number, file: File) => Promise<ImagenProducto | void> | ImagenProducto | void
+  onRemoveImage: (idx: number, imageId: number) => Promise<void> | void
 
   uploadingIndex?: number | null
   savingIndex?: number | null
@@ -42,6 +44,73 @@ function CatalogPanelBase({
   uploadingIndex,
   savingIndex,
 }: Props) {
+  /** ===== Estado local sincronizado con productos (para actualizaciones en tiempo real) ===== */
+  const [items, setItems] = useState<Producto[]>(productos)
+
+  useEffect(() => {
+    setItems(productos)
+  }, [productos])
+
+  const patchProductAt = (idx: number, patch: Partial<Producto>) => {
+    setItems(prev => {
+      const next = prev.slice()
+      next[idx] = { ...next[idx], ...patch }
+      return next
+    })
+  }
+
+  const pushImageAt = (idx: number, img: ImagenProducto) => {
+    setItems(prev => {
+      const next = prev.slice()
+      const prod = next[idx]
+      const imgs = (prod.imagenes || []).slice()
+      imgs.push(img)
+      next[idx] = { ...prod, imagenes: imgs }
+      return next
+    })
+  }
+
+  const removeImageAt = (idx: number, imageId: number) => {
+    setItems(prev => {
+      const next = prev.slice()
+      const prod = next[idx]
+      const imgs = (prod.imagenes || []).filter(i => i.id !== imageId)
+      next[idx] = { ...prod, imagenes: imgs }
+      return next
+    })
+  }
+
+  /** ===== Handlers envoltorio para tiempo real ===== */
+  const handleUpload = async (idx: number, file: File) => {
+    const created = (await onUpload(idx, file)) as ImagenProducto | void
+    if (created && created.id && created.url) {
+      // Actualiza inmediatamente el producto en la grilla
+      pushImageAt(idx, created)
+    } else {
+      // Si tu onUpload no devuelve nada, como fallback puedes forzar un refetch:
+      // onReload()
+    }
+  }
+
+  const handleRemoveImage = async (idx: number, imageId: number) => {
+    // Optimista
+    const prevProduct = items[idx]
+    const prevImages = prevProduct?.imagenes || []
+    removeImageAt(idx, imageId)
+
+    try {
+      await onRemoveImage(idx, imageId)
+    } catch (e) {
+      // Revertir si falla
+      setItems(prev => {
+        const next = prev.slice()
+        next[idx] = { ...prevProduct, imagenes: prevImages }
+        return next
+      })
+      console.error('[remove image] error', e)
+    }
+  }
+
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
@@ -107,11 +176,11 @@ function CatalogPanelBase({
         </div>
       </div>
 
-      {!!productos.length && (
+      {!!items.length && (
         <div className="space-y-2">
-          <h3 className="text-sm text-slate-300">Productos ({productos.length})</h3>
+          <h3 className="text-sm text-slate-300">Productos ({items.length})</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {productos.map((p, idx) => (
+            {items.map((p, idx) => (
               <ProductCard
                 key={`${p.id ?? 'nuevo'}-${idx}`}
                 producto={p}
@@ -121,8 +190,9 @@ function CatalogPanelBase({
                 onDelete={() => onDelete(idx)}
                 onSave={(patch) => onSave(idx, patch)}
                 onCancel={() => onCancel(idx)}
-                onUpload={(file) => onUpload(idx, file)}
-                onRemoveImage={(imageId) => onRemoveImage(idx, imageId)}
+                /** ✅ Pasamos el handler que actualiza items en tiempo real */
+                onUpload={(file) => handleUpload(idx, file)}
+                onRemoveImage={(imageId) => handleRemoveImage(idx, imageId)}
                 uploading={uploadingIndex === idx}
                 saving={savingIndex === idx}
               />

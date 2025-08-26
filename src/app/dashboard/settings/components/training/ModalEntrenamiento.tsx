@@ -196,46 +196,26 @@ export default function ModalEntrenamiento({
   }
 
   // *** SUBIDA CON PREVIEW OPTIMISTA ***
-  async function handleUploadAt(idx: number, file: File) {
-    const prod = productos[idx]
-    if (!prod?.id) return
+ // *** SUBIDA SIN PREVIEW AQUÍ (el preview lo maneja ProductCard) ***
+async function handleUploadAt(idx: number, file: File) {
+  const prod = productos[idx]
+  if (!prod?.id) return
 
-    // 1) preview optimista con ObjectURL
-    const tmpUrl = URL.createObjectURL(file)
-    setProductos((list) => {
-      const copy = [...list]
-      const imgs = [...(copy[idx].imagenes || []), { url: tmpUrl, alt: 'subiendo...' } as ImagenProducto]
-      copy[idx] = { ...copy[idx], imagenes: imgs }
-      return copy
-    })
-
-    try {
-      setUploadingCardIndex(idx)
-      // 2) subida real
-      const uploaded = await uploadImageFile(prod.id, file)
-      // 3) sustituir preview por la imagen real
-      setProductos((list) => {
-        const copy = [...list]
-        const imgs = (copy[idx].imagenes || []).map((im) => (im.url === tmpUrl ? uploaded : im))
-        copy[idx] = { ...copy[idx], imagenes: imgs }
-        return copy
-      })
-    } catch (e: any) {
-      // si falla, quita la imagen temporal
-      setProductos((list) => {
-        const copy = [...list]
-        copy[idx] = {
-          ...copy[idx],
-          imagenes: (copy[idx].imagenes || []).filter((im) => im.url !== tmpUrl),
-        }
-        return copy
-      })
-      setErrorMsg(e?.response?.data?.error || 'No se pudo subir la imagen.')
-    } finally {
-      setUploadingCardIndex(null)
-      URL.revokeObjectURL(tmpUrl)
-    }
+  try {
+    setUploadingCardIndex(idx)
+    // Sube y devuelve la imagen creada (id, url, alt?, updatedAt?)
+    const created = await uploadImageFile(prod.id, file)
+    // 👉 devolvemos la imagen creada para que CatalogPanel/ProductCard
+    //    la inserten en tiempo real
+    return created
+  } catch (e: any) {
+    setErrorMsg(e?.response?.data?.error || 'No se pudo subir la imagen.')
+    throw e
+  } finally {
+    setUploadingCardIndex(null)
   }
+}
+
 
   async function loadCatalog() {
     try {
