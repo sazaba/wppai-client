@@ -2,7 +2,9 @@
 
 export type BusinessType = 'servicios' | 'productos'
 
+/** Configuración completa usada por el formulario (front) y el backend */
 export interface ConfigForm {
+    // base
     nombre: string
     descripcion: string
     servicios: string
@@ -10,6 +12,23 @@ export interface ConfigForm {
     horarios: string
     disclaimers: string
     businessType: BusinessType
+
+    // operación (campos nuevos que ya agregaste en Prisma)
+    enviosInfo: string
+    metodosPago: string
+    tiendaFisica: boolean
+    direccionTienda: string
+    politicasDevolucion: string
+    politicasGarantia: string
+    promocionesInfo: string
+    canalesAtencion: string
+    extras: string
+    palabrasClaveNegocio: string
+
+    // reglas de escalamiento
+    escalarSiNoConfia: boolean
+    escalarPalabrasClave: string      // coma-separadas
+    escalarPorReintentos: number      // 0 = desactivado
 }
 
 export interface ImagenProducto {
@@ -29,7 +48,7 @@ export interface Producto {
     imagenes: ImagenProducto[]
 }
 
-// Helpers opcionales
+// Helpers
 export const emptyProducto = (): Producto => ({
     nombre: '',
     descripcion: '',
@@ -50,3 +69,6 @@ export interface ModalEntrenamientoProps {
     onClose?: () => void
     initialConfig?: Partial<ConfigForm>
 }
+
+/** (Opcional) Tipo de lo que devuelve el backend en /api/config */
+export type BackendBusinessConfig = Partial<ConfigForm>

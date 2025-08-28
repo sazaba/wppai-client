@@ -1,13 +1,12 @@
 'use client'
 
 import { memo } from 'react'
-
-export type BusinessType = 'servicios' | 'productos'
+import type { BusinessType } from './types'   // ⬅️ importa desde el archivo único
 
 type Props = {
   value: BusinessType
   onChange: (next: BusinessType) => void
-  loading?: boolean // opcional: si estás recargando catálogo al cambiar a "productos"
+  loading?: boolean
 }
 
 function TypeTabsBase({ value, onChange, loading }: Props) {

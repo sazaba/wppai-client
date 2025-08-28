@@ -7,9 +7,15 @@ import axios from 'axios'
 import { X } from 'lucide-react'
 
 import TypeTabs from './TypeTabs'
-import BusinessForm, { type BusinessType, type ConfigForm } from './BusinessForm'
+import BusinessForm from './BusinessForm'
 import CatalogPanel from './CatalogPanel'
-import type { Producto, ImagenProducto, ModalEntrenamientoProps } from './types'
+import type {
+  Producto,
+  ImagenProducto,
+  ModalEntrenamientoProps,
+  BusinessType,
+  ConfigForm,
+} from './types'
 
 const API_URL = (process.env.NEXT_PUBLIC_API_URL || '') as string
 
@@ -37,7 +43,9 @@ export default function ModalEntrenamiento({
   const [businessType, setBusinessType] = useState<BusinessType>(
     (initialConfig?.businessType as BusinessType) || 'servicios'
   )
-  const [form, setForm] = useState<ConfigForm>({
+
+  const emptyForm: ConfigForm = {
+    // base
     nombre: initialConfig?.nombre || '',
     descripcion: initialConfig?.descripcion || '',
     servicios: initialConfig?.servicios || '',
@@ -45,7 +53,29 @@ export default function ModalEntrenamiento({
     horarios: initialConfig?.horarios || '',
     disclaimers: initialConfig?.disclaimers || '',
     businessType: ((initialConfig?.businessType as BusinessType) || 'servicios') as BusinessType,
-  })
+
+    // operación
+    enviosInfo: initialConfig?.enviosInfo || '',
+    metodosPago: initialConfig?.metodosPago || '',
+    tiendaFisica: typeof initialConfig?.tiendaFisica === 'boolean' ? initialConfig!.tiendaFisica : false,
+    direccionTienda: initialConfig?.direccionTienda || '',
+    politicasDevolucion: initialConfig?.politicasDevolucion || '',
+    politicasGarantia: initialConfig?.politicasGarantia || '',
+    promocionesInfo: initialConfig?.promocionesInfo || '',
+    canalesAtencion: initialConfig?.canalesAtencion || '',
+    extras: initialConfig?.extras || '',
+    palabrasClaveNegocio: initialConfig?.palabrasClaveNegocio || '',
+
+    // escalamiento
+    escalarSiNoConfia:
+      typeof initialConfig?.escalarSiNoConfia === 'boolean'
+        ? initialConfig!.escalarSiNoConfia
+        : true,
+    escalarPalabrasClave: initialConfig?.escalarPalabrasClave || '',
+    escalarPorReintentos: Number(initialConfig?.escalarPorReintentos || 0),
+  }
+
+  const [form, setForm] = useState<ConfigForm>(emptyForm)
 
   // Catálogo
   const [productos, setProductos] = useState<Producto[]>([])
@@ -68,9 +98,16 @@ export default function ModalEntrenamiento({
   const totalSteps = useMemo(() => (businessType === 'productos' ? 2 : 1), [businessType])
   const isCatalogStep = businessType === 'productos' && step === 1
 
-  const close = () => { setOpen(false); onClose?.() }
-  const next = () => { if (step < totalSteps - 1) setStep((s) => s + 1) }
-  const back = () => { if (step > 0) setStep((s) => s - 1) }
+  const close = () => {
+    setOpen(false)
+    onClose?.()
+  }
+  const next = () => {
+    if (step < totalSteps - 1) setStep((s) => s + 1)
+  }
+  const back = () => {
+    if (step > 0) setStep((s) => s - 1)
+  }
 
   // --- API ---
   async function uploadImageFile(productId: number, file: File, alt?: string, isPrimary?: boolean) {
@@ -79,11 +116,9 @@ export default function ModalEntrenamiento({
     if (alt) fd.append('alt', alt)
     if (isPrimary) fd.append('isPrimary', 'true')
 
-    const { data } = await axios.post(
-      `${API_URL}/api/products/${productId}/images/upload`,
-      fd,
-      { headers: { ...getAuthHeaders() } }
-    )
+    const { data } = await axios.post(`${API_URL}/api/products/${productId}/images/upload`, fd, {
+      headers: { ...getAuthHeaders() },
+    })
     return { id: data?.id, url: data?.url || '', alt: alt || '' } as ImagenProducto
   }
 
@@ -113,7 +148,10 @@ export default function ModalEntrenamiento({
   }
 
   async function crearProducto() {
-    if (!nuevoProd.nombre.trim()) { setErrorMsg('El producto necesita al menos un nombre.'); return }
+    if (!nuevoProd.nombre.trim()) {
+      setErrorMsg('El producto necesita al menos un nombre.')
+      return
+    }
     try {
       const { data: created } = await axios.post(
         `${API_URL}/api/products`,
@@ -140,7 +178,12 @@ export default function ModalEntrenamiento({
         },
       ])
       setNuevoProd({
-        nombre: '', descripcion: '', beneficios: '', caracteristicas: '', precioDesde: null, imagenes: [],
+        nombre: '',
+        descripcion: '',
+        beneficios: '',
+        caracteristicas: '',
+        precioDesde: null,
+        imagenes: [],
       })
       setErrorMsg(null)
     } catch (e: any) {
@@ -161,12 +204,19 @@ export default function ModalEntrenamiento({
     }
   }
 
-  function startEdit(idx: number) { setEditingIndex(idx) }
-  function cancelEdit() { setEditingIndex(null) }
+  function startEdit(idx: number) {
+    setEditingIndex(idx)
+  }
+  function cancelEdit() {
+    setEditingIndex(null)
+  }
 
   async function saveProduct(idx: number, patch: Partial<Producto>) {
     const prod = productos[idx]
-    if (!prod?.id) { setEditingIndex(null); return }
+    if (!prod?.id) {
+      setEditingIndex(null)
+      return
+    }
     try {
       setSavingIndex(idx)
       await axios.put(
@@ -177,7 +227,7 @@ export default function ModalEntrenamiento({
           beneficios: patch.beneficios ?? prod.beneficios,
           caracteristicas: patch.caracteristicas ?? prod.caracteristicas,
           precioDesde:
-            typeof patch.precioDesde !== 'undefined' ? patch.precioDesde : (prod.precioDesde ?? null),
+            typeof patch.precioDesde !== 'undefined' ? patch.precioDesde : prod.precioDesde ?? null,
         },
         { headers: getAuthHeaders() }
       )
@@ -195,27 +245,21 @@ export default function ModalEntrenamiento({
     }
   }
 
-  // *** SUBIDA CON PREVIEW OPTIMISTA ***
- // *** SUBIDA SIN PREVIEW AQUÍ (el preview lo maneja ProductCard) ***
-async function handleUploadAt(idx: number, file: File) {
-  const prod = productos[idx]
-  if (!prod?.id) return
-
-  try {
-    setUploadingCardIndex(idx)
-    // Sube y devuelve la imagen creada (id, url, alt?, updatedAt?)
-    const created = await uploadImageFile(prod.id, file)
-    // 👉 devolvemos la imagen creada para que CatalogPanel/ProductCard
-    //    la inserten en tiempo real
-    return created
-  } catch (e: any) {
-    setErrorMsg(e?.response?.data?.error || 'No se pudo subir la imagen.')
-    throw e
-  } finally {
-    setUploadingCardIndex(null)
+  // SUBIDA
+  async function handleUploadAt(idx: number, file: File) {
+    const prod = productos[idx]
+    if (!prod?.id) return
+    try {
+      setUploadingCardIndex(idx)
+      const created = await uploadImageFile(prod.id, file)
+      return created
+    } catch (e: any) {
+      setErrorMsg(e?.response?.data?.error || 'No se pudo subir la imagen.')
+      throw e
+    } finally {
+      setUploadingCardIndex(null)
+    }
   }
-}
-
 
   async function loadCatalog() {
     try {
@@ -249,16 +293,18 @@ async function handleUploadAt(idx: number, file: File) {
     const bt = (initialConfig?.businessType as BusinessType) || 'servicios'
     setBusinessType(bt)
     setForm({
-      nombre: initialConfig?.nombre || '',
-      descripcion: initialConfig?.descripcion || '',
-      servicios: initialConfig?.servicios || '',
-      faq: initialConfig?.faq || '',
-      horarios: initialConfig?.horarios || '',
-      disclaimers: initialConfig?.disclaimers || '',
+      ...emptyForm,
       businessType: bt,
     })
-    if (bt === 'productos') { void loadCatalog() } else { setProductos([]); setCatalogLoaded(false) }
-    setStep(0); setErrorMsg(null)
+    if (bt === 'productos') {
+      void loadCatalog()
+    } else {
+      setProductos([])
+      setCatalogLoaded(false)
+    }
+    setStep(0)
+    setErrorMsg(null)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open])
 
   async function handleChangeType(t: BusinessType) {
@@ -270,13 +316,16 @@ async function handleUploadAt(idx: number, file: File) {
     } else {
       setBusinessType('servicios')
       setForm((f) => ({ ...f, businessType: 'servicios' }))
-      setProductos([]); setCatalogLoaded(false); setStep(0)
+      setProductos([])
+      setCatalogLoaded(false)
+      setStep(0)
     }
   }
 
   async function guardarTodo() {
     try {
-      setSaving(true); setErrorMsg(null)
+      setSaving(true)
+      setErrorMsg(null)
       await axios.put(`${API_URL}/api/config`, { ...form, businessType }, { headers: getAuthHeaders() })
       if (businessType === 'productos') await loadCatalog()
       close()
@@ -308,7 +357,12 @@ async function handleUploadAt(idx: number, file: File) {
                   </div>
                   <span className="text-slate-400 text-sm">Paso {step + 1} de {totalSteps}</span>
                 </div>
-                <button onClick={close} className="p-2 rounded-lg hover:bg-slate-800 border border-transparent hover:border-slate-700 transition" aria-label="Cerrar" type="button">
+                <button
+                  onClick={close}
+                  className="p-2 rounded-lg hover:bg-slate-800 border border-transparent hover:border-slate-700 transition"
+                  aria-label="Cerrar"
+                  type="button"
+                >
                   <X className="w-5 h-5 text-slate-300" />
                 </button>
               </div>
@@ -318,7 +372,11 @@ async function handleUploadAt(idx: number, file: File) {
               </div>
 
               {!isCatalogStep ? (
-                <BusinessForm value={form} businessType={businessType} onChange={(patch) => setForm((f) => ({ ...f, ...patch, businessType }))} />
+                <BusinessForm
+                  value={form}
+                  businessType={businessType}
+                  onChange={(patch) => setForm((f) => ({ ...f, ...patch, businessType }))}
+                />
               ) : (
                 <CatalogPanel
                   productos={productos}
@@ -359,18 +417,31 @@ async function handleUploadAt(idx: number, file: File) {
                 </div>
                 <div className="flex items-center gap-2">
                   {step > 0 ? (
-                    <button onClick={back} className="px-4 py-2 rounded-xl border border-slate-700 bg-slate-800 hover:bg-slate-700 text-sm" type="button">
+                    <button
+                      onClick={back}
+                      className="px-4 py-2 rounded-xl border border-slate-700 bg-slate-800 hover:bg-slate-700 text-sm"
+                      type="button"
+                    >
                       Atrás
                     </button>
                   ) : (
                     <div className="hidden sm:block w-[84px]" />
                   )}
                   {step < totalSteps - 1 ? (
-                    <button onClick={next} className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm disabled:opacity-60" type="button">
+                    <button
+                      onClick={next}
+                      className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm disabled:opacity-60"
+                      type="button"
+                    >
                       Siguiente
                     </button>
                   ) : (
-                    <button onClick={guardarTodo} disabled={saving} className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm disabled:opacity-60" type="button">
+                    <button
+                      onClick={guardarTodo}
+                      disabled={saving}
+                      className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm disabled:opacity-60"
+                      type="button"
+                    >
                       {saving ? 'Guardando…' : 'Finalizar y guardar'}
                     </button>
                   )}
