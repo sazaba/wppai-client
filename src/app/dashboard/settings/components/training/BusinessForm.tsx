@@ -42,10 +42,9 @@ function Hint({ text }: { text: string }) {
   )
 }
 
-type InputKind = 'text' | 'textarea' | 'number' | 'checkbox'
 type Pregunta =
   | { campo: keyof ConfigForm; tipo: 'text' | 'textarea'; label: string; placeholder?: string; required?: boolean; hint?: string }
-  | { campo: keyof ConfigForm; tipo: 'number'; label: string; placeholder?: string; required?: boolean; min?: number; max?: number; hint?: string }
+  | { campo: keyof ConfigForm; tipo: 'number'; label: string; placeholder?: string; required?: boolean; min?: number; max?: number; hint?: string; step?: number }
   | { campo: keyof ConfigForm; tipo: 'checkbox'; label: string; hint?: string }
 
 function Field({ q, val, onChange }: { q: Pregunta; val: any; onChange: (v: any) => void }) {
@@ -82,12 +81,13 @@ function Field({ q, val, onChange }: { q: Pregunta; val: any; onChange: (v: any)
           }
           onChange={(e) => {
             const raw = e.target.value
-            if (raw === '') return onChange('')
+            if (raw === '') return onChange('') // permite limpiar
             const n = Number(raw)
-            onChange(Number.isFinite(n) ? n : 0)
+            onChange(Number.isFinite(n) ? n : '')
           }}
           min={'min' in q && q.min !== undefined ? q.min : undefined}
           max={'max' in q && q.max !== undefined ? q.max : undefined}
+          step={'step' in q && q.step !== undefined ? q.step : undefined}
           placeholder={'placeholder' in q ? q.placeholder : undefined}
           className="w-full bg-slate-800 border border-slate-700 px-3 py-2 rounded-xl focus:outline-none focus:ring focus:ring-blue-500/40 text-sm"
           aria-required={'required' in q && q.required ? true : undefined}
@@ -137,10 +137,10 @@ function BusinessFormBase({ value, businessType, onChange }: Props) {
     { campo: 'disclaimers', tipo: 'textarea', label: 'Disclaimers globales', placeholder: 'Ej: Precios pueden variar. No consejos médicos.', hint: 'Límites y políticas.' },
   ]
 
-  // Operación
+  // Operación (general)
   const preguntasOperacion: Pregunta[] = [
-    { campo: 'enviosInfo', tipo: 'textarea', label: 'Envíos', placeholder: 'Ej: Envíos a todo el país 2–5 días hábiles.', hint: 'Cobertura, plazos y operador si aplica.' },
-    { campo: 'metodosPago', tipo: 'textarea', label: 'Métodos de pago', placeholder: 'Ej: Tarjeta, transferencia, contraentrega.', hint: 'Aclarar pagos internacionales si aplica.' },
+    { campo: 'enviosInfo', tipo: 'textarea', label: 'Envíos (texto libre)', placeholder: 'Ej: Envíos a todo el país 2–5 días hábiles.', hint: 'Cobertura, plazos y operador si aplica.' },
+    { campo: 'metodosPago', tipo: 'textarea', label: 'Métodos de pago (texto libre)', placeholder: 'Ej: Tarjeta, transferencia, contraentrega.', hint: 'Aclarar pagos internacionales si aplica.' },
     { campo: 'tiendaFisica', tipo: 'checkbox', label: '¿Tienda física?', hint: 'Actívalo si tienes local.' },
     { campo: 'direccionTienda', tipo: 'text', label: 'Dirección tienda (opcional)', placeholder: 'Calle 123 #45-67, Bogotá', hint: 'Se usa si activaste tienda física.' },
     { campo: 'politicasDevolucion', tipo: 'textarea', label: 'Política de devoluciones', placeholder: 'Ej: Cambios y devoluciones en 30 días…' },
@@ -151,11 +151,32 @@ function BusinessFormBase({ value, businessType, onChange }: Props) {
     { campo: 'palabrasClaveNegocio', tipo: 'text', label: 'Palabras clave del negocio', placeholder: 'Ej: serum, vitamina C, skincare, cruelty-free', hint: 'Mejora el “topic locking”. Coma-separadas.' },
   ]
 
-  // Escalamiento
-  const preguntasEscalamiento: Pregunta[] = [
-    { campo: 'escalarSiNoConfia', tipo: 'checkbox', label: 'Escalar si la IA tiene baja confianza', hint: 'Se pasa a un agente cuando la IA no esté segura.' },
-    { campo: 'escalarPalabrasClave', tipo: 'textarea', label: 'Palabras clave para escalar (coma-separadas)', placeholder: 'Ej: humano, queja, reclamo, devolución, garantía, supervisor', hint: 'Si el cliente menciona alguna, se escala.' },
-    { campo: 'escalarPorReintentos', tipo: 'number', label: 'Escalar después de X reintentos fallidos', placeholder: 'Ej: 3', min: 0, hint: '0 desactiva. Recomendado: 2–3.' },
+  // Envíos (estructurado)
+  const preguntasEnvio: Pregunta[] = [
+    { campo: 'envioTipo', tipo: 'text', label: 'Tipo de envío', placeholder: 'Ej: Servientrega / Propio / Motomensajería', hint: 'Operador o método principal.' },
+    { campo: 'envioEntregaEstimado', tipo: 'text', label: 'Entrega estimada', placeholder: 'Ej: 2–5 días hábiles' },
+    { campo: 'envioCostoFijo', tipo: 'number', label: 'Costo fijo de envío (COP)', placeholder: 'Ej: 12000', step: 1, hint: 'Deja vacío para 0.' },
+    { campo: 'envioGratisDesde', tipo: 'number', label: 'Envío gratis desde (COP)', placeholder: 'Ej: 150000', step: 1, hint: 'Deja vacío si no aplica.' },
+  ]
+
+  // Pagos (link + transferencia + QR)
+  const preguntasPago: Pregunta[] = [
+    { campo: 'pagoLinkGenerico', tipo: 'text', label: 'Enlace de pago (opcional)', placeholder: 'Ej: https://tucheckout.com/mi-tienda' },
+    { campo: 'pagoLinkProductoBase', tipo: 'text', label: 'Enlace base por producto (opcional)', placeholder: 'Ej: https://tucheckout.com/p/' , hint: 'La IA puede construir con nombre/SKU si lo programamos luego.' },
+    { campo: 'pagoNotas', tipo: 'textarea', label: 'Instrucciones de pago (texto libre)', placeholder: 'Ej: Adjunta comprobante y referencia del pedido.' },
+
+    { campo: 'bancoNombre', tipo: 'text', label: 'Banco', placeholder: 'Ej: Bancolombia' },
+    { campo: 'bancoTitular', tipo: 'text', label: 'Titular de la cuenta', placeholder: 'Ej: GLW SAS' },
+    { campo: 'bancoTipoCuenta', tipo: 'text', label: 'Tipo de cuenta', placeholder: 'Ej: Ahorros / Corriente' },
+    { campo: 'bancoNumeroCuenta', tipo: 'text', label: 'Número de cuenta', placeholder: 'Ej: 01234567890' },
+    { campo: 'bancoDocumento', tipo: 'text', label: 'Documento/NIT', placeholder: 'Ej: 900.123.456-7' },
+    { campo: 'transferenciaQRUrl', tipo: 'text', label: 'URL QR de transferencia (opcional)', placeholder: 'https://...' },
+  ]
+
+  // Post-venta
+  const preguntasPostVenta: Pregunta[] = [
+    { campo: 'facturaElectronicaInfo', tipo: 'text', label: 'Factura electrónica', placeholder: 'Ej: Envío de factura por email en 48h.' },
+    { campo: 'soporteDevolucionesInfo', tipo: 'text', label: 'Soporte para devoluciones', placeholder: 'Ej: Escribe a soporte@midominio.com' },
   ]
 
   const preguntas = useMemo<Pregunta[]>(
@@ -174,6 +195,11 @@ function BusinessFormBase({ value, businessType, onChange }: Props) {
         onChange({ [campo]: Number.isFinite(n) ? n : 0 } as Partial<ConfigForm>)
         return
       }
+      // Decimales opcionales: si viene '' lo mantenemos como ''
+      if (campo === 'envioCostoFijo' || campo === 'envioGratisDesde') {
+        onChange({ [campo]: v === '' ? '' : Number(v) } as Partial<ConfigForm>)
+        return
+      }
       onChange({ [campo]: v } as Partial<ConfigForm>)
     },
     [onChange]
@@ -187,14 +213,36 @@ function BusinessFormBase({ value, businessType, onChange }: Props) {
         ))}
       </Section>
 
-      <Section title="Operación del negocio" subtitle="Políticas y logística que la IA puede usar en respuestas.">
+      <Section title="Operación (texto libre)" subtitle="Políticas y logística que la IA puede usar en respuestas.">
         {preguntasOperacion.map((q) => (
           <Field key={q.campo as string} q={q} val={(value as any)[q.campo]} onChange={(v) => handlePatch(q.campo, v)} />
         ))}
       </Section>
 
-      <Section title="Reglas de escalamiento" subtitle="Controla cuándo el asistente pasa la conversación a un agente humano.">
-        {preguntasEscalamiento.map((q) => (
+      <Section title="Envíos (estructurado)" subtitle="Campos que habilitan cálculo simple de envío y respuestas más precisas.">
+        {preguntasEnvio.map((q) => (
+          <Field key={q.campo as string} q={q} val={(value as any)[q.campo]} onChange={(v) => handlePatch(q.campo, v)} />
+        ))}
+      </Section>
+
+      <Section title="Pagos" subtitle="Link de pago (opcional), datos bancarios y QR para transferencias.">
+        {preguntasPago.map((q) => (
+          <Field key={q.campo as string} q={q} val={(value as any)[q.campo]} onChange={(v) => handlePatch(q.campo, v)} />
+        ))}
+      </Section>
+
+      <Section title="Post-venta" subtitle="Lo que el cliente necesita después de comprar.">
+        {preguntasPostVenta.map((q) => (
+          <Field key={q.campo as string} q={q} val={(value as any)[q.campo]} onChange={(v) => handlePatch(q.campo, v)} />
+        ))}
+      </Section>
+
+      <Section title="Reglas de escalamiento" subtitle="Cuándo el asistente pasa la conversación a un agente humano.">
+        {[
+          { campo: 'escalarSiNoConfia', tipo: 'checkbox', label: 'Escalar si la IA tiene baja confianza', hint: 'Se pasa a un agente cuando la IA no esté segura.' } as Pregunta,
+          { campo: 'escalarPalabrasClave', tipo: 'textarea', label: 'Palabras clave para escalar (coma-separadas)', placeholder: 'Ej: humano, queja, reclamo, devolución, garantía, supervisor', hint: 'Si el cliente menciona alguna, se escala.' } as Pregunta,
+          { campo: 'escalarPorReintentos', tipo: 'number', label: 'Escalar después de X reintentos fallidos', placeholder: 'Ej: 3', min: 0, hint: '0 desactiva. Recomendado: 2–3.' } as Pregunta,
+        ].map((q) => (
           <Field key={q.campo as string} q={q} val={(value as any)[q.campo]} onChange={(v) => handlePatch(q.campo, v)} />
         ))}
         <div className="text-[11px] text-slate-400 pt-1">

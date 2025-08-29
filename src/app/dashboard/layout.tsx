@@ -3,7 +3,7 @@
 import Link from "next/link"
 import {
   BrainCircuit, MessageSquareText, Settings2,
-  ChevronLeft, ChevronRight, Home, FileText
+  ChevronLeft, ChevronRight, Home, FileText, ShoppingCart
 } from "lucide-react"
 import { useState, useEffect } from "react"
 import { useRouter, usePathname } from "next/navigation"
@@ -23,6 +23,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   ]
   const isOpenRoute = OPEN_DASH_ROUTES.some(p => pathname?.startsWith(p))
   const isChatRoute = pathname?.startsWith("/dashboard/chats")
+  const isOrdersRoute = pathname?.startsWith("/dashboard/orders") // 🆕
 
   useEffect(() => {
     if (!isAuthenticated && !isOpenRoute) router.replace("/")
@@ -46,9 +47,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <div className={clsx("flex flex-col", sidebarOpen ? "p-4 gap-6 items-start" : "pt-6 gap-4 items-center")}>
           {sidebarOpen && <h2 className="text-2xl font-semibold tracking-tight flex items-center gap-2">🚀 Mi Panel</h2>}
           <nav className={clsx("flex flex-col w-full", sidebarOpen ? "gap-4" : "gap-6 items-center")}>
-            <Link href="/"                className={navCls(sidebarOpen)} title={!sidebarOpen ? "Inicio" : ""}><Home className={icoCls(sidebarOpen)} />{sidebarOpen && <span>Inicio</span>}</Link>
-            <Link href="/dashboard"       className={navCls(sidebarOpen)} title={!sidebarOpen ? "Resumen" : ""}><BrainCircuit className={icoCls(sidebarOpen)} />{sidebarOpen && <span>Resumen</span>}</Link>
-            <Link href="/dashboard/chats" className={navCls(sidebarOpen)} title={!sidebarOpen ? "Conversaciones" : ""}><MessageSquareText className={icoCls(sidebarOpen)} />{sidebarOpen && <span>Conversaciones</span>}</Link>
+            <Link href="/"                    className={navCls(sidebarOpen)} title={!sidebarOpen ? "Inicio" : ""}><Home className={icoCls(sidebarOpen)} />{sidebarOpen && <span>Inicio</span>}</Link>
+            <Link href="/dashboard"           className={navCls(sidebarOpen)} title={!sidebarOpen ? "Resumen" : ""}><BrainCircuit className={icoCls(sidebarOpen)} />{sidebarOpen && <span>Resumen</span>}</Link>
+            <Link href="/dashboard/chats"     className={navCls(sidebarOpen)} title={!sidebarOpen ? "Conversaciones" : ""}><MessageSquareText className={icoCls(sidebarOpen)} />{sidebarOpen && <span>Conversaciones</span>}</Link>
+            {/* 🆕 Órdenes */}
+            <Link href="/dashboard/orders"    className={navCls(sidebarOpen)} title={!sidebarOpen ? "Órdenes" : ""}><ShoppingCart className={icoCls(sidebarOpen)} />{sidebarOpen && <span>Órdenes</span>}</Link>
             <Link href="/dashboard/settings"  className={navCls(sidebarOpen)} title={!sidebarOpen ? "Configuración" : ""}><Settings2 className={icoCls(sidebarOpen)} />{sidebarOpen && <span>Configuración</span>}</Link>
             <Link href="/dashboard/templates" className={navCls(sidebarOpen)} title={!sidebarOpen ? "Plantillas" : ""}><FileText className={icoCls(sidebarOpen)} />{sidebarOpen && <span>Plantillas</span>}</Link>
           </nav>
@@ -69,14 +72,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <main
         className={clsx(
           "h-full w-full transition-all duration-300",
-          // 🔽 Chats: el propio componente maneja sus scrolls (no padding, no overflow global)
-          isChatRoute
+          // 🔽 Chats y Órdenes pueden gestionar su propio scroll interno si lo necesitan
+          (isChatRoute || isOrdersRoute)
             ? "overflow-hidden"
             // Resto del dashboard: scroll sutil global + padding
             : "overflow-y-auto scrollbar pr-1 hover:scrollbar-thumb-[#2A3942] scrollbar-thumb-rounded-full"
         )}
       >
-        <div className={clsx(isChatRoute ? "h-full" : "p-6")}>
+        <div className={clsx(isChatRoute || isOrdersRoute ? "h-full" : "p-6")}>
           {children}
         </div>
       </main>

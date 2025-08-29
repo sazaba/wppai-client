@@ -7,7 +7,9 @@ import {
   FiClock,
   FiCheck,
   FiChevronDown,
-  FiPlus
+  FiPlus,
+  FiShoppingCart,
+  FiCheckCircle
 } from 'react-icons/fi'
 import { Menu } from '@headlessui/react'
 
@@ -20,12 +22,22 @@ interface ChatSidebarProps {
   setEstadoFiltro: (value: string) => void
   onSelectChat: (id: number) => void
   activoId: number | null
-  estadoIconos: any
-  estadoEstilos: any
-  onNuevaConversacion?: () => void // ← nueva prop opcional
+  estadoIconos: Record<string, React.ReactNode>
+  estadoEstilos: Record<string, string>
+  onNuevaConversacion?: () => void
 }
 
-const estados = ['todos', 'pendiente', 'en_proceso', 'respondido', 'requiere_agente', 'cerrado']
+/** Ahora incluye los estados nuevos */
+const estados = [
+  'todos',
+  'pendiente',
+  'en_proceso',
+  'respondido',
+  'requiere_agente',
+  'venta_en_proceso',   // ← nuevo
+  'venta_realizada',    // ← nuevo
+  'cerrado',
+] as const
 
 export default function ChatSidebar({
   chats,
@@ -40,6 +52,24 @@ export default function ChatSidebar({
   estadoEstilos,
   onNuevaConversacion
 }: ChatSidebarProps) {
+
+  // Fallbacks por si aún no agregaste los estilos/iconos nuevos en el padre
+  const icono = (estado: string) =>
+    estadoIconos?.[estado] ??
+    (estado === 'venta_en_proceso'
+      ? <FiShoppingCart className="inline-block" />
+      : estado === 'venta_realizada'
+      ? <FiCheckCircle className="inline-block" />
+      : <FiInbox className="inline-block" />)
+
+  const estilo = (estado: string) =>
+    estadoEstilos?.[estado] ??
+    (estado === 'venta_en_proceso'
+      ? 'bg-amber-900/30 text-amber-200 border border-amber-700'
+      : estado === 'venta_realizada'
+      ? 'bg-emerald-900/30 text-emerald-200 border border-emerald-700'
+      : 'bg-[#202C33] text-[#cbd5e1]')
+
   const chatsFiltrados = (Array.isArray(chats) ? chats : []).filter(chat =>
     (estadoFiltro === 'todos' || chat.estado === estadoFiltro) &&
     (chat.nombre ?? chat.phone).toLowerCase().includes(busqueda.toLowerCase())
@@ -92,7 +122,7 @@ export default function ChatSidebar({
                       className={`w-full px-4 py-2 flex justify-between items-center ${active ? 'bg-[#2A3942]' : ''}`}
                     >
                       <span className="flex items-center gap-2">
-                        {estadoIconos[estado]} {label} ({count})
+                        {icono(estado)} {label} ({count})
                       </span>
                       {selected && <FiCheck className="w-4 h-4 text-green-400" />}
                     </button>
@@ -132,28 +162,23 @@ export default function ChatSidebar({
               key={chat.id}
               onClick={() => onSelectChat(chat.id)}
               className={`p-3 rounded-md cursor-pointer transition-all ${
-                chat.id === activoId
-                  ? 'bg-[#2A3942]'
-                  : 'hover:bg-[#202C33]'
+                chat.id === activoId ? 'bg-[#2A3942]' : 'hover:bg-[#202C33]'
               }`}
             >
               <div className="flex justify-between items-center mb-1">
                 <span className="text-sm font-semibold truncate max-w-[160px]">
-                  {chat.nombre}
+                  {chat.nombre ?? chat.phone}
                 </span>
                 <span
-                  className={`text-[10px] px-2 py-0.5 rounded-full font-medium flex items-center gap-1 ${estadoEstilos[chat.estado]}`}
+                  className={`text-[10px] px-2 py-0.5 rounded-full font-medium flex items-center gap-1 ${estilo(chat.estado)}`}
                 >
-                  {estadoIconos[chat.estado]} {chat.estado.replace('_', ' ')}
+                  {icono(chat.estado)} {chat.estado.replace('_', ' ')}
                 </span>
               </div>
               <p className="text-xs text-[#8696a0] truncate">{chat.mensaje}</p>
               <p className="text-[10px] text-[#5b6b75] flex items-center gap-1">
                 <FiClock className="inline-block" />
-                {new Date(chat.fecha).toLocaleTimeString([], {
-                  hour: '2-digit',
-                  minute: '2-digit',
-                })}
+                {new Date(chat.fecha).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
               </p>
             </li>
           ))

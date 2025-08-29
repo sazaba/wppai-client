@@ -54,7 +54,7 @@ export default function ModalEntrenamiento({
     disclaimers: initialConfig?.disclaimers || '',
     businessType: ((initialConfig?.businessType as BusinessType) || 'servicios') as BusinessType,
 
-    // operación
+    // operación (texto libre)
     enviosInfo: initialConfig?.enviosInfo || '',
     metodosPago: initialConfig?.metodosPago || '',
     tiendaFisica: typeof initialConfig?.tiendaFisica === 'boolean' ? initialConfig!.tiendaFisica : false,
@@ -65,6 +65,37 @@ export default function ModalEntrenamiento({
     canalesAtencion: initialConfig?.canalesAtencion || '',
     extras: initialConfig?.extras || '',
     palabrasClaveNegocio: initialConfig?.palabrasClaveNegocio || '',
+
+    // envío (estructurado)
+    envioTipo: initialConfig?.envioTipo || '',
+    envioEntregaEstimado: initialConfig?.envioEntregaEstimado || '',
+    envioCostoFijo:
+      typeof initialConfig?.envioCostoFijo === 'number'
+        ? initialConfig!.envioCostoFijo
+        : initialConfig?.envioCostoFijo === ''
+        ? ''
+        : '',
+    envioGratisDesde:
+      typeof initialConfig?.envioGratisDesde === 'number'
+        ? initialConfig!.envioGratisDesde
+        : initialConfig?.envioGratisDesde === ''
+        ? ''
+        : '',
+
+    // pagos
+    pagoLinkGenerico: initialConfig?.pagoLinkGenerico || '',
+    pagoLinkProductoBase: initialConfig?.pagoLinkProductoBase || '',
+    pagoNotas: initialConfig?.pagoNotas || '',
+    bancoNombre: initialConfig?.bancoNombre || '',
+    bancoTitular: initialConfig?.bancoTitular || '',
+    bancoTipoCuenta: initialConfig?.bancoTipoCuenta || '',
+    bancoNumeroCuenta: initialConfig?.bancoNumeroCuenta || '',
+    bancoDocumento: initialConfig?.bancoDocumento || '',
+    transferenciaQRUrl: initialConfig?.transferenciaQRUrl || '',
+
+    // post-venta
+    facturaElectronicaInfo: initialConfig?.facturaElectronicaInfo || '',
+    soporteDevolucionesInfo: initialConfig?.soporteDevolucionesInfo || '',
 
     // escalamiento
     escalarSiNoConfia:
@@ -326,7 +357,14 @@ export default function ModalEntrenamiento({
     try {
       setSaving(true)
       setErrorMsg(null)
-      await axios.put(`${API_URL}/api/config`, { ...form, businessType }, { headers: getAuthHeaders() })
+
+      // Normaliza números opcionales a null cuando vengan como ''
+      const payload: any = { ...form, businessType }
+      if (payload.envioCostoFijo === '') payload.envioCostoFijo = null
+      if (payload.envioGratisDesde === '') payload.envioGratisDesde = null
+
+      await axios.put(`${API_URL}/api/config`, payload, { headers: getAuthHeaders() })
+
       if (businessType === 'productos') await loadCatalog()
       close()
     } catch (e: any) {
@@ -371,7 +409,7 @@ export default function ModalEntrenamiento({
                 <TypeTabs value={businessType} onChange={handleChangeType} loading={reloading} />
               </div>
 
-              {!isCatalogStep ? (
+              {!(businessType === 'productos' && step === 1) ? (
                 <BusinessForm
                   value={form}
                   businessType={businessType}
@@ -427,7 +465,7 @@ export default function ModalEntrenamiento({
                   ) : (
                     <div className="hidden sm:block w-[84px]" />
                   )}
-                  {step < totalSteps - 1 ? (
+                  {businessType === 'productos' && step < 1 ? (
                     <button
                       onClick={next}
                       className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm disabled:opacity-60"

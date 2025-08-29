@@ -3,7 +3,7 @@
 export type BusinessType = 'servicios' | 'productos'
 
 /** Configuración completa usada por el formulario (front) y el backend */
-export interface ConfigForm {
+export type ConfigForm = {
     // base
     nombre: string
     descripcion: string
@@ -13,7 +13,7 @@ export interface ConfigForm {
     disclaimers: string
     businessType: BusinessType
 
-    // operación (campos nuevos que ya agregaste en Prisma)
+    // operación (texto libre)
     enviosInfo: string
     metodosPago: string
     tiendaFisica: boolean
@@ -25,10 +25,31 @@ export interface ConfigForm {
     extras: string
     palabrasClaveNegocio: string
 
-    // reglas de escalamiento
+    // envío (estructurado)
+    envioTipo: string
+    envioEntregaEstimado: string
+    envioCostoFijo: number | ''    // '' permite limpiar input → se manda como null
+    envioGratisDesde: number | ''  // idem
+
+    // pagos
+    pagoLinkGenerico: string
+    pagoLinkProductoBase: string
+    pagoNotas: string
+    bancoNombre: string
+    bancoTitular: string
+    bancoTipoCuenta: string
+    bancoNumeroCuenta: string
+    bancoDocumento: string
+    transferenciaQRUrl: string
+
+    // post-venta
+    facturaElectronicaInfo: string
+    soporteDevolucionesInfo: string
+
+    // escalamiento
     escalarSiNoConfia: boolean
-    escalarPalabrasClave: string      // coma-separadas
-    escalarPorReintentos: number      // 0 = desactivado
+    escalarPalabrasClave: string
+    escalarPorReintentos: number
 }
 
 export interface ImagenProducto {

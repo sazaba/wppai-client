@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState, useCallback } from 'react'
-import { FiClock, FiAlertTriangle } from 'react-icons/fi'
+import { FiClock, FiAlertTriangle, FiShoppingCart, FiCheckCircle } from 'react-icons/fi'
 import { responderConIA } from '@/lib/chatService'
 import socket from '@/lib/socket'
 import axios from '@/lib/axios'
@@ -17,14 +17,17 @@ import ChatModalCrear from './components/ChatModalCrear'
 import { useAuth } from '../../context/AuthContext'
 
 // ——————————————————————————————
-// Config de estados
+// Config de estados (incluye los NUEVOS)
 // ——————————————————————————————
 const estadoIconos = {
   pendiente: <FiClock className="inline mr-1 animate-spin" />,
   respondido: <span className="inline-block w-2 h-2 bg-green-400 rounded-full" />,
   en_proceso: <span className="inline-block w-2 h-2 bg-blue-400 rounded-full" />,
   requiere_agente: <span className="inline-block w-2 h-2 bg-red-400 rounded-full" />,
-  cerrado: <span className="inline-block w-2 h-2 bg-gray-400 rounded-full" />
+  venta_en_proceso: <FiShoppingCart className="inline mr-1" />,   // 🆕
+  venta_realizada: <FiCheckCircle className="inline mr-1" />,      // 🆕
+  cerrado: <span className="inline-block w-2 h-2 bg-gray-400 rounded-full" />,
+  todos: <span className="inline-block w-2 h-2 bg-slate-400 rounded-full" />,
 }
 
 const estadoEstilos = {
@@ -32,7 +35,10 @@ const estadoEstilos = {
   respondido: 'bg-green-100 text-green-700',
   en_proceso: 'bg-blue-100 text-blue-700',
   requiere_agente: 'bg-red-100 text-red-700',
-  cerrado: 'bg-gray-100 text-gray-600'
+  venta_en_proceso: 'bg-amber-100 text-amber-700',   // 🆕
+  venta_realizada: 'bg-emerald-100 text-emerald-700',// 🆕
+  cerrado: 'bg-gray-100 text-gray-600',
+  todos: 'bg-slate-100 text-slate-700',
 }
 
 export default function ChatsPage() {
@@ -60,7 +66,6 @@ export default function ChatsPage() {
   // ——————————————————————————————
   const keyOf = useCallback(
     (m: any) =>
-      // prioriza IDs únicos y mediaId si existe
       m.id ??
       m.externalId ??
       (m.mediaId ? `mid:${m.mediaId}` : `${m.from}|${m.timestamp}|${m.contenido || ''}`),
@@ -115,17 +120,15 @@ export default function ChatsPage() {
       // el backend emite: { conversationId, message: { ...campos... }, estado?, nombre? }
       const payload = msg.message ?? msg
 
-      // ⬇️ Mapeo COMPLETO incluyendo media
       const nuevo = {
         id: payload.id,
         externalId: payload.externalId,
         from: payload.from,
         contenido: payload.contenido ?? payload.body ?? '',
         timestamp: payload.timestamp ?? payload.createdAt,
-        // —— campos de media que emite el backend (webhook.controller.ts)
-        mediaId: payload.mediaId, // por si lo envías en el futuro
+        mediaId: payload.mediaId,
         mediaType: payload.mediaType,
-        mediaUrl: payload.mediaUrl, // backend ya manda URL del proxy /api/whatsapp/media/:mediaId cuando aplica
+        mediaUrl: payload.mediaUrl,
         mimeType: payload.mimeType,
         caption: payload.caption,
         transcription: payload.transcription,
@@ -150,6 +153,7 @@ export default function ChatsPage() {
               ? {
                   ...chat,
                   mensaje: nuevo.contenido || '[media]',
+                  // si el backend manda estado (incluye venta_en_proceso/venta_realizada), lo respetamos
                   estado: msg.estado ?? chat.estado,
                   fecha: nuevo.timestamp
                 }
@@ -172,6 +176,7 @@ export default function ChatsPage() {
   )
 
   const handleChatActualizado = useCallback((data: any) => {
+    // backend puede emitir { id, estado } => incluye nuevos estados de venta
     setChats((prev) => prev.map((chat) => (chat.id === data.id ? { ...chat, estado: data.estado } : chat)))
   }, [])
 
@@ -211,6 +216,8 @@ export default function ChatsPage() {
     setPage(1)
     try {
       const chatActual = chats.find((c) => c.id === chatId)
+
+      // regla actual: si estaba "pendiente" => pasa a "en_proceso"
       if (chatActual?.estado === 'pendiente') {
         await axios.put(
           `/api/chats/${chatId}/estado`,
@@ -223,7 +230,6 @@ export default function ChatsPage() {
         headers: { Authorization: `Bearer ${token}` }
       })
 
-      // ⬇️ Trae también los campos de media del historial
       const mapped = res.data.messages.map((m: any) => ({
         id: m.id,
         externalId: m.externalId,
@@ -281,136 +287,105 @@ export default function ChatsPage() {
   }
 
   // ——————————————————————————————
-  // Enviar TEXTO
+  // Enviar TEXTO (optimista + persistencia + replace)
   // ——————————————————————————————
-// ——————————————————————————————
-// Enviar TEXTO (optimista + persistencia + replace)
-// ——————————————————————————————
-const handleSendMessage = async () => {
-  const body = respuesta.trim()
-  if (!body || !activoId) return
+  const handleSendMessage = async () => {
+    const body = respuesta.trim()
+    if (!body || !activoId) return
 
-  const chatActual = chats.find((c) => c.id === activoId)
-  const tempId = `temp-${Date.now()}`
-  const timestamp = new Date().toISOString()
+    const chatActual = chats.find((c) => c.id === activoId)
+    const tempId = `temp-${Date.now()}`
+    const timestamp = new Date().toISOString()
 
-  // ✅ El mensaje manual lo envía un AGENTE
-  const msgOptimista = {
-    id: tempId,
-    from: 'agent',
-    contenido: body,
-    timestamp
-  }
+    // ✅ El mensaje manual lo envía un AGENTE
+    const msgOptimista = { id: tempId, from: 'agent', contenido: body, timestamp }
 
-  // Limpia input y pinta optimista
-  setRespuesta('')
-  setMensajes((prev) => mergeUnique(prev, [msgOptimista]))
+    // Limpia input y pinta optimista
+    setRespuesta('')
+    setMensajes((prev) => mergeUnique(prev, [msgOptimista]))
 
-  // Si la conversación no está cerrada, usa tu endpoint manual
-  if (chatActual?.estado !== 'cerrado') {
-    try {
-      const { data } = await axios.post(
-        `/api/chats/${activoId}/responder-manual`,
-        { contenido: body }, // el from='agent' que persiste lo debe fijar el backend
-        { headers: { Authorization: `Bearer ${token}` } }
-      )
-
-      // data.message debería venir con id real, createdAt/ timestamp consolidado, etc.
-      const real = data?.message ?? data
-
-      // 🔁 Reemplaza el optimista por el real
-      setMensajes((prev) =>
-        ordenarMensajes(
-          prev.map((m) => (m.id === tempId ? { ...m, ...real, id: real.id } : m))
+    // Si la conversación no está cerrada, usamos el endpoint manual
+    if (chatActual?.estado !== 'cerrado') {
+      try {
+        const { data } = await axios.post(
+          `/api/chats/${activoId}/responder-manual`,
+          { contenido: body },
+          { headers: { Authorization: `Bearer ${token}` } }
         )
-      )
 
-      // Opcional: estado de la tarjeta tras responder manualmente
-      setChats((prev) =>
-        prev.map((chat) =>
-          chat.id === activoId ? { ...chat, estado: 'respondido' } : chat
+        const real = data?.message ?? data
+        setMensajes((prev) =>
+          ordenarMensajes(prev.map((m) => (m.id === tempId ? { ...m, ...real, id: real.id } : m)))
         )
-      )
-    } catch (err) {
-      console.error('Error al responder manualmente:', err)
-      // Marca error visual en el optimista
-      setMensajes((prev) =>
-        prev.map((m) => (m.id === tempId ? { ...m, error: true } : m))
-      )
-    }
-    return
-  }
 
-  // Si está cerrada, mantienes tu flujo de IA (si así lo deseas)
-  try {
-    const res = await responderConIA({ chatId: activoId, mensaje: body, intentosFallidos: 0 })
-
-    // Reemplaza optimista con respuesta IA si te devuelve message
-    if (res?.message) {
-      setMensajes((prev) =>
-        ordenarMensajes(
-          prev.map((m) => (m.id === tempId ? { ...m, ...res.message, id: res.message.id } : m))
+        setChats((prev) =>
+          prev.map((chat) =>
+            chat.id === activoId ? { ...chat, estado: 'respondido' } : chat
+          )
         )
-      )
-    }
-
-    if (res.estado === 'requiere_agente') {
-      setChats((prev) =>
-        prev.map((chat) =>
-          chat.id === activoId ? { ...chat, estado: 'requiere_agente' } : chat
-        )
-      )
-      if (audioRef.current) audioRef.current.play()
-      if (navigator.vibrate) navigator.vibrate(200)
+      } catch (err) {
+        console.error('Error al responder manualmente:', err)
+        setMensajes((prev) => prev.map((m) => (m.id === tempId ? { ...m, error: true } : m)))
+      }
       return
     }
 
-    setChats((prev) =>
-      prev.map((chat) => (chat.id === activoId ? { ...chat, estado: 'respondido' } : chat))
-    )
-  } catch (err) {
-    console.error('Error al responder con IA:', err)
-    setMensajes((prev) =>
-      prev.map((m) => (m.id === tempId ? { ...m, error: true } : m))
-    )
+    // Si está cerrada, mantienes tu flujo de IA (si así lo deseas)
+    try {
+      const res = await responderConIA({ chatId: activoId, mensaje: body, intentosFallidos: 0 })
+      if (res?.message) {
+        setMensajes((prev) =>
+          ordenarMensajes(prev.map((m) => (m.id === tempId ? { ...m, ...res.message, id: res.message.id } : m)))
+        )
+      }
+      if (res.estado === 'requiere_agente') {
+        setChats((prev) =>
+          prev.map((chat) =>
+            chat.id === activoId ? { ...chat, estado: 'requiere_agente' } : chat
+          )
+        )
+        if (audioRef.current) audioRef.current.play()
+        if (navigator.vibrate) navigator.vibrate(200)
+        return
+      }
+      setChats((prev) =>
+        prev.map((chat) => (chat.id === activoId ? { ...chat, estado: 'respondido' } : chat))
+      )
+    } catch (err) {
+      console.error('Error al responder con IA:', err)
+      setMensajes((prev) => prev.map((m) => (m.id === tempId ? { ...m, error: true } : m)))
+    }
   }
-}
-
-
-
-
-
- // Enviar MEDIA por LINK (optimistic UI correcto)
-const handleSendMedia = async (
-  { url, type }: { url: string; type: 'image' | 'video' }
-) => {
-  if (!activoId || !token) return;
-  try {
-    await axios.post(
-      `/api/chats/${activoId}/media`,
-      { url, type },
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
-
-    // Opcional: actualizamos UI de forma optimista
-    setMensajes(prev => [
-      ...prev,
-      {
-        id: Date.now(),
-        from: 'agent',
-        contenido: type === 'image' ? '[imagen]' : '[video]',
-        mediaType: type,
-        mediaUrl: url,
-        timestamp: new Date().toISOString(),
-      },
-    ]);
-  } catch (err) {
-    console.error('[handleSendMedia] Error:', err);
-  }
-};
 
   // ——————————————————————————————
-  // Enviar ARCHIVO subido (nota de voz / imagen / video / pdf)
+  // Enviar MEDIA por LINK
+  // ——————————————————————————————
+  const handleSendMedia = async ({ url, type }: { url: string; type: 'image' | 'video' }) => {
+    if (!activoId || !token) return
+    try {
+      await axios.post(
+        `/api/chats/${activoId}/media`,
+        { url, type },
+        { headers: { Authorization: `Bearer ${token}` } }
+      )
+      setMensajes(prev => [
+        ...prev,
+        {
+          id: Date.now(),
+          from: 'agent',
+          contenido: type === 'image' ? '[imagen]' : '[video]',
+          mediaType: type,
+          mediaUrl: url,
+          timestamp: new Date().toISOString(),
+        },
+      ])
+    } catch (err) {
+      console.error('[handleSendMedia] Error:', err)
+    }
+  }
+
+  // ——————————————————————————————
+  // Enviar ARCHIVO subido
   // ——————————————————————————————
   const handleUploadFile = async (
     file: File,
@@ -426,14 +401,9 @@ const handleSendMedia = async (
       if (caption) fd.append('caption', caption)
 
       await axios.post('/api/whatsapp/media-upload', fd, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'multipart/form-data'
-        }
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' }
       })
-
-      // (opcional) podrías pintar optimista, pero como el upload puede tardar
-      // prefiero esperar el evento de socket del backend.
+      // esperamos evento de socket
     } catch (err) {
       console.error('❌ Error subiendo/enviando archivo:', err)
       alert('No se pudo enviar el archivo')
@@ -533,16 +503,13 @@ const handleSendMedia = async (
             <ChatMessages mensajes={mensajes} onLoadMore={handleLoadMore} hasMore={hasMore} />
 
             <ChatInput
-  value={respuesta}
-  onChange={setRespuesta}
-  onSend={handleSendMessage}
-  onSendGif={(url, isMp4) =>
-    handleSendMedia({ url, type: isMp4 ? 'video' : 'image' })
-  }
-  onUploadFile={(file, type) => handleUploadFile(file, type)}
-  disabled={chats.find((c) => c.id === activoId)?.estado === 'cerrado'}
-/>
-
+              value={respuesta}
+              onChange={setRespuesta}
+              onSend={handleSendMessage}
+              onSendGif={(url, isMp4) => handleSendMedia({ url, type: isMp4 ? 'video' : 'image' })}
+              onUploadFile={(file, type) => handleUploadFile(file, type)}
+              disabled={chats.find((c) => c.id === activoId)?.estado === 'cerrado'}
+            />
           </>
         ) : (
           <div className="h-full flex items-center justify-center text-gray-400 text-sm">
