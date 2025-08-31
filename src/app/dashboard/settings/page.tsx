@@ -6,20 +6,15 @@ import axios from 'axios'
 import ModalEntrenamiento from './components/training/ModalEntrenamiento'
 import WhatsappConfig from './components/WhatsappConfig'
 
+// 👇 AJUSTA ESTA RUTA a donde pegaste el archivo de tipos
+// por ejemplo: './components/training/types' o './components/business/types'
+import type {
+  ConfigForm,
+  BusinessType,
+  BackendBusinessConfig, // Partial<ConfigForm>
+} from './components/training/types'
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL as string
-
-type BusinessType = 'servicios' | 'productos'
-
-interface ConfigForm {
-  id?: number
-  nombre: string
-  descripcion: string
-  servicios: string
-  faq: string
-  horarios: string
-  businessType?: BusinessType
-  disclaimers?: string
-}
 
 function getAuthHeaders(): Record<string, string> {
   if (typeof window === 'undefined') return {}
@@ -27,17 +22,83 @@ function getAuthHeaders(): Record<string, string> {
   return token ? { Authorization: `Bearer ${token}` } : {}
 }
 
-export default function SettingsPage() {
-  const [form, setForm] = useState<ConfigForm>({
-    nombre: '',
-    descripcion: '',
-    servicios: '',
-    faq: '',
-    horarios: '',
-    businessType: 'servicios',
-    disclaimers: '',
-  })
+// Defaults que calzan con tu ConfigForm
+const DEFAULTS: ConfigForm = {
+  // base
+  nombre: '',
+  descripcion: '',
+  servicios: '',
+  faq: '',
+  horarios: '',
+  disclaimers: '',
+  businessType: 'servicios',
 
+  // operación (texto libre)
+  enviosInfo: '',
+  metodosPago: '',
+  tiendaFisica: false,
+  direccionTienda: '',
+  politicasDevolucion: '',
+  politicasGarantia: '',
+  promocionesInfo: '',
+  canalesAtencion: '',
+  extras: '',
+  palabrasClaveNegocio: '',
+
+  // envío (estructurado)
+  envioTipo: '',
+  envioEntregaEstimado: '',
+  envioCostoFijo: '',   // number | ''
+  envioGratisDesde: '', // number | ''
+
+  // pagos
+  pagoLinkGenerico: '',
+  pagoLinkProductoBase: '',
+  pagoNotas: '',
+  bancoNombre: '',
+  bancoTitular: '',
+  bancoTipoCuenta: '',
+  bancoNumeroCuenta: '',
+  bancoDocumento: '',
+  transferenciaQRUrl: '',
+
+  // post-venta
+  facturaElectronicaInfo: '',
+  soporteDevolucionesInfo: '',
+
+  // escalamiento
+  escalarSiNoConfia: true,
+  escalarPalabrasClave: '',
+  escalarPorReintentos: 0,
+}
+
+// Serializa DECIMAL opcional (number|'') → number|null para API
+function serializeForApi(cfg: ConfigForm) {
+  return {
+    ...cfg,
+    envioCostoFijo: cfg.envioCostoFijo === '' ? null : Number(cfg.envioCostoFijo),
+    envioGratisDesde: cfg.envioGratisDesde === '' ? null : Number(cfg.envioGratisDesde),
+  }
+}
+
+// Normaliza lo que viene del backend (Partial<ConfigForm>) a ConfigForm del front
+function materializeConfig(data?: BackendBusinessConfig | null): ConfigForm {
+  const d = data ?? {}
+  return {
+    ...DEFAULTS,
+    ...d,
+    // Garantiza businessType
+    businessType: (d.businessType as BusinessType) ?? DEFAULTS.businessType,
+    // Los decimales pueden venir null → inputs usan '' para permitir vaciar
+    envioCostoFijo: (d as any)?.envioCostoFijo ?? '',
+    envioGratisDesde: (d as any)?.envioGratisDesde ?? '',
+    // pagoNotas es string (no opcional en tu tipo)
+    pagoNotas: d.pagoNotas ?? '',
+  }
+}
+
+export default function SettingsPage() {
+  const [form, setForm] = useState<ConfigForm>(DEFAULTS)
   const [configGuardada, setConfigGuardada] = useState<ConfigForm | null>(null)
   const [trainingActive, setTrainingActive] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -46,59 +107,35 @@ export default function SettingsPage() {
   useEffect(() => {
     const fetchConfig = async () => {
       try {
-        const res = await axios.get(`${API_URL}/api/config`, { headers: getAuthHeaders() })
-        if (res.data) {
-          setConfigGuardada(res.data)
-          setForm({
-            nombre: res.data.nombre || '',
-            descripcion: res.data.descripcion || '',
-            servicios: res.data.servicios || '',
-            faq: res.data.faq || '',
-            horarios: res.data.horarios || '',
-            businessType: (res.data.businessType as BusinessType) || 'servicios',
-            disclaimers: res.data.disclaimers || '',
-          })
-        }
+        const { data } = await axios.get(`${API_URL}/api/config`, { headers: getAuthHeaders() })
+        const safe = materializeConfig(data as BackendBusinessConfig)
+        setConfigGuardada(Object.keys(data || {}).length ? safe : null)
+        setForm(safe)
       } catch (err) {
         console.error('Error al cargar configuración existente:', err)
+        setForm(DEFAULTS)
       } finally {
         setLoading(false)
       }
     }
     fetchConfig()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Reiniciar entrenamiento (elimina config y, opcional, catálogo)
+  // Reiniciar entrenamiento (borra config + catálogo si así lo definiste en tu backend)
   const reiniciarEntrenamiento = async () => {
     try {
       if (typeof window !== 'undefined') {
         const ok = window.confirm(
-          '¿Reiniciar el entrenamiento?\n\nSe eliminará la configuración actual y se abrirá el asistente. ' +
-            'También se eliminará el catálogo si eliges continuar.',
+          '¿Reiniciar el entrenamiento?\n\nSe eliminará la configuración actual y se abrirá el asistente. También se eliminará el catálogo.'
         )
         if (!ok) return
       }
-
-      // 🔥 borra configuración + catálogo (cambia a false si no quieres tocar productos)
       await axios.delete(`${API_URL}/api/config`, {
         params: { withCatalog: true },
         headers: getAuthHeaders(),
       })
-
-      // Deja el formulario vacío y abre el modal de entrenamiento
-      const vacio: ConfigForm = {
-        nombre: '',
-        descripcion: '',
-        servicios: '',
-        faq: '',
-        horarios: '',
-        businessType: 'servicios',
-        disclaimers: '',
-      }
-
       setConfigGuardada(null)
-      setForm(vacio)
+      setForm(DEFAULTS)
       setTrainingActive(true)
     } catch (e: any) {
       console.error('[reiniciarEntrenamiento] error:', e?.response?.data || e?.message || e)
@@ -115,22 +152,24 @@ export default function SettingsPage() {
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <h1 className="text-2xl font-bold text-white text-center">Entrenamiento de tu IA</h1>
 
-          {/* Selector de tipo de negocio siempre visible */}
+          {/* Selector de tipo de negocio: persistimos TODO el objeto */}
           <div className="flex items-center gap-2">
             <label className="text-sm text-slate-300">Tipo de negocio</label>
             <select
               value={form.businessType}
               onChange={async (e) => {
                 const newType = e.target.value as BusinessType
-                setForm((f) => ({ ...f, businessType: newType }))
+                const next = { ...form, businessType: newType }
+                setForm(next)
                 try {
-                  // Persistimos cambio inmediato de tipo
                   const { data } = await axios.put(
                     `${API_URL}/api/config`,
-                    { ...form, businessType: newType },
-                    { headers: getAuthHeaders() },
+                    serializeForApi(next),
+                    { headers: getAuthHeaders() }
                   )
-                  setConfigGuardada(data || null)
+                  const safe = materializeConfig(data as BackendBusinessConfig)
+                  setConfigGuardada(safe)
+                  setForm(safe)
                 } catch (err) {
                   console.error('No se pudo actualizar businessType:', err)
                 }
@@ -153,29 +192,16 @@ export default function SettingsPage() {
           )}
         </div>
 
-        {/* Resumen */}
+        {/* Resumen breve */}
         {configGuardada && (
           <div className="bg-slate-800 border border-slate-700 p-6 rounded-2xl shadow-xl text-white space-y-4">
             <h2 className="text-xl font-bold">📦 Resumen de la configuración</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm break-words">
-              <div>
-                <strong>Nombre:</strong> {configGuardada.nombre}
-              </div>
-              <div>
-                <strong>Descripción:</strong> {configGuardada.descripcion}
-              </div>
-              <div>
-                <strong>Servicios/Productos:</strong> {configGuardada.servicios}
-              </div>
-              <div>
-                <strong>FAQ:</strong> {configGuardada.faq}
-              </div>
-              <div>
-                <strong>Horarios:</strong> {configGuardada.horarios}
-              </div>
-              <div>
-                <strong>Tipo de negocio:</strong> {configGuardada.businessType}
-              </div>
+              <div><strong>Nombre:</strong> {configGuardada.nombre}</div>
+              <div><strong>Descripción:</strong> {configGuardada.descripcion}</div>
+              <div className="md:col-span-2"><strong>FAQ:</strong> {configGuardada.faq}</div>
+              <div><strong>Horarios:</strong> {configGuardada.horarios}</div>
+              <div><strong>Tipo de negocio:</strong> {configGuardada.businessType}</div>
               {configGuardada.disclaimers && (
                 <div className="md:col-span-2">
                   <strong>Disclaimers:</strong> {configGuardada.disclaimers}
@@ -203,33 +229,19 @@ export default function SettingsPage() {
           </div>
         )}
 
-        {/* Modal de entrenamiento */}
+        {/* Modal de entrenamiento (sin onSave en tus tipos) */}
         <ModalEntrenamiento
           trainingActive={trainingActive}
+          initialConfig={form} // le pasamos TODO el objeto actual
           onClose={async () => {
             setTrainingActive(false)
+            // Al cerrar, refrescamos la config del backend para sincronizar
             try {
               const { data } = await axios.get(`${API_URL}/api/config`, { headers: getAuthHeaders() })
-              setConfigGuardada(data || null)
-              if (data) {
-                setForm({
-                  nombre: data.nombre || '',
-                  descripcion: data.descripcion || '',
-                  servicios: data.servicios || '',
-                  faq: data.faq || '',
-                  horarios: data.horarios || '',
-                  businessType: (data.businessType as BusinessType) || 'servicios',
-                  disclaimers: data.disclaimers || '',
-                })
-              }
-            } catch {
-              /* noop */
-            }
-          }}
-          initialConfig={{
-            ...form,
-            businessType: form.businessType as BusinessType,
-            disclaimers: form.disclaimers,
+              const safe = materializeConfig(data as BackendBusinessConfig)
+              setConfigGuardada(Object.keys(data || {}).length ? safe : null)
+              setForm(safe)
+            } catch {/* noop */}
           }}
         />
 
