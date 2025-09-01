@@ -17,9 +17,10 @@ type Props = {
   onEdit: (idx: number) => void
   onDelete: (idx: number) => void
   onSave: (idx: number, patch: Partial<Producto>) => void
-  onCancel: (idx: number) => void
+  /** ⬅️ Se mantiene SIN índice para no romper el padre */
+  onCancel: () => void
 
-  /** 👉 Actualiza para que retorne la imagen creada */
+  /** Devuelve la imagen creada si está disponible (para pintar optimista) */
   onUpload: (idx: number, file: File) => Promise<ImagenProducto | void> | ImagenProducto | void
   onRemoveImage: (idx: number, imageId: number) => Promise<void> | void
 
@@ -44,7 +45,7 @@ function CatalogPanelBase({
   uploadingIndex,
   savingIndex,
 }: Props) {
-  /** ===== Estado local sincronizado con productos (para actualizaciones en tiempo real) ===== */
+  // ===== Estado local sincronizado con productos =====
   const [items, setItems] = useState<Producto[]>(productos)
 
   useEffect(() => {
@@ -52,7 +53,7 @@ function CatalogPanelBase({
   }, [productos])
 
   const patchProductAt = (idx: number, patch: Partial<Producto>) => {
-    setItems(prev => {
+    setItems((prev) => {
       const next = prev.slice()
       next[idx] = { ...next[idx], ...patch }
       return next
@@ -60,7 +61,7 @@ function CatalogPanelBase({
   }
 
   const pushImageAt = (idx: number, img: ImagenProducto) => {
-    setItems(prev => {
+    setItems((prev) => {
       const next = prev.slice()
       const prod = next[idx]
       const imgs = (prod.imagenes || []).slice()
@@ -71,43 +72,37 @@ function CatalogPanelBase({
   }
 
   const removeImageAt = (idx: number, imageId: number) => {
-    setItems(prev => {
+    setItems((prev) => {
       const next = prev.slice()
       const prod = next[idx]
-      const imgs = (prod.imagenes || []).filter(i => i.id !== imageId)
+      const imgs = (prod.imagenes || []).filter((i) => i.id !== imageId)
       next[idx] = { ...prod, imagenes: imgs }
       return next
     })
   }
 
-  /** ===== Handlers envoltorio para tiempo real ===== */
+  // ===== Handlers envoltorio (optimistas) =====
   const handleUpload = async (idx: number, file: File) => {
     const created = (await onUpload(idx, file)) as ImagenProducto | void
     if (created && created.id && created.url) {
-      // Actualiza inmediatamente el producto en la grilla
       pushImageAt(idx, created)
-    } else {
-      // Si tu onUpload no devuelve nada, como fallback puedes forzar un refetch:
-      // onReload()
     }
   }
 
   const handleRemoveImage = async (idx: number, imageId: number) => {
-    // Optimista
-    const prevProduct = items[idx]
-    const prevImages = prevProduct?.imagenes || []
+    const prev = items[idx]
+    const prevImgs = prev?.imagenes || []
     removeImageAt(idx, imageId)
-
     try {
       await onRemoveImage(idx, imageId)
     } catch (e) {
-      // Revertir si falla
-      setItems(prev => {
-        const next = prev.slice()
-        next[idx] = { ...prevProduct, imagenes: prevImages }
-        return next
+      // revert si falla
+      setItems((cur) => {
+        const copy = cur.slice()
+        copy[idx] = { ...prev, imagenes: prevImgs }
+        return copy
       })
-      console.error('[remove image] error', e)
+      console.error('[CatalogPanel] remove image failed:', e)
     }
   }
 
@@ -126,6 +121,7 @@ function CatalogPanelBase({
         </button>
       </div>
 
+      {/* Crear nuevo producto */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 bg-slate-800/60 border border-slate-700 rounded-2xl p-4">
         <input
           placeholder="Nombre del producto *"
@@ -189,8 +185,8 @@ function CatalogPanelBase({
                 onEdit={() => onEdit(idx)}
                 onDelete={() => onDelete(idx)}
                 onSave={(patch) => onSave(idx, patch)}
-                onCancel={() => onCancel(idx)}
-                /** ✅ Pasamos el handler que actualiza items en tiempo real */
+                onCancel={() => onCancel()}
+                // Subidas/eliminaciones con actualización optimista local
                 onUpload={(file) => handleUpload(idx, file)}
                 onRemoveImage={(imageId) => handleRemoveImage(idx, imageId)}
                 uploading={uploadingIndex === idx}

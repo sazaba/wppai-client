@@ -1,53 +1,55 @@
 'use client'
 
 import { memo } from 'react'
-import type { BusinessType } from './types'   // ⬅️ importa desde el archivo único
+
+// ⚠️ Nuevo tipo solo para UI de tabs (no toca el tipo de la BD)
+export type EditorTab = 'servicios' | 'productos' | 'agente'
 
 type Props = {
-  value: BusinessType
-  onChange: (next: BusinessType) => void
+  value: EditorTab
+  onChange: (next: EditorTab) => void
   loading?: boolean
 }
 
 function TypeTabsBase({ value, onChange, loading }: Props) {
-  const isServicios = value === 'servicios'
-  const isProductos = value === 'productos'
-
   const base =
     'rounded-xl px-3 py-2 text-sm border transition disabled:opacity-60 disabled:cursor-not-allowed'
 
+  const btn = (active: boolean, color: 'emerald'|'blue'|'violet') =>
+    active
+      ? `bg-${color}-600/20 border-${color}-500 text-${color}-200`
+      : 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-800/70'
+
   return (
-    <div className="mb-4 grid grid-cols-2 gap-2">
+    <div className="mb-4 grid grid-cols-3 gap-2">
       <button
         type="button"
-        className={
-          base +
-          ' ' +
-          (isServicios
-            ? 'bg-emerald-600/20 border-emerald-500 text-emerald-200'
-            : 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-800/70')
-        }
+        className={`${base} ${btn(value==='servicios','emerald')}`}
         onClick={() => onChange('servicios')}
-        disabled={loading || isServicios}
-        aria-pressed={isServicios}
+        disabled={loading || value==='servicios'}
+        aria-pressed={value==='servicios'}
       >
         Servicios
       </button>
 
       <button
         type="button"
-        className={
-          base +
-          ' ' +
-          (isProductos
-            ? 'bg-blue-600/20 border-blue-500 text-blue-200'
-            : 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-800/70')
-        }
+        className={`${base} ${btn(value==='productos','blue')}`}
         onClick={() => onChange('productos')}
-        disabled={loading || isProductos}
-        aria-pressed={isProductos}
+        disabled={loading || value==='productos'}
+        aria-pressed={value==='productos'}
       >
         Productos
+      </button>
+
+      <button
+        type="button"
+        className={`${base} ${btn(value==='agente','violet')}`}
+        onClick={() => onChange('agente')}
+        disabled={loading || value==='agente'}
+        aria-pressed={value==='agente'}
+      >
+        Agente
       </button>
     </div>
   )

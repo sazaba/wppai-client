@@ -6,9 +6,11 @@ import { AnimatePresence, motion } from 'framer-motion'
 import axios from 'axios'
 import { X } from 'lucide-react'
 
-import TypeTabs from './TypeTabs'
+import TypeTabs, { type EditorTab } from './TypeTabs'
 import BusinessForm from './BusinessForm'
 import CatalogPanel from './CatalogPanel'
+import AgentForm from './AgentForm'
+
 import type {
   Producto,
   ImagenProducto,
@@ -35,16 +37,24 @@ export default function ModalEntrenamiento({
   const [open, setOpen] = useState<boolean>(trainingActive)
   useEffect(() => setOpen(trainingActive), [trainingActive])
 
-  // UI
-  const [step, setStep] = useState(0)
+  // ====== UI
   const [saving, setSaving] = useState(false)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
   const [reloading, setReloading] = useState(false)
 
-  // Form negocio
-  const [businessType, setBusinessType] = useState<BusinessType>(
-    (initialConfig?.businessType as BusinessType) || 'servicios'
-  )
+  // ====== Tabs (independiente de businessType)
+  const initialBT = (initialConfig?.businessType as BusinessType) || 'servicios'
+  const [tab, setTab] = useState<EditorTab>(initialBT === 'productos' ? 'productos' : 'servicios')
+
+  // ====== Pasos (solo productos)
+  const [step, setStep] = useState(0)
+  const totalSteps = useMemo(() => (tab === 'productos' ? 2 : 1), [tab])
+  const isCatalogStep = tab === 'productos' && step === 1
+  const next = () => setStep((s) => (s < totalSteps - 1 ? s + 1 : s))
+  const back = () => setStep((s) => (s > 0 ? s - 1 : s))
+
+  // ====== Form principal
+  const [businessType, setBusinessType] = useState<BusinessType>(initialBT)
 
   const emptyForm: ConfigForm = {
     // base
@@ -54,22 +64,19 @@ export default function ModalEntrenamiento({
     faq: initialConfig?.faq || '',
     horarios: initialConfig?.horarios || '',
     disclaimers: initialConfig?.disclaimers || '',
-    businessType: ((initialConfig?.businessType as BusinessType) || 'servicios') as BusinessType,
+    businessType: initialBT,
 
-    // === IA / Agente (nuevos) ===
-    aiMode:
-      (initialConfig?.aiMode as AiMode) ||
-      (((initialConfig?.businessType as BusinessType) === 'productos') ? 'ecommerce' : 'agente'),
+    // IA / Agente
+    aiMode: (initialConfig?.aiMode as AiMode) || (initialBT === 'productos' ? 'ecommerce' : 'agente'),
     agentSpecialty: (initialConfig?.agentSpecialty as AgentSpecialty) || 'generico',
     agentPrompt: initialConfig?.agentPrompt || '',
     agentScope: initialConfig?.agentScope || '',
     agentDisclaimers: initialConfig?.agentDisclaimers || '',
 
-    // operación (texto libre)
+    // operación
     enviosInfo: initialConfig?.enviosInfo || '',
     metodosPago: initialConfig?.metodosPago || '',
-    tiendaFisica:
-      typeof initialConfig?.tiendaFisica === 'boolean' ? initialConfig!.tiendaFisica : false,
+    tiendaFisica: typeof initialConfig?.tiendaFisica === 'boolean' ? initialConfig!.tiendaFisica : false,
     direccionTienda: initialConfig?.direccionTienda || '',
     politicasDevolucion: initialConfig?.politicasDevolucion || '',
     politicasGarantia: initialConfig?.politicasGarantia || '',
@@ -78,7 +85,7 @@ export default function ModalEntrenamiento({
     extras: initialConfig?.extras || '',
     palabrasClaveNegocio: initialConfig?.palabrasClaveNegocio || '',
 
-    // envío (estructurado)
+    // envío
     envioTipo: initialConfig?.envioTipo || '',
     envioEntregaEstimado: initialConfig?.envioEntregaEstimado || '',
     envioCostoFijo:
@@ -118,11 +125,10 @@ export default function ModalEntrenamiento({
 
   const [form, setForm] = useState<ConfigForm>(emptyForm)
 
-  // Catálogo
+  // ====== Catálogo
   const [productos, setProductos] = useState<Producto[]>([])
   const [catalogLoaded, setCatalogLoaded] = useState(false)
 
-  // Crear nuevo
   const [nuevoProd, setNuevoProd] = useState<Producto>({
     nombre: '',
     descripcion: '',
@@ -136,21 +142,12 @@ export default function ModalEntrenamiento({
   const [uploadingCardIndex, setUploadingCardIndex] = useState<number | null>(null)
   const [savingIndex, setSavingIndex] = useState<number | null>(null)
 
-  const totalSteps = useMemo(() => (businessType === 'productos' ? 2 : 1), [businessType])
-  const isCatalogStep = businessType === 'productos' && step === 1
-
   const close = () => {
     setOpen(false)
     onClose?.()
   }
-  const next = () => {
-    if (step < totalSteps - 1) setStep((s) => s + 1)
-  }
-  const back = () => {
-    if (step > 0) setStep((s) => s - 1)
-  }
 
-  // --- API ---
+  // ====== API catálogo
   async function uploadImageFile(productId: number, file: File, alt?: string, isPrimary?: boolean) {
     const fd = new FormData()
     fd.append('file', file)
@@ -163,12 +160,28 @@ export default function ModalEntrenamiento({
     return { id: data?.id, url: data?.url || '', alt: alt || '' } as ImagenProducto
   }
 
+  async function handleUploadAt(idx: number, file: File): Promise<ImagenProducto | void> {
+    const prod = productos[idx]
+    if (!prod?.id) return
+    try {
+      setUploadingCardIndex(idx)
+      const created = await uploadImageFile(prod.id, file)
+      return created
+    } catch (e: any) {
+      setErrorMsg(e?.response?.data?.error || 'No se pudo subir la imagen.')
+      throw e
+    } finally {
+      setUploadingCardIndex(null)
+    }
+  }
+
   async function deleteImageOnCard(
     productId: number,
     imageId: number,
     cardIndex: number,
     imageIndex: number
   ) {
+    // Optimista
     setProductos((list) => {
       const copy = [...list]
       const prod = copy[cardIndex]
@@ -286,22 +299,7 @@ export default function ModalEntrenamiento({
     }
   }
 
-  // SUBIDA
-  async function handleUploadAt(idx: number, file: File) {
-    const prod = productos[idx]
-    if (!prod?.id) return
-    try {
-      setUploadingCardIndex(idx)
-      const created = await uploadImageFile(prod.id, file)
-      return created
-    } catch (e: any) {
-      setErrorMsg(e?.response?.data?.error || 'No se pudo subir la imagen.')
-      throw e
-    } finally {
-      setUploadingCardIndex(null)
-    }
-  }
-
+  // ====== Catálogo: fetch
   async function loadCatalog() {
     try {
       setReloading(true)
@@ -329,61 +327,84 @@ export default function ModalEntrenamiento({
     }
   }
 
+  // ====== Efecto de apertura
   useEffect(() => {
     if (!open) return
     const bt = (initialConfig?.businessType as BusinessType) || 'servicios'
     setBusinessType(bt)
-    setForm({
-      ...emptyForm,
-      businessType: bt,
-    })
+    setForm((f) => ({ ...emptyForm, businessType: bt }))
 
-    if (bt === 'productos') {
+    if (tab === 'productos') {
       void loadCatalog()
     } else {
       setProductos([])
       setCatalogLoaded(false)
     }
+
     setStep(0)
     setErrorMsg(null)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open])
 
-  async function handleChangeType(t: BusinessType) {
-    if (t === 'productos') {
+  // ====== Cambio de tab
+  async function handleChangeTab(nextTab: EditorTab) {
+    setTab(nextTab)
+    setStep(0)
+    setErrorMsg(null)
+
+    if (nextTab === 'productos') {
       setBusinessType('productos')
       setForm((f) => ({ ...f, businessType: 'productos', aiMode: 'ecommerce' }))
       if (!catalogLoaded) await loadCatalog()
-      if (step > 1) setStep(0)
-    } else {
+    } else if (nextTab === 'servicios') {
       setBusinessType('servicios')
       setForm((f) => ({ ...f, businessType: 'servicios', aiMode: 'agente' }))
       setProductos([])
       setCatalogLoaded(false)
-      setStep(0)
+    } else {
+      // agente
+      setForm((f) => ({ ...f, aiMode: 'agente' }))
     }
   }
 
+  // ====== Guardados
   async function guardarTodo() {
     try {
       setSaving(true)
       setErrorMsg(null)
 
-      // Normaliza números opcionales a null cuando vengan como ''
       const payload: any = { ...form, businessType }
-
       if (payload.envioCostoFijo === '') payload.envioCostoFijo = null
       if (payload.envioGratisDesde === '') payload.envioGratisDesde = null
 
-      // coherencia entre tab seleccionada y aiMode
-      payload.aiMode = businessType === 'productos' ? ('ecommerce' as AiMode) : ('agente' as AiMode)
+      payload.aiMode = tab === 'productos' ? ('ecommerce' as AiMode) : payload.aiMode
 
       await axios.put(`${API_URL}/api/config`, payload, { headers: getAuthHeaders() })
 
-      if (businessType === 'productos') await loadCatalog()
+      if (tab === 'productos') await loadCatalog()
       close()
     } catch (e: any) {
       setErrorMsg(e?.response?.data?.error || e?.message || 'Error guardando cambios.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function guardarAgente() {
+    try {
+      setSaving(true)
+      setErrorMsg(null)
+      const payload = {
+        aiMode: 'agente' as AiMode,
+        agentSpecialty: form.agentSpecialty,
+        agentPrompt: form.agentPrompt ?? '',
+        agentScope: form.agentScope ?? '',
+        agentDisclaimers: form.agentDisclaimers ?? '',
+      }
+      await axios.put(`${API_URL}/api/config/agent`, payload, { headers: getAuthHeaders() })
+      close()
+    } catch (e: any) {
+      setErrorMsg(e?.response?.data?.error || e?.message || 'Error guardando el agente.')
     } finally {
       setSaving(false)
     }
@@ -408,9 +429,9 @@ export default function ModalEntrenamiento({
                   <div className="px-2 py-1 rounded-lg bg-slate-800 text-xs font-medium border border-slate-700">
                     Entrenamiento de IA
                   </div>
-                  <span className="text-slate-400 text-sm">
-                    Paso {step + 1} de {totalSteps}
-                  </span>
+                  {tab === 'productos' ? (
+                    <span className="text-slate-400 text-sm">Paso {step + 1} de {totalSteps}</span>
+                  ) : null}
                 </div>
                 <button
                   onClick={close}
@@ -423,16 +444,22 @@ export default function ModalEntrenamiento({
               </div>
 
               <div className="mb-4">
-                <TypeTabs value={businessType} onChange={handleChangeType} loading={reloading} />
+                <TypeTabs value={tab} onChange={handleChangeTab} loading={reloading} />
               </div>
 
-              {!(businessType === 'productos' && step === 1) ? (
-                <BusinessForm
-                  value={form}
-                  businessType={businessType}
-                  onChange={(patch) => setForm((f) => ({ ...f, ...patch, businessType }))}
+              {/* contenido */}
+              {tab === 'agente' ? (
+                <AgentForm
+                  value={{
+                    aiMode: form.aiMode,
+                    agentSpecialty: form.agentSpecialty,
+                    agentPrompt: form.agentPrompt,
+                    agentScope: form.agentScope,
+                    agentDisclaimers: form.agentDisclaimers,
+                  }}
+                  onChange={(patch) => setForm((f) => ({ ...f, ...patch }))}
                 />
-              ) : (
+              ) : tab === 'productos' && isCatalogStep ? (
                 <CatalogPanel
                   productos={productos}
                   nuevoProd={nuevoProd}
@@ -448,12 +475,18 @@ export default function ModalEntrenamiento({
                   onUpload={(idx, file) => handleUploadAt(idx, file)}
                   onRemoveImage={(idx, imageId) => {
                     const prod = productos[idx]
-                    if (!prod?.id || !imageId) return
+                    if (!prod || !prod.id) return
                     const imgIdx = (prod.imagenes || []).findIndex((im) => im.id === imageId)
                     if (imgIdx >= 0) void deleteImageOnCard(prod.id, imageId, idx, imgIdx)
                   }}
                   uploadingIndex={uploadingCardIndex}
                   savingIndex={savingIndex}
+                />
+              ) : (
+                <BusinessForm
+                  value={form}
+                  businessType={businessType}
+                  onChange={(patch) => setForm((f) => ({ ...f, ...patch, businessType }))}
                 />
               )}
 
@@ -466,12 +499,15 @@ export default function ModalEntrenamiento({
               {/* footer */}
               <div className="mt-6 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
                 <div className="text-xs text-slate-400">
-                  {businessType === 'productos'
-                    ? 'Crea el producto y luego súbele sus fotos.'
+                  {tab === 'productos'
+                    ? (isCatalogStep ? 'Sube fotos y organiza tu catálogo.' : 'Crea el producto y luego súbele sus fotos.')
+                    : tab === 'agente'
+                    ? 'Configura el modo y el perfil del agente.'
                     : 'Completa la info clave para respuestas precisas.'}
                 </div>
+
                 <div className="flex items-center gap-2">
-                  {step > 0 ? (
+                  {tab === 'productos' && step > 0 ? (
                     <button
                       onClick={back}
                       className="px-4 py-2 rounded-xl border border-slate-700 bg-slate-800 hover:bg-slate-700 text-sm"
@@ -482,7 +518,17 @@ export default function ModalEntrenamiento({
                   ) : (
                     <div className="hidden sm:block w-[84px]" />
                   )}
-                  {isCatalogStep ? (
+
+                  {tab === 'agente' ? (
+                    <button
+                      onClick={guardarAgente}
+                      disabled={saving}
+                      className="px-4 py-2 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-sm disabled:opacity-60"
+                      type="button"
+                    >
+                      {saving ? 'Guardando…' : 'Guardar agente'}
+                    </button>
+                  ) : tab === 'productos' && !isCatalogStep ? (
                     <button
                       onClick={next}
                       className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm disabled:opacity-60"
