@@ -15,6 +15,8 @@ import type {
   ModalEntrenamientoProps,
   BusinessType,
   ConfigForm,
+  AiMode,
+  AgentSpecialty,
 } from './types'
 
 const API_URL = (process.env.NEXT_PUBLIC_API_URL || '') as string
@@ -54,10 +56,20 @@ export default function ModalEntrenamiento({
     disclaimers: initialConfig?.disclaimers || '',
     businessType: ((initialConfig?.businessType as BusinessType) || 'servicios') as BusinessType,
 
+    // === IA / Agente (nuevos) ===
+    aiMode:
+      (initialConfig?.aiMode as AiMode) ||
+      (((initialConfig?.businessType as BusinessType) === 'productos') ? 'ecommerce' : 'agente'),
+    agentSpecialty: (initialConfig?.agentSpecialty as AgentSpecialty) || 'generico',
+    agentPrompt: initialConfig?.agentPrompt || '',
+    agentScope: initialConfig?.agentScope || '',
+    agentDisclaimers: initialConfig?.agentDisclaimers || '',
+
     // operación (texto libre)
     enviosInfo: initialConfig?.enviosInfo || '',
     metodosPago: initialConfig?.metodosPago || '',
-    tiendaFisica: typeof initialConfig?.tiendaFisica === 'boolean' ? initialConfig!.tiendaFisica : false,
+    tiendaFisica:
+      typeof initialConfig?.tiendaFisica === 'boolean' ? initialConfig!.tiendaFisica : false,
     direccionTienda: initialConfig?.direccionTienda || '',
     politicasDevolucion: initialConfig?.politicasDevolucion || '',
     politicasGarantia: initialConfig?.politicasGarantia || '',
@@ -99,9 +111,7 @@ export default function ModalEntrenamiento({
 
     // escalamiento
     escalarSiNoConfia:
-      typeof initialConfig?.escalarSiNoConfia === 'boolean'
-        ? initialConfig!.escalarSiNoConfia
-        : true,
+      typeof initialConfig?.escalarSiNoConfia === 'boolean' ? initialConfig!.escalarSiNoConfia : true,
     escalarPalabrasClave: initialConfig?.escalarPalabrasClave || '',
     escalarPorReintentos: Number(initialConfig?.escalarPorReintentos || 0),
   }
@@ -259,7 +269,7 @@ export default function ModalEntrenamiento({
           caracteristicas: patch.caracteristicas ?? prod.caracteristicas,
           precioDesde:
             typeof patch.precioDesde !== 'undefined' ? patch.precioDesde : prod.precioDesde ?? null,
-        },
+        } as any,
         { headers: getAuthHeaders() }
       )
       setProductos((list) => {
@@ -327,6 +337,7 @@ export default function ModalEntrenamiento({
       ...emptyForm,
       businessType: bt,
     })
+
     if (bt === 'productos') {
       void loadCatalog()
     } else {
@@ -341,12 +352,12 @@ export default function ModalEntrenamiento({
   async function handleChangeType(t: BusinessType) {
     if (t === 'productos') {
       setBusinessType('productos')
-      setForm((f) => ({ ...f, businessType: 'productos' }))
+      setForm((f) => ({ ...f, businessType: 'productos', aiMode: 'ecommerce' }))
       if (!catalogLoaded) await loadCatalog()
       if (step > 1) setStep(0)
     } else {
       setBusinessType('servicios')
-      setForm((f) => ({ ...f, businessType: 'servicios' }))
+      setForm((f) => ({ ...f, businessType: 'servicios', aiMode: 'agente' }))
       setProductos([])
       setCatalogLoaded(false)
       setStep(0)
@@ -360,8 +371,12 @@ export default function ModalEntrenamiento({
 
       // Normaliza números opcionales a null cuando vengan como ''
       const payload: any = { ...form, businessType }
+
       if (payload.envioCostoFijo === '') payload.envioCostoFijo = null
       if (payload.envioGratisDesde === '') payload.envioGratisDesde = null
+
+      // coherencia entre tab seleccionada y aiMode
+      payload.aiMode = businessType === 'productos' ? ('ecommerce' as AiMode) : ('agente' as AiMode)
 
       await axios.put(`${API_URL}/api/config`, payload, { headers: getAuthHeaders() })
 
@@ -393,7 +408,9 @@ export default function ModalEntrenamiento({
                   <div className="px-2 py-1 rounded-lg bg-slate-800 text-xs font-medium border border-slate-700">
                     Entrenamiento de IA
                   </div>
-                  <span className="text-slate-400 text-sm">Paso {step + 1} de {totalSteps}</span>
+                  <span className="text-slate-400 text-sm">
+                    Paso {step + 1} de {totalSteps}
+                  </span>
                 </div>
                 <button
                   onClick={close}
@@ -465,7 +482,7 @@ export default function ModalEntrenamiento({
                   ) : (
                     <div className="hidden sm:block w-[84px]" />
                   )}
-                  {businessType === 'productos' && step < 1 ? (
+                  {isCatalogStep ? (
                     <button
                       onClick={next}
                       className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm disabled:opacity-60"

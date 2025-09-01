@@ -2,7 +2,7 @@
 
 import { memo, useMemo, useCallback } from 'react'
 import { HelpCircle } from 'lucide-react'
-import type { BusinessType, ConfigForm } from './types'
+import type { BusinessType, ConfigForm, AiMode, AgentSpecialty } from './types'
 
 type Props = {
   value: ConfigForm
@@ -118,6 +118,66 @@ function Field({ q, val, onChange }: { q: Pregunta; val: any; onChange: (v: any)
   )
 }
 
+/* Helpers UI nuevos */
+function RadioGroup<T extends string>({
+  name,
+  value,
+  options,
+  onChange,
+}: {
+  name: string
+  value: T
+  options: Array<{ label: string; value: T }>
+  onChange: (v: T) => void
+}) {
+  return (
+    <div className="flex items-center gap-3 flex-wrap">
+      {options.map((opt) => (
+        <button
+          key={opt.value}
+          type="button"
+          onClick={() => onChange(opt.value)}
+          className={`px-3 py-1.5 rounded-lg border text-sm transition ${
+            value === opt.value
+              ? 'bg-blue-600/90 text-white border-blue-500'
+              : 'bg-slate-800 text-slate-200 border-slate-700 hover:bg-slate-700'
+          }`}
+          aria-pressed={value === opt.value}
+        >
+          {opt.label}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+function Select<T extends string>({
+  value,
+  onChange,
+  options,
+  placeholder,
+}: {
+  value: T
+  onChange: (v: T) => void
+  options: Array<{ label: string; value: T }>
+  placeholder?: string
+}) {
+  return (
+    <select
+      value={value}
+      onChange={(e) => onChange(e.target.value as T)}
+      className="w-full bg-slate-800 border border-slate-700 px-3 py-2 rounded-xl text-sm focus:outline-none focus:ring focus:ring-blue-500/40"
+    >
+      {placeholder ? <option value="">{placeholder}</option> : null}
+      {options.map((o) => (
+        <option key={o.value} value={o.value}>
+          {o.label}
+        </option>
+      ))}
+    </select>
+  )
+}
+
 function BusinessFormBase({ value, businessType, onChange }: Props) {
   // Base
   const preguntasServicios: Pregunta[] = [
@@ -205,12 +265,112 @@ function BusinessFormBase({ value, businessType, onChange }: Props) {
     [onChange]
   )
 
+  /* opciones nuevas */
+  const aiModeOpts: Array<{ label: string; value: AiMode }> = [
+    { label: 'Ecommerce (productos)', value: 'ecommerce' },
+    { label: 'Agente personalizado', value: 'agente' },
+  ]
+  const specialtyOpts: Array<{ label: string; value: AgentSpecialty }> = [
+    { label: 'Genérico', value: 'generico' },
+    { label: 'Médico', value: 'medico' },
+    { label: 'Dermatología', value: 'dermatologia' },
+    { label: 'Nutrición', value: 'nutricion' },
+    { label: 'Psicología', value: 'psicologia' },
+    { label: 'Odontología', value: 'odontologia' },
+  ]
+
   return (
     <div className="space-y-6">
       <Section title="Datos del negocio" subtitle="Esta información alimenta al asistente y define su contexto.">
         {preguntas.map((q) => (
           <Field key={q.campo as string} q={q} val={(value as any)[q.campo]} onChange={(v) => handlePatch(q.campo, v)} />
         ))}
+      </Section>
+
+      {/* === NUEVO: Modo de IA / Agente === */}
+      <Section
+        title="Modo de IA"
+        subtitle="Elige si el asistente se comporta como asesor de ecommerce o como agente personalizado."
+      >
+        <div className="space-y-3">
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium text-slate-200">Modo</span>
+              <Hint text="Ecommerce usa catálogo/fotos/precios. Agente responde libremente dentro de tu especialidad y reglas." />
+            </div>
+            <RadioGroup<AiMode>
+              name="aiMode"
+              value={value.aiMode}
+              options={aiModeOpts}
+              onChange={(v) => {
+                // si cambia a ecommerce, limpiamos campos del agente (sin romper el resto)
+                if (v === 'ecommerce') {
+                  onChange({ aiMode: v, agentPrompt: '', agentScope: '', agentDisclaimers: '' } as Partial<ConfigForm>)
+                } else {
+                  onChange({ aiMode: v } as Partial<ConfigForm>)
+                }
+              }}
+            />
+          </div>
+
+          {value.aiMode === 'agente' ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <div className="flex items-center gap-2">
+                  <label className="text-sm font-medium text-slate-200">Especialidad</label>
+                  <Hint text="Define el perfil del agente. Ajusta el tono y el alcance de respuestas." />
+                </div>
+                <Select<AgentSpecialty>
+                  value={value.agentSpecialty}
+                  onChange={(v) => onChange({ agentSpecialty: v } as Partial<ConfigForm>)}
+                  options={specialtyOpts}
+                />
+              </div>
+
+              <div className="space-y-1.5 md:col-span-2">
+                <div className="flex items-center gap-2">
+                  <label className="text-sm font-medium text-slate-200">Instrucciones del agente (prompt)</label>
+                  <Hint text="Tono, objetivos, estilo. Ej: Responde con empatía, da pasos claros y evita diagnósticos." />
+                </div>
+                <textarea
+                  rows={4}
+                  value={value.agentPrompt ?? ''}
+                  onChange={(e) => onChange({ agentPrompt: e.target.value } as Partial<ConfigForm>)}
+                  placeholder="Ej: Saluda por el nombre si está disponible, sé breve (2–5 líneas), ofrece opciones claras…"
+                  className="w-full bg-slate-800 border border-slate-700 px-3 py-2 rounded-xl focus:outline-none focus:ring focus:ring-blue-500/40 text-sm"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <div className="flex items-center gap-2">
+                  <label className="text-sm font-medium text-slate-200">Ámbito del servicio (scope)</label>
+                  <Hint text="Qué sí atiende y qué no. Ej: Orientación general y hábitos saludables; no prescripciones médicas." />
+                </div>
+                <textarea
+                  rows={3}
+                  value={value.agentScope ?? ''}
+                  onChange={(e) => onChange({ agentScope: e.target.value } as Partial<ConfigForm>)}
+                  placeholder="Ej: Orientación general; NO diagnósticos, NO prescripción de medicamentos, NO urgencias…"
+                  className="w-full bg-slate-800 border border-slate-700 px-3 py-2 rounded-xl focus:outline-none focus:ring focus:ring-blue-500/40 text-sm"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <div className="flex items-center gap-2">
+                  <label className="text-sm font-medium text-slate-200">Disclaimers del agente</label>
+                  <Hint text="Mensajes de responsabilidad. El asistente puede incluirlos cuando corresponda." />
+                </div>
+                <textarea
+                  rows={3}
+                  value={value.agentDisclaimers ?? ''}
+                  onChange={(e) => onChange({ agentDisclaimers: e.target.value } as Partial<ConfigForm>)}
+                  placeholder="Ej: Esta información no reemplaza una consulta profesional. En caso de urgencia, acude a un servicio médico."
+                  className="w-full bg-slate-800 border border-slate-700 px-3 py-2 rounded-xl focus:outline-none focus:ring focus:ring-blue-500/40 text-sm"
+                />
+              </div>
+            </div>
+          ) : null}
+        </div>
       </Section>
 
       <Section title="Operación (texto libre)" subtitle="Políticas y logística que la IA puede usar en respuestas.">

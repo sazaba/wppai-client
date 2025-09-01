@@ -2,6 +2,20 @@
 
 export type BusinessType = 'servicios' | 'productos'
 
+// types.ts
+
+// ➊ Nuevos union types
+export type AiMode = 'ecommerce' | 'agente'
+export type AgentSpecialty =
+    | 'generico'
+    | 'medico'
+    | 'dermatologia'
+    | 'nutricion'
+    | 'psicologia'
+    | 'odontologia'
+
+// ➋ Extiende ConfigForm (campos nuevos)
+
 /** Configuración completa usada por el formulario (front) y el backend */
 export type ConfigForm = {
     // base
@@ -12,6 +26,13 @@ export type ConfigForm = {
     horarios: string
     disclaimers: string
     businessType: BusinessType
+
+    // ===== NUEVO: Perfil de IA
+    aiMode: AiMode                         // 'ecommerce' | 'agente'
+    agentSpecialty: AgentSpecialty         // solo aplica si aiMode = 'agente'
+    agentPrompt?: string                   // tono/instrucciones
+    agentScope?: string                    // qué atiende / qué no
+    agentDisclaimers?: string              // descargos de responsabilidad
 
     // operación (texto libre)
     enviosInfo: string
