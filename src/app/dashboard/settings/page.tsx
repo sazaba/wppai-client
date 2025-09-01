@@ -32,7 +32,11 @@ const DEFAULTS: ConfigForm = {
   horarios: '',
   disclaimers: '',
   businessType: 'servicios',
-
+  aiMode: 'agente',                 // 'agente' | 'ecommerce'
+  agentSpecialty: 'generico',
+  agentPrompt: '',
+  agentScope: '',
+  agentDisclaimers: '',
   // operación (texto libre)
   enviosInfo: '',
   metodosPago: '',
