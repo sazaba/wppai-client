@@ -2,17 +2,17 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import axios from 'axios'
-import { Trash2, RefreshCw, Info } from 'lucide-react'
+import { Trash2, RefreshCw } from 'lucide-react'
 import Swal from 'sweetalert2'
 import 'sweetalert2/dist/sweetalert2.min.css'
 import { useAuth } from '../../../context/AuthContext'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL
 
-// ⬇️ Config por env (recomendado empatar con backend)
+// ⬇️ Añadido: constantes para construir la URL de OAuth
 const META_APP_ID = process.env.NEXT_PUBLIC_META_APP_ID!
-const FB_VERSION = process.env.NEXT_PUBLIC_FB_VERSION || 'v23.0'
-const REDIRECT_URI = process.env.NEXT_PUBLIC_META_REDIRECT_URI || 'https://wasaaa.com/dashboard/callback'
+const FB_VERSION = 'v20.0'
+const REDIRECT_URI = 'https://wasaaa.com/dashboard/callback' // Debe coincidir con tu config en Meta
 
 type Estado = 'conectado' | 'desconectado' | 'cargando'
 
@@ -25,12 +25,6 @@ export default function WhatsappConfig() {
   const [phoneNumberId, setPhoneNumberId] = useState('')
   const [wabaId, setWabaId] = useState('')
   const [businessId, setBusinessId] = useState('')
-
-  // Diagnóstico extendido
-  const [nameStatus, setNameStatus] = useState<string | null>(null)
-  const [accountMode, setAccountMode] = useState<string | null>(null)
-  const [appSubscribed, setAppSubscribed] = useState<boolean | null>(null)
-
   const [redirecting, setRedirecting] = useState(false)
   const [loadingEstado, setLoadingEstado] = useState(false)
 
@@ -41,32 +35,22 @@ export default function WhatsappConfig() {
   const alertSuccess = (titulo: string, texto?: string) =>
     Swal.fire({ icon: 'success', title: titulo, text: texto, background: '#111827', color: '#fff', confirmButtonColor: '#10b981' })
 
-  // Estado actual desde backend (versión "real")
+  // Estado actual desde backend
   const fetchEstado = useCallback(
     async (authToken: string) => {
       if (!API_URL) return
       try {
         setLoadingEstado(true)
-        // 🔁 Nuevo: consultar estado real
-        const { data } = await axios.get(`${API_URL}/api/whatsapp/estado-detallado`, {
+        const { data } = await axios.get(`${API_URL}/api/whatsapp/estado`, {
           headers: { Authorization: `Bearer ${authToken}` }
         })
 
-        const connected = Boolean(data?.connected)
-        setAppSubscribed(data?.diagnostics?.appSubscribed ?? null)
-        setNameStatus(data?.diagnostics?.number?.name_status ?? null)
-        setAccountMode(data?.diagnostics?.number?.account_mode ?? null)
-
-        if (connected) {
-          // Si está conectado, también podemos recuperar los IDs desde /estado (DB) para mostrarlos
-          const { data: dataDb } = await axios.get(`${API_URL}/api/whatsapp/estado`, {
-            headers: { Authorization: `Bearer ${authToken}` }
-          })
+        if (data?.conectado) {
           setEstado('conectado')
-          setDisplayPhone(dataDb.displayPhoneNumber || dataDb.phoneNumberId || '')
-          setPhoneNumberId(dataDb.phoneNumberId || '')
-          setWabaId(dataDb.wabaId || '')
-          setBusinessId(dataDb.businessId || '')
+          setDisplayPhone(data.displayPhoneNumber || data.phoneNumberId || '')
+          setPhoneNumberId(data.phoneNumberId || '')
+          setWabaId(data.wabaId || '')
+          setBusinessId(data.businessId || '')
           localStorage.removeItem('tempToken')
         } else {
           setEstado('desconectado')
@@ -75,7 +59,7 @@ export default function WhatsappConfig() {
           setWabaId('')
           setBusinessId('')
         }
-      } catch (e: any) {
+      } catch {
         setEstado('desconectado')
         setDisplayPhone('')
         setPhoneNumberId('')
@@ -104,7 +88,7 @@ export default function WhatsappConfig() {
     }
   }, [token, fetchEstado])
 
-  // ✅ Iniciar flujo OAuth desde el frontend con SCOPES correctos
+  // ✅ Iniciar flujo OAuth desde el frontend con SCOPES correctos (incluye business_management)
   const iniciarOAuth = () => {
     if (!empresaId || !token) {
       alertInfo('Sesión requerida', 'Inicia sesión para conectar tu WhatsApp.')
@@ -134,7 +118,7 @@ export default function WhatsappConfig() {
       `&redirect_uri=${encodeURIComponent(REDIRECT_URI)}` +
       `&response_type=code` +
       `&scope=${encodeURIComponent(scope)}` +
-      `&auth_type=rerequest`
+      `&auth_type=rerequest` // por si el usuario negó permisos antes
 
     window.location.href = url
   }
@@ -177,31 +161,6 @@ export default function WhatsappConfig() {
     fetchEstado(token)
   }
 
-  const verDiagnostico = () => {
-    const lines = [
-      `• App suscrita: ${appSubscribed === null ? '—' : appSubscribed ? 'Sí' : 'No'}`,
-      `• name_status: ${nameStatus ?? '—'}`,
-      `• account_mode: ${accountMode ?? '—'}`
-    ].join('\n')
-    Swal.fire({
-      icon: 'info',
-      title: 'Diagnóstico de conexión',
-      text: lines,
-      background: '#111827',
-      color: '#fff'
-    })
-  }
-
-  const Badge = ({ children, color = 'slate' }: { children: any; color?: 'slate'|'yellow'|'green'|'red' }) => {
-    const map: Record<string, string> = {
-      slate: 'bg-slate-800 text-slate-300 border-slate-700',
-      yellow: 'bg-yellow-900/40 text-yellow-300 border-yellow-700/50',
-      green: 'bg-emerald-900/40 text-emerald-300 border-emerald-700/50',
-      red: 'bg-red-900/40 text-red-300 border-red-700/50',
-    }
-    return <span className={`text-xs px-2 py-1 rounded border ${map[color]}`}>{children}</span>
-  }
-
   return (
     <div className="w-full sm:max-w-xl mx-auto bg-gray-900 text-white rounded-xl shadow-md p-6 mt-8">
       <div className="flex items-center justify-between mb-4">
@@ -224,12 +183,7 @@ export default function WhatsappConfig() {
         </div>
       ) : estado === 'conectado' ? (
         <>
-          <div className="flex items-center gap-2 mb-3">
-            <p className="text-green-400 font-medium">✅ Conectado</p>
-            {nameStatus === 'PENDING' && (
-              <Badge color="yellow">Nombre para mostrar pendiente</Badge>
-            )}
-          </div>
+          <p className="text-green-400 font-medium mb-3">✅ Conectado</p>
 
           <div className="grid gap-2 text-sm bg-slate-800/60 border border-slate-700 rounded-lg p-4 mb-4">
             <div className="flex items-center justify-between">
@@ -248,16 +202,6 @@ export default function WhatsappConfig() {
               <span className="text-slate-400">Business ID</span>
               <code className="text-slate-300">{businessId || '—'}</code>
             </div>
-            <div className="flex items-center justify-between">
-              <span className="text-slate-400">App suscrita</span>
-              <span className="font-medium">
-                {appSubscribed === null ? '—' : appSubscribed ? 'Sí' : 'No'}
-              </span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-slate-400">account_mode</span>
-              <code className="text-slate-300">{accountMode || '—'}</code>
-            </div>
           </div>
 
           <div className="flex flex-col sm:flex-row justify-center gap-3">
@@ -267,13 +211,6 @@ export default function WhatsappConfig() {
               disabled={redirecting}
             >
               {redirecting ? 'Redirigiendo…' : 'Re-conectar'}
-            </button>
-            <button
-              onClick={verDiagnostico}
-              className="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-md text-sm flex items-center justify-center gap-2 border border-slate-700"
-            >
-              <Info className="w-4 h-4" />
-              Ver diagnóstico
             </button>
             <button
               onClick={eliminarWhatsapp}
