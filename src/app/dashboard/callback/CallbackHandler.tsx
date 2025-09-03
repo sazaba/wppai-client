@@ -7,7 +7,8 @@ import Swal from 'sweetalert2'
 import 'sweetalert2/dist/sweetalert2.min.css'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL
-const FB_VERSION = 'v20.0'
+// Sugerencia: alinear con el backend (usa v23.0 si tu server también la usa)
+const FB_VERSION = process.env.NEXT_PUBLIC_FB_VERSION || 'v23.0'
 
 type WABA = { id: string; name?: string; owner_business_id?: string }
 type Phone = { id: string; display_phone_number: string }
@@ -24,14 +25,22 @@ export default function CallbackPage() {
 
   useEffect(() => {
     mounted.current = true
-    return () => { mounted.current = false }
+    return () => {
+      mounted.current = false
+    }
   }, [])
 
   useEffect(() => {
     const err = searchParams.get('error')
     const errDesc = searchParams.get('error_description')
     if (err) {
-      Swal.fire({ icon: 'error', title: 'OAuth error', text: errDesc || err, background: '#111827', color: '#fff' })
+      Swal.fire({
+        icon: 'error',
+        title: 'OAuth error',
+        text: errDesc || err,
+        background: '#111827',
+        color: '#fff',
+      })
     }
   }, [searchParams])
 
@@ -45,37 +54,45 @@ export default function CallbackPage() {
         let at = searchParams.get('token')
         const code = searchParams.get('code')
         if (!at && code) {
-          const r = await axios.post<{ access_token: string }>(`${API_URL}/api/auth/exchange-code`, { code })
+          const r = await axios.post<{ access_token: string }>(
+            `${API_URL}/api/auth/exchange-code`,
+            { code }
+          )
           at = r.data.access_token
         }
         if (!at) throw new Error('No se recibió token ni code en el callback.')
         setAccessToken(at)
 
         // 2) Validar permisos requeridos
-        const { data: perms } = await axios.get(`https://graph.facebook.com/${FB_VERSION}/me/permissions`, {
-          params: { access_token: at },
-        })
+        const { data: perms } = await axios.get(
+          `https://graph.facebook.com/${FB_VERSION}/me/permissions`,
+          { params: { access_token: at } }
+        )
         const granted: string[] = (perms?.data || [])
           .filter((x: any) => x.status === 'granted')
           .map((x: any) => x.permission)
-        const need = ['business_management', 'whatsapp_business_management', 'whatsapp_business_messaging']
-        const missing = need.filter(p => !granted.includes(p))
+        const need = [
+          'business_management',
+          'whatsapp_business_management',
+          'whatsapp_business_messaging',
+        ]
+        const missing = need.filter((p) => !granted.includes(p))
         if (missing.length) throw new Error(`Faltan permisos: ${missing.join(', ')}`)
 
         // 3) Cargar Businesses → WABAs → Phones desde backend
         const { data } = await axios.get(`${API_URL}/api/auth/wabas`, {
-          params: { token: at, debug: 1 }
+          params: { token: at, debug: 1 },
         })
         const mapped: WabaWithPhones[] = (data.items || []).map((item: any) => ({
           waba: {
             id: item.waba?.id,
             name: item.waba?.name,
-            owner_business_id: item.waba?.owner_business_id
+            owner_business_id: item.waba?.owner_business_id,
           },
           phones: (item.phones || []).map((p: any) => ({
             id: p.id,
-            display_phone_number: p.display_phone_number
-          }))
+            display_phone_number: p.display_phone_number,
+          })),
         }))
         setItems(mapped)
 
@@ -83,17 +100,25 @@ export default function CallbackPage() {
           Swal.fire({
             icon: 'info',
             title: 'No encontramos WABAs o números',
-            text: 'Verifica que tu usuario tenga acceso a la WABA y que existan números en la cuenta.',
+            text: 'Verifica acceso a la WABA y que existan números en la cuenta.',
             background: '#111827',
-            color: '#fff'
+            color: '#fff',
           })
         }
       } catch (err: any) {
         const msg =
           typeof err?.response?.data?.error === 'object'
             ? JSON.stringify(err.response.data.error)
-            : err?.response?.data?.message || err?.response?.data?.error || err.message
-        Swal.fire({ icon: 'error', title: 'Error en el callback', text: msg, background: '#111827', color: '#fff' })
+            : err?.response?.data?.message ||
+              err?.response?.data?.error ||
+              err.message
+        Swal.fire({
+          icon: 'error',
+          title: 'Error en el callback',
+          text: msg,
+          background: '#111827',
+          color: '#fff',
+        })
       } finally {
         if (mounted.current) setLoading(false)
       }
@@ -109,7 +134,7 @@ export default function CallbackPage() {
         title: 'Sesión expirada',
         html: 'No encontramos tu sesión (<code>tempToken</code>). Vuelve a iniciar la conexión desde <b>Settings → Conectar WhatsApp</b>.',
         background: '#111827',
-        color: '#fff'
+        color: '#fff',
       })
       return
     }
@@ -119,7 +144,7 @@ export default function CallbackPage() {
         title: 'Token de Meta faltante',
         text: 'Refresca la página o repite el flujo.',
         background: '#111827',
-        color: '#fff'
+        color: '#fff',
       })
       return
     }
@@ -139,6 +164,7 @@ export default function CallbackPage() {
         } catch {}
       }
 
+      // 1) Vincular (suscribe app + guarda credenciales)
       await axios.post(
         `${API_URL}/api/whatsapp/vincular`,
         {
@@ -146,17 +172,61 @@ export default function CallbackPage() {
           wabaId: waba.id,
           phoneNumberId: phone.id,
           businessId,
-          displayPhoneNumber: phone.display_phone_number
+          displayPhoneNumber: phone.display_phone_number,
         },
         { headers: { Authorization: `Bearer ${jwt}` } }
       )
 
-      await Swal.fire({ icon: 'success', title: 'Número conectado', background: '#111827', color: '#fff' })
-      localStorage.removeItem('tempToken')
-      window.location.href = '/dashboard/settings?success=1'
+      // 2) Chequeo de conexión real (nuevo)
+      const estadoDet = await axios.get(`${API_URL}/api/whatsapp/estado-detallado`, {
+        headers: { Authorization: `Bearer ${jwt}` },
+      })
+
+      const connected = Boolean(estadoDet?.data?.connected)
+      if (connected) {
+        await Swal.fire({
+          icon: 'success',
+          title: 'Número conectado',
+          text: `Listo. ${phone.display_phone_number} quedó conectado.`,
+          background: '#111827',
+          color: '#fff',
+        })
+        localStorage.removeItem('tempToken')
+        window.location.href = '/dashboard/settings?success=1'
+        return
+      }
+
+      // Si no quedó conectado, mostramos diagnóstico y no marcamos éxito
+      const diag = estadoDet?.data?.diagnostics || {}
+      const msg = [
+        'No pudimos confirmar la conexión.',
+        diag.appSubscribed === false ? '• La app no figura suscrita al WABA.' : '',
+        diag?.number?.wa_id ? '' : '• El número no devuelve wa_id.',
+        diag?.number?.name_status ? `• name_status: ${diag.number.name_status}` : '',
+      ]
+        .filter(Boolean)
+        .join('\n')
+
+      await Swal.fire({
+        icon: 'warning',
+        title: 'Verificación incompleta',
+        text: msg || 'Reintenta en unos segundos.',
+        background: '#111827',
+        color: '#fff',
+      })
     } catch (e: any) {
-      const msg = e?.response?.data?.error || e?.message || 'Error al vincular número'
-      await Swal.fire({ icon: 'error', title: 'No se pudo conectar', text: String(msg), background: '#111827', color: '#fff' })
+      const raw = e?.response?.data
+      const msg =
+        typeof raw?.error === 'object'
+          ? raw?.error?.message || JSON.stringify(raw.error)
+          : raw?.error || e?.message || 'Error al vincular número'
+      await Swal.fire({
+        icon: 'error',
+        title: 'No se pudo conectar',
+        text: String(msg),
+        background: '#111827',
+        color: '#fff',
+      })
     } finally {
       setConnectingId(null)
     }
@@ -169,7 +239,8 @@ export default function CallbackPage() {
 
         {/* Debug mínimo para saber si algo bloquea el click */}
         <div className="text-xs text-slate-400 mb-4">
-          accessToken: {accessToken ? 'OK' : '—'} · tempToken: {typeof window !== 'undefined' && localStorage.getItem('tempToken') ? 'OK' : '—'}
+          accessToken: {accessToken ? 'OK' : '—'} · tempToken:{' '}
+          {typeof window !== 'undefined' && localStorage.getItem('tempToken') ? 'OK' : '—'}
         </div>
 
         {loading ? (
@@ -182,7 +253,10 @@ export default function CallbackPage() {
         ) : (
           <div className="space-y-6">
             {items.map(({ waba, phones }) => (
-              <div key={waba.id} className="bg-slate-800/80 border border-slate-700 rounded-xl p-5 pointer-events-auto">
+              <div
+                key={waba.id}
+                className="bg-slate-800/80 border border-slate-700 rounded-xl p-5 pointer-events-auto"
+              >
                 <div className="flex items-center justify-between mb-3">
                   <h2 className="font-semibold text-lg">{waba.name || 'WABA sin nombre'}</h2>
                   <div className="text-xs text-slate-400">
