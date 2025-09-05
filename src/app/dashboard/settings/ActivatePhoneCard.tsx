@@ -7,156 +7,160 @@ import Swal from 'sweetalert2'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL
 
-function onlyDigits(s: string) {
-  return String(s || '').replace(/\D+/g, '')
+type Phone = {
+  id: string
+  display_phone_number: string
 }
 
-export default function ActivatePhoneCard() {
-  const [displayPhone, setDisplayPhone] = useState('')
-  const [phoneId, setPhoneId] = useState('')
+export default function ActivateWabaPhone() {
+  const [wabaId, setWabaId] = useState('')
+  const [pin, setPin] = useState('')
+  const [phones, setPhones] = useState<Phone[]>([])
+  const [selected, setSelected] = useState<Phone | null>(null)
   const [loading, setLoading] = useState(false)
-  const [lastPhoneId, setLastPhoneId] = useState<string | null>(null)
-  const [checking, setChecking] = useState(false)
-  const hasApi = Boolean(API_URL)
+  const [activating, setActivating] = useState(false)
+  const [status, setStatus] = useState<any>(null)
 
-  const jwt = typeof window !== 'undefined' ? (localStorage.getItem('token') || '') : ''
+  const jwt = typeof window !== 'undefined' ? localStorage.getItem('token') || '' : ''
 
-  const onActivate = async () => {
-    if (!hasApi) return alert('Falta NEXT_PUBLIC_API_URL')
-    if (!jwt) {
-      Swal.fire('Sesión', 'Inicia sesión para continuar.', 'info')
+  const listPhones = async () => {
+    if (!API_URL) return alert('Falta NEXT_PUBLIC_API_URL')
+    if (!wabaId.trim()) {
+      Swal.fire('Falta WABA ID', 'Pega el WABA ID de tu cuenta de WhatsApp Business.', 'info')
       return
     }
-    if (!displayPhone && !phoneId) {
-      Swal.fire('Falta dato', 'Ingresa el número o el phone_number_id', 'info')
-      return
-    }
-
     try {
       setLoading(true)
-      const payload: any = {}
-      if (phoneId) payload.phoneNumberId = phoneId.trim()
-      if (displayPhone) payload.displayPhoneNumber = displayPhone.trim()
-
-      const { data } = await axios.post(
-        `${API_URL}/api/whatsapp/activar-numero`,
-        payload,
-        { headers: { Authorization: `Bearer ${jwt}` } }
-      )
-
-      // Si activaste con phoneId, guárdalo para poder consultar estado luego
-      if (payload.phoneNumberId) setLastPhoneId(payload.phoneNumberId)
-
-      Swal.fire('Listo', 'El número fue activado correctamente 🎉', 'success')
-    } catch (e: any) {
-      // Backend ya envía metaErr, intentamos dar el mensaje más útil
-      const err = e?.response?.data?.error || e?.response?.data || e
-      const code = err?.code
-      const msg = err?.message || e?.message || 'Error al activar'
-
-      // Caso típico: ya está registrado (#131000)
-      if (String(code) === '131000') {
-        Swal.fire('Ya estaba activo', 'El número ya se encontraba registrado.', 'success')
-      } else {
-        Swal.fire('Error', String(msg), 'error')
+      setSelected(null)
+      setPhones([])
+      setStatus(null)
+      const { data } = await axios.get(`${API_URL}/api/whatsapp/waba/${wabaId}/phones`, {
+        headers: { Authorization: `Bearer ${jwt}` },
+      })
+      const list: Phone[] = data?.data || []
+      setPhones(list)
+      if (!list.length) {
+        Swal.fire('Sin números', 'Esa WABA no tiene teléfonos configurados.', 'info')
       }
+    } catch (e: any) {
+      const msg = e?.response?.data?.error?.message || e?.message || 'Error listando números'
+      Swal.fire('Error', String(msg), 'error')
     } finally {
       setLoading(false)
     }
   }
 
-  const checkStatus = async () => {
-    if (!hasApi) return alert('Falta NEXT_PUBLIC_API_URL')
-    const targetPhoneId = (phoneId || lastPhoneId || '').trim()
-    if (!targetPhoneId) {
-      Swal.fire('Dato faltante', 'Proporciona el phone_number_id para consultar estado.', 'info')
+  const activate = async () => {
+    if (!API_URL) return alert('Falta NEXT_PUBLIC_API_URL')
+    if (!selected) {
+      Swal.fire('Elige un número', 'Selecciona un teléfono de la lista.', 'info')
       return
     }
     try {
-      setChecking(true)
-      const { data } = await axios.get(
-        `${API_URL}/api/whatsapp/numero/${targetPhoneId}/estado`,
+      setActivating(true)
+      setStatus(null)
+
+      await axios.post(
+        `${API_URL}/api/whatsapp/activar-numero`,
+        {
+          wabaId: wabaId.trim(),
+          phoneNumberId: selected.id,
+          pin: pin.trim() || undefined, // si tu número exige PIN
+        },
         { headers: { Authorization: `Bearer ${jwt}` } }
       )
 
-      const d = data?.data || {}
-      Swal.fire({
-        icon: 'info',
-        title: 'Estado del número',
-        html: `
-          <div style="text-align:left">
-            <div><b>Phone ID:</b> ${d.id || targetPhoneId}</div>
-            <div><b>Display:</b> ${d.display_phone_number || '—'}</div>
-            <div><b>Name status:</b> ${d.name_status || '—'}</div>
-            <div><b>Quality:</b> ${d.quality_rating || '—'}</div>
-            <div><b>Account mode:</b> ${d.account_mode || '—'}</div>
-            <div><b>Verified name:</b> ${d.verified_name || '—'}</div>
-          </div>
-        `,
+      // Ver estado al final
+      const st = await axios.get(`${API_URL}/api/whatsapp/numero/${selected.id}/estado`, {
+        headers: { Authorization: `Bearer ${jwt}` },
       })
+      setStatus(st.data?.data || null)
+
+      Swal.fire('¡Listo!', 'El número fue activado (o ya estaba activo).', 'success')
     } catch (e: any) {
-      const msg =
-        e?.response?.data?.error?.message ||
-        e?.response?.data?.error ||
-        e?.message ||
-        'Error al consultar estado'
+      const msg = e?.response?.data?.error?.message || e?.message || 'No se pudo activar'
       Swal.fire('Error', String(msg), 'error')
     } finally {
-      setChecking(false)
+      setActivating(false)
     }
   }
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-3">
-      <h3 className="font-semibold text-slate-900">Activar número (Cloud API)</h3>
-      <p className="text-sm text-slate-600">
-        Ingresa tu número tal como aparece en Meta (ej. “+57 312 345 6789”) o pega el <code>phone_number_id</code>.
-        Si pones ambos, se usará el <code>phone_number_id</code>.
-      </p>
+    <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-4">
+      <h3 className="font-semibold text-slate-900">Activar número por WABA ID</h3>
 
       <label className="block text-sm text-slate-700">
-        Número (display_phone_number)
+        WABA ID
         <input
           className="mt-1 w-full rounded border px-3 py-2"
-          placeholder="+57 312 345 6789"
-          value={displayPhone}
-          onChange={(e) => setDisplayPhone(e.target.value)}
-          disabled={loading || checking}
+          placeholder="2384316055299650"
+          value={wabaId}
+          onChange={(e) => setWabaId(e.target.value)}
         />
       </label>
 
-      <div className="text-xs text-slate-400">— ó —</div>
-
-      <label className="block text-sm text-slate-700">
-        Phone Number ID (opcional)
-        <input
-          className="mt-1 w-full rounded border px-3 py-2"
-          placeholder="712725021933030"
-          value={phoneId}
-          onChange={(e) => setPhoneId(onlyDigits(e.target.value))}
-          disabled={loading || checking}
-        />
-      </label>
-
-      <div className="flex gap-2">
+      <div className="flex items-center gap-2">
         <button
           type="button"
-          onClick={onActivate}
-          disabled={loading || checking}
-          className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-white disabled:opacity-60"
+          onClick={listPhones}
+          disabled={loading || !wabaId.trim()}
+          className="rounded-lg bg-indigo-600 px-4 py-2 text-white disabled:opacity-60"
         >
-          {loading ? 'Activando…' : 'Activar número'}
+          {loading ? 'Buscando…' : 'Listar números'}
         </button>
 
-        <button
-          type="button"
-          onClick={checkStatus}
-          disabled={loading || checking}
-          className="inline-flex items-center gap-2 rounded-lg bg-slate-700 px-4 py-2 text-white disabled:opacity-60"
-        >
-          {checking ? 'Consultando…' : 'Ver estado'}
-        </button>
+        <label className="ml-auto text-sm text-slate-700 flex items-center gap-2">
+          PIN (opcional)
+          <input
+            className="rounded border px-2 py-1"
+            placeholder="129012"
+            value={pin}
+            onChange={(e) => setPin(e.target.value)}
+            style={{ width: 120 }}
+          />
+        </label>
       </div>
+
+      {!!phones.length && (
+        <div className="space-y-2">
+          <div className="text-sm text-slate-600">Números encontrados:</div>
+          {phones.map(p => (
+            <button
+              key={p.id}
+              onClick={() => { setSelected(p); setStatus(null) }}
+              className={`w-full text-left rounded border px-3 py-2 ${
+                selected?.id === p.id ? 'border-indigo-500 bg-indigo-50' : 'border-slate-200'
+              }`}
+            >
+              <div className="font-medium">{p.display_phone_number}</div>
+              <div className="text-xs text-slate-500">phone_number_id: {p.id}</div>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {selected && (
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={activate}
+            disabled={activating}
+            className="rounded-lg bg-emerald-600 px-4 py-2 text-white disabled:opacity-60"
+          >
+            {activating ? 'Activando…' : 'Activar este número'}
+          </button>
+
+          <div className="text-xs text-slate-500">
+            Seleccionado: {selected.display_phone_number} · ID: {selected.id}
+          </div>
+        </div>
+      )}
+
+      {status && (
+        <pre className="bg-slate-50 border border-slate-200 text-xs p-3 rounded overflow-auto">
+{JSON.stringify(status, null, 2)}
+        </pre>
+      )}
     </div>
   )
 }
