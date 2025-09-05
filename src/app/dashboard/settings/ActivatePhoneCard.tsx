@@ -1,4 +1,3 @@
-// app/dashboard/settings/ActivatePhoneCard.tsx
 'use client'
 
 import { useState } from 'react'
@@ -18,6 +17,7 @@ export default function ActivateWabaPhone() {
   const [phones, setPhones] = useState<Phone[]>([])
   const [selected, setSelected] = useState<Phone | null>(null)
   const [loading, setLoading] = useState(false)
+  const [savingPin, setSavingPin] = useState(false)
   const [activating, setActivating] = useState(false)
   const [status, setStatus] = useState<any>(null)
 
@@ -50,11 +50,43 @@ export default function ActivateWabaPhone() {
     }
   }
 
+  const saveTwoStepPin = async () => {
+    if (!API_URL) return alert('Falta NEXT_PUBLIC_API_URL')
+    if (!selected) {
+      return Swal.fire('Elige un número', 'Selecciona un teléfono de la lista.', 'info')
+    }
+    const cleanPin = pin.trim()
+    if (!/^\d{6}$/.test(cleanPin)) {
+      return Swal.fire('PIN requerido', 'Debes ingresar un PIN de 6 dígitos.', 'warning')
+    }
+    try {
+      setSavingPin(true)
+      await axios.post(
+        `${API_URL}/api/whatsapp/numero/${selected.id}/two-step`,
+        { pin: cleanPin },
+        { headers: { Authorization: `Bearer ${jwt}` } }
+      )
+      Swal.fire('PIN guardado', 'La verificación en dos pasos quedó configurada para este número.', 'success')
+    } catch (e: any) {
+      const msg = e?.response?.data?.error?.message || e?.message || 'No se pudo guardar el PIN'
+      Swal.fire('Error', String(msg), 'error')
+    } finally {
+      setSavingPin(false)
+    }
+  }
+
   const activate = async () => {
     if (!API_URL) return alert('Falta NEXT_PUBLIC_API_URL')
     if (!selected) {
-      Swal.fire('Elige un número', 'Selecciona un teléfono de la lista.', 'info')
-      return
+      return Swal.fire('Elige un número', 'Selecciona un teléfono de la lista.', 'info')
+    }
+    const cleanPin = pin.trim()
+    if (!/^\d{6}$/.test(cleanPin)) {
+      return Swal.fire(
+        'PIN requerido',
+        'Este número exige PIN de 6 dígitos (verificación en dos pasos). Configúralo y vuelve a intentarlo.',
+        'warning'
+      )
     }
     try {
       setActivating(true)
@@ -65,12 +97,11 @@ export default function ActivateWabaPhone() {
         {
           wabaId: wabaId.trim(),
           phoneNumberId: selected.id,
-          pin: pin.trim() || undefined, // si tu número exige PIN
+          pin: cleanPin,
         },
         { headers: { Authorization: `Bearer ${jwt}` } }
       )
 
-      // Ver estado al final
       const st = await axios.get(`${API_URL}/api/whatsapp/numero/${selected.id}/estado`, {
         headers: { Authorization: `Bearer ${jwt}` },
       })
@@ -110,10 +141,10 @@ export default function ActivateWabaPhone() {
         </button>
 
         <label className="ml-auto text-sm text-slate-700 flex items-center gap-2">
-          PIN (opcional)
+          PIN (2FA)
           <input
             className="rounded border px-2 py-1"
-            placeholder="129012"
+            placeholder="6 dígitos"
             value={pin}
             onChange={(e) => setPin(e.target.value)}
             style={{ width: 120 }}
@@ -124,10 +155,13 @@ export default function ActivateWabaPhone() {
       {!!phones.length && (
         <div className="space-y-2">
           <div className="text-sm text-slate-600">Números encontrados:</div>
-          {phones.map(p => (
+          {phones.map((p) => (
             <button
               key={p.id}
-              onClick={() => { setSelected(p); setStatus(null) }}
+              onClick={() => {
+                setSelected(p)
+                setStatus(null)
+              }}
               className={`w-full text-left rounded border px-3 py-2 ${
                 selected?.id === p.id ? 'border-indigo-500 bg-indigo-50' : 'border-slate-200'
               }`}
@@ -140,25 +174,36 @@ export default function ActivateWabaPhone() {
       )}
 
       {selected && (
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={activate}
-            disabled={activating}
-            className="rounded-lg bg-emerald-600 px-4 py-2 text-white disabled:opacity-60"
-          >
-            {activating ? 'Activando…' : 'Activar este número'}
-          </button>
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={saveTwoStepPin}
+              disabled={savingPin || !/^\d{6}$/.test(pin.trim())}
+              className="rounded-lg bg-sky-600 px-4 py-2 text-white disabled:opacity-60"
+            >
+              {savingPin ? 'Guardando PIN…' : 'Guardar PIN (2FA)'}
+            </button>
 
-          <div className="text-xs text-slate-500">
-            Seleccionado: {selected.display_phone_number} · ID: {selected.id}
+            <button
+              type="button"
+              onClick={activate}
+              disabled={activating}
+              className="rounded-lg bg-emerald-600 px-4 py-2 text-white disabled:opacity-60"
+            >
+              {activating ? 'Activando…' : 'Activar este número'}
+            </button>
+
+            <div className="text-xs text-slate-500">
+              Seleccionado: {selected.display_phone_number} · ID: {selected.id}
+            </div>
           </div>
         </div>
       )}
 
       {status && (
         <pre className="bg-slate-50 border border-slate-200 text-xs p-3 rounded overflow-auto">
-{JSON.stringify(status, null, 2)}
+          {JSON.stringify(status, null, 2)}
         </pre>
       )}
     </div>
