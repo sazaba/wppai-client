@@ -1,3 +1,4 @@
+// app/dashboard/settings/ActivatePhoneCard.tsx
 'use client'
 
 import { useState } from 'react'
@@ -17,7 +18,6 @@ export default function ActivateWabaPhone() {
   const [phones, setPhones] = useState<Phone[]>([])
   const [selected, setSelected] = useState<Phone | null>(null)
   const [loading, setLoading] = useState(false)
-  const [savingPin, setSavingPin] = useState(false)
   const [activating, setActivating] = useState(false)
   const [status, setStatus] = useState<any>(null)
 
@@ -50,31 +50,6 @@ export default function ActivateWabaPhone() {
     }
   }
 
-  const saveTwoStepPin = async () => {
-    if (!API_URL) return alert('Falta NEXT_PUBLIC_API_URL')
-    if (!selected) {
-      return Swal.fire('Elige un número', 'Selecciona un teléfono de la lista.', 'info')
-    }
-    const cleanPin = pin.trim()
-    if (!/^\d{6}$/.test(cleanPin)) {
-      return Swal.fire('PIN requerido', 'Debes ingresar un PIN de 6 dígitos.', 'warning')
-    }
-    try {
-      setSavingPin(true)
-      await axios.post(
-        `${API_URL}/api/whatsapp/numero/${selected.id}/two-step`,
-        { pin: cleanPin },
-        { headers: { Authorization: `Bearer ${jwt}` } }
-      )
-      Swal.fire('PIN guardado', 'La verificación en dos pasos quedó configurada para este número.', 'success')
-    } catch (e: any) {
-      const msg = e?.response?.data?.error?.message || e?.message || 'No se pudo guardar el PIN'
-      Swal.fire('Error', String(msg), 'error')
-    } finally {
-      setSavingPin(false)
-    }
-  }
-
   const activate = async () => {
     if (!API_URL) return alert('Falta NEXT_PUBLIC_API_URL')
     if (!selected) {
@@ -84,7 +59,7 @@ export default function ActivateWabaPhone() {
     if (!/^\d{6}$/.test(cleanPin)) {
       return Swal.fire(
         'PIN requerido',
-        'Este número exige PIN de 6 dígitos (verificación en dos pasos). Configúralo y vuelve a intentarlo.',
+        'Debes ingresar un PIN de 6 dígitos. En Cloud API el PIN se establece al registrar.',
         'warning'
       )
     }
@@ -174,29 +149,18 @@ export default function ActivateWabaPhone() {
       )}
 
       {selected && (
-        <div className="space-y-2">
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={saveTwoStepPin}
-              disabled={savingPin || !/^\d{6}$/.test(pin.trim())}
-              className="rounded-lg bg-sky-600 px-4 py-2 text-white disabled:opacity-60"
-            >
-              {savingPin ? 'Guardando PIN…' : 'Guardar PIN (2FA)'}
-            </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={activate}
+            disabled={activating}
+            className="rounded-lg bg-emerald-600 px-4 py-2 text-white disabled:opacity-60"
+          >
+            {activating ? 'Activando…' : 'Activar este número'}
+          </button>
 
-            <button
-              type="button"
-              onClick={activate}
-              disabled={activating}
-              className="rounded-lg bg-emerald-600 px-4 py-2 text-white disabled:opacity-60"
-            >
-              {activating ? 'Activando…' : 'Activar este número'}
-            </button>
-
-            <div className="text-xs text-slate-500">
-              Seleccionado: {selected.display_phone_number} · ID: {selected.id}
-            </div>
+          <div className="text-xs text-slate-500">
+            Seleccionado: {selected.display_phone_number} · ID: {selected.id}
           </div>
         </div>
       )}
@@ -206,6 +170,10 @@ export default function ActivateWabaPhone() {
           {JSON.stringify(status, null, 2)}
         </pre>
       )}
+
+      <p className="text-xs text-slate-500">
+        Nota: En WhatsApp Cloud API, el PIN (verificación en dos pasos) se fija al registrar el número.
+      </p>
     </div>
   )
 }
