@@ -13,6 +13,7 @@ import type {
   BusinessType,
   BackendBusinessConfig, // Partial<ConfigForm>
 } from './components/training/types'
+import ActivatePhoneCard from './ActivatePhoneCard'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL as string
 
@@ -250,6 +251,7 @@ export default function SettingsPage() {
         />
 
         {/* Config WhatsApp */}
+        <ActivatePhoneCard/>
         <WhatsappConfig />
       </div>
     </div>
