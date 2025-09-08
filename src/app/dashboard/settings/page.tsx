@@ -251,8 +251,9 @@ export default function SettingsPage() {
         />
 
         {/* Config WhatsApp */}
-        <ActivatePhoneCard/>
+        
         <WhatsappConfig />
+        <ActivatePhoneCard/>
       </div>
     </div>
   )

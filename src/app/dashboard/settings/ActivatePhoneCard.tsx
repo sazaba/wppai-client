@@ -14,14 +14,15 @@ type Phone = {
 
 export default function ActivateWabaPhone() {
   const [wabaId, setWabaId] = useState('')
-  const [pin, setPin] = useState('')
+  const [pin, setPin] = useState('') // ← opcional
   const [phones, setPhones] = useState<Phone[]>([])
   const [selected, setSelected] = useState<Phone | null>(null)
   const [loading, setLoading] = useState(false)
   const [activating, setActivating] = useState(false)
   const [status, setStatus] = useState<any>(null)
 
-  const jwt = typeof window !== 'undefined' ? localStorage.getItem('token') || '' : ''
+  const jwt =
+    typeof window !== 'undefined' ? localStorage.getItem('token') || '' : ''
 
   const listPhones = async () => {
     if (!API_URL) return alert('Falta NEXT_PUBLIC_API_URL')
@@ -55,14 +56,13 @@ export default function ActivateWabaPhone() {
     if (!selected) {
       return Swal.fire('Elige un número', 'Selecciona un teléfono de la lista.', 'info')
     }
+
+    // PIN opcional: permitir vacío o 6 dígitos
     const cleanPin = pin.trim()
-    if (!/^\d{6}$/.test(cleanPin)) {
-      return Swal.fire(
-        'PIN requerido',
-        'Debes ingresar un PIN de 6 dígitos. En Cloud API el PIN se establece al registrar.',
-        'warning'
-      )
+    if (cleanPin && !/^\d{6}$/.test(cleanPin)) {
+      return Swal.fire('PIN inválido', 'Si lo ingresas, debe ser de 6 dígitos.', 'warning')
     }
+
     try {
       setActivating(true)
       setStatus(null)
@@ -72,7 +72,7 @@ export default function ActivateWabaPhone() {
         {
           wabaId: wabaId.trim(),
           phoneNumberId: selected.id,
-          pin: cleanPin,
+          pin: cleanPin || undefined, // ← no enviar si va vacío
         },
         { headers: { Authorization: `Bearer ${jwt}` } }
       )
@@ -84,8 +84,22 @@ export default function ActivateWabaPhone() {
 
       Swal.fire('¡Listo!', 'El número fue activado (o ya estaba activo).', 'success')
     } catch (e: any) {
-      const msg = e?.response?.data?.error?.message || e?.message || 'No se pudo activar'
-      Swal.fire('Error', String(msg), 'error')
+      const statusCode = e?.response?.status
+      const raw =
+        e?.response?.data?.error?.message ||
+        e?.response?.data?.error ||
+        e?.message ||
+        'No se pudo activar'
+
+      if (statusCode === 409) {
+        Swal.fire(
+          'Número ya conectado',
+          'Este número ya está vinculado a otra empresa en tu cuenta. Desconéctalo allí primero o usa otro número.',
+          'warning'
+        )
+      } else {
+        Swal.fire('Error', String(raw), 'error')
+      }
     } finally {
       setActivating(false)
     }
@@ -116,13 +130,13 @@ export default function ActivateWabaPhone() {
         </button>
 
         <label className="ml-auto text-sm text-slate-700 flex items-center gap-2">
-          PIN (2FA)
+          PIN (2FA, opcional)
           <input
             className="rounded border px-2 py-1"
-            placeholder="6 dígitos"
+            placeholder="6 dígitos (opcional)"
             value={pin}
             onChange={(e) => setPin(e.target.value)}
-            style={{ width: 120 }}
+            style={{ width: 160 }}
           />
         </label>
       </div>
@@ -167,12 +181,23 @@ export default function ActivateWabaPhone() {
 
       {status && (
         <pre className="bg-slate-50 border border-slate-200 text-xs p-3 rounded overflow-auto">
-          {JSON.stringify(status, null, 2)}
+          {JSON.stringify(
+            {
+              id: status.id,
+              display_phone_number: status.display_phone_number,
+              status: status.status,            // e.g. PENDING / VERIFIED
+              name_status: status.name_status,  // e.g. APPROVED / PENDING
+              account_mode: status.account_mode,
+              quality_rating: status.quality_rating,
+            },
+            null,
+            2
+          )}
         </pre>
       )}
 
       <p className="text-xs text-slate-500">
-        Nota: En WhatsApp Cloud API, el PIN (verificación en dos pasos) se fija al registrar el número.
+        El PIN (verificación en dos pasos) es opcional al registrar. Si ya existe, no lo cambies aquí.
       </p>
     </div>
   )
