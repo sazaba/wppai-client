@@ -13,32 +13,33 @@ import {
   Building2,
   Check,
   X,
+  ChevronDown
 } from "lucide-react";
 import { motion } from "framer-motion";
 
-/* ===================== helpers UI ===================== */
+/* ============== helpers UI ============== */
 function cx(...classes: (string | undefined | false)[]) {
   return classes.filter(Boolean).join(" ");
 }
 
-// Botón minimal con variantes y dark mode
 function Button(
   { className, variant = "primary", ...props }:
   React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: "primary" | "ghost" | "outline" }
 ) {
   const base =
-    "inline-flex items-center gap-2 rounded-2xl px-4 py-2 text-sm font-medium shadow-sm transition " +
+    "inline-flex items-center gap-2 rounded-2xl px-4 py-2 text-sm font-medium transition shadow-sm " +
     "focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-transparent";
   const variants = {
     primary:
-      "bg-zinc-900 text-white hover:bg-zinc-800 focus:ring-zinc-700 " +
-      "dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-white dark:focus:ring-zinc-300",
+      // mejor contraste en dark + look premium
+      "text-white bg-zinc-900 hover:bg-zinc-800 dark:bg-gradient-to-tr dark:from-indigo-600 dark:to-violet-600 " +
+      "dark:hover:from-indigo-500 dark:hover:to-violet-500 dark:text-white focus:ring-zinc-700 dark:focus:ring-indigo-500",
     ghost:
-      "bg-transparent text-zinc-800 hover:bg-zinc-100 focus:ring-zinc-300 " +
-      "dark:text-zinc-100 dark:hover:bg-zinc-800/60 dark:focus:ring-zinc-700",
+      "bg-transparent text-zinc-900 hover:bg-zinc-100 dark:text-zinc-100 dark:hover:bg-white/5 " +
+      "focus:ring-zinc-300 dark:focus:ring-zinc-700",
     outline:
-      "border border-zinc-300 text-zinc-800 hover:bg-zinc-50 focus:ring-zinc-300 " +
-      "dark:border-zinc-700 dark:text-zinc-100 dark:hover:bg-zinc-800/60 dark:focus:ring-zinc-700",
+      "border border-zinc-300 text-zinc-900 hover:bg-zinc-50 " +
+      "dark:border-zinc-700 dark:text-zinc-100 dark:hover:bg-white/5 focus:ring-zinc-300 dark:focus:ring-zinc-700",
   } as const;
   return <button className={cx(base, variants[variant], className)} {...props} />;
 }
@@ -51,31 +52,22 @@ function Badge({ children, color = "zinc" }: { children: React.ReactNode; color?
     red: "bg-red-200/70 text-red-800 dark:bg-red-900/50 dark:text-red-300",
     blue: "bg-blue-200/70 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300",
   };
-  return (
-    <span className={cx("inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium", map[color])}>
-      {children}
-    </span>
-  );
+  return <span className={cx("inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium", map[color])}>{children}</span>;
 }
 
-// Modal con soporte dark
 function Dialog({ open, onClose, children }: { open: boolean; onClose: () => void; children: React.ReactNode }) {
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px]" onClick={onClose} />
-      <motion.div
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="relative z-10 w-full max-w-xl rounded-2xl bg-white p-6 shadow-2xl dark:bg-zinc-900"
-      >
+      <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="relative z-10 w-full max-w-xl rounded-2xl bg-white p-6 shadow-2xl dark:bg-zinc-900">
         {children}
       </motion.div>
     </div>
   );
 }
 
-/* ===================== tipos ===================== */
+/* ============== tipos ============== */
 export type Appointment = {
   id: number;
   empresaId: number;
@@ -88,37 +80,33 @@ export type Appointment = {
   customerName: string;
   customerPhone: string;
   notas?: string | null;
-  startAt: string; // ISO
-  endAt: string;   // ISO
+  startAt: string;
+  endAt: string;
   serviceName: string;
   durationMin: number;
   timezone: string;
 };
-
 export type Sede = { id: number; nombre: string; timezone: string };
 export type Service = { id: number; nombre: string; duracionMin: number };
 export type Provider = { id: number; nombre: string };
 
-/* ===================== utils fechas ===================== */
+/* ============== utils fechas ============== */
 const ZULU = (d: Date) => d.toISOString();
 const startOfMonth = (d: Date) => new Date(d.getFullYear(), d.getMonth(), 1);
 const endOfMonth = (d: Date) => new Date(d.getFullYear(), d.getMonth() + 1, 0);
 const addMonths = (d: Date, m: number) => new Date(d.getFullYear(), d.getMonth() + m, 1);
 function startOfWeek(d: Date) {
   const day = d.getDay();
-  const diff = (day === 0 ? -6 : 1) - day; // Monday-first
+  const diff = (day === 0 ? -6 : 1) - day;
   const res = new Date(d);
   res.setDate(d.getDate() + diff);
   res.setHours(0, 0, 0, 0);
   return res;
 }
 const addDays = (d: Date, days: number) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + days);
-const isSameDay = (a: Date, b: Date) =>
-  a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
-const formatDayKey = (d: Date) =>
-  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-const hhmm = (date: Date) =>
-  new Intl.DateTimeFormat("es-CO", { hour: "2-digit", minute: "2-digit", hour12: false }).format(date);
+const isSameDay = (a: Date, b: Date) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+const formatDayKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+const hhmm = (date: Date) => new Intl.DateTimeFormat("es-CO", { hour: "2-digit", minute: "2-digit", hour12: false }).format(date);
 
 function statusColor(s: Appointment["status"]) {
   switch (s) {
@@ -132,24 +120,19 @@ function statusColor(s: Appointment["status"]) {
   }
 }
 
-/* ===================== API helpers ===================== */
+/* ============== API helpers ============== */
 async function apiGet<T>(url: string): Promise<T> {
   const res = await fetch(url, { credentials: "include" });
   if (!res.ok) throw new Error(await res.text());
   return res.json();
 }
 async function apiPut<T>(url: string, body: any): Promise<T> {
-  const res = await fetch(url, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-    credentials: "include",
-  });
+  const res = await fetch(url, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), credentials: "include" });
   if (!res.ok) throw new Error(await res.text());
   return res.json();
 }
 
-/* ===================== componente ===================== */
+/* ============== componente ============== */
 export default function AppointmentsCalendar({ empresaId }: { empresaId: number }) {
   const [current, setCurrent] = useState(() => startOfMonth(new Date()));
   const [sedes, setSedes] = useState<Sede[]>([]);
@@ -172,12 +155,8 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId: number 
           apiGet<Service[]>(`/api/services?empresaId=${empresaId}`),
           apiGet<Provider[]>(`/api/providers?empresaId=${empresaId}`),
         ]);
-        setSedes(s);
-        setServices(sv);
-        setProviders(p);
-      } catch (e) {
-        console.error(e);
-      }
+        setSedes(s); setServices(sv); setProviders(p);
+      } catch (e) { console.error(e); }
     })();
   }, [empresaId]);
 
@@ -194,11 +173,7 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId: number 
         if (selectedProvider !== "all") params.append("providerId", String(selectedProvider));
         const data = await apiGet<Appointment[]>(`/api/appointments?${params.toString()}`);
         setEvents(data);
-      } catch (e) {
-        console.error(e);
-      } finally {
-        setLoading(false);
-      }
+      } catch (e) { console.error(e); } finally { setLoading(false); }
     })();
   }, [empresaId, current, selectedSede, selectedService, selectedProvider]);
 
@@ -225,98 +200,74 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId: number 
 
   return (
     <div className="w-full h-full">
-      {/* padding global + ancho máximo opcional */}
       <div className="mx-auto h-full max-w-[1600px] p-4 md:p-6 lg:p-8">
-        {/* Header */}
-        <div className="mb-3 flex flex-col gap-3 md:mb-6 md:flex-row md:items-center md:justify-between">
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" onClick={() => setCurrent(addMonths(current, -1))}>
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <Button variant="ghost" onClick={() => setCurrent(addMonths(current, +1))}>
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-            <div className="flex items-center gap-2 text-xl font-semibold text-zinc-900 dark:text-zinc-100">
-              <CalendarIcon className="h-5 w-5" />
-              {current.toLocaleString("es-CO", { month: "long", year: "numeric" })}
-            </div>
-            <Button variant="outline" className="ml-2" onClick={() => setCurrent(startOfMonth(new Date()))}>
-              Hoy
-            </Button>
-          </div>
+        {/* Surface header premium */}
+        <div className="mb-4 rounded-2xl border border-white/5 bg-white/60 p-3 shadow-sm backdrop-blur dark:border-white/10 dark:bg-white/5 md:mb-6 md:p-4">
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            {/* izquierda: navegación + mes visible */}
+            <div className="flex items-center gap-2">
+              <Button variant="ghost" onClick={() => setCurrent(addMonths(current, -1))} aria-label="Mes anterior">
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <Button variant="ghost" onClick={() => setCurrent(addMonths(current, +1))} aria-label="Mes siguiente">
+                <ChevronRight className="h-4 w-4" />
+              </Button>
 
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="relative">
-              <Search className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-zinc-400 dark:text-zinc-500" />
-              <input
-                value={textQuery}
-                onChange={(e) => setTextQuery(e.target.value)}
-                placeholder="Buscar: nombre, teléfono, servicio"
-                className="w-72 rounded-2xl border border-zinc-300 bg-white px-9 py-2 text-sm text-zinc-900 placeholder-zinc-400
-                           focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:w-80 dark:border-zinc-700 dark:bg-zinc-900
-                           dark:text-zinc-100 dark:placeholder-zinc-500 dark:focus:ring-zinc-500"
+              <div className="rounded-xl px-3 py-1.5 text-base font-semibold text-zinc-900 dark:text-white">
+                {current.toLocaleString("es-CO", { month: "long", year: "numeric" })}
+              </div>
+
+              <Button variant="outline" className="ml-2" onClick={() => setCurrent(startOfMonth(new Date()))}>
+                Hoy
+              </Button>
+            </div>
+
+            {/* derecha: filtros */}
+            <div className="flex flex-wrap items-center gap-2">
+              {/* search */}
+              <div className="relative">
+                <Search className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-zinc-400 dark:text-zinc-500" />
+                <input
+                  value={textQuery}
+                  onChange={(e) => setTextQuery(e.target.value)}
+                  placeholder="Buscar: nombre, teléfono, servicio"
+                  className="w-72 rounded-2xl border border-zinc-300 bg-white px-9 py-2 text-sm text-zinc-900 placeholder-zinc-400
+                             focus:outline-none focus:ring-2 focus:ring-zinc-900
+                             dark:w-80 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:placeholder-zinc-500 dark:focus:ring-zinc-500"
+                />
+              </div>
+
+              {/* select premium */}
+              <Select
+                value={String(selectedSede)}
+                onChange={(v) => setSelectedSede(v === "all" ? "all" : Number(v))}
+                options={[{ value: "all", label: "Todas las sedes" }, ...sedes.map(s => ({ value: String(s.id), label: s.nombre }))]}
               />
+              <Select
+                value={String(selectedService)}
+                onChange={(v) => setSelectedService(v === "all" ? "all" : Number(v))}
+                options={[{ value: "all", label: "Todos los servicios" }, ...services.map(s => ({ value: String(s.id), label: s.nombre }))]}
+              />
+              <Select
+                value={String(selectedProvider)}
+                onChange={(v) => setSelectedProvider(v === "all" ? "all" : Number(v))}
+                options={[{ value: "all", label: "Todos los profesionales" }, ...providers.map(p => ({ value: String(p.id), label: p.nombre }))]}
+              />
+
+              <Button className="ml-1">
+                <Plus className="h-4 w-4" /> Nueva cita
+              </Button>
             </div>
-
-            <select
-              className="rounded-2xl border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900
-                         focus:outline-none focus:ring-2 focus:ring-zinc-900
-                         dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:focus:ring-zinc-500"
-              value={selectedSede}
-              onChange={(e) => setSelectedSede(e.target.value === "all" ? "all" : Number(e.target.value))}
-            >
-              <option value="all">Todas las sedes</option>
-              {sedes.map((s) => (
-                <option key={s.id} value={s.id}>{s.nombre}</option>
-              ))}
-            </select>
-
-            <select
-              className="rounded-2xl border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900
-                         focus:outline-none focus:ring-2 focus:ring-zinc-900
-                         dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:focus:ring-zinc-500"
-              value={selectedService}
-              onChange={(e) => setSelectedService(e.target.value === "all" ? "all" : Number(e.target.value))}
-            >
-              <option value="all">Todos los servicios</option>
-              {services.map((s) => (
-                <option key={s.id} value={s.id}>{s.nombre}</option>
-              ))}
-            </select>
-
-            <select
-              className="rounded-2xl border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900
-                         focus:outline-none focus:ring-2 focus:ring-zinc-900
-                         dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:focus:ring-zinc-500"
-              value={selectedProvider}
-              onChange={(e) => setSelectedProvider(e.target.value === "all" ? "all" : Number(e.target.value))}
-            >
-              <option value="all">Todos los profesionales</option>
-              {providers.map((p) => (
-                <option key={p.id} value={p.id}>{p.nombre}</option>
-              ))}
-            </select>
-
-            <Button className="ml-1">
-              <Plus className="h-4 w-4" /> Nueva cita
-            </Button>
           </div>
         </div>
 
-        {/* Weekdays */}
-        <div className="grid grid-cols-7 gap-3 text-xs font-medium text-zinc-600 dark:text-zinc-400 max-xl:hidden">
-          {weekDays.map((w) => (
-            <div key={w} className="px-2">{w}</div>
-          ))}
+        {/* Weekdays siempre visibles con buen contraste */}
+        <div className="mb-2 grid grid-cols-7 gap-3 text-xs font-medium text-zinc-600 dark:text-zinc-400">
+          {weekDays.map((w) => <div key={w} className="px-1">{w}</div>)}
         </div>
 
-        {/* Month grid  -> responsive: 1/2/4/7 columnas */}
-        <div
-          className="
-            grid gap-3
-            grid-cols-1 sm:grid-cols-2 md:grid-cols-4 xl:grid-cols-7
-          "
-        >
+        {/* Month grid responsive */}
+        <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 md:grid-cols-4 xl:grid-cols-7">
           {monthMatrix.map((day, idx) => {
             const inMonth = day.getMonth() === current.getMonth();
             const k = formatDayKey(day);
@@ -328,18 +279,15 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId: number 
                   "min-h-[120px] rounded-2xl border p-3 shadow-sm transition-all",
                   "bg-zinc-50/80 border-zinc-200 hover:shadow-md",
                   "dark:bg-zinc-900/60 dark:border-zinc-800",
-                  !inMonth && "opacity-70"
+                  !inMonth && "opacity-80"
                 )}
               >
-                {/* Header día */}
                 <div className="mb-2 flex items-center justify-between">
-                  <div
-                    className={cx(
-                      "text-sm font-semibold",
-                      inMonth ? "text-zinc-800 dark:text-zinc-100" : "text-zinc-500 dark:text-zinc-500",
-                      isSameDay(day, new Date()) && "text-zinc-900 dark:text-white"
-                    )}
-                  >
+                  <div className={cx(
+                    "text-sm font-semibold",
+                    inMonth ? "text-zinc-800 dark:text-zinc-100" : "text-zinc-500 dark:text-zinc-500",
+                    isSameDay(day, new Date()) && "text-zinc-900 dark:text-white"
+                  )}>
                     {day.getDate()}
                   </div>
                   <div className="flex gap-1">
@@ -359,13 +307,12 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId: number 
                   </div>
                 </div>
 
-                {/* Eventos */}
                 <div className="space-y-1.5">
                   {dayEvents.slice(0, 3).map((ev) => (
                     <button
                       key={ev.id}
                       onClick={() => setSelectedAppt(ev)}
-                      className="w-full rounded-xl border border-zinc-200 bg-white/70 px-2 py-1.5 text-left text-xs hover:bg-white
+                      className="w-full rounded-xl border border-zinc-200 bg-white/80 px-2 py-1.5 text-left text-xs hover:bg-white
                                  dark:border-zinc-700 dark:bg-zinc-800/80 dark:hover:bg-zinc-800"
                     >
                       <div className="flex items-center gap-1 text-zinc-800 dark:text-zinc-100">
@@ -386,14 +333,10 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId: number 
         </div>
       </div>
 
-      {/* Loading overlay */}
+      {/* loading */}
       {loading && (
         <div className="fixed inset-0 z-40 grid place-items-center bg-white/40 backdrop-blur-sm dark:bg-zinc-900/40">
-          <motion.div
-            initial={{ scale: 0.95, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            className="rounded-2xl bg-white px-4 py-3 shadow-xl dark:bg-zinc-900"
-          >
+          <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="rounded-2xl bg-white px-4 py-3 shadow-xl dark:bg-zinc-900">
             <div className="flex items-center gap-2 text-zinc-800 dark:text-zinc-200">
               <CalendarIcon className="h-4 w-4" /> Cargando citas…
             </div>
@@ -401,29 +344,19 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId: number 
         </div>
       )}
 
-      {/* Modal cita */}
+      {/* modal */}
       <Dialog open={!!selectedAppt} onClose={() => setSelectedAppt(null)}>
         {selectedAppt && (
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <div className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">
-                {selectedAppt.serviceName}
-              </div>
+              <div className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">{selectedAppt.serviceName}</div>
               <Badge color={statusColor(selectedAppt.status)}>{selectedAppt.status}</Badge>
             </div>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <div className="flex items-center gap-2 text-sm text-zinc-800 dark:text-zinc-200">
-                <Clock className="h-4 w-4" /> {hhmm(new Date(selectedAppt.startAt))} – {hhmm(new Date(selectedAppt.endAt))}
-              </div>
-              <div className="flex items-center gap-2 text-sm text-zinc-800 dark:text-zinc-200">
-                <User className="h-4 w-4" /> {selectedAppt.customerName} · {selectedAppt.customerPhone}
-              </div>
-              <div className="flex items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300">
-                <Building2 className="h-4 w-4" /> Sede ID: {selectedAppt.sedeId}
-              </div>
-              <div className="flex items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300">
-                <MapPin className="h-4 w-4" /> Conversación: {selectedAppt.conversationId ?? "—"}
-              </div>
+              <div className="flex items-center gap-2 text-sm text-zinc-800 dark:text-zinc-200"><Clock className="h-4 w-4" /> {hhmm(new Date(selectedAppt.startAt))} – {hhmm(new Date(selectedAppt.endAt))}</div>
+              <div className="flex items-center gap-2 text-sm text-zinc-800 dark:text-zinc-200"><User className="h-4 w-4" /> {selectedAppt.customerName} · {selectedAppt.customerPhone}</div>
+              <div className="flex items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300"><Building2 className="h-4 w-4" /> Sede ID: {selectedAppt.sedeId}</div>
+              <div className="flex items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300"><MapPin className="h-4 w-4" /> Conversación: {selectedAppt.conversationId ?? "—"}</div>
             </div>
             {selectedAppt.notas && (
               <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-3 text-sm text-zinc-700 dark:border-zinc-800 dark:bg-zinc-800/60 dark:text-zinc-200">
@@ -431,9 +364,7 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId: number 
               </div>
             )}
             <div className="flex items-center justify-end gap-2">
-              <Button variant="outline" onClick={() => setSelectedAppt(null)}>
-                <X className="h-4 w-4" /> Cerrar
-              </Button>
+              <Button variant="outline" onClick={() => setSelectedAppt(null)}><X className="h-4 w-4" /> Cerrar</Button>
               <Button
                 onClick={async () => {
                   try {
@@ -441,9 +372,7 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId: number 
                     const updated = await apiPut<Appointment>(`/api/appointments/${selectedAppt.id}/status`, { status: next });
                     setEvents((prev) => prev.map((e) => (e.id === updated.id ? updated : e)));
                     setSelectedAppt(updated);
-                  } catch (e) {
-                    console.error(e);
-                  }
+                  } catch (e) { console.error(e); }
                 }}
               >
                 <Check className="h-4 w-4" /> {selectedAppt.status === "confirmed" ? "Marcar completada" : "Confirmar"}
@@ -452,6 +381,34 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId: number 
           </div>
         )}
       </Dialog>
+    </div>
+  );
+}
+
+/* ============== Select premium (sin lib externa) ============== */
+function Select({
+  value, onChange, options,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  options: { value: string; label: string }[];
+}) {
+  return (
+    <div className="relative">
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="
+          appearance-none rounded-2xl border border-zinc-300 bg-white px-3 py-2 pr-9 text-sm text-zinc-900
+          shadow-sm transition focus:outline-none focus:ring-2 focus:ring-zinc-900
+          dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:focus:ring-zinc-500
+        "
+      >
+        {options.map((o) => (
+          <option key={o.value} value={o.value}>{o.label}</option>
+        ))}
+      </select>
+      <ChevronDown className="pointer-events-none absolute right-2 top-2.5 h-4 w-4 text-zinc-500 dark:text-zinc-400" />
     </div>
   );
 }
