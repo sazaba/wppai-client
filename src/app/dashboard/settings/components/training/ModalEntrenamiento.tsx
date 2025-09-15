@@ -10,7 +10,7 @@ import TypeTabs, { type EditorTab } from './TypeTabs'
 import BusinessForm from './BusinessForm'
 import CatalogPanel from './CatalogPanel'
 import AgentForm from './AgentForm'
-import AppointmentForm from './AppointmentForm' // ⬅️ NUEVO
+import AppointmentForm from './AppointmentForm'
 
 import type {
   Producto,
@@ -38,35 +38,26 @@ export default function ModalEntrenamiento({
   const [open, setOpen] = useState<boolean>(trainingActive)
   useEffect(() => setOpen(trainingActive), [trainingActive])
 
-  // ====== UI
+  // UI
   const [saving, setSaving] = useState(false)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
   const [reloading, setReloading] = useState(false)
 
-  // ====== Tabs (independiente de businessType)
+  // Tabs
   const initialBT = (initialConfig?.businessType as BusinessType) || 'servicios'
-  const [tab, setTab] = useState<EditorTab>(initialBT === 'productos' ? 'productos' : 'servicios')
+  const [tab, setTab] = useState<EditorTab>('servicios') // arranca en Servicios por defecto
 
-  // ====== Pasos (solo productos)
+  // Pasos (solo productos)
   const [step, setStep] = useState(0)
   const totalSteps = useMemo(() => (tab === 'productos' ? 2 : 1), [tab])
   const isCatalogStep = tab === 'productos' && step === 1
   const next = () => setStep((s) => (s < totalSteps - 1 ? s + 1 : s))
   const back = () => setStep((s) => (s > 0 ? s - 1 : s))
 
-  // ====== Form principal
+  // Form principal + agenda
   const [businessType, setBusinessType] = useState<BusinessType>(initialBT)
 
-  const emptyForm: ConfigForm & {
-    // campos de citas (si tu types.ts ya los tiene, no pasa nada)
-    appointmentEnabled?: boolean
-    appointmentVertical?: 'none' | 'salud' | 'bienestar' | 'automotriz' | 'veterinaria' | 'fitness' | 'otros'
-    appointmentTimezone?: string
-    appointmentBufferMin?: number
-    appointmentWorkHours?: any
-    appointmentPolicies?: string
-    appointmentReminders?: boolean
-  } = {
+  const emptyForm = {
     // base
     nombre: initialConfig?.nombre || '',
     descripcion: initialConfig?.descripcion || '',
@@ -99,17 +90,9 @@ export default function ModalEntrenamiento({
     envioTipo: initialConfig?.envioTipo || '',
     envioEntregaEstimado: initialConfig?.envioEntregaEstimado || '',
     envioCostoFijo:
-      typeof initialConfig?.envioCostoFijo === 'number'
-        ? initialConfig!.envioCostoFijo
-        : initialConfig?.envioCostoFijo === ''
-        ? ''
-        : '',
+      typeof initialConfig?.envioCostoFijo === 'number' ? initialConfig!.envioCostoFijo : initialConfig?.envioCostoFijo === '' ? '' : '',
     envioGratisDesde:
-      typeof initialConfig?.envioGratisDesde === 'number'
-        ? initialConfig!.envioGratisDesde
-        : initialConfig?.envioGratisDesde === ''
-        ? ''
-        : '',
+      typeof initialConfig?.envioGratisDesde === 'number' ? initialConfig!.envioGratisDesde : initialConfig?.envioGratisDesde === '' ? '' : '',
 
     // pagos
     pagoLinkGenerico: initialConfig?.pagoLinkGenerico || '',
@@ -127,12 +110,11 @@ export default function ModalEntrenamiento({
     soporteDevolucionesInfo: initialConfig?.soporteDevolucionesInfo || '',
 
     // escalamiento
-    escalarSiNoConfia:
-      typeof initialConfig?.escalarSiNoConfia === 'boolean' ? initialConfig!.escalarSiNoConfia : true,
+    escalarSiNoConfia: typeof initialConfig?.escalarSiNoConfia === 'boolean' ? initialConfig!.escalarSiNoConfia : true,
     escalarPalabrasClave: initialConfig?.escalarPalabrasClave || '',
     escalarPorReintentos: Number(initialConfig?.escalarPorReintentos || 0),
 
-    // ===== citas / agenda (defaults elegantes)
+    // citas / agenda
     appointmentEnabled: (initialConfig as any)?.appointmentEnabled ?? false,
     appointmentVertical: (initialConfig as any)?.appointmentVertical ?? 'none',
     appointmentTimezone: (initialConfig as any)?.appointmentTimezone ?? 'America/Bogota',
@@ -140,11 +122,11 @@ export default function ModalEntrenamiento({
     appointmentWorkHours: (initialConfig as any)?.appointmentWorkHours ?? null,
     appointmentPolicies: (initialConfig as any)?.appointmentPolicies ?? '',
     appointmentReminders: (initialConfig as any)?.appointmentReminders ?? true,
-  }
+  } satisfies Partial<ConfigForm> & Record<string, any>
 
   const [form, setForm] = useState<typeof emptyForm>(emptyForm)
 
-  // ====== Catálogo
+  // Catálogo
   const [productos, setProductos] = useState<Producto[]>([])
   const [catalogLoaded, setCatalogLoaded] = useState(false)
 
@@ -161,31 +143,26 @@ export default function ModalEntrenamiento({
   const [uploadingCardIndex, setUploadingCardIndex] = useState<number | null>(null)
   const [savingIndex, setSavingIndex] = useState<number | null>(null)
 
-  const close = () => {
-    setOpen(false)
-    onClose?.()
-  }
+  const close = () => { setOpen(false); onClose?.() }
 
-  // ====== API catálogo
+  // Upload imagen
   async function uploadImageFile(productId: number, file: File, alt?: string, isPrimary?: boolean) {
     const fd = new FormData()
     fd.append('file', file)
     if (alt) fd.append('alt', alt)
     if (isPrimary) fd.append('isPrimary', 'true')
-
     const { data } = await axios.post(`${API_URL}/api/products/${productId}/images/upload`, fd, {
       headers: { ...getAuthHeaders() },
     })
     return { id: data?.id, url: data?.url || '', alt: alt || '' } as ImagenProducto
   }
 
-  async function handleUploadAt(idx: number, file: File): Promise<ImagenProducto | void> {
+  async function handleUploadAt(idx: number, file: File) {
     const prod = productos[idx]
     if (!prod?.id) return
     try {
       setUploadingCardIndex(idx)
-      const created = await uploadImageFile(prod.id, file)
-      return created
+      return await uploadImageFile(prod.id, file)
     } catch (e: any) {
       setErrorMsg(e?.response?.data?.error || 'No se pudo subir la imagen.')
       throw e
@@ -194,12 +171,7 @@ export default function ModalEntrenamiento({
     }
   }
 
-  async function deleteImageOnCard(
-    productId: number,
-    imageId: number,
-    cardIndex: number,
-    imageIndex: number
-  ) {
+  async function deleteImageOnCard(productId: number, imageId: number, cardIndex: number, imageIndex: number) {
     // Optimista
     setProductos((list) => {
       const copy = [...list]
@@ -211,9 +183,7 @@ export default function ModalEntrenamiento({
       return copy
     })
     try {
-      await axios.delete(`${API_URL}/api/products/${productId}/images/${imageId}`, {
-        headers: getAuthHeaders(),
-      })
+      await axios.delete(`${API_URL}/api/products/${productId}/images/${imageId}`, { headers: getAuthHeaders() })
     } catch (e: any) {
       setErrorMsg(e?.response?.data?.error || 'No se pudo eliminar la imagen.')
       await loadCatalog()
@@ -250,14 +220,7 @@ export default function ModalEntrenamiento({
           imagenes: [],
         },
       ])
-      setNuevoProd({
-        nombre: '',
-        descripcion: '',
-        beneficios: '',
-        caracteristicas: '',
-        precioDesde: null,
-        imagenes: [],
-      })
+      setNuevoProd({ nombre: '', descripcion: '', beneficios: '', caracteristicas: '', precioDesde: null, imagenes: [] })
       setErrorMsg(null)
     } catch (e: any) {
       setErrorMsg(e?.response?.data?.error || 'No se pudo crear el producto.')
@@ -277,19 +240,12 @@ export default function ModalEntrenamiento({
     }
   }
 
-  function startEdit(idx: number) {
-    setEditingIndex(idx)
-  }
-  function cancelEdit() {
-    setEditingIndex(null)
-  }
+  function startEdit(idx: number) { setEditingIndex(idx) }
+  function cancelEdit() { setEditingIndex(null) }
 
   async function saveProduct(idx: number, patch: Partial<Producto>) {
     const prod = productos[idx]
-    if (!prod?.id) {
-      setEditingIndex(null)
-      return
-    }
+    if (!prod?.id) { setEditingIndex(null); return }
     try {
       setSavingIndex(idx)
       await axios.put(
@@ -299,26 +255,18 @@ export default function ModalEntrenamiento({
           descripcion: patch.descripcion ?? prod.descripcion,
           beneficios: patch.beneficios ?? prod.beneficios,
           caracteristicas: patch.caracteristicas ?? prod.caracteristicas,
-          precioDesde:
-            typeof patch.precioDesde !== 'undefined' ? patch.precioDesde : prod.precioDesde ?? null,
+          precioDesde: typeof patch.precioDesde !== 'undefined' ? patch.precioDesde : prod.precioDesde ?? null,
         } as any,
         { headers: getAuthHeaders() }
       )
-      setProductos((list) => {
-        const copy = [...list]
-        copy[idx] = { ...copy[idx], ...patch }
-        return copy
-      })
-      setEditingIndex(null)
-      setErrorMsg(null)
+      setProductos((list) => { const copy = [...list]; copy[idx] = { ...copy[idx], ...patch }; return copy })
+      setEditingIndex(null); setErrorMsg(null)
     } catch (e: any) {
       setErrorMsg(e?.response?.data?.error || 'No se pudo guardar la edición.')
-    } finally {
-      setSavingIndex(null)
-    }
+    } finally { setSavingIndex(null) }
   }
 
-  // ====== Catálogo: fetch
+  // fetch catálogo
   async function loadCatalog() {
     try {
       setReloading(true)
@@ -330,47 +278,28 @@ export default function ModalEntrenamiento({
         beneficios: p.beneficios ?? '',
         caracteristicas: p.caracteristicas ?? '',
         precioDesde: p.precioDesde ?? null,
-        imagenes: (p.imagenes || []).map((img: any) => ({
-          id: img.id,
-          url: img.url,
-          alt: img.alt || '',
-        })),
+        imagenes: (p.imagenes || []).map((img: any) => ({ id: img.id, url: img.url, alt: img.alt || '' })),
       }))
-      setProductos(mapped)
-      setCatalogLoaded(true)
+      setProductos(mapped); setCatalogLoaded(true)
     } catch (e) {
       console.error('[loadCatalog] error:', e)
       setCatalogLoaded(false)
-    } finally {
-      setReloading(false)
-    }
+    } finally { setReloading(false) }
   }
 
-  // ====== Efecto de apertura
+  // Apertura
   useEffect(() => {
     if (!open) return
-    const bt = (initialConfig?.businessType as BusinessType) || 'servicios'
-    setBusinessType(bt)
-    setForm((f) => ({ ...emptyForm, businessType: bt }))
-
-    if (tab === 'productos') {
-      void loadCatalog()
-    } else {
-      setProductos([])
-      setCatalogLoaded(false)
-    }
-
-    setStep(0)
-    setErrorMsg(null)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    setBusinessType((initialConfig?.businessType as BusinessType) || 'servicios')
+    setForm({ ...emptyForm })
+    setStep(0); setErrorMsg(null)
+    // por defecto, no cargamos catálogo hasta que elija "Productos"
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open])
 
-  // ====== Cambio de tab
+  // Cambio de tab
   async function handleChangeTab(nextTab: EditorTab) {
-    setTab(nextTab)
-    setStep(0)
-    setErrorMsg(null)
-
+    setTab(nextTab); setStep(0); setErrorMsg(null)
     if (nextTab === 'productos') {
       setBusinessType('productos')
       setForm((f) => ({ ...f, businessType: 'productos', aiMode: 'ecommerce' }))
@@ -378,42 +307,33 @@ export default function ModalEntrenamiento({
     } else if (nextTab === 'servicios') {
       setBusinessType('servicios')
       setForm((f) => ({ ...f, businessType: 'servicios', aiMode: 'agente' }))
-      setProductos([])
-      setCatalogLoaded(false)
-    } else {
-      // agente
+    } else if (nextTab === 'agente') {
       setForm((f) => ({ ...f, aiMode: 'agente' }))
+    } else {
+      // 'citas' -> no cambia businessType automáticamente
     }
   }
 
-  // ====== Guardados
+  // Guardados
   async function guardarTodo() {
     try {
-      setSaving(true)
-      setErrorMsg(null)
-
+      setSaving(true); setErrorMsg(null)
       const payload: any = { ...form, businessType }
       if (payload.envioCostoFijo === '') payload.envioCostoFijo = null
       if (payload.envioGratisDesde === '') payload.envioGratisDesde = null
-
+      // aiMode depende del tab productos (ecommerce) o del propio formulario
       payload.aiMode = tab === 'productos' ? ('ecommerce' as AiMode) : payload.aiMode
-
-      // los campos de appointment ya están dentro de form y se envían tal cual
       await axios.put(`${API_URL}/api/config`, payload, { headers: getAuthHeaders() })
-
       if (tab === 'productos') await loadCatalog()
       close()
     } catch (e: any) {
       setErrorMsg(e?.response?.data?.error || e?.message || 'Error guardando cambios.')
-    } finally {
-      setSaving(false)
-    }
+    } finally { setSaving(false) }
   }
 
   async function guardarAgente() {
     try {
-      setSaving(true)
-      setErrorMsg(null)
+      setSaving(true); setErrorMsg(null)
       const payload = {
         aiMode: 'agente' as AiMode,
         agentSpecialty: form.agentSpecialty,
@@ -425,11 +345,10 @@ export default function ModalEntrenamiento({
       close()
     } catch (e: any) {
       setErrorMsg(e?.response?.data?.error || e?.message || 'Error guardando el agente.')
-    } finally {
-      setSaving(false)
-    }
+    } finally { setSaving(false) }
   }
 
+  // Render
   return (
     <AnimatePresence>
       {open && (
@@ -502,32 +421,32 @@ export default function ModalEntrenamiento({
                   uploadingIndex={uploadingCardIndex}
                   savingIndex={savingIndex}
                 />
+              ) : tab === 'productos' && !isCatalogStep ? (
+                <BusinessForm
+                  value={form}
+                  businessType={'productos'}
+                  onChange={(patch) => setForm((f) => ({ ...f, ...patch, businessType: 'productos' }))}
+                />
+              ) : tab === 'citas' ? (
+                <AppointmentForm
+                  value={{
+                    appointmentEnabled: (form as any).appointmentEnabled,
+                    appointmentVertical: (form as any).appointmentVertical,
+                    appointmentTimezone: (form as any).appointmentTimezone,
+                    appointmentBufferMin: (form as any).appointmentBufferMin,
+                    appointmentWorkHours: (form as any).appointmentWorkHours,
+                    appointmentPolicies: (form as any).appointmentPolicies,
+                    appointmentReminders: (form as any).appointmentReminders,
+                  }}
+                  onChange={(patch) => setForm((f) => ({ ...f, ...(patch as any) }))}
+                />
               ) : (
-                <>
-                  <BusinessForm
-                    value={form}
-                    businessType={businessType}
-                    onChange={(patch) => setForm((f) => ({ ...f, ...patch, businessType }))}
-                  />
-
-                  {/* ⬇️ Bloque de configuración de citas */}
-                  <div className="mt-6 border-t border-slate-800 pt-5">
-                    <AppointmentForm
-                      value={{
-                        appointmentEnabled: (form as any).appointmentEnabled ?? false,
-                        appointmentVertical: (form as any).appointmentVertical ?? 'none',
-                        appointmentTimezone: (form as any).appointmentTimezone ?? 'America/Bogota',
-                        appointmentBufferMin: (form as any).appointmentBufferMin ?? 10,
-                        appointmentWorkHours: (form as any).appointmentWorkHours ?? null,
-                        appointmentPolicies: (form as any).appointmentPolicies ?? '',
-                        appointmentReminders: (form as any).appointmentReminders ?? true,
-                      }}
-                      onChange={(patch) =>
-                        setForm((f) => ({ ...f, ...(patch as any) }))
-                      }
-                    />
-                  </div>
-                </>
+                // servicios
+                <BusinessForm
+                  value={form}
+                  businessType={'servicios'}
+                  onChange={(patch) => setForm((f) => ({ ...f, ...patch, businessType: 'servicios' }))}
+                />
               )}
 
               {errorMsg && (
@@ -543,7 +462,9 @@ export default function ModalEntrenamiento({
                     ? (isCatalogStep ? 'Sube fotos y organiza tu catálogo.' : 'Crea el producto y luego súbele sus fotos.')
                     : tab === 'agente'
                     ? 'Configura el modo y el perfil del agente.'
-                    : 'Completa la info clave y (opcional) activa la agenda de citas.'}
+                    : tab === 'citas'
+                    ? 'Configura tu agenda y políticas de atención.'
+                    : 'Completa la info clave del negocio.'}
                 </div>
 
                 <div className="flex items-center gap-2">
