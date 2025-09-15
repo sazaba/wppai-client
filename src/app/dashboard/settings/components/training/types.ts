@@ -25,10 +25,8 @@ export type AppointmentVertical =
     | 'none'
     | 'salud'       // odontología, estética, nutrición, etc.
     | 'bienestar'   // spa, peluquería, barbería
-    | 'automotriz'  // taller, mantenimiento
-    | 'veterinaria'
-    | 'fitness'     // gimnasios, entrenadores
-    | 'otros'
+    | 'automotriz' | 'veterinaria'
+    | 'fitness' | 'otros'
 
 // Estructura de horario semanal para agenda
 export type WeekdayKey = 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat' | 'sun'
@@ -51,13 +49,12 @@ export type AppointmentWorkHours = Record<WeekdayKey, DaySchedule>
 // ===============================
 // ConfigForm (usado por BusinessForm/Modal)
 // ===============================
-
 /** Configuración completa usada por el formulario (front) y el backend */
 export type ConfigForm = {
     // base
     nombre: string
     descripcion: string
-    servicios: string
+    servicios: string            // lista libre (bullets o JSON) de servicios habilitados para agendar
     faq: string
     horarios: string
     disclaimers: string
@@ -109,7 +106,7 @@ export type ConfigForm = {
     escalarPalabrasClave: string
     escalarPorReintentos: number
 
-    // ===== Agenda / Citas (NUEVO)
+    // ===== Agenda / Citas
     /** Habilita el módulo de citas para el negocio */
     appointmentEnabled?: boolean
     /** Vertical del negocio para respuestas/plantillas del agente */
@@ -185,4 +182,34 @@ export const defaultWorkHours: AppointmentWorkHours = {
     fri: { enabled: true, blocks: [{ start: '08:00', end: '12:00' }, { start: '14:00', end: '18:00' }] },
     sat: { enabled: false, blocks: [{ start: '09:00', end: '13:00' }] },
     sun: { enabled: false, blocks: [] },
+}
+
+// ===============================
+// (Opcional) Tipos de citas minimalistas basados en serviceName
+// ===============================
+export type AppointmentStatus =
+    | 'pending' | 'confirmed' | 'rescheduled' | 'cancelled' | 'completed' | 'no_show'
+
+export type AppointmentSource = 'ai' | 'agent' | 'client'
+
+/** Payload para crear/editar cita (sin provider/service/sede) */
+export type AppointmentPayload = {
+    empresaId: number
+    customerName: string
+    customerPhone: string
+    serviceName: string
+    startAt: string   // ISO
+    endAt: string     // ISO
+    timezone?: string
+    notas?: string
+    conversationId?: number | null
+    source?: AppointmentSource
+}
+
+/** Modelo que suele devolver el backend */
+export type AppointmentDTO = AppointmentPayload & {
+    id: number
+    status: AppointmentStatus
+    createdAt: string
+    updatedAt: string
 }
