@@ -3,7 +3,8 @@
 import Link from "next/link"
 import {
   BrainCircuit, MessageSquareText, Settings2,
-  ChevronLeft, ChevronRight, Home, FileText, ShoppingCart
+  ChevronLeft, ChevronRight, Home, FileText, ShoppingCart,
+  Calendar // 🆕
 } from "lucide-react"
 import { useState, useEffect } from "react"
 import { useRouter, usePathname } from "next/navigation"
@@ -23,7 +24,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   ]
   const isOpenRoute = OPEN_DASH_ROUTES.some(p => pathname?.startsWith(p))
   const isChatRoute = pathname?.startsWith("/dashboard/chats")
-  const isOrdersRoute = pathname?.startsWith("/dashboard/orders") // 🆕
+  const isOrdersRoute = pathname?.startsWith("/dashboard/orders")
+  const isAppointmentsRoute = pathname?.startsWith("/dashboard/appointments") // 🆕
 
   useEffect(() => {
     if (!isAuthenticated && !isOpenRoute) router.replace("/")
@@ -52,6 +54,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <Link href="/dashboard/chats"     className={navCls(sidebarOpen)} title={!sidebarOpen ? "Conversaciones" : ""}><MessageSquareText className={icoCls(sidebarOpen)} />{sidebarOpen && <span>Conversaciones</span>}</Link>
             {/* 🆕 Órdenes */}
             <Link href="/dashboard/orders"    className={navCls(sidebarOpen)} title={!sidebarOpen ? "Órdenes" : ""}><ShoppingCart className={icoCls(sidebarOpen)} />{sidebarOpen && <span>Órdenes</span>}</Link>
+            {/* 🆕 Citas */}
+            <Link href="/dashboard/appointments" className={navCls(sidebarOpen)} title={!sidebarOpen ? "Citas" : ""}><Calendar className={icoCls(sidebarOpen)} />{sidebarOpen && <span>Citas</span>}</Link>
             <Link href="/dashboard/settings"  className={navCls(sidebarOpen)} title={!sidebarOpen ? "Configuración" : ""}><Settings2 className={icoCls(sidebarOpen)} />{sidebarOpen && <span>Configuración</span>}</Link>
             <Link href="/dashboard/templates" className={navCls(sidebarOpen)} title={!sidebarOpen ? "Plantillas" : ""}><FileText className={icoCls(sidebarOpen)} />{sidebarOpen && <span>Plantillas</span>}</Link>
           </nav>
@@ -72,14 +76,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <main
         className={clsx(
           "h-full w-full transition-all duration-300",
-          // 🔽 Chats y Órdenes pueden gestionar su propio scroll interno si lo necesitan
-          (isChatRoute || isOrdersRoute)
+          (isChatRoute || isOrdersRoute || isAppointmentsRoute)
             ? "overflow-hidden"
-            // Resto del dashboard: scroll sutil global + padding
             : "overflow-y-auto scrollbar pr-1 hover:scrollbar-thumb-[#2A3942] scrollbar-thumb-rounded-full"
         )}
       >
-        <div className={clsx(isChatRoute || isOrdersRoute ? "h-full" : "p-6")}>
+        <div className={clsx(isChatRoute || isOrdersRoute || isAppointmentsRoute ? "h-full" : "p-6")}>
           {children}
         </div>
       </main>
