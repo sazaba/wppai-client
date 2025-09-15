@@ -10,6 +10,7 @@ import TypeTabs, { type EditorTab } from './TypeTabs'
 import BusinessForm from './BusinessForm'
 import CatalogPanel from './CatalogPanel'
 import AgentForm from './AgentForm'
+import AppointmentForm from './AppointmentForm' // ⬅️ NUEVO
 
 import type {
   Producto,
@@ -56,7 +57,16 @@ export default function ModalEntrenamiento({
   // ====== Form principal
   const [businessType, setBusinessType] = useState<BusinessType>(initialBT)
 
-  const emptyForm: ConfigForm = {
+  const emptyForm: ConfigForm & {
+    // campos de citas (si tu types.ts ya los tiene, no pasa nada)
+    appointmentEnabled?: boolean
+    appointmentVertical?: 'none' | 'salud' | 'bienestar' | 'automotriz' | 'veterinaria' | 'fitness' | 'otros'
+    appointmentTimezone?: string
+    appointmentBufferMin?: number
+    appointmentWorkHours?: any
+    appointmentPolicies?: string
+    appointmentReminders?: boolean
+  } = {
     // base
     nombre: initialConfig?.nombre || '',
     descripcion: initialConfig?.descripcion || '',
@@ -121,9 +131,18 @@ export default function ModalEntrenamiento({
       typeof initialConfig?.escalarSiNoConfia === 'boolean' ? initialConfig!.escalarSiNoConfia : true,
     escalarPalabrasClave: initialConfig?.escalarPalabrasClave || '',
     escalarPorReintentos: Number(initialConfig?.escalarPorReintentos || 0),
+
+    // ===== citas / agenda (defaults elegantes)
+    appointmentEnabled: (initialConfig as any)?.appointmentEnabled ?? false,
+    appointmentVertical: (initialConfig as any)?.appointmentVertical ?? 'none',
+    appointmentTimezone: (initialConfig as any)?.appointmentTimezone ?? 'America/Bogota',
+    appointmentBufferMin: (initialConfig as any)?.appointmentBufferMin ?? 10,
+    appointmentWorkHours: (initialConfig as any)?.appointmentWorkHours ?? null,
+    appointmentPolicies: (initialConfig as any)?.appointmentPolicies ?? '',
+    appointmentReminders: (initialConfig as any)?.appointmentReminders ?? true,
   }
 
-  const [form, setForm] = useState<ConfigForm>(emptyForm)
+  const [form, setForm] = useState<typeof emptyForm>(emptyForm)
 
   // ====== Catálogo
   const [productos, setProductos] = useState<Producto[]>([])
@@ -379,6 +398,7 @@ export default function ModalEntrenamiento({
 
       payload.aiMode = tab === 'productos' ? ('ecommerce' as AiMode) : payload.aiMode
 
+      // los campos de appointment ya están dentro de form y se envían tal cual
       await axios.put(`${API_URL}/api/config`, payload, { headers: getAuthHeaders() })
 
       if (tab === 'productos') await loadCatalog()
@@ -483,11 +503,31 @@ export default function ModalEntrenamiento({
                   savingIndex={savingIndex}
                 />
               ) : (
-                <BusinessForm
-                  value={form}
-                  businessType={businessType}
-                  onChange={(patch) => setForm((f) => ({ ...f, ...patch, businessType }))}
-                />
+                <>
+                  <BusinessForm
+                    value={form}
+                    businessType={businessType}
+                    onChange={(patch) => setForm((f) => ({ ...f, ...patch, businessType }))}
+                  />
+
+                  {/* ⬇️ Bloque de configuración de citas */}
+                  <div className="mt-6 border-t border-slate-800 pt-5">
+                    <AppointmentForm
+                      value={{
+                        appointmentEnabled: (form as any).appointmentEnabled ?? false,
+                        appointmentVertical: (form as any).appointmentVertical ?? 'none',
+                        appointmentTimezone: (form as any).appointmentTimezone ?? 'America/Bogota',
+                        appointmentBufferMin: (form as any).appointmentBufferMin ?? 10,
+                        appointmentWorkHours: (form as any).appointmentWorkHours ?? null,
+                        appointmentPolicies: (form as any).appointmentPolicies ?? '',
+                        appointmentReminders: (form as any).appointmentReminders ?? true,
+                      }}
+                      onChange={(patch) =>
+                        setForm((f) => ({ ...f, ...(patch as any) }))
+                      }
+                    />
+                  </div>
+                </>
               )}
 
               {errorMsg && (
@@ -503,7 +543,7 @@ export default function ModalEntrenamiento({
                     ? (isCatalogStep ? 'Sube fotos y organiza tu catálogo.' : 'Crea el producto y luego súbele sus fotos.')
                     : tab === 'agente'
                     ? 'Configura el modo y el perfil del agente.'
-                    : 'Completa la info clave para respuestas precisas.'}
+                    : 'Completa la info clave y (opcional) activa la agenda de citas.'}
                 </div>
 
                 <div className="flex items-center gap-2">
