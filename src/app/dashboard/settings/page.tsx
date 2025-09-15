@@ -165,7 +165,7 @@ export default function SettingsPage() {
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <h1 className="text-2xl font-bold text-white text-center">Entrenamiento de tu IA</h1>
 
-          {/* Tipo de negocio (lo dejamos por compatibilidad; no afecta tabs) */}
+          {/* Tipo de negocio (se mantiene por compatibilidad con backend) */}
           <div className="flex items-center gap-2">
             <label className="text-sm text-slate-300">Tipo de negocio</label>
             <select
@@ -205,22 +205,13 @@ export default function SettingsPage() {
           )}
         </div>
 
-        {/* Resumen breve */}
+        {/* Resumen simplificado (sin campos; solo acciones) */}
         {configGuardada && (
           <div className="bg-slate-800 border border-slate-700 p-6 rounded-2xl shadow-xl text-white space-y-4">
-            <h2 className="text-xl font-bold">📦 Resumen de la configuración</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm break-words">
-              <div><strong>Nombre:</strong> {configGuardada.nombre}</div>
-              <div><strong>Descripción:</strong> {configGuardada.descripcion}</div>
-              <div className="md:col-span-2"><strong>FAQ:</strong> {configGuardada.faq}</div>
-              <div><strong>Horarios:</strong> {configGuardada.horarios}</div>
-              <div><strong>Tipo de negocio:</strong> {configGuardada.businessType}</div>
-              {configGuardada.disclaimers && (
-                <div className="md:col-span-2">
-                  <strong>Disclaimers:</strong> {configGuardada.disclaimers}
-                </div>
-              )}
-            </div>
+            <h2 className="text-xl font-bold">⚙️ Acciones de configuración</h2>
+            <p className="text-sm text-slate-300">
+              Tu IA ya está configurada. Puedes actualizar los parámetros o reiniciar todo cuando lo necesites.
+            </p>
 
             <div className="flex flex-wrap gap-3">
               <button

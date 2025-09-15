@@ -121,7 +121,7 @@ export default function ModalEntrenamiento({
   const [reloading, setReloading] = useState(false)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
 
-  // Estado inicial: tomamos lo que venga de initialConfig solo para Agente
+  // Estado inicial
   const [form, setForm] = useState<FormState>(() => ({
     aiMode: (initialConfig?.aiMode as AiMode) || 'agente',
     agentSpecialty: (initialConfig?.agentSpecialty as AgentSpecialty) || 'generico',
@@ -200,6 +200,14 @@ export default function ModalEntrenamiento({
     }
   }
 
+  // Cargar Citas la primera vez que se abre el modal en la pestaña 'citas'
+  useEffect(() => {
+    if (open && tab === 'citas' && !form.hours) {
+      loadAppointmentConfigIntoForm()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, tab])
+
   async function guardarAgente() {
     try {
       setSaving(true)
@@ -228,6 +236,7 @@ export default function ModalEntrenamiento({
       await axios.post(`${API_URL}/api/appointments/config`, appointmentPayload as any, {
         headers: getAuthHeaders(),
       })
+      // ✅ cerrar al guardar (igual que agente)
       close()
     } catch (e: any) {
       setErrorMsg(e?.response?.data?.error || e?.message || 'Error guardando la agenda.')
