@@ -7,7 +7,6 @@ import ModalEntrenamiento from './components/training/ModalEntrenamiento'
 import WhatsappConfig from './components/WhatsappConfig'
 
 // 👇 AJUSTA ESTA RUTA a donde pegaste el archivo de tipos
-// por ejemplo: './components/training/types' o './components/business/types'
 import type {
   ConfigForm,
   BusinessType,
@@ -102,6 +101,19 @@ function materializeConfig(data?: BackendBusinessConfig | null): ConfigForm {
   }
 }
 
+// horas vacías para limpiar agenda
+function emptyHoursForReset() {
+  const days: Array<'mon'|'tue'|'wed'|'thu'|'fri'|'sat'|'sun'> = ['mon','tue','wed','thu','fri','sat','sun']
+  return days.map((d) => ({
+    day: d,
+    isOpen: false,
+    start1: null,
+    end1: null,
+    start2: null,
+    end2: null,
+  }))
+}
+
 export default function SettingsPage() {
   const [form, setForm] = useState<ConfigForm>(DEFAULTS)
   const [configGuardada, setConfigGuardada] = useState<ConfigForm | null>(null)
@@ -126,19 +138,40 @@ export default function SettingsPage() {
     fetchConfig()
   }, [])
 
-  // Reiniciar entrenamiento (borra config + catálogo si así lo definiste en tu backend)
+  // Reiniciar entrenamiento (borra config + catálogo y limpia agenda)
   const reiniciarEntrenamiento = async () => {
     try {
       if (typeof window !== 'undefined') {
         const ok = window.confirm(
-          '¿Reiniciar el entrenamiento?\n\nSe eliminará la configuración actual y se abrirá el asistente. También se eliminará el catálogo.'
+          '¿Reiniciar el entrenamiento?\n\nSe eliminará la configuración actual y se abrirá el asistente. También se eliminará el catálogo y se limpiará la agenda.'
         )
         if (!ok) return
       }
-      await axios.delete(`${API_URL}/api/config`, {
-        params: { withCatalog: true },
-        headers: getAuthHeaders(),
-      })
+
+      // 1) Reset de config (y catálogo) según tu backend
+      await axios.post(
+        `${API_URL}/api/config/reset`,
+        null,
+        { params: { withCatalog: true }, headers: getAuthHeaders() }
+      )
+
+      // 2) Reset de agenda: apagar + 7 días cerrados
+      await axios.post(
+        `${API_URL}/api/appointments/config`,
+        {
+          appointment: {
+            enabled: false,
+            vertical: 'none',
+            timezone: 'America/Bogota',
+            bufferMin: 10,
+            policies: '',
+            reminders: true,
+          },
+          hours: emptyHoursForReset(),
+        },
+        { headers: getAuthHeaders() }
+      )
+
       setConfigGuardada(null)
       setForm(DEFAULTS)
       setTrainingActive(true)
@@ -234,7 +267,7 @@ export default function SettingsPage() {
           </div>
         )}
 
-        {/* Modal de entrenamiento (sin onSave en tus tipos) */}
+        {/* Modal de entrenamiento */}
         <ModalEntrenamiento
           trainingActive={trainingActive}
           initialConfig={form} // le pasamos TODO el objeto actual
@@ -251,7 +284,6 @@ export default function SettingsPage() {
         />
 
         {/* Config WhatsApp */}
-        
         <WhatsappConfig />
         <ActivatePhoneCard/>
       </div>

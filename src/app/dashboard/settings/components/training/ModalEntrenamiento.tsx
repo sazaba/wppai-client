@@ -108,6 +108,19 @@ function buildAppointmentPayloadFromForm(form: FormState) {
   }
 }
 
+/** Horario vacío: 7 días cerrados */
+function emptyHours(): AppointmentDay[] {
+  const daysOrder: Weekday[] = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']
+  return daysOrder.map((d) => ({
+    day: d,
+    isOpen: false,
+    start1: null,
+    end1: null,
+    start2: null,
+    end2: null,
+  }))
+}
+
 export default function ModalEntrenamiento({
   trainingActive,
   onClose,
@@ -293,7 +306,7 @@ export default function ModalEntrenamiento({
           caracteristicas: nuevoProd.caracteristicas,
           precioDesde: nuevoProd.precioDesde ?? null,
         },
-        { headers: getAuthHeaders() }
+               { headers: getAuthHeaders() }
       )
 
       setProductos((arr) => [
@@ -440,7 +453,6 @@ export default function ModalEntrenamiento({
         appointmentReminders: cfg.appointmentReminders ?? true,
         hours: hoursFromDb(data?.hours as AppointmentDay[] | null | undefined),
 
-
         // hidratar provider solo si existe
         provider: p
           ? {
@@ -486,26 +498,65 @@ export default function ModalEntrenamiento({
       setSaving(true)
       setErrorMsg(null)
 
-      // 1) Si estamos en Citas, persistimos también la agenda (config + hours) en su endpoint
       if (tab === 'citas') {
+        // 👉 En Citas solo guardamos la agenda en su endpoint NUEVO
         const appointmentPayload = buildAppointmentPayloadFromForm(form)
         await axios.post(`${API_URL}/api/appointments/config`, appointmentPayload as any, {
           headers: getAuthHeaders(),
         })
+        // No tocar /api/config aquí (evita 400 por "faltan campos")
+      } else {
+        // 👉 En las demás pestañas sí guardamos la config general
+        const payload: any = { ...form, businessType }
+        if (payload.envioCostoFijo === '') payload.envioCostoFijo = null
+        if (payload.envioGratisDesde === '') payload.envioGratisDesde = null
+        payload.aiMode = tab === 'productos' ? ('ecommerce' as AiMode) : payload.aiMode
+
+        await axios.put(`${API_URL}/api/config`, payload, { headers: getAuthHeaders() })
+        if (tab === 'productos') await loadCatalog()
       }
 
-      // 2) Guardamos SIEMPRE la config general
-      const payload: any = { ...form, businessType }
-      if (payload.envioCostoFijo === '') payload.envioCostoFijo = null
-      if (payload.envioGratisDesde === '') payload.envioGratisDesde = null
-      payload.aiMode = tab === 'productos' ? ('ecommerce' as AiMode) : payload.aiMode
-
-      await axios.put(`${API_URL}/api/config`, payload, { headers: getAuthHeaders() })
-
-      if (tab === 'productos') await loadCatalog()
       close()
     } catch (e: any) {
       setErrorMsg(e?.response?.data?.error || e?.message || 'Error guardando cambios.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  // Reiniciar SOLO la agenda (apagar + 7 días cerrados)
+  async function reiniciarAgenda() {
+    try {
+      setSaving(true)
+      setErrorMsg(null)
+
+      await axios.post(
+        `${API_URL}/api/appointments/config`,
+        {
+          appointment: {
+            enabled: false,
+            vertical: (form.appointmentVertical || 'none'),
+            timezone: form.appointmentTimezone || 'America/Bogota',
+            bufferMin: Number.isFinite(form.appointmentBufferMin) ? form.appointmentBufferMin : 10,
+            policies: '',
+            reminders: true,
+          },
+          hours: emptyHours(),
+        },
+        { headers: getAuthHeaders() }
+      )
+
+      // refrescar estado local
+      setForm((f) => ({
+        ...f,
+        appointmentEnabled: false,
+        appointmentPolicies: '',
+        appointmentReminders: true,
+        hours: emptyHours(),
+        provider: null,
+      }))
+    } catch (e: any) {
+      setErrorMsg(e?.response?.data?.error || e?.message || 'No se pudo reiniciar la agenda.')
     } finally {
       setSaving(false)
     }
@@ -652,6 +703,17 @@ export default function ModalEntrenamiento({
                 </div>
 
                 <div className="flex items-center gap-2">
+                  {tab === 'citas' && (
+                    <button
+                      onClick={reiniciarAgenda}
+                      disabled={saving}
+                      className="px-4 py-2 rounded-xl border border-slate-700 bg-slate-800 hover:bg-slate-700 text-sm"
+                      type="button"
+                    >
+                      {saving ? 'Reiniciando…' : 'Reiniciar entrenamiento'}
+                    </button>
+                  )}
+
                   {tab === 'productos' && step > 0 ? (
                     <button
                       onClick={back}
