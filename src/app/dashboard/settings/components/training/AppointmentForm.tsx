@@ -1,12 +1,17 @@
 'use client'
 
-import { useMemo, useState } from 'react'
-import axios from 'axios'
-import { Check, Loader2 } from 'lucide-react'
+import { useMemo } from 'react'
 
 /* ================= Tipos exportados (coinciden con el padre) ================ */
 export type Weekday = 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat' | 'sun'
-export type Vertical = 'none' | 'salud' | 'bienestar' | 'automotriz' | 'veterinaria' | 'fitness' | 'otros'
+export type Vertical =
+  | 'none'
+  | 'salud'
+  | 'bienestar'
+  | 'automotriz'
+  | 'veterinaria'
+  | 'fitness'
+  | 'otros'
 
 export type AppointmentDay = {
   day: Weekday
@@ -44,14 +49,6 @@ type Props = {
 }
 
 /* ================= Helpers locales ================= */
-const API_URL = (process.env.NEXT_PUBLIC_API_URL || '') as string
-
-function getAuthHeaders(): Record<string, string> {
-  if (typeof window === 'undefined') return {}
-  const token = localStorage.getItem('token')
-  return token ? { Authorization: `Bearer ${token}` } : {}
-}
-
 const ORDER: Weekday[] = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']
 const DAY_LABEL: Record<Weekday, string> = {
   mon: 'Lunes',
@@ -96,14 +93,13 @@ function clampBuffer(n: number) {
 
 /* ================= Componente ================= */
 export default function AppointmentForm({ value, onChange }: Props) {
-  const [saving, setSaving] = useState(false)
-  const [savedOk, setSavedOk] = useState(false)
-  const [errorMsg, setErrorMsg] = useState<string | null>(null)
-
   // Siempre trabajamos con 7 filas en memoria
   const hours = useMemo(() => normalizeHours(value.hours), [value.hours])
 
-  function patch<K extends keyof AppointmentConfigValue>(key: K, v: AppointmentConfigValue[K]) {
+  function patch<K extends keyof AppointmentConfigValue>(
+    key: K,
+    v: AppointmentConfigValue[K]
+  ) {
     onChange({ [key]: v } as Partial<AppointmentConfigValue>)
   }
 
@@ -127,88 +123,9 @@ export default function AppointmentForm({ value, onChange }: Props) {
 
   function updateTime(d: Weekday, field: keyof AppointmentDay, val: string) {
     const safe = val || ''
+    // el input type="time" ya valida, esto evita valores raros por si acaso
+    if (safe && !isHHMM(safe)) return
     patchDay(d, { [field]: safe ? safe : null } as any)
-  }
-
-  function validateHours(): string | null {
-    for (const h of hours) {
-      if (!h.isOpen) continue
-      if (!isHHMM(h.start1) || !isHHMM(h.end1)) {
-        return `Revisa ${DAY_LABEL[h.day]}: bloque 1 debe tener HH:MM válidos`
-      }
-      if (h.start1! >= h.end1!) {
-        return `Revisa ${DAY_LABEL[h.day]}: start1 debe ser < end1`
-      }
-      if (h.start2 || h.end2) {
-        if (!isHHMM(h.start2) || !isHHMM(h.end2)) {
-          return `Revisa ${DAY_LABEL[h.day]}: bloque 2 debe tener HH:MM válidos`
-        }
-        if (h.start2! >= h.end2!) {
-          return `Revisa ${DAY_LABEL[h.day]}: start2 debe ser < end2`
-        }
-        // evitar solapamiento con bloque 1 (misma jornada)
-        if (!(h.end1! <= h.start2! || h.end2! <= h.start1!)) {
-          return `Revisa ${DAY_LABEL[h.day]}: los bloques no deben solaparse`
-        }
-      }
-    }
-    return null
-  }
-
-  async function handleSave() {
-    try {
-      setSaving(true)
-      setSavedOk(false)
-      setErrorMsg(null)
-
-      // Validaciones rápidas
-      const err = validateHours()
-      if (err) {
-        setErrorMsg(err)
-        return
-      }
-      if (!value.appointmentTimezone) {
-        setErrorMsg('Debes especificar la zona horaria.')
-        return
-      }
-
-      // Construir payload para el endpoint de agenda
-      const payload = {
-        appointment: {
-          enabled: !!value.appointmentEnabled,
-          vertical: value.appointmentVertical,
-          timezone: value.appointmentTimezone || 'America/Bogota',
-          bufferMin: clampBuffer(value.appointmentBufferMin),
-          policies: value.appointmentPolicies || '',
-          reminders: !!value.appointmentReminders,
-        },
-        hours: hours.map((h) => ({
-          day: h.day,
-          isOpen: !!h.isOpen,
-          start1: h.isOpen ? h.start1 : null,
-          end1: h.isOpen ? h.end1 : null,
-          start2: h.isOpen ? h.start2 : null,
-          end2: h.isOpen ? h.end2 : null,
-        })),
-        // extras opcionales por si más adelante quieres pasar otras cosas
-        extras: {
-          // por ahora vacío; podrías enviar aquí "servicios" y "agentDisclaimers" si quisieras
-        },
-        // provider opcional (si implementas en backend)
-        provider: value.provider ?? null,
-      }
-
-      await axios.post(`${API_URL}/api/appointments/config`, payload as any, {
-        headers: getAuthHeaders(),
-      })
-
-      setSavedOk(true)
-    } catch (e: any) {
-      setErrorMsg(e?.response?.data?.error || e?.message || 'No se pudo guardar la agenda.')
-    } finally {
-      setSaving(false)
-      setTimeout(() => setSavedOk(false), 1500)
-    }
   }
 
   return (
@@ -218,13 +135,17 @@ export default function AppointmentForm({ value, onChange }: Props) {
         <label className="flex items-center justify-between gap-3 p-3 rounded-xl bg-slate-800/60 border border-slate-700">
           <div>
             <div className="text-sm font-medium">Habilitar agenda</div>
-            <div className="text-xs text-slate-400">Permite que la IA ofrezca y confirme citas</div>
+            <div className="text-xs text-slate-400">
+              Permite que la IA ofrezca y confirme citas
+            </div>
           </div>
           <button
             type="button"
             onClick={() => patch('appointmentEnabled', !value.appointmentEnabled)}
             className={`w-12 h-7 rounded-full border transition ${
-              value.appointmentEnabled ? 'bg-emerald-500/90 border-emerald-400' : 'bg-slate-700 border-slate-600'
+              value.appointmentEnabled
+                ? 'bg-emerald-500/90 border-emerald-400'
+                : 'bg-slate-700 border-slate-600'
             } relative`}
             aria-pressed={value.appointmentEnabled}
           >
@@ -274,7 +195,9 @@ export default function AppointmentForm({ value, onChange }: Props) {
             min={0}
             max={240}
             value={value.appointmentBufferMin}
-            onChange={(e) => patch('appointmentBufferMin', clampBuffer(parseInt(e.target.value, 10)))}
+            onChange={(e) =>
+              patch('appointmentBufferMin', clampBuffer(parseInt(e.target.value, 10)))
+            }
             className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-600"
           />
         </label>
@@ -294,13 +217,17 @@ export default function AppointmentForm({ value, onChange }: Props) {
       <label className="flex items-center justify-between gap-3 p-3 rounded-xl bg-slate-800/60 border border-slate-700">
         <div>
           <div className="text-sm font-medium">Recordatorios automáticos</div>
-          <div className="text-xs text-slate-400">Se enviará un mensaje de confirmación y recordatorio</div>
+          <div className="text-xs text-slate-400">
+            Se enviará un mensaje de confirmación y recordatorio
+          </div>
         </div>
         <button
           type="button"
           onClick={() => patch('appointmentReminders', !value.appointmentReminders)}
           className={`w-12 h-7 rounded-full border transition ${
-            value.appointmentReminders ? 'bg-emerald-500/90 border-emerald-400' : 'bg-slate-700 border-slate-600'
+            value.appointmentReminders
+              ? 'bg-emerald-500/90 border-emerald-400'
+              : 'bg-slate-700 border-slate-600'
           } relative`}
           aria-pressed={value.appointmentReminders}
         >
@@ -314,16 +241,23 @@ export default function AppointmentForm({ value, onChange }: Props) {
 
       {/* ================== Horario semanal ================== */}
       <div className="rounded-2xl border border-slate-800 bg-slate-900/70">
-        <div className="px-4 py-3 border-b border-slate-800 text-sm font-semibold">Horario semanal</div>
+        <div className="px-4 py-3 border-b border-slate-800 text-sm font-semibold">
+          Horario semanal
+        </div>
         <div className="divide-y divide-slate-800">
           {hours.map((h) => (
-            <div key={h.day} className="px-4 py-3 grid grid-cols-1 sm:grid-cols-12 gap-3 items-center">
+            <div
+              key={h.day}
+              className="px-4 py-3 grid grid-cols-1 sm:grid-cols-12 gap-3 items-center"
+            >
               <div className="sm:col-span-3 flex items-center gap-3">
                 <button
                   type="button"
                   onClick={() => toggleDay(h.day)}
                   className={`w-10 h-6 rounded-full border transition ${
-                    h.isOpen ? 'bg-emerald-500/90 border-emerald-400' : 'bg-slate-700 border-slate-600'
+                    h.isOpen
+                      ? 'bg-emerald-500/90 border-emerald-400'
+                      : 'bg-slate-700 border-slate-600'
                   } relative`}
                   aria-pressed={h.isOpen}
                 >
@@ -354,7 +288,6 @@ export default function AppointmentForm({ value, onChange }: Props) {
                 />
                 {/* Bloque 2 */}
                 <input
-                  placeholder="hh:mm"
                   type="time"
                   value={h.start2 || ''}
                   disabled={!h.isOpen}
@@ -362,7 +295,6 @@ export default function AppointmentForm({ value, onChange }: Props) {
                   className="bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5 text-sm disabled:opacity-50"
                 />
                 <input
-                  placeholder="hh:mm"
                   type="time"
                   value={h.end2 || ''}
                   disabled={!h.isOpen}
@@ -441,38 +373,6 @@ export default function AppointmentForm({ value, onChange }: Props) {
             className="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm"
           />
         </div>
-      </div>
-
-      {/* Mensajes */}
-      {errorMsg && (
-        <div className="text-sm text-red-300 bg-red-900/20 border border-red-800 rounded-xl px-3 py-2">
-          {errorMsg}
-        </div>
-      )}
-      {savedOk && !errorMsg && (
-        <div className="flex items-center gap-2 text-sm text-emerald-300 bg-emerald-900/10 border border-emerald-800 rounded-xl px-3 py-2">
-          <Check className="w-4 h-4" />
-          Agenda guardada.
-        </div>
-      )}
-
-      {/* Botón guardar agenda */}
-      <div className="flex justify-end">
-        <button
-          type="button"
-          onClick={handleSave}
-          disabled={saving}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm disabled:opacity-60"
-        >
-          {saving ? (
-            <>
-              <Loader2 className="w-4 h-4 animate-spin" />
-              Guardando…
-            </>
-          ) : (
-            'Guardar agenda'
-          )}
-        </button>
       </div>
     </div>
   )
