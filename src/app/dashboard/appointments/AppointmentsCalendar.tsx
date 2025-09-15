@@ -3,334 +3,345 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
   Calendar as CalendarIcon,
-  ChevronLeft,
-  ChevronRight,
-  Plus,
-  Search,
-  Clock,
-  MapPin,
-  User,
-  Building2,
-  Check,
-  X,
-  Edit,
-  Trash,
+  ChevronLeft, ChevronRight, Plus,
+  Clock, User, Check, X, Edit, Trash
 } from "lucide-react";
 import { motion } from "framer-motion";
 
-/* ==== utils ==== */
-function cx(...classes: (string | undefined | false)[]) {
-  return classes.filter(Boolean).join(" ");
-}
+/* ---------- helpers ---------- */
+const cx = (...c: (string | false | undefined)[]) => c.filter(Boolean).join(" ");
+const fmtKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+const hhmm = (d: Date) => new Intl.DateTimeFormat("es-CO",{hour:"2-digit",minute:"2-digit",hour12:false}).format(d);
 
-/* ==== simple styled components ==== */
-function Button({
-  className,
-  variant = "primary",
-  ...props
-}: React.ButtonHTMLAttributes<HTMLButtonElement> & {
-  variant?: "primary" | "ghost" | "outline" | "danger";
-}) {
-  const base =
-    "inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium transition focus:outline-none focus:ring-2 focus:ring-offset-2";
+/* ---------- UI Primitives ---------- */
+function Button(
+  { className, variant="primary", ...props }:
+  React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: "primary" | "ghost" | "outline" | "danger" }
+){
+  const base = "inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium transition focus:outline-none focus:ring-2 focus:ring-offset-0";
   const variants = {
-    primary:
-      "bg-gradient-to-r from-indigo-500 to-purple-600 text-white hover:opacity-90 focus:ring-indigo-400",
-    ghost: "bg-transparent hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200",
-    outline:
-      "border border-zinc-300 dark:border-zinc-600 text-zinc-800 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800",
-    danger:
-      "bg-red-600 text-white hover:bg-red-700 focus:ring-red-400",
+    primary: "text-white bg-gradient-to-r from-indigo-500 to-fuchsia-600 hover:opacity-90 focus:ring-indigo-400",
+    ghost:   "text-white/90 hover:bg-white/10",
+    outline: "border border-white/15 text-white hover:bg-white/5",
+    danger:  "bg-red-600 text-white hover:bg-red-700 focus:ring-red-400",
   } as const;
   return <button className={cx(base, variants[variant], className)} {...props} />;
 }
 
-function Badge({
-  children,
-  color = "zinc",
-}: {
-  children: React.ReactNode;
-  color?: "zinc" | "green" | "yellow" | "red" | "blue";
-}) {
-  const map: Record<string, string> = {
-    zinc: "bg-zinc-200 text-zinc-800 dark:bg-zinc-700 dark:text-zinc-200",
-    green: "bg-green-200 text-green-800 dark:bg-green-700 dark:text-green-200",
-    yellow: "bg-yellow-200 text-yellow-800 dark:bg-yellow-700 dark:text-yellow-200",
-    red: "bg-red-200 text-red-800 dark:bg-red-700 dark:text-red-200",
-    blue: "bg-blue-200 text-blue-800 dark:bg-blue-700 dark:text-blue-200",
-  };
-  return (
-    <span
-      className={cx(
-        "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium",
-        map[color]
-      )}
-    >
-      {children}
-    </span>
-  );
-}
-
-function Dialog({
-  open,
-  onClose,
-  children,
-}: {
-  open: boolean;
-  onClose: () => void;
-  children: React.ReactNode;
-}) {
+function Dialog({ open, onClose, children }: { open: boolean; onClose: () => void; children: React.ReactNode }) {
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div
-        className="absolute inset-0 bg-black/40 backdrop-blur-sm"
-        onClick={onClose}
-      />
-      <motion.div
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="relative z-10 w-full max-w-lg rounded-2xl bg-white dark:bg-zinc-900 p-6 shadow-xl"
-      >
+    <div className="fixed inset-0 z-50 grid place-items-center">
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose}/>
+      <motion.div initial={{opacity:0,y:8}} animate={{opacity:1,y:0}}
+        className="relative z-10 w-full max-w-lg rounded-2xl border border-white/10 bg-zinc-900 p-6 text-white shadow-2xl">
         {children}
       </motion.div>
     </div>
   );
 }
 
-/* ==== types ==== */
+/* ---------- Types ---------- */
 export type Appointment = {
   id: number;
   empresaId: number;
-  sedeId: number;
-  serviceId: number;
-  providerId?: number | null;
-  source: "ai" | "agent" | "client";
-  status:
-    | "pending"
-    | "confirmed"
-    | "rescheduled"
-    | "cancelled"
-    | "completed"
-    | "no_show";
   customerName: string;
   customerPhone: string;
-  notas?: string | null;
-  startAt: string;
-  endAt: string;
   serviceName: string;
+  sedeName?: string | null;
+  providerName?: string | null;
+  startAt: string; // ISO
+  endAt: string;   // ISO
+  notas?: string | null;
+  status?: "pending" | "confirmed" | "cancelled" | "completed" | "no_show";
 };
 
-/* ==== helpers ==== */
-function formatDayKey(d: Date) {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(
-    2,
-    "0"
-  )}-${String(d.getDate()).padStart(2, "0")}`;
-}
-function hhmm(date: Date) {
-  return new Intl.DateTimeFormat("es-CO", {
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  }).format(date);
-}
-
-/* ==== MAIN ==== */
+/* ---------- Component ---------- */
 export default function AppointmentsCalendar({ empresaId }: { empresaId: number }) {
-  const [current, setCurrent] = useState(new Date());
+  const [current, setCurrent] = useState(() => new Date());
   const [events, setEvents] = useState<Appointment[]>([]);
-  const [selectedAppt, setSelectedAppt] = useState<Appointment | null>(null);
-  const [showForm, setShowForm] = useState(false);
+  const [showCreate, setShowCreate] = useState(false);
+  const [editing, setEditing] = useState<Appointment | null>(null);
 
-  const days: Date[] = useMemo(() => {
-    const start = new Date(current.getFullYear(), current.getMonth(), 1);
-    const firstDay = new Date(start);
-    firstDay.setDate(firstDay.getDate() - firstDay.getDay() + 1);
-    return Array.from({ length: 42 }, (_, i) => {
-      const d = new Date(firstDay);
-      d.setDate(firstDay.getDate() + i);
+  // matrix 7x6 empezando en lunes
+  const days = useMemo(() => {
+    const first = new Date(current.getFullYear(), current.getMonth(), 1);
+    const mondayStart = new Date(first);
+    const w = first.getDay(); // 0 dom - 6 sab
+    const diff = (w === 0 ? -6 : 1) - w;
+    mondayStart.setDate(first.getDate() + diff);
+    return Array.from({length:42},(_,i)=> {
+      const d = new Date(mondayStart);
+      d.setDate(mondayStart.getDate()+i);
+      d.setHours(0,0,0,0);
       return d;
     });
-  }, [current]);
+  },[current]);
 
-  const eventsByDay = useMemo(() => {
+  const eventsByDay = useMemo(()=>{
     const map: Record<string, Appointment[]> = {};
-    for (const ev of events) {
-      const k = formatDayKey(new Date(ev.startAt));
-      (map[k] ||= []).push(ev);
+    for (const e of events) {
+      const k = fmtKey(new Date(e.startAt));
+      (map[k] ||= []).push(e);
     }
+    for (const k of Object.keys(map)) map[k].sort((a,b)=>+new Date(a.startAt)-+new Date(b.startAt));
     return map;
-  }, [events]);
+  },[events]);
 
-  const weekDays = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
+  const week = ["Lun","Mar","Mié","Jue","Vie","Sáb","Dom"];
 
-  /* fake add */
-  const handleAdd = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const fd = new FormData(e.currentTarget);
+  /* ---------- CRUD helpers (mock locales) ---------- */
+  function addAppointment(data: {
+    name: string; phone: string;
+    service: string; sede?: string; provider?: string;
+    startISO: string; durationMin?: number; notes?: string;
+  }) {
+    const start = new Date(data.startISO);
+    const end = new Date(start.getTime() + (data.durationMin ?? 30) * 60_000);
     const appt: Appointment = {
       id: Date.now(),
       empresaId,
-      sedeId: 1,
-      serviceId: 1,
-      source: "client",
+      customerName: data.name,
+      customerPhone: data.phone,
+      serviceName: data.service,
+      sedeName: data.sede || null,
+      providerName: data.provider || null,
+      startAt: start.toISOString(),
+      endAt: end.toISOString(),
+      notas: data.notes || null,
       status: "pending",
-      customerName: String(fd.get("name")),
-      customerPhone: String(fd.get("phone")),
-      serviceName: String(fd.get("service")),
-      startAt: new Date(String(fd.get("date"))).toISOString(),
-      endAt: new Date(String(fd.get("date"))).toISOString(),
     };
-    setEvents((prev) => [...prev, appt]);
-    setShowForm(false);
-  };
+    setEvents(prev=>[...prev, appt]);
+  }
+
+  function updateAppointment(id: number, patch: Partial<Appointment>) {
+    setEvents(prev => prev.map(e => e.id === id ? { ...e, ...patch } : e));
+  }
+  function deleteAppointment(id: number) {
+    setEvents(prev => prev.filter(e => e.id !== id));
+  }
 
   return (
-    <div className="w-full space-y-4 p-4">
-      {/* header */}
-      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-        <div className="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            onClick={() =>
-              setCurrent(new Date(current.getFullYear(), current.getMonth() - 1, 1))
-            }
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            onClick={() =>
-              setCurrent(new Date(current.getFullYear(), current.getMonth() + 1, 1))
-            }
-          >
-            <ChevronRight className="h-4 w-4" />
-          </Button>
-          <div className="text-xl font-semibold text-zinc-900 dark:text-zinc-100">
-            {current.toLocaleString("es-CO", { month: "long", year: "numeric" })}
-          </div>
-          <Button
-            variant="outline"
-            onClick={() => setCurrent(new Date())}
-          >
-            Hoy
-          </Button>
-        </div>
-        <div className="flex gap-2">
-          <Button onClick={() => setShowForm(true)}>
-            <Plus className="h-4 w-4" /> Nueva cita
-          </Button>
-        </div>
-      </div>
-
-      {/* week */}
-      <div className="grid grid-cols-7 gap-2 text-xs font-medium text-zinc-600 dark:text-zinc-300">
-        {weekDays.map((w) => (
-          <div key={w} className="px-2 py-1 text-center">{w}</div>
-        ))}
-      </div>
-
-      {/* days */}
-      <div className="grid grid-cols-7 gap-2">
-        {days.map((day, idx) => {
-          const key = formatDayKey(day);
-          const dayEvents = eventsByDay[key] || [];
-          const inMonth = day.getMonth() === current.getMonth();
-          return (
-            <div
-              key={idx}
-              className={cx(
-                "min-h-[120px] rounded-xl border p-2 transition",
-                inMonth
-                  ? "bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-700"
-                  : "bg-zinc-100 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 opacity-60"
-              )}
-            >
-              <div className="mb-1 flex items-center justify-between">
-                <span className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">
-                  {day.getDate()}
-                </span>
+    <div className="w-full h-full">
+      <div className="mx-auto max-w-[1600px] p-4 md:p-6 lg:p-8">
+        {/* Header surface */}
+        <div className="mb-5 rounded-2xl border border-white/10 bg-white/5 p-3 text-white backdrop-blur md:p-4">
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div className="flex items-center gap-2">
+              <Button variant="ghost" aria-label="Mes anterior"
+                onClick={()=>setCurrent(new Date(current.getFullYear(), current.getMonth()-1, 1))}>
+                <ChevronLeft className="h-4 w-4"/>
+              </Button>
+              <Button variant="ghost" aria-label="Mes siguiente"
+                onClick={()=>setCurrent(new Date(current.getFullYear(), current.getMonth()+1, 1))}>
+                <ChevronRight className="h-4 w-4"/>
+              </Button>
+              <div className="rounded-xl px-3 py-1.5 text-base font-semibold">
+                {current.toLocaleString("es-CO",{month:"long", year:"numeric"})}
               </div>
-              <div className="space-y-1">
-                {dayEvents.map((ev) => (
-                  <div
-                    key={ev.id}
-                    className="rounded-lg bg-zinc-100 dark:bg-zinc-700 p-1 text-xs flex justify-between items-center"
-                  >
-                    <span>
-                      {hhmm(new Date(ev.startAt))} · {ev.customerName}
-                    </span>
-                    <div className="flex gap-1">
-                      <button onClick={() => setSelectedAppt(ev)}>
-                        <Edit className="h-3 w-3 text-blue-500" />
-                      </button>
-                      <button
-                        onClick={() =>
-                          setEvents((prev) => prev.filter((e) => e.id !== ev.id))
-                        }
-                      >
-                        <Trash className="h-3 w-3 text-red-500" />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
+              <Button variant="outline" onClick={()=>setCurrent(new Date())}>Hoy</Button>
             </div>
-          );
-        })}
+            <div>
+              <Button onClick={()=>setShowCreate(true)}>
+                <Plus className="h-4 w-4"/> Nueva cita
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        {/* Weekdays */}
+        <div className="mb-2 grid grid-cols-7 gap-3 text-xs font-medium text-white/80">
+          {week.map((w)=> <div key={w} className="px-1">{w}</div>)}
+        </div>
+
+        {/* Grid */}
+        <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 md:grid-cols-4 xl:grid-cols-7">
+          {days.map((day,i)=>{
+            const k = fmtKey(day);
+            const inMonth = day.getMonth() === current.getMonth();
+            const list = eventsByDay[k] || [];
+            return (
+              <div key={i}
+                   className={cx(
+                     "min-h-[120px] rounded-2xl border p-3 shadow-sm transition",
+                     "bg-white text-zinc-900 border-zinc-200",
+                     "dark:bg-zinc-900 dark:text-white dark:border-zinc-800",
+                     !inMonth && "opacity-80"
+                   )}>
+                <div className="mb-2 flex items-center justify-between">
+                  <div className={cx("text-sm font-semibold", inMonth ? "" : "text-white/60")}>
+                    {day.getDate()}
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  {list.map(ev=>(
+                    <div key={ev.id}
+                         className="flex items-center justify-between rounded-xl border border-zinc-200 bg-zinc-50 px-2 py-1.5 text-xs
+                                    dark:border-zinc-700 dark:bg-zinc-800">
+                      <div className="truncate">
+                        <span className="mr-1 inline-flex items-center gap-1"><Clock className="h-3 w-3"/> {hhmm(new Date(ev.startAt))}</span>
+                        · {ev.customerName}
+                      </div>
+                      <div className="ml-2 shrink-0 flex gap-1">
+                        <button title="Editar" onClick={()=>setEditing(ev)}><Edit className="h-3.5 w-3.5 text-indigo-400"/></button>
+                        <button title="Eliminar" onClick={()=>deleteAppointment(ev.id)}><Trash className="h-3.5 w-3.5 text-red-400"/></button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
       </div>
 
-      {/* form modal */}
-      <Dialog open={showForm} onClose={() => setShowForm(false)}>
-        <form onSubmit={handleAdd} className="space-y-4">
-          <h2 className="text-lg font-semibold text-zinc-800 dark:text-zinc-100">
-            Crear nueva cita
-          </h2>
-          <input
-            name="name"
-            placeholder="Nombre cliente"
-            className="w-full rounded-lg border px-3 py-2 dark:bg-zinc-800 dark:text-white"
-          />
-          <input
-            name="phone"
-            placeholder="Teléfono"
-            className="w-full rounded-lg border px-3 py-2 dark:bg-zinc-800 dark:text-white"
-          />
-          <input
-            name="service"
-            placeholder="Servicio"
-            className="w-full rounded-lg border px-3 py-2 dark:bg-zinc-800 dark:text-white"
-          />
-          <input
-            type="datetime-local"
-            name="date"
-            className="w-full rounded-lg border px-3 py-2 dark:bg-zinc-800 dark:text-white"
-          />
-          <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => setShowForm(false)} type="button">
-              Cancelar
-            </Button>
-            <Button type="submit">Guardar</Button>
-          </div>
-        </form>
+      {/* Crear cita */}
+      <Dialog open={showCreate} onClose={()=>setShowCreate(false)}>
+        <CreateForm
+          onCancel={()=>setShowCreate(false)}
+          onSave={(data)=>{ addAppointment(data); setShowCreate(false); }}
+        />
       </Dialog>
 
-      {/* edit modal */}
-      <Dialog open={!!selectedAppt} onClose={() => setSelectedAppt(null)}>
-        {selectedAppt && (
-          <div className="space-y-4">
-            <h2 className="text-lg font-semibold">Editar cita</h2>
-            <p>
-              Cliente: {selectedAppt.customerName} <br />
-              Servicio: {selectedAppt.serviceName}
-            </p>
-            <div className="flex justify-end">
-              <Button onClick={() => setSelectedAppt(null)}>Cerrar</Button>
-            </div>
-          </div>
+      {/* Editar cita */}
+      <Dialog open={!!editing} onClose={()=>setEditing(null)}>
+        {editing && (
+          <EditForm
+            appt={editing}
+            onCancel={()=>setEditing(null)}
+            onSave={(patch)=>{ updateAppointment(editing.id, patch); setEditing(null); }}
+          />
         )}
       </Dialog>
     </div>
+  );
+}
+
+/* ---------- Formularios (universales) ---------- */
+/** Campos universales:
+ * - name, phone
+ * - sede (texto libre u opción), service (texto), provider (opcional)
+ * - startISO (datetime-local), durationMin, notes
+ * Sirve para odontología, spa, taller, veterinaria, gimnasio, etc.
+ */
+function CreateForm({
+  onSave, onCancel
+}:{
+  onSave:(d:{name:string;phone:string;service:string;sede?:string;provider?:string;startISO:string;durationMin?:number;notes?:string;})=>void;
+  onCancel:()=>void;
+}) {
+  const [form, setForm] = useState({
+    name:"", phone:"", service:"", sede:"", provider:"",
+    startISO:"", durationMin:30, notes:""
+  });
+
+  return (
+    <form
+      onSubmit={(e)=>{ e.preventDefault(); onSave(form); }}
+      className="space-y-4 text-white"
+    >
+      <h2 className="text-lg font-semibold flex items-center gap-2"><CalendarIcon className="h-5 w-5"/> Crear nueva cita</h2>
+
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <Input label="Nombre cliente" value={form.name}
+               onChange={(v)=>setForm({...form,name:v})} placeholder="Ej. Juan Pérez"/>
+        <Input label="Teléfono" value={form.phone}
+               onChange={(v)=>setForm({...form,phone:v})} placeholder="Ej. +57 300 000 0000"/>
+        <Input label="Sede (opcional)" value={form.sede}
+               onChange={(v)=>setForm({...form,sede:v})} placeholder="Ej. Sede Centro"/>
+        <Input label="Profesional (opcional)" value={form.provider}
+               onChange={(v)=>setForm({...form,provider:v})} placeholder="Ej. Dra. López"/>
+        <Input label="Servicio" value={form.service}
+               onChange={(v)=>setForm({...form,service:v})} placeholder="Ej. Blanqueamiento dental"/>
+        <Input label="Fecha y hora" type="datetime-local" value={form.startISO}
+               onChange={(v)=>setForm({...form,startISO:v})} />
+        <Input label="Duración (min)" type="number" value={String(form.durationMin)}
+               onChange={(v)=>setForm({...form,durationMin:Number(v||30)})} placeholder="30"/>
+        <TextArea label="Notas (opcional)" value={form.notes}
+                  onChange={(v)=>setForm({...form,notes:v})} placeholder="Observaciones, indicaciones..."/>
+      </div>
+
+      <div className="flex justify-end gap-2">
+        <Button variant="outline" type="button" onClick={onCancel}><X className="h-4 w-4"/> Cancelar</Button>
+        <Button type="submit"><Check className="h-4 w-4"/> Guardar</Button>
+      </div>
+    </form>
+  );
+}
+
+function EditForm({
+  appt, onSave, onCancel
+}:{
+  appt: Appointment;
+  onSave:(patch:Partial<Appointment>)=>void;
+  onCancel:()=>void;
+}) {
+  const [name,setName] = useState(appt.customerName);
+  const [phone,setPhone] = useState(appt.customerPhone);
+  const [service,setService] = useState(appt.serviceName);
+  const [start,setStart] = useState(appt.startAt.slice(0,16));
+  const [notes,setNotes] = useState(appt.notas ?? "");
+
+  return (
+    <form
+      onSubmit={(e)=>{ e.preventDefault(); onSave({
+        customerName:name, customerPhone:phone, serviceName:service,
+        startAt:new Date(start).toISOString(), notas:notes
+      }); }}
+      className="space-y-4 text-white"
+    >
+      <h2 className="text-lg font-semibold flex items-center gap-2"><Edit className="h-5 w-5"/> Editar cita</h2>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <Input label="Nombre cliente" value={name} onChange={setName} placeholder="Nombre completo"/>
+        <Input label="Teléfono" value={phone} onChange={setPhone} placeholder="Contacto"/>
+        <Input label="Servicio" value={service} onChange={setService} placeholder="Tipo de servicio"/>
+        <Input label="Fecha y hora" type="datetime-local" value={start} onChange={setStart}/>
+        <TextArea label="Notas" value={notes} onChange={setNotes} placeholder="Notas internas o del cliente"/>
+      </div>
+      <div className="flex justify-end gap-2">
+        <Button variant="outline" type="button" onClick={onCancel}><X className="h-4 w-4"/> Cancelar</Button>
+        <Button type="submit"><Check className="h-4 w-4"/> Guardar cambios</Button>
+      </div>
+    </form>
+  );
+}
+
+/* ---------- Inputs (placeholders visibles en dark) ---------- */
+function Input(
+  { label, type="text", value, onChange, placeholder }:
+  { label:string; type?:string; value:string; onChange:(v:string)=>void; placeholder?:string }
+){
+  return (
+    <label className="space-y-1">
+      <span className="text-xs text-white/80">{label}</span>
+      <input
+        type={type}
+        value={value}
+        onChange={(e)=>onChange(e.target.value)}
+        placeholder={placeholder}
+        className="w-full rounded-xl border border-white/15 bg-zinc-900 px-3 py-2 text-sm text-white
+                   placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+      />
+    </label>
+  );
+}
+
+function TextArea(
+  { label, value, onChange, placeholder }:
+  { label:string; value:string; onChange:(v:string)=>void; placeholder?:string }
+){
+  return (
+    <label className="space-y-1 sm:col-span-2">
+      <span className="text-xs text-white/80">{label}</span>
+      <textarea
+        rows={3}
+        value={value}
+        onChange={(e)=>onChange(e.target.value)}
+        placeholder={placeholder}
+        className="w-full rounded-xl border border-white/15 bg-zinc-900 px-3 py-2 text-sm text-white
+                   placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+      />
+    </label>
   );
 }
