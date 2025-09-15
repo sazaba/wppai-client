@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useEffect, useMemo, useState } from 'react'
-import axios from 'axios'
+import { saveAppointmentConfig, normalizeDays } from '@/lib/appointments'
 
 /* =======================
    Tipos UI (alineados a Prisma)
@@ -27,6 +27,16 @@ export type AppointmentDay = {
   end2?: string | null
 }
 
+export type ProviderInput = {
+  id?: number
+  nombre?: string          // opcional en el front; si viene vacío no se envía al backend
+  email?: string
+  phone?: string
+  cargo?: string
+  colorHex?: string
+  activo?: boolean
+}
+
 export type AppointmentConfigValue = {
   appointmentEnabled: boolean
   appointmentVertical: Vertical
@@ -35,23 +45,13 @@ export type AppointmentConfigValue = {
   appointmentPolicies?: string
   appointmentReminders: boolean
   hours?: AppointmentDay[]
+  /** Nuevo: agente/proveedor opcional */
+  provider?: ProviderInput | null
 }
 
 type Props = {
   value: AppointmentConfigValue
   onChange: (patch: Partial<AppointmentConfigValue>) => void
-}
-
-/* =======================
-   Helpers / Inputs
-   ======================= */
-
-const API_URL = (process.env.NEXT_PUBLIC_API_URL || '') as string
-
-function getAuthHeaders(): Record<string, string> {
-  if (typeof window === 'undefined') return {}
-  const token = localStorage.getItem('token')
-  return token ? { Authorization: `Bearer ${token}` } : {}
 }
 
 const DAYS: Weekday[] = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']
@@ -75,33 +75,6 @@ function emptyWeek(): AppointmentDay[] {
     start2: null,
     end2: null,
   }))
-}
-
-/** Normaliza a 7 filas y limpia horas cuando isOpen=false */
-function normalizeDays(days?: AppointmentDay[]): AppointmentDay[] {
-  const base = new Map<Weekday, AppointmentDay>()
-  for (const d of DAYS) {
-    base.set(d, { day: d, isOpen: false, start1: null, end1: null, start2: null, end2: null })
-  }
-  if (Array.isArray(days)) {
-    for (const it of days) {
-      const k = it.day as Weekday
-      if (!DAYS.includes(k)) continue
-      if (it.isOpen) {
-        base.set(k, {
-          day: k,
-          isOpen: true,
-          start1: it.start1 ?? null,
-          end1: it.end1 ?? null,
-          start2: it.start2 ?? null,
-          end2: it.end2 ?? null,
-        })
-      } else {
-        base.set(k, { day: k, isOpen: false, start1: null, end1: null, start2: null, end2: null })
-      }
-    }
-  }
-  return DAYS.map((d) => base.get(d)!)
 }
 
 function TimeInput({
@@ -144,19 +117,18 @@ export default function AppointmentForm({ value, onChange }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []) // solo al montar
 
-  // 2) Memo de filas (si no hay, mostramos una semana vacía
-  // mientras el padre recibe el onChange inicial)
+  // 2) Memo de filas
   const rows: AppointmentDay[] = useMemo(() => {
     return v.hours && v.hours.length === 7 ? v.hours : emptyWeek()
   }, [v.hours])
 
-  // 3) Actualiza una fila por día (inmutable + estable)
+  // 3) Actualiza una fila por día
   function updateDay(day: Weekday, patch: Partial<AppointmentDay>) {
     const next = rows.map((r) => (r.day === day ? { ...r, ...patch } : r))
     onChange({ hours: next })
   }
 
-  // 4) Toggle de día: limpia horas si se cierra
+  // 4) Toggle de día
   function toggleDay(day: Weekday, isOpen: boolean) {
     if (!isOpen) {
       updateDay(day, { isOpen: false, start1: null, end1: null, start2: null, end2: null })
@@ -168,37 +140,35 @@ export default function AppointmentForm({ value, onChange }: Props) {
   const disabledAll = !v.appointmentEnabled
 
   /* =======================
-     Guardar (config + hours)
+     Guardar (config + hours + provider)
      ======================= */
   async function handleSave() {
     setError(null)
     setSaving(true)
     try {
-      // Aviso suave si la agenda está activa pero no hay días abiertos
       const hasOpen = (v.hours || []).some((d) => d.isOpen)
       if (v.appointmentEnabled && !hasOpen) {
-        console.warn('Agenda activa sin días abiertos. Se guardará como cerrado en todos los días.')
+        console.warn('Agenda activa sin días abiertos.')
       }
 
-      const headers = { ...getAuthHeaders() }
+      // si no hay nombre, no enviamos provider
+      const providerToSend =
+        v.provider && v.provider.nombre && v.provider.nombre.trim()
+          ? v.provider
+          : null
 
-      // 1) PATCH business-config (solo campos de agenda)
-      await axios.patch(
-        `${API_URL}/api/business-config`,
-        {
-          appointmentEnabled: !!v.appointmentEnabled,
-          appointmentVertical: v.appointmentVertical,
-          appointmentTimezone: v.appointmentTimezone || 'America/Bogota',
-          appointmentBufferMin: Number.isFinite(v.appointmentBufferMin) ? v.appointmentBufferMin : 10,
-          appointmentPolicies: v.appointmentPolicies ?? '',
-          appointmentReminders: !!v.appointmentReminders,
-        },
-        { headers }
-      )
-
-      // 2) PUT appointment-hours (7 filas)
-      const days = normalizeDays(v.hours)
-      await axios.put(`${API_URL}/api/appointment-hours`, { days }, { headers })
+      await saveAppointmentConfig({
+        appointmentEnabled: !!v.appointmentEnabled,
+        appointmentVertical: v.appointmentVertical,
+        appointmentTimezone: v.appointmentTimezone || 'America/Bogota',
+        appointmentBufferMin: Number.isFinite(v.appointmentBufferMin)
+          ? v.appointmentBufferMin
+          : 10,
+        appointmentPolicies: v.appointmentPolicies ?? '',
+        appointmentReminders: !!v.appointmentReminders,
+        hours: normalizeDays(v.hours),
+        provider: providerToSend,
+      })
 
       alert('Configuración de agenda guardada ✅')
     } catch (e: any) {
@@ -301,7 +271,7 @@ export default function AppointmentForm({ value, onChange }: Props) {
           />
         </label>
 
-        {/* Horarios por día (2 franjas máximo) */}
+        {/* Horarios por día */}
         <div className="mt-4 rounded-xl border border-slate-800">
           <div className="px-3 py-2 text-xs text-slate-400 border-b border-slate-800">
             Horarios por día (formato 24h)
@@ -355,6 +325,109 @@ export default function AppointmentForm({ value, onChange }: Props) {
                 </div>
               )
             })}
+          </div>
+        </div>
+
+        {/* ===== Profesional principal (opcional) ===== */}
+        <div className="rounded-xl border border-slate-800">
+          <div className="px-3 py-2 text-xs text-slate-400 border-b border-slate-800">
+            Profesional principal (opcional)
+          </div>
+          <div className="p-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <label className="space-y-1">
+              <span className="text-xs text-slate-400">Nombre</span>
+              <input
+                type="text"
+                value={v.provider?.nombre ?? ''}
+                onChange={(e) =>
+                  onChange({
+                    provider: {
+                      ...(v.provider ?? { nombre: '' }),
+                      nombre: e.target.value,
+                    },
+                  })
+                }
+                placeholder="Ej: Dra. Ana Pérez"
+                className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-600"
+              />
+            </label>
+
+            <label className="space-y-1">
+              <span className="text-xs text-slate-400">Cargo</span>
+              <input
+                type="text"
+                value={v.provider?.cargo ?? ''}
+                onChange={(e) =>
+                  onChange({
+                    provider: {
+                      ...(v.provider ?? { nombre: '' }),
+                      cargo: e.target.value,
+                    },
+                  })
+                }
+                placeholder="Dermatóloga / Odontólogo / Esteticista"
+                className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-600"
+              />
+            </label>
+
+            <label className="space-y-1">
+              <span className="text-xs text-slate-400">Email</span>
+              <input
+                type="email"
+                value={v.provider?.email ?? ''}
+                onChange={(e) =>
+                  onChange({
+                    provider: {
+                      ...(v.provider ?? { nombre: '' }),
+                      email: e.target.value,
+                    },
+                  })
+                }
+                placeholder="contacto@negocio.com"
+                className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-600"
+              />
+            </label>
+
+            <label className="space-y-1">
+              <span className="text-xs text-slate-400">Teléfono</span>
+              <input
+                type="tel"
+                value={v.provider?.phone ?? ''}
+                onChange={(e) =>
+                  onChange({
+                    provider: {
+                      ...(v.provider ?? { nombre: '' }),
+                      phone: e.target.value,
+                    },
+                  })
+                }
+                placeholder="+57 300 000 0000"
+                className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-600"
+              />
+            </label>
+
+            <label className="space-y-1">
+              <span className="text-xs text-slate-400">Color (hex)</span>
+              <input
+                type="text"
+                value={v.provider?.colorHex ?? ''}
+                onChange={(e) =>
+                  onChange({
+                    provider: {
+                      ...(v.provider ?? { nombre: '' }),
+                      colorHex: e.target.value,
+                    },
+                  })
+                }
+                placeholder="#8b5cf6"
+                className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-600"
+              />
+            </label>
+
+            {v.provider?.id ? <input type="hidden" value={v.provider.id} /> : null}
+          </div>
+          <div className="px-3 pb-3 text-[11px] text-slate-500">
+            * Si dejas “Nombre” vacío, no se guardará ningún profesional.
           </div>
         </div>
 

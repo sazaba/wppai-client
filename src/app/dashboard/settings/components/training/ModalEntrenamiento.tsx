@@ -10,7 +10,15 @@ import TypeTabs, { type EditorTab } from './TypeTabs'
 import BusinessForm from './BusinessForm'
 import CatalogPanel from './CatalogPanel'
 import AgentForm from './AgentForm'
-import AppointmentForm from './AppointmentForm'
+import AppointmentForm, {
+  type AppointmentDay,
+  type Weekday,
+  type AppointmentConfigValue,
+  type Vertical,
+  type ProviderInput,
+} from './AppointmentForm'
+
+import { fetchAppointmentConfig } from '@/lib/appointments'
 
 import type {
   Producto,
@@ -30,8 +38,7 @@ function getAuthHeaders(): Record<string, string> {
   return token ? { Authorization: `Bearer ${token}` } : {}
 }
 
-/** 👉 Extiende el formulario base con los campos de citas (sin appointmentWorkHours) */
-type Vertical = 'none' | 'salud' | 'bienestar' | 'automotriz' | 'veterinaria' | 'fitness' | 'otros'
+/** 👉 Extiende el formulario base con los campos de citas */
 type FormState = ConfigForm & {
   appointmentEnabled: boolean
   appointmentVertical: Vertical
@@ -39,9 +46,38 @@ type FormState = ConfigForm & {
   appointmentBufferMin: number
   appointmentPolicies?: string
   appointmentReminders: boolean
+  /** horas de atención (7 días) */
+  hours?: AppointmentDay[]
+  /** profesional principal (opcional) */
+  provider?: ProviderInput | null
 }
 
 const moneyOrEmpty = (v: unknown): number | '' => (typeof v === 'number' ? v : '')
+
+/* ===== helpers de horas ===== */
+const ORDER: Weekday[] = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']
+
+function hoursFromDb(rows: AppointmentDay[] | undefined | null): AppointmentDay[] {
+  const base = new Map<Weekday, AppointmentDay>()
+  for (const d of ORDER) {
+    base.set(d, { day: d, isOpen: false, start1: null, end1: null, start2: null, end2: null })
+  }
+  if (Array.isArray(rows)) {
+    for (const r of rows) {
+      const k = r.day as Weekday
+      if (!ORDER.includes(k)) continue
+      base.set(k, {
+        day: k,
+        isOpen: !!r.isOpen,
+        start1: r.start1 ?? null,
+        end1: r.end1 ?? null,
+        start2: r.start2 ?? null,
+        end2: r.end2 ?? null,
+      })
+    }
+  }
+  return ORDER.map((d) => base.get(d)!)
+}
 
 export default function ModalEntrenamiento({
   trainingActive,
@@ -133,6 +169,8 @@ export default function ModalEntrenamiento({
     appointmentBufferMin: (initialConfig as any)?.appointmentBufferMin ?? 10,
     appointmentPolicies: (initialConfig as any)?.appointmentPolicies ?? '',
     appointmentReminders: (initialConfig as any)?.appointmentReminders ?? true,
+    hours: undefined, // se hidrata al abrir "citas"
+    provider: null,   // idem
   }
 
   const [form, setForm] = useState<FormState>(emptyForm)
@@ -333,7 +371,7 @@ export default function ModalEntrenamiento({
     }
   }
 
-  // Apertura
+  // Apertura → resetea
   useEffect(() => {
     if (!open) return
     setBusinessType((initialConfig?.businessType as BusinessType) || 'servicios')
@@ -342,6 +380,57 @@ export default function ModalEntrenamiento({
     setErrorMsg(null)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open])
+
+  // Carga agenda cuando entras a la pestaña "citas"
+ // Carga agenda cuando entras a la pestaña "citas"
+async function loadAppointmentConfigIntoForm() {
+  try {
+    const data = await fetchAppointmentConfig()
+
+    // Tipos del backend (todo opcional porque puede venir vacío)
+    type BackendAppointmentConfig = {
+      appointmentEnabled?: boolean
+      appointmentVertical?: Vertical
+      appointmentTimezone?: string
+      appointmentBufferMin?: number
+      appointmentPolicies?: string
+      appointmentReminders?: boolean
+    }
+
+    const cfg = (data?.config ?? {}) as BackendAppointmentConfig
+    const p  = (data?.provider ?? null) as (ProviderInput & { id?: number }) | null
+
+    setForm((f) => ({
+      ...f,
+      appointmentEnabled: !!cfg.appointmentEnabled,
+      appointmentVertical: (cfg.appointmentVertical as Vertical) ?? 'none',
+      appointmentTimezone: cfg.appointmentTimezone ?? 'America/Bogota',
+      appointmentBufferMin: Number.isFinite(cfg.appointmentBufferMin!)
+        ? (cfg.appointmentBufferMin as number)
+        : 10,
+      appointmentPolicies: cfg.appointmentPolicies ?? '',
+      appointmentReminders: cfg.appointmentReminders ?? true,
+      hours: hoursFromDb(data?.hours),
+
+      // hidratar provider solo si existe
+      provider: p
+        ? {
+            id: p.id,
+            nombre: p.nombre ?? '',
+            email: p.email ?? '',
+            phone: p.phone ?? '',
+            cargo: p.cargo ?? '',
+            colorHex: p.colorHex ?? '',
+            activo: typeof p.activo === 'boolean' ? p.activo : true,
+          }
+        : null,
+    }))
+  } catch (e: any) {
+    console.error('[settings] fetchAppointmentConfig error:', e)
+    setErrorMsg(e?.response?.data?.error || e?.message || 'No se pudo cargar la agenda')
+  }
+}
+
 
   // Cambio de tab
   async function handleChangeTab(nextTab: EditorTab) {
@@ -357,8 +446,9 @@ export default function ModalEntrenamiento({
       setForm((f) => ({ ...f, businessType: 'servicios', aiMode: 'agente' }))
     } else if (nextTab === 'agente') {
       setForm((f) => ({ ...f, aiMode: 'agente' }))
-    } else {
-      // 'citas' -> no cambia businessType automáticamente
+    } else if (nextTab === 'citas') {
+      // 🚀 hidrata la agenda al entrar
+      await loadAppointmentConfigIntoForm()
     }
   }
 
@@ -489,7 +579,9 @@ export default function ModalEntrenamiento({
                     appointmentBufferMin: form.appointmentBufferMin,
                     appointmentPolicies: form.appointmentPolicies,
                     appointmentReminders: form.appointmentReminders,
-                  }}
+                    hours: form.hours,
+                    provider: form.provider, // 👈 pasamos provider al form
+                  } as AppointmentConfigValue}
                   onChange={(patch) => setForm((f) => ({ ...f, ...(patch as Partial<FormState>) }))}
                 />
               ) : (
