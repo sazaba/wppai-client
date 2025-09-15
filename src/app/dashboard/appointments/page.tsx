@@ -5,7 +5,7 @@ import { useAuth } from "../../context/AuthContext";
 
 // Evita SSR para librarte de cualquier acceso a window/DOM en build
 const AppointmentsCalendar = dynamic(
-  () => import("../appointments/AppointmentsCalendar.tsx"),
+  () => import("../appointments/AppointmentsCalendar"),
   { ssr: false }
 );
 
