@@ -1,9 +1,10 @@
 'use client'
 
-import React from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
+import axios from 'axios'
 
 /* =======================
-   Tipos explícitos (UI)
+   Tipos UI (alineados a Prisma)
    ======================= */
 
 export type Weekday = 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat' | 'sun'
@@ -33,7 +34,6 @@ export type AppointmentConfigValue = {
   appointmentBufferMin: number
   appointmentPolicies?: string
   appointmentReminders: boolean
-  // filas por día (si ya las traes del backend puedes mapearlas a esto)
   hours?: AppointmentDay[]
 }
 
@@ -43,8 +43,18 @@ type Props = {
 }
 
 /* =======================
-   Helpers / UI inputs
+   Helpers / Inputs
    ======================= */
+
+const API_URL = (process.env.NEXT_PUBLIC_API_URL || '') as string
+
+function getAuthHeaders(): Record<string, string> {
+  if (typeof window === 'undefined') return {}
+  const token = localStorage.getItem('token')
+  return token ? { Authorization: `Bearer ${token}` } : {}
+}
+
+const DAYS: Weekday[] = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']
 
 const dayLabel: Record<Weekday, string> = {
   mon: 'Lunes',
@@ -54,6 +64,44 @@ const dayLabel: Record<Weekday, string> = {
   fri: 'Viernes',
   sat: 'Sábado',
   sun: 'Domingo',
+}
+
+function emptyWeek(): AppointmentDay[] {
+  return DAYS.map((d) => ({
+    day: d,
+    isOpen: false,
+    start1: null,
+    end1: null,
+    start2: null,
+    end2: null,
+  }))
+}
+
+/** Normaliza a 7 filas y limpia horas cuando isOpen=false */
+function normalizeDays(days?: AppointmentDay[]): AppointmentDay[] {
+  const base = new Map<Weekday, AppointmentDay>()
+  for (const d of DAYS) {
+    base.set(d, { day: d, isOpen: false, start1: null, end1: null, start2: null, end2: null })
+  }
+  if (Array.isArray(days)) {
+    for (const it of days) {
+      const k = it.day as Weekday
+      if (!DAYS.includes(k)) continue
+      if (it.isOpen) {
+        base.set(k, {
+          day: k,
+          isOpen: true,
+          start1: it.start1 ?? null,
+          end1: it.end1 ?? null,
+          start2: it.start2 ?? null,
+          end2: it.end2 ?? null,
+        })
+      } else {
+        base.set(k, { day: k, isOpen: false, start1: null, end1: null, start2: null, end2: null })
+      }
+    }
+  }
+  return DAYS.map((d) => base.get(d)!)
 }
 
 function TimeInput({
@@ -85,24 +133,82 @@ function TimeInput({
 
 export default function AppointmentForm({ value, onChange }: Props) {
   const v = value
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
-  // Creamos un arreglo de 7 días si no viene desde arriba
-  const rows: AppointmentDay[] =
-    v.hours && v.hours.length
-      ? v.hours
-      : (['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as Weekday[]).map((d) => ({
-          day: d,
-          isOpen: false,
-          start1: null,
-          end1: null,
-          start2: null,
-          end2: null,
-        }))
+  // 1) Garantiza que siempre haya 7 filas una sola vez
+  useEffect(() => {
+    if (!v.hours || v.hours.length !== 7) {
+      onChange({ hours: emptyWeek() })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []) // solo al montar
 
-  // Actualiza una fila por día
+  // 2) Memo de filas (si no hay, mostramos una semana vacía
+  // mientras el padre recibe el onChange inicial)
+  const rows: AppointmentDay[] = useMemo(() => {
+    return v.hours && v.hours.length === 7 ? v.hours : emptyWeek()
+  }, [v.hours])
+
+  // 3) Actualiza una fila por día (inmutable + estable)
   function updateDay(day: Weekday, patch: Partial<AppointmentDay>) {
     const next = rows.map((r) => (r.day === day ? { ...r, ...patch } : r))
     onChange({ hours: next })
+  }
+
+  // 4) Toggle de día: limpia horas si se cierra
+  function toggleDay(day: Weekday, isOpen: boolean) {
+    if (!isOpen) {
+      updateDay(day, { isOpen: false, start1: null, end1: null, start2: null, end2: null })
+    } else {
+      updateDay(day, { isOpen: true })
+    }
+  }
+
+  const disabledAll = !v.appointmentEnabled
+
+  /* =======================
+     Guardar (config + hours)
+     ======================= */
+  async function handleSave() {
+    setError(null)
+    setSaving(true)
+    try {
+      // Aviso suave si la agenda está activa pero no hay días abiertos
+      const hasOpen = (v.hours || []).some((d) => d.isOpen)
+      if (v.appointmentEnabled && !hasOpen) {
+        console.warn('Agenda activa sin días abiertos. Se guardará como cerrado en todos los días.')
+      }
+
+      const headers = { ...getAuthHeaders() }
+
+      // 1) PATCH business-config (solo campos de agenda)
+      await axios.patch(
+        `${API_URL}/api/business-config`,
+        {
+          appointmentEnabled: !!v.appointmentEnabled,
+          appointmentVertical: v.appointmentVertical,
+          appointmentTimezone: v.appointmentTimezone || 'America/Bogota',
+          appointmentBufferMin: Number.isFinite(v.appointmentBufferMin) ? v.appointmentBufferMin : 10,
+          appointmentPolicies: v.appointmentPolicies ?? '',
+          appointmentReminders: !!v.appointmentReminders,
+        },
+        { headers }
+      )
+
+      // 2) PUT appointment-hours (7 filas)
+      const days = normalizeDays(v.hours)
+      await axios.put(`${API_URL}/api/appointment-hours`, { days }, { headers })
+
+      alert('Configuración de agenda guardada ✅')
+    } catch (e: any) {
+      console.error('[AppointmentForm] guardar agenda error:', e)
+      const msg = e?.response?.data?.error || e?.message || 'No se pudo guardar la agenda'
+      setError(msg)
+      alert(`❌ ${msg}`)
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
@@ -132,6 +238,7 @@ export default function AppointmentForm({ value, onChange }: Props) {
               value={v.appointmentVertical}
               onChange={(e) => onChange({ appointmentVertical: e.target.value as Vertical })}
               className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-violet-600"
+              disabled={disabledAll}
             >
               <option value="none">Genérico</option>
               <option value="salud">Salud</option>
@@ -150,6 +257,7 @@ export default function AppointmentForm({ value, onChange }: Props) {
               value={v.appointmentTimezone}
               onChange={(e) => onChange({ appointmentTimezone: e.target.value })}
               placeholder="America/Bogota"
+              disabled={disabledAll}
               className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-600"
             />
           </label>
@@ -161,6 +269,7 @@ export default function AppointmentForm({ value, onChange }: Props) {
               min={0}
               value={Number.isFinite(v.appointmentBufferMin) ? v.appointmentBufferMin : 0}
               onChange={(e) => onChange({ appointmentBufferMin: Number(e.target.value || 0) })}
+              disabled={disabledAll}
               className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-violet-600"
             />
           </label>
@@ -170,6 +279,7 @@ export default function AppointmentForm({ value, onChange }: Props) {
             <select
               value={v.appointmentReminders ? '1' : '0'}
               onChange={(e) => onChange({ appointmentReminders: e.target.value === '1' })}
+              disabled={disabledAll}
               className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-violet-600"
             >
               <option value="1">Activados</option>
@@ -186,6 +296,7 @@ export default function AppointmentForm({ value, onChange }: Props) {
             value={v.appointmentPolicies || ''}
             onChange={(e) => onChange({ appointmentPolicies: e.target.value })}
             placeholder="Ej: Llegar 10 minutos antes. Cancelaciones con 24h de antelación."
+            disabled={disabledAll}
             className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-600"
           />
         </label>
@@ -198,15 +309,18 @@ export default function AppointmentForm({ value, onChange }: Props) {
 
           <div className="divide-y divide-slate-800">
             {rows.map((r) => {
-              const disabled = !v.appointmentEnabled
+              const disabled = disabledAll
               return (
-                <div key={r.day} className="p-3 grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] gap-3">
+                <div
+                  key={r.day}
+                  className="p-3 grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] gap-3"
+                >
                   <div className="flex items-center gap-3">
                     <input
                       type="checkbox"
                       className="h-5 w-5 accent-violet-600"
-                      checked={r.isOpen}
-                      onChange={(e) => updateDay(r.day, { isOpen: e.target.checked })}
+                      checked={!!r.isOpen}
+                      onChange={(e) => toggleDay(r.day, e.target.checked)}
                       disabled={disabled}
                     />
                     <div className="text-sm">{dayLabel[r.day]}</div>
@@ -242,6 +356,18 @@ export default function AppointmentForm({ value, onChange }: Props) {
               )
             })}
           </div>
+        </div>
+
+        {/* Botón Guardar */}
+        <div className="flex items-center justify-end gap-3 pt-2">
+          {error && <span className="text-xs text-rose-400">{error}</span>}
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="inline-flex items-center rounded-xl bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-500 disabled:opacity-60"
+          >
+            {saving ? 'Guardando…' : 'Guardar agenda'}
+          </button>
         </div>
       </div>
     </div>
