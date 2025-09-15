@@ -30,6 +30,19 @@ function getAuthHeaders(): Record<string, string> {
   return token ? { Authorization: `Bearer ${token}` } : {}
 }
 
+/** 👉 Extiende el formulario base con los campos de citas (sin appointmentWorkHours) */
+type Vertical = 'none' | 'salud' | 'bienestar' | 'automotriz' | 'veterinaria' | 'fitness' | 'otros'
+type FormState = ConfigForm & {
+  appointmentEnabled: boolean
+  appointmentVertical: Vertical
+  appointmentTimezone: string
+  appointmentBufferMin: number
+  appointmentPolicies?: string
+  appointmentReminders: boolean
+}
+
+const moneyOrEmpty = (v: unknown): number | '' => (typeof v === 'number' ? v : '')
+
 export default function ModalEntrenamiento({
   trainingActive,
   onClose,
@@ -45,7 +58,7 @@ export default function ModalEntrenamiento({
 
   // Tabs
   const initialBT = (initialConfig?.businessType as BusinessType) || 'servicios'
-  const [tab, setTab] = useState<EditorTab>('servicios') // arranca en Servicios por defecto
+  const [tab, setTab] = useState<EditorTab>('servicios')
 
   // Pasos (solo productos)
   const [step, setStep] = useState(0)
@@ -57,7 +70,7 @@ export default function ModalEntrenamiento({
   // Form principal + agenda
   const [businessType, setBusinessType] = useState<BusinessType>(initialBT)
 
-  const emptyForm = {
+  const emptyForm: FormState = {
     // base
     nombre: initialConfig?.nombre || '',
     descripcion: initialConfig?.descripcion || '',
@@ -89,10 +102,8 @@ export default function ModalEntrenamiento({
     // envío
     envioTipo: initialConfig?.envioTipo || '',
     envioEntregaEstimado: initialConfig?.envioEntregaEstimado || '',
-    envioCostoFijo:
-      typeof initialConfig?.envioCostoFijo === 'number' ? initialConfig!.envioCostoFijo : initialConfig?.envioCostoFijo === '' ? '' : '',
-    envioGratisDesde:
-      typeof initialConfig?.envioGratisDesde === 'number' ? initialConfig!.envioGratisDesde : initialConfig?.envioGratisDesde === '' ? '' : '',
+    envioCostoFijo: moneyOrEmpty(initialConfig?.envioCostoFijo),
+    envioGratisDesde: moneyOrEmpty(initialConfig?.envioGratisDesde),
 
     // pagos
     pagoLinkGenerico: initialConfig?.pagoLinkGenerico || '',
@@ -110,21 +121,21 @@ export default function ModalEntrenamiento({
     soporteDevolucionesInfo: initialConfig?.soporteDevolucionesInfo || '',
 
     // escalamiento
-    escalarSiNoConfia: typeof initialConfig?.escalarSiNoConfia === 'boolean' ? initialConfig!.escalarSiNoConfia : true,
+    escalarSiNoConfia:
+      typeof initialConfig?.escalarSiNoConfia === 'boolean' ? initialConfig!.escalarSiNoConfia : true,
     escalarPalabrasClave: initialConfig?.escalarPalabrasClave || '',
     escalarPorReintentos: Number(initialConfig?.escalarPorReintentos || 0),
 
     // citas / agenda
     appointmentEnabled: (initialConfig as any)?.appointmentEnabled ?? false,
-    appointmentVertical: (initialConfig as any)?.appointmentVertical ?? 'none',
+    appointmentVertical: ((initialConfig as any)?.appointmentVertical as Vertical) ?? 'none',
     appointmentTimezone: (initialConfig as any)?.appointmentTimezone ?? 'America/Bogota',
     appointmentBufferMin: (initialConfig as any)?.appointmentBufferMin ?? 10,
-    appointmentWorkHours: (initialConfig as any)?.appointmentWorkHours ?? null,
     appointmentPolicies: (initialConfig as any)?.appointmentPolicies ?? '',
     appointmentReminders: (initialConfig as any)?.appointmentReminders ?? true,
-  } satisfies Partial<ConfigForm> & Record<string, any>
+  }
 
-  const [form, setForm] = useState<typeof emptyForm>(emptyForm)
+  const [form, setForm] = useState<FormState>(emptyForm)
 
   // Catálogo
   const [productos, setProductos] = useState<Producto[]>([])
@@ -143,7 +154,10 @@ export default function ModalEntrenamiento({
   const [uploadingCardIndex, setUploadingCardIndex] = useState<number | null>(null)
   const [savingIndex, setSavingIndex] = useState<number | null>(null)
 
-  const close = () => { setOpen(false); onClose?.() }
+  const close = () => {
+    setOpen(false)
+    onClose?.()
+  }
 
   // Upload imagen
   async function uploadImageFile(productId: number, file: File, alt?: string, isPrimary?: boolean) {
@@ -171,7 +185,12 @@ export default function ModalEntrenamiento({
     }
   }
 
-  async function deleteImageOnCard(productId: number, imageId: number, cardIndex: number, imageIndex: number) {
+  async function deleteImageOnCard(
+    productId: number,
+    imageId: number,
+    cardIndex: number,
+    imageIndex: number
+  ) {
     // Optimista
     setProductos((list) => {
       const copy = [...list]
@@ -183,7 +202,9 @@ export default function ModalEntrenamiento({
       return copy
     })
     try {
-      await axios.delete(`${API_URL}/api/products/${productId}/images/${imageId}`, { headers: getAuthHeaders() })
+      await axios.delete(`${API_URL}/api/products/${productId}/images/${imageId}`, {
+        headers: getAuthHeaders(),
+      })
     } catch (e: any) {
       setErrorMsg(e?.response?.data?.error || 'No se pudo eliminar la imagen.')
       await loadCatalog()
@@ -220,7 +241,14 @@ export default function ModalEntrenamiento({
           imagenes: [],
         },
       ])
-      setNuevoProd({ nombre: '', descripcion: '', beneficios: '', caracteristicas: '', precioDesde: null, imagenes: [] })
+      setNuevoProd({
+        nombre: '',
+        descripcion: '',
+        beneficios: '',
+        caracteristicas: '',
+        precioDesde: null,
+        imagenes: [],
+      })
       setErrorMsg(null)
     } catch (e: any) {
       setErrorMsg(e?.response?.data?.error || 'No se pudo crear el producto.')
@@ -240,12 +268,19 @@ export default function ModalEntrenamiento({
     }
   }
 
-  function startEdit(idx: number) { setEditingIndex(idx) }
-  function cancelEdit() { setEditingIndex(null) }
+  function startEdit(idx: number) {
+    setEditingIndex(idx)
+  }
+  function cancelEdit() {
+    setEditingIndex(null)
+  }
 
   async function saveProduct(idx: number, patch: Partial<Producto>) {
     const prod = productos[idx]
-    if (!prod?.id) { setEditingIndex(null); return }
+    if (!prod?.id) {
+      setEditingIndex(null)
+      return
+    }
     try {
       setSavingIndex(idx)
       await axios.put(
@@ -255,15 +290,23 @@ export default function ModalEntrenamiento({
           descripcion: patch.descripcion ?? prod.descripcion,
           beneficios: patch.beneficios ?? prod.beneficios,
           caracteristicas: patch.caracteristicas ?? prod.caracteristicas,
-          precioDesde: typeof patch.precioDesde !== 'undefined' ? patch.precioDesde : prod.precioDesde ?? null,
+          precioDesde:
+            typeof patch.precioDesde !== 'undefined' ? patch.precioDesde : prod.precioDesde ?? null,
         } as any,
         { headers: getAuthHeaders() }
       )
-      setProductos((list) => { const copy = [...list]; copy[idx] = { ...copy[idx], ...patch }; return copy })
-      setEditingIndex(null); setErrorMsg(null)
+      setProductos((list) => {
+        const copy = [...list]
+        copy[idx] = { ...copy[idx], ...patch }
+        return copy
+      })
+      setEditingIndex(null)
+      setErrorMsg(null)
     } catch (e: any) {
       setErrorMsg(e?.response?.data?.error || 'No se pudo guardar la edición.')
-    } finally { setSavingIndex(null) }
+    } finally {
+      setSavingIndex(null)
+    }
   }
 
   // fetch catálogo
@@ -280,11 +323,14 @@ export default function ModalEntrenamiento({
         precioDesde: p.precioDesde ?? null,
         imagenes: (p.imagenes || []).map((img: any) => ({ id: img.id, url: img.url, alt: img.alt || '' })),
       }))
-      setProductos(mapped); setCatalogLoaded(true)
+      setProductos(mapped)
+      setCatalogLoaded(true)
     } catch (e) {
       console.error('[loadCatalog] error:', e)
       setCatalogLoaded(false)
-    } finally { setReloading(false) }
+    } finally {
+      setReloading(false)
+    }
   }
 
   // Apertura
@@ -292,14 +338,16 @@ export default function ModalEntrenamiento({
     if (!open) return
     setBusinessType((initialConfig?.businessType as BusinessType) || 'servicios')
     setForm({ ...emptyForm })
-    setStep(0); setErrorMsg(null)
-    // por defecto, no cargamos catálogo hasta que elija "Productos"
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    setStep(0)
+    setErrorMsg(null)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open])
 
   // Cambio de tab
   async function handleChangeTab(nextTab: EditorTab) {
-    setTab(nextTab); setStep(0); setErrorMsg(null)
+    setTab(nextTab)
+    setStep(0)
+    setErrorMsg(null)
     if (nextTab === 'productos') {
       setBusinessType('productos')
       setForm((f) => ({ ...f, businessType: 'productos', aiMode: 'ecommerce' }))
@@ -317,23 +365,26 @@ export default function ModalEntrenamiento({
   // Guardados
   async function guardarTodo() {
     try {
-      setSaving(true); setErrorMsg(null)
+      setSaving(true)
+      setErrorMsg(null)
       const payload: any = { ...form, businessType }
       if (payload.envioCostoFijo === '') payload.envioCostoFijo = null
       if (payload.envioGratisDesde === '') payload.envioGratisDesde = null
-      // aiMode depende del tab productos (ecommerce) o del propio formulario
       payload.aiMode = tab === 'productos' ? ('ecommerce' as AiMode) : payload.aiMode
       await axios.put(`${API_URL}/api/config`, payload, { headers: getAuthHeaders() })
       if (tab === 'productos') await loadCatalog()
       close()
     } catch (e: any) {
       setErrorMsg(e?.response?.data?.error || e?.message || 'Error guardando cambios.')
-    } finally { setSaving(false) }
+    } finally {
+      setSaving(false)
+    }
   }
 
   async function guardarAgente() {
     try {
-      setSaving(true); setErrorMsg(null)
+      setSaving(true)
+      setErrorMsg(null)
       const payload = {
         aiMode: 'agente' as AiMode,
         agentSpecialty: form.agentSpecialty,
@@ -345,7 +396,9 @@ export default function ModalEntrenamiento({
       close()
     } catch (e: any) {
       setErrorMsg(e?.response?.data?.error || e?.message || 'Error guardando el agente.')
-    } finally { setSaving(false) }
+    } finally {
+      setSaving(false)
+    }
   }
 
   // Render
@@ -430,15 +483,14 @@ export default function ModalEntrenamiento({
               ) : tab === 'citas' ? (
                 <AppointmentForm
                   value={{
-                    appointmentEnabled: (form as any).appointmentEnabled,
-                    appointmentVertical: (form as any).appointmentVertical,
-                    appointmentTimezone: (form as any).appointmentTimezone,
-                    appointmentBufferMin: (form as any).appointmentBufferMin,
-                    appointmentWorkHours: (form as any).appointmentWorkHours,
-                    appointmentPolicies: (form as any).appointmentPolicies,
-                    appointmentReminders: (form as any).appointmentReminders,
+                    appointmentEnabled: form.appointmentEnabled,
+                    appointmentVertical: form.appointmentVertical,
+                    appointmentTimezone: form.appointmentTimezone,
+                    appointmentBufferMin: form.appointmentBufferMin,
+                    appointmentPolicies: form.appointmentPolicies,
+                    appointmentReminders: form.appointmentReminders,
                   }}
-                  onChange={(patch) => setForm((f) => ({ ...f, ...(patch as any) }))}
+                  onChange={(patch) => setForm((f) => ({ ...f, ...(patch as Partial<FormState>) }))}
                 />
               ) : (
                 // servicios
