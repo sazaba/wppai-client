@@ -117,44 +117,31 @@ export default function SettingsPage() {
     try {
       if (typeof window !== 'undefined') {
         const ok = window.confirm(
-          '¿Reiniciar todo?\n\nSe eliminará la configuración actual del negocio y se limpiará la agenda (todos los días cerrados).'
+          '¿Reiniciar todo?\n\nSe eliminará la configuración actual del negocio y se limpiará la agenda.'
         )
         if (!ok) return
       }
-
-      // 1) Reset de config (y catálogo)
+  
+      // ✅ UNA sola llamada: borra BusinessConfig + AppointmentHour (+ catálogo si se pide)
       await axios.post(
         `${API_URL}/api/config/reset`,
         null,
-        { params: { withCatalog: true }, headers: getAuthHeaders() }
-      )
-
-      // 2) Reset de agenda: apagar + 7 días cerrados
-      await axios.post(
-        `${API_URL}/api/appointments/config`,
         {
-          appointment: {
-            enabled: false,
-            vertical: 'none',
-            timezone: 'America/Bogota',
-            bufferMin: 10,
-            policies: '',
-            reminders: true,
-          },
-          hours: emptyHoursForReset(),
-          provider: null,
-        },
-        { headers: getAuthHeaders() }
+          params: { withCatalog: true /*, withAppointments: true (default true en backend)*/ },
+          headers: getAuthHeaders()
+        }
       )
-
+  
+      // Estado limpio en UI
       setConfigGuardada(null)
       setForm(DEFAULTS)
-      setTrainingActive(true)
+      setTrainingActive(true) // abre el modal pero NO guarda nada por sí solo
     } catch (e: any) {
       console.error('[reiniciarEntrenamiento] error:', e?.response?.data || e?.message || e)
       alert('Error al reiniciar configuración')
     }
   }
+  
 
   if (loading) return <p className="p-8 text-slate-300">Cargando configuración...</p>
 
