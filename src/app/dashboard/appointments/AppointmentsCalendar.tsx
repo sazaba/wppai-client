@@ -7,11 +7,13 @@ import {
   Clock, User, Check, X, Edit, Trash
 } from "lucide-react";
 import { motion } from "framer-motion";
+import { useAuth } from "../../context/AuthContext"; // ⬅️ ajusta la ruta si difiere
 
 /* ---------- helpers ---------- */
 const cx = (...c: (string | false | undefined)[]) => c.filter(Boolean).join(" ");
 const fmtKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
 const hhmm = (d: Date) => new Intl.DateTimeFormat("es-CO",{hour:"2-digit",minute:"2-digit",hour12:false}).format(d);
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
 
 /* ---------- UI Primitives ---------- */
 function Button(
@@ -41,6 +43,45 @@ function Dialog({ open, onClose, children }: { open: boolean; onClose: () => voi
   );
 }
 
+/* ---------- Inputs (placeholders visibles en dark) ---------- */
+function Input(
+  { label, type="text", value, onChange, placeholder }:
+  { label:string; type?:string; value:string; onChange:(v:string)=>void; placeholder?:string }
+){
+  return (
+    <label className="space-y-1">
+      <span className="text-xs text-white/80">{label}</span>
+      <input
+        type={type}
+        value={value}
+        onChange={(e)=>onChange(e.target.value)}
+        placeholder={placeholder}
+        className="w-full rounded-xl border border-white/15 bg-zinc-900 px-3 py-2 text-sm text-white
+                   placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+      />
+    </label>
+  );
+}
+
+function TextArea(
+  { label, value, onChange, placeholder }:
+  { label:string; value:string; onChange:(v:string)=>void; placeholder?:string }
+){
+  return (
+    <label className="space-y-1 sm:col-span-2">
+      <span className="text-xs text-white/80">{label}</span>
+      <textarea
+        rows={3}
+        value={value}
+        onChange={(e)=>onChange(e.target.value)}
+        placeholder={placeholder}
+        className="w-full rounded-xl border border-white/15 bg-zinc-900 px-3 py-2 text-sm text-white
+                   placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+      />
+    </label>
+  );
+}
+
 /* ---------- Types ---------- */
 export type Appointment = {
   id: number;
@@ -53,13 +94,41 @@ export type Appointment = {
   startAt: string; // ISO
   endAt: string;   // ISO
   notas?: string | null;
-  status?: "pending" | "confirmed" | "cancelled" | "completed" | "no_show";
+  status?: "pending" | "confirmed" | "rescheduled" | "cancelled" | "completed" | "no_show";
 };
 
+/* ---------- API helpers ---------- */
+async function api<T>(path: string, init?: RequestInit, token?: string): Promise<T> {
+  const res = await fetch(`${API_URL}${path}`, {
+    ...init,
+    headers: {
+      "Content-Type": "application/json",
+      ...(init?.headers || {}),
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    credentials: "include",
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+function qs(params: Record<string, any>) {
+  const u = new URLSearchParams();
+  Object.entries(params).forEach(([k, v]) => {
+    if (v === undefined || v === null || v === "") return;
+    u.append(k, String(v));
+  });
+  return u.toString();
+}
+
 /* ---------- Component ---------- */
-export default function AppointmentsCalendar({ empresaId }: { empresaId: number }) {
+export default function AppointmentsCalendar({ empresaId }: { empresaId?: number }) {
+  const { token, usuario } = useAuth();
+  const effEmpresaId = empresaId ?? usuario?.empresaId;
+
   const [current, setCurrent] = useState(() => new Date());
   const [events, setEvents] = useState<Appointment[]>([]);
+  const [loading, setLoading] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
   const [editing, setEditing] = useState<Appointment | null>(null);
 
@@ -90,34 +159,70 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId: number 
 
   const week = ["Lun","Mar","Mié","Jue","Vie","Sáb","Dom"];
 
-  /* ---------- CRUD helpers (mock locales) ---------- */
-  function addAppointment(data: {
+  /* ---------- Load appointments from backend ---------- */
+  useEffect(() => {
+    if (!effEmpresaId || !token) return;
+    const first = new Date(current.getFullYear(), current.getMonth(), 1);
+    const last  = new Date(current.getFullYear(), current.getMonth()+1, 0);
+    const from  = new Date(first); from.setHours(0,0,0,0);
+    const to    = new Date(last);  to.setHours(23,59,59,999);
+
+    (async () => {
+      try {
+        setLoading(true);
+        const query = qs({ empresaId: effEmpresaId, from: from.toISOString(), to: to.toISOString() });
+        const data = await api<Appointment[]>(`/api/appointments?${query}`, { method: "GET" }, token);
+        setEvents(data);
+      } catch (e) {
+        console.error("[appointments load]", e);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [current, effEmpresaId, token]);
+
+  /* ---------- CRUD wired to backend ---------- */
+  async function addAppointment(data: {
     name: string; phone: string;
     service: string; sede?: string; provider?: string;
     startISO: string; durationMin?: number; notes?: string;
   }) {
+    if (!effEmpresaId || !token) return;
     const start = new Date(data.startISO);
     const end = new Date(start.getTime() + (data.durationMin ?? 30) * 60_000);
-    const appt: Appointment = {
-      id: Date.now(),
-      empresaId,
+
+    const body = {
+      empresaId: effEmpresaId,
       customerName: data.name,
       customerPhone: data.phone,
       serviceName: data.service,
-      sedeName: data.sede || null,
-      providerName: data.provider || null,
+      notas: data.notes || null,
       startAt: start.toISOString(),
       endAt: end.toISOString(),
-      notas: data.notes || null,
-      status: "pending",
+      timezone: "America/Bogota",
+      // sedeId, serviceId, providerId → cuando tengas catálogos reales
     };
-    setEvents(prev=>[...prev, appt]);
+
+    const created = await api<Appointment>(`/api/appointments?${qs({ empresaId: effEmpresaId })}`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }, token);
+
+    setEvents((prev) => [...prev, created]);
   }
 
-  function updateAppointment(id: number, patch: Partial<Appointment>) {
-    setEvents(prev => prev.map(e => e.id === id ? { ...e, ...patch } : e));
+  async function updateAppointment(id: number, patch: Partial<Appointment>) {
+    if (!effEmpresaId || !token) return;
+    const updated = await api<Appointment>(`/api/appointments/${id}?${qs({ empresaId: effEmpresaId })}`, {
+      method: "PUT",
+      body: JSON.stringify(patch),
+    }, token);
+    setEvents(prev => prev.map(e => e.id === id ? updated : e));
   }
-  function deleteAppointment(id: number) {
+
+  async function deleteAppointment(id: number) {
+    if (!effEmpresaId || !token) return;
+    await api<{ok:true}>(`/api/appointments/${id}?${qs({ empresaId: effEmpresaId })}`, { method: "DELETE" }, token);
     setEvents(prev => prev.filter(e => e.id !== id));
   }
 
@@ -196,11 +301,20 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId: number 
         </div>
       </div>
 
+      {/* Loading overlay */}
+      {loading && (
+        <div className="fixed inset-0 z-40 grid place-items-center bg-black/20 backdrop-blur-sm">
+          <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="rounded-2xl bg-zinc-900 px-4 py-3 text-white shadow-xl border border-white/10">
+            <div className="flex items-center gap-2"><CalendarIcon className="h-4 w-4" /> Cargando citas…</div>
+          </motion.div>
+        </div>
+      )}
+
       {/* Crear cita */}
       <Dialog open={showCreate} onClose={()=>setShowCreate(false)}>
         <CreateForm
           onCancel={()=>setShowCreate(false)}
-          onSave={(data)=>{ addAppointment(data); setShowCreate(false); }}
+          onSave={async (data)=>{ await addAppointment(data); setShowCreate(false); }}
         />
       </Dialog>
 
@@ -210,7 +324,14 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId: number 
           <EditForm
             appt={editing}
             onCancel={()=>setEditing(null)}
-            onSave={(patch)=>{ updateAppointment(editing.id, patch); setEditing(null); }}
+            onSave={async (patch)=>{
+              // Mantener duración original
+              const durMs = new Date(editing.endAt).getTime() - new Date(editing.startAt).getTime();
+              const newStart = patch.startAt ? new Date(patch.startAt) : new Date(editing.startAt);
+              const newEnd = new Date(newStart.getTime() + durMs);
+              await updateAppointment(editing.id, { ...patch, endAt: newEnd.toISOString() });
+              setEditing(null);
+            }}
           />
         )}
       </Dialog>
@@ -228,7 +349,7 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId: number 
 function CreateForm({
   onSave, onCancel
 }:{
-  onSave:(d:{name:string;phone:string;service:string;sede?:string;provider?:string;startISO:string;durationMin?:number;notes?:string;})=>void;
+  onSave:(d:{name:string;phone:string;service:string;sede?:string;provider?:string;startISO:string;durationMin?:number;notes?:string;})=>Promise<void>|void;
   onCancel:()=>void;
 }) {
   const [form, setForm] = useState({
@@ -238,7 +359,7 @@ function CreateForm({
 
   return (
     <form
-      onSubmit={(e)=>{ e.preventDefault(); onSave(form); }}
+      onSubmit={async (e)=>{ e.preventDefault(); await onSave(form); }}
       className="space-y-4 text-white"
     >
       <h2 className="text-lg font-semibold flex items-center gap-2"><CalendarIcon className="h-5 w-5"/> Crear nueva cita</h2>
@@ -274,7 +395,7 @@ function EditForm({
   appt, onSave, onCancel
 }:{
   appt: Appointment;
-  onSave:(patch:Partial<Appointment>)=>void;
+  onSave:(patch:Partial<Appointment>)=>Promise<void>|void;
   onCancel:()=>void;
 }) {
   const [name,setName] = useState(appt.customerName);
@@ -285,7 +406,7 @@ function EditForm({
 
   return (
     <form
-      onSubmit={(e)=>{ e.preventDefault(); onSave({
+      onSubmit={async (e)=>{ e.preventDefault(); await onSave({
         customerName:name, customerPhone:phone, serviceName:service,
         startAt:new Date(start).toISOString(), notas:notes
       }); }}
@@ -304,44 +425,5 @@ function EditForm({
         <Button type="submit"><Check className="h-4 w-4"/> Guardar cambios</Button>
       </div>
     </form>
-  );
-}
-
-/* ---------- Inputs (placeholders visibles en dark) ---------- */
-function Input(
-  { label, type="text", value, onChange, placeholder }:
-  { label:string; type?:string; value:string; onChange:(v:string)=>void; placeholder?:string }
-){
-  return (
-    <label className="space-y-1">
-      <span className="text-xs text-white/80">{label}</span>
-      <input
-        type={type}
-        value={value}
-        onChange={(e)=>onChange(e.target.value)}
-        placeholder={placeholder}
-        className="w-full rounded-xl border border-white/15 bg-zinc-900 px-3 py-2 text-sm text-white
-                   placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-      />
-    </label>
-  );
-}
-
-function TextArea(
-  { label, value, onChange, placeholder }:
-  { label:string; value:string; onChange:(v:string)=>void; placeholder?:string }
-){
-  return (
-    <label className="space-y-1 sm:col-span-2">
-      <span className="text-xs text-white/80">{label}</span>
-      <textarea
-        rows={3}
-        value={value}
-        onChange={(e)=>onChange(e.target.value)}
-        placeholder={placeholder}
-        className="w-full rounded-xl border border-white/15 bg-zinc-900 px-3 py-2 text-sm text-white
-                   placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-      />
-    </label>
   );
 }
