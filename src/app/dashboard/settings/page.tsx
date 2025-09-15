@@ -6,7 +6,6 @@ import axios from 'axios'
 import ModalEntrenamiento from './components/training/ModalEntrenamiento'
 import WhatsappConfig from './components/WhatsappConfig'
 
-// 👇 AJUSTA ESTA RUTA a donde pegaste el archivo de tipos
 import type {
   ConfigForm,
   BusinessType,
@@ -22,9 +21,8 @@ function getAuthHeaders(): Record<string, string> {
   return token ? { Authorization: `Bearer ${token}` } : {}
 }
 
-// Defaults que calzan con tu ConfigForm
+// Defaults acotados (dejamos el resto por compatibilidad con backend)
 const DEFAULTS: ConfigForm = {
-  // base
   nombre: '',
   descripcion: '',
   servicios: '',
@@ -32,12 +30,11 @@ const DEFAULTS: ConfigForm = {
   horarios: '',
   disclaimers: '',
   businessType: 'servicios',
-  aiMode: 'agente',                 // 'agente' | 'ecommerce'
+  aiMode: 'agente',
   agentSpecialty: 'generico',
   agentPrompt: '',
   agentScope: '',
   agentDisclaimers: '',
-  // operación (texto libre)
   enviosInfo: '',
   metodosPago: '',
   tiendaFisica: false,
@@ -48,14 +45,10 @@ const DEFAULTS: ConfigForm = {
   canalesAtencion: '',
   extras: '',
   palabrasClaveNegocio: '',
-
-  // envío (estructurado)
   envioTipo: '',
   envioEntregaEstimado: '',
-  envioCostoFijo: '',   // number | ''
-  envioGratisDesde: '', // number | ''
-
-  // pagos
+  envioCostoFijo: '',
+  envioGratisDesde: '',
   pagoLinkGenerico: '',
   pagoLinkProductoBase: '',
   pagoNotas: '',
@@ -65,43 +58,25 @@ const DEFAULTS: ConfigForm = {
   bancoNumeroCuenta: '',
   bancoDocumento: '',
   transferenciaQRUrl: '',
-
-  // post-venta
   facturaElectronicaInfo: '',
   soporteDevolucionesInfo: '',
-
-  // escalamiento
   escalarSiNoConfia: true,
   escalarPalabrasClave: '',
   escalarPorReintentos: 0,
 }
 
-// Serializa DECIMAL opcional (number|'') → number|null para API
-function serializeForApi(cfg: ConfigForm) {
-  return {
-    ...cfg,
-    envioCostoFijo: cfg.envioCostoFijo === '' ? null : Number(cfg.envioCostoFijo),
-    envioGratisDesde: cfg.envioGratisDesde === '' ? null : Number(cfg.envioGratisDesde),
-  }
-}
-
-// Normaliza lo que viene del backend (Partial<ConfigForm>) a ConfigForm del front
 function materializeConfig(data?: BackendBusinessConfig | null): ConfigForm {
   const d = data ?? {}
   return {
     ...DEFAULTS,
     ...d,
-    // Garantiza businessType
     businessType: (d.businessType as BusinessType) ?? DEFAULTS.businessType,
-    // Los decimales pueden venir null → inputs usan '' para permitir vaciar
     envioCostoFijo: (d as any)?.envioCostoFijo ?? '',
     envioGratisDesde: (d as any)?.envioGratisDesde ?? '',
-    // pagoNotas es string (no opcional en tu tipo)
     pagoNotas: d.pagoNotas ?? '',
   }
 }
 
-// horas vacías para limpiar agenda
 function emptyHoursForReset() {
   const days: Array<'mon'|'tue'|'wed'|'thu'|'fri'|'sat'|'sun'> = ['mon','tue','wed','thu','fri','sat','sun']
   return days.map((d) => ({
@@ -120,7 +95,6 @@ export default function SettingsPage() {
   const [trainingActive, setTrainingActive] = useState(false)
   const [loading, setLoading] = useState(true)
 
-  // Cargar config inicial
   useEffect(() => {
     const fetchConfig = async () => {
       try {
@@ -138,17 +112,17 @@ export default function SettingsPage() {
     fetchConfig()
   }, [])
 
-  // Reiniciar entrenamiento (borra config + catálogo y limpia agenda)
+  // 🔁 Reset total: borra BusinessConfig (y catálogo si existiera) + limpia Appointment Hours
   const reiniciarEntrenamiento = async () => {
     try {
       if (typeof window !== 'undefined') {
         const ok = window.confirm(
-          '¿Reiniciar el entrenamiento?\n\nSe eliminará la configuración actual y se abrirá el asistente. También se eliminará el catálogo y se limpiará la agenda.'
+          '¿Reiniciar todo?\n\nSe eliminará la configuración actual del negocio y se limpiará la agenda (todos los días cerrados).'
         )
         if (!ok) return
       }
 
-      // 1) Reset de config (y catálogo) según tu backend
+      // 1) Reset de config (y catálogo)
       await axios.post(
         `${API_URL}/api/config/reset`,
         null,
@@ -168,6 +142,7 @@ export default function SettingsPage() {
             reminders: true,
           },
           hours: emptyHoursForReset(),
+          provider: null,
         },
         { headers: getAuthHeaders() }
       )
@@ -190,7 +165,7 @@ export default function SettingsPage() {
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <h1 className="text-2xl font-bold text-white text-center">Entrenamiento de tu IA</h1>
 
-          {/* Selector de tipo de negocio: persistimos TODO el objeto */}
+          {/* Tipo de negocio (lo dejamos por compatibilidad; no afecta tabs) */}
           <div className="flex items-center gap-2">
             <label className="text-sm text-slate-300">Tipo de negocio</label>
             <select
@@ -202,7 +177,7 @@ export default function SettingsPage() {
                 try {
                   const { data } = await axios.put(
                     `${API_URL}/api/config`,
-                    serializeForApi(next),
+                    next,
                     { headers: getAuthHeaders() }
                   )
                   const safe = materializeConfig(data as BackendBusinessConfig)
@@ -261,7 +236,7 @@ export default function SettingsPage() {
                 className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg shadow"
               >
                 <RotateCw className="w-4 h-4" />
-                Reiniciar entrenamiento
+                Reiniciar todo
               </button>
             </div>
           </div>
@@ -270,10 +245,9 @@ export default function SettingsPage() {
         {/* Modal de entrenamiento */}
         <ModalEntrenamiento
           trainingActive={trainingActive}
-          initialConfig={form} // le pasamos TODO el objeto actual
+          initialConfig={form}
           onClose={async () => {
             setTrainingActive(false)
-            // Al cerrar, refrescamos la config del backend para sincronizar
             try {
               const { data } = await axios.get(`${API_URL}/api/config`, { headers: getAuthHeaders() })
               const safe = materializeConfig(data as BackendBusinessConfig)
@@ -283,9 +257,9 @@ export default function SettingsPage() {
           }}
         />
 
-        {/* Config WhatsApp */}
+        {/* Config WhatsApp / Conexión */}
         <WhatsappConfig />
-        <ActivatePhoneCard/>
+        <ActivatePhoneCard />
       </div>
     </div>
   )

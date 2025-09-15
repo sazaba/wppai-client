@@ -2,8 +2,8 @@
 
 import { memo } from 'react'
 
-// ⚠️ Tipo de tabs para la UI (independiente de la BD)
-export type EditorTab = 'servicios' | 'productos' | 'citas' | 'agente'
+// ✅ Tabs de la UI (solo las 2 que usamos)
+export type EditorTab = 'citas' | 'agente'
 
 type Props = {
   value: EditorTab
@@ -14,35 +14,13 @@ type Props = {
 function TypeTabsBase({ value, onChange, loading }: Props) {
   const base =
     'rounded-xl px-3 py-2 text-sm border transition disabled:opacity-60 disabled:cursor-not-allowed'
-
-  // misma util que ya usabas, solo reutilizamos con distintos colores
-  const btn = (active: boolean, color: 'emerald' | 'blue' | 'rose' | 'violet') =>
+  const btn = (active: boolean, color: 'rose' | 'violet') =>
     active
       ? `bg-${color}-600/20 border-${color}-500 text-${color}-200`
       : 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-800/70'
 
   return (
-    <div className="mb-4 grid grid-cols-2 sm:grid-cols-4 gap-2">
-      <button
-        type="button"
-        className={`${base} ${btn(value === 'servicios', 'emerald')}`}
-        onClick={() => onChange('servicios')}
-        disabled={loading || value === 'servicios'}
-        aria-pressed={value === 'servicios'}
-      >
-        Servicios
-      </button>
-
-      <button
-        type="button"
-        className={`${base} ${btn(value === 'productos', 'blue')}`}
-        onClick={() => onChange('productos')}
-        disabled={loading || value === 'productos'}
-        aria-pressed={value === 'productos'}
-      >
-        Productos
-      </button>
-
+    <div className="mb-4 grid grid-cols-2 gap-2">
       <button
         type="button"
         className={`${base} ${btn(value === 'citas', 'rose')}`}
