@@ -1,35 +1,25 @@
 'use client'
 
-import React, { useEffect, useMemo, useState } from 'react'
-import { saveAppointmentConfig, normalizeDays } from '@/lib/appointments'
+import { useMemo, useState } from 'react'
+import axios from 'axios'
+import { Check, Loader2 } from 'lucide-react'
 
-/* =======================
-   Tipos UI (alineados a Prisma)
-   ======================= */
-
+/* ================= Tipos exportados (coinciden con el padre) ================ */
 export type Weekday = 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat' | 'sun'
-export type Vertical =
-  | 'none'
-  | 'salud'
-  | 'bienestar'
-  | 'automotriz'
-  | 'veterinaria'
-  | 'fitness'
-  | 'otros'
+export type Vertical = 'none' | 'salud' | 'bienestar' | 'automotriz' | 'veterinaria' | 'fitness' | 'otros'
 
 export type AppointmentDay = {
   day: Weekday
   isOpen: boolean
-  // HH:MM (24h) o null si vacío
-  start1?: string | null
-  end1?: string | null
-  start2?: string | null
-  end2?: string | null
+  start1: string | null
+  end1: string | null
+  start2: string | null
+  end2: string | null
 }
 
 export type ProviderInput = {
   id?: number
-  nombre?: string          // opcional en el front; si viene vacío no se envía al backend
+  nombre: string
   email?: string
   phone?: string
   cargo?: string
@@ -45,7 +35,6 @@ export type AppointmentConfigValue = {
   appointmentPolicies?: string
   appointmentReminders: boolean
   hours?: AppointmentDay[]
-  /** Nuevo: agente/proveedor opcional */
   provider?: ProviderInput | null
 }
 
@@ -54,9 +43,17 @@ type Props = {
   onChange: (patch: Partial<AppointmentConfigValue>) => void
 }
 
-const DAYS: Weekday[] = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']
+/* ================= Helpers locales ================= */
+const API_URL = (process.env.NEXT_PUBLIC_API_URL || '') as string
 
-const dayLabel: Record<Weekday, string> = {
+function getAuthHeaders(): Record<string, string> {
+  if (typeof window === 'undefined') return {}
+  const token = localStorage.getItem('token')
+  return token ? { Authorization: `Bearer ${token}` } : {}
+}
+
+const ORDER: Weekday[] = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']
+const DAY_LABEL: Record<Weekday, string> = {
   mon: 'Lunes',
   tue: 'Martes',
   wed: 'Miércoles',
@@ -66,382 +63,416 @@ const dayLabel: Record<Weekday, string> = {
   sun: 'Domingo',
 }
 
-function emptyWeek(): AppointmentDay[] {
-  return DAYS.map((d) => ({
-    day: d,
-    isOpen: false,
-    start1: null,
-    end1: null,
-    start2: null,
-    end2: null,
-  }))
-}
+const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/
+const isHHMM = (s?: string | null) => !!(s && HHMM.test(s))
 
-function TimeInput({
-  value,
-  onChange,
-  placeholder,
-  disabled,
-}: {
-  value?: string | null
-  onChange: (val: string | null) => void
-  placeholder?: string
-  disabled?: boolean
-}) {
-  return (
-    <input
-      type="time"
-      value={value ?? ''}
-      onChange={(e) => onChange(e.target.value ? e.target.value : null)}
-      placeholder={placeholder}
-      disabled={disabled}
-      className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-600 disabled:opacity-50"
-    />
-  )
-}
-
-/* =======================
-   Componente principal
-   ======================= */
-
-export default function AppointmentForm({ value, onChange }: Props) {
-  const v = value
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-
-  // 1) Garantiza que siempre haya 7 filas una sola vez
-  useEffect(() => {
-    if (!v.hours || v.hours.length !== 7) {
-      onChange({ hours: emptyWeek() })
+function normalizeHours(rows?: AppointmentDay[] | null): AppointmentDay[] {
+  const base = new Map<Weekday, AppointmentDay>()
+  for (const d of ORDER) {
+    base.set(d, { day: d, isOpen: false, start1: null, end1: null, start2: null, end2: null })
+  }
+  if (Array.isArray(rows)) {
+    for (const r of rows) {
+      if (!ORDER.includes(r.day)) continue
+      base.set(r.day, {
+        day: r.day,
+        isOpen: !!r.isOpen,
+        start1: r.start1 ?? null,
+        end1: r.end1 ?? null,
+        start2: r.start2 ?? null,
+        end2: r.end2 ?? null,
+      })
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []) // solo al montar
+  }
+  return ORDER.map((d) => base.get(d)!)
+}
 
-  // 2) Memo de filas
-  const rows: AppointmentDay[] = useMemo(() => {
-    return v.hours && v.hours.length === 7 ? v.hours : emptyWeek()
-  }, [v.hours])
+function clampBuffer(n: number) {
+  if (!Number.isFinite(n)) return 10
+  if (n < 0) return 0
+  if (n > 240) return 240
+  return Math.round(n)
+}
 
-  // 3) Actualiza una fila por día
-  function updateDay(day: Weekday, patch: Partial<AppointmentDay>) {
-    const next = rows.map((r) => (r.day === day ? { ...r, ...patch } : r))
+/* ================= Componente ================= */
+export default function AppointmentForm({ value, onChange }: Props) {
+  const [saving, setSaving] = useState(false)
+  const [savedOk, setSavedOk] = useState(false)
+  const [errorMsg, setErrorMsg] = useState<string | null>(null)
+
+  // Siempre trabajamos con 7 filas en memoria
+  const hours = useMemo(() => normalizeHours(value.hours), [value.hours])
+
+  function patch<K extends keyof AppointmentConfigValue>(key: K, v: AppointmentConfigValue[K]) {
+    onChange({ [key]: v } as Partial<AppointmentConfigValue>)
+  }
+
+  function patchDay(day: Weekday, partial: Partial<AppointmentDay>) {
+    const next = hours.map((h) => (h.day === day ? { ...h, ...partial } : h))
     onChange({ hours: next })
   }
 
-  // 4) Toggle de día
-  function toggleDay(day: Weekday, isOpen: boolean) {
-    if (!isOpen) {
-      updateDay(day, { isOpen: false, start1: null, end1: null, start2: null, end2: null })
-    } else {
-      updateDay(day, { isOpen: true })
-    }
+  function toggleDay(d: Weekday) {
+    const current = hours.find((h) => h.day === d)!
+    const nextOpen = !current.isOpen
+    patchDay(d, {
+      isOpen: nextOpen,
+      // si abrimos, prellenamos horario típico 09-13 / 15-19
+      start1: nextOpen ? current.start1 ?? '09:00' : null,
+      end1: nextOpen ? current.end1 ?? '13:00' : null,
+      start2: nextOpen ? current.start2 : null,
+      end2: nextOpen ? current.end2 : null,
+    })
   }
 
-  const disabledAll = !v.appointmentEnabled
+  function updateTime(d: Weekday, field: keyof AppointmentDay, val: string) {
+    const safe = val || ''
+    patchDay(d, { [field]: safe ? safe : null } as any)
+  }
 
-  /* =======================
-     Guardar (config + hours + provider)
-     ======================= */
+  function validateHours(): string | null {
+    for (const h of hours) {
+      if (!h.isOpen) continue
+      if (!isHHMM(h.start1) || !isHHMM(h.end1)) {
+        return `Revisa ${DAY_LABEL[h.day]}: bloque 1 debe tener HH:MM válidos`
+      }
+      if (h.start1! >= h.end1!) {
+        return `Revisa ${DAY_LABEL[h.day]}: start1 debe ser < end1`
+      }
+      if (h.start2 || h.end2) {
+        if (!isHHMM(h.start2) || !isHHMM(h.end2)) {
+          return `Revisa ${DAY_LABEL[h.day]}: bloque 2 debe tener HH:MM válidos`
+        }
+        if (h.start2! >= h.end2!) {
+          return `Revisa ${DAY_LABEL[h.day]}: start2 debe ser < end2`
+        }
+        // evitar solapamiento con bloque 1 (misma jornada)
+        if (!(h.end1! <= h.start2! || h.end2! <= h.start1!)) {
+          return `Revisa ${DAY_LABEL[h.day]}: los bloques no deben solaparse`
+        }
+      }
+    }
+    return null
+  }
+
   async function handleSave() {
-    setError(null)
-    setSaving(true)
     try {
-      const hasOpen = (v.hours || []).some((d) => d.isOpen)
-      if (v.appointmentEnabled && !hasOpen) {
-        console.warn('Agenda activa sin días abiertos.')
+      setSaving(true)
+      setSavedOk(false)
+      setErrorMsg(null)
+
+      // Validaciones rápidas
+      const err = validateHours()
+      if (err) {
+        setErrorMsg(err)
+        return
+      }
+      if (!value.appointmentTimezone) {
+        setErrorMsg('Debes especificar la zona horaria.')
+        return
       }
 
-      // si no hay nombre, no enviamos provider
-      const providerToSend =
-        v.provider && v.provider.nombre && v.provider.nombre.trim()
-          ? v.provider
-          : null
+      // Construir payload para el endpoint de agenda
+      const payload = {
+        appointment: {
+          enabled: !!value.appointmentEnabled,
+          vertical: value.appointmentVertical,
+          timezone: value.appointmentTimezone || 'America/Bogota',
+          bufferMin: clampBuffer(value.appointmentBufferMin),
+          policies: value.appointmentPolicies || '',
+          reminders: !!value.appointmentReminders,
+        },
+        hours: hours.map((h) => ({
+          day: h.day,
+          isOpen: !!h.isOpen,
+          start1: h.isOpen ? h.start1 : null,
+          end1: h.isOpen ? h.end1 : null,
+          start2: h.isOpen ? h.start2 : null,
+          end2: h.isOpen ? h.end2 : null,
+        })),
+        // extras opcionales por si más adelante quieres pasar otras cosas
+        extras: {
+          // por ahora vacío; podrías enviar aquí "servicios" y "agentDisclaimers" si quisieras
+        },
+        // provider opcional (si implementas en backend)
+        provider: value.provider ?? null,
+      }
 
-      await saveAppointmentConfig({
-        appointmentEnabled: !!v.appointmentEnabled,
-        appointmentVertical: v.appointmentVertical,
-        appointmentTimezone: v.appointmentTimezone || 'America/Bogota',
-        appointmentBufferMin: Number.isFinite(v.appointmentBufferMin)
-          ? v.appointmentBufferMin
-          : 10,
-        appointmentPolicies: v.appointmentPolicies ?? '',
-        appointmentReminders: !!v.appointmentReminders,
-        hours: normalizeDays(v.hours),
-        provider: providerToSend,
+      await axios.post(`${API_URL}/api/appointments/config`, payload as any, {
+        headers: getAuthHeaders(),
       })
 
-      alert('Configuración de agenda guardada ✅')
+      setSavedOk(true)
     } catch (e: any) {
-      console.error('[AppointmentForm] guardar agenda error:', e)
-      const msg = e?.response?.data?.error || e?.message || 'No se pudo guardar la agenda'
-      setError(msg)
-      alert(`❌ ${msg}`)
+      setErrorMsg(e?.response?.data?.error || e?.message || 'No se pudo guardar la agenda.')
     } finally {
       setSaving(false)
+      setTimeout(() => setSavedOk(false), 1500)
     }
   }
 
   return (
-    <div className="rounded-2xl border border-slate-800 p-4 sm:p-5 bg-slate-900">
-      <h3 className="text-base font-semibold mb-3">Agenda de citas</h3>
-      <p className="text-sm text-slate-400 mb-4">
-        Activa la agenda para que el sistema y el asistente manejen horarios y reservas.
-      </p>
-
-      <div className="space-y-4">
-        {/* Toggle principal */}
-        <label className="flex items-center justify-between gap-4">
-          <span className="text-sm">Habilitar agenda</span>
-          <input
-            type="checkbox"
-            checked={!!v.appointmentEnabled}
-            onChange={(e) => onChange({ appointmentEnabled: e.target.checked })}
-            className="h-5 w-5 accent-violet-600"
-          />
-        </label>
-
-        {/* Selecciones generales */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <label className="space-y-1">
-            <span className="text-xs text-slate-400">Vertical</span>
-            <select
-              value={v.appointmentVertical}
-              onChange={(e) => onChange({ appointmentVertical: e.target.value as Vertical })}
-              className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-violet-600"
-              disabled={disabledAll}
-            >
-              <option value="none">Genérico</option>
-              <option value="salud">Salud</option>
-              <option value="bienestar">Bienestar</option>
-              <option value="automotriz">Automotriz</option>
-              <option value="veterinaria">Veterinaria</option>
-              <option value="fitness">Fitness</option>
-              <option value="otros">Otros</option>
-            </select>
-          </label>
-
-          <label className="space-y-1">
-            <span className="text-xs text-slate-400">Zona horaria</span>
-            <input
-              type="text"
-              value={v.appointmentTimezone}
-              onChange={(e) => onChange({ appointmentTimezone: e.target.value })}
-              placeholder="America/Bogota"
-              disabled={disabledAll}
-              className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-600"
-            />
-          </label>
-
-          <label className="space-y-1">
-            <span className="text-xs text-slate-400">Buffer entre citas (min)</span>
-            <input
-              type="number"
-              min={0}
-              value={Number.isFinite(v.appointmentBufferMin) ? v.appointmentBufferMin : 0}
-              onChange={(e) => onChange({ appointmentBufferMin: Number(e.target.value || 0) })}
-              disabled={disabledAll}
-              className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-violet-600"
-            />
-          </label>
-
-          <label className="space-y-1">
-            <span className="text-xs text-slate-400">Recordatorios automáticos</span>
-            <select
-              value={v.appointmentReminders ? '1' : '0'}
-              onChange={(e) => onChange({ appointmentReminders: e.target.value === '1' })}
-              disabled={disabledAll}
-              className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-violet-600"
-            >
-              <option value="1">Activados</option>
-              <option value="0">Desactivados</option>
-            </select>
-          </label>
-        </div>
-
-        {/* Políticas */}
-        <label className="space-y-1 block">
-          <span className="text-xs text-slate-400">Políticas / indicaciones</span>
-          <textarea
-            rows={3}
-            value={v.appointmentPolicies || ''}
-            onChange={(e) => onChange({ appointmentPolicies: e.target.value })}
-            placeholder="Ej: Llegar 10 minutos antes. Cancelaciones con 24h de antelación."
-            disabled={disabledAll}
-            className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-600"
-          />
-        </label>
-
-        {/* Horarios por día */}
-        <div className="mt-4 rounded-xl border border-slate-800">
-          <div className="px-3 py-2 text-xs text-slate-400 border-b border-slate-800">
-            Horarios por día (formato 24h)
+    <div className="space-y-6">
+      {/* Básicos */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <label className="flex items-center justify-between gap-3 p-3 rounded-xl bg-slate-800/60 border border-slate-700">
+          <div>
+            <div className="text-sm font-medium">Habilitar agenda</div>
+            <div className="text-xs text-slate-400">Permite que la IA ofrezca y confirme citas</div>
           </div>
-
-          <div className="divide-y divide-slate-800">
-            {rows.map((r) => {
-              const disabled = disabledAll
-              return (
-                <div
-                  key={r.day}
-                  className="p-3 grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] gap-3"
-                >
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="checkbox"
-                      className="h-5 w-5 accent-violet-600"
-                      checked={!!r.isOpen}
-                      onChange={(e) => toggleDay(r.day, e.target.checked)}
-                      disabled={disabled}
-                    />
-                    <div className="text-sm">{dayLabel[r.day]}</div>
-                  </div>
-
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                    <TimeInput
-                      value={r.start1}
-                      onChange={(val) => updateDay(r.day, { start1: val })}
-                      placeholder="08:00"
-                      disabled={disabled || !r.isOpen}
-                    />
-                    <TimeInput
-                      value={r.end1}
-                      onChange={(val) => updateDay(r.day, { end1: val })}
-                      placeholder="12:00"
-                      disabled={disabled || !r.isOpen}
-                    />
-                    <TimeInput
-                      value={r.start2}
-                      onChange={(val) => updateDay(r.day, { start2: val })}
-                      placeholder="14:00"
-                      disabled={disabled || !r.isOpen}
-                    />
-                    <TimeInput
-                      value={r.end2}
-                      onChange={(val) => updateDay(r.day, { end2: val })}
-                      placeholder="18:00"
-                      disabled={disabled || !r.isOpen}
-                    />
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        </div>
-
-        {/* ===== Profesional principal (opcional) ===== */}
-        <div className="rounded-xl border border-slate-800">
-          <div className="px-3 py-2 text-xs text-slate-400 border-b border-slate-800">
-            Profesional principal (opcional)
-          </div>
-          <div className="p-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <label className="space-y-1">
-              <span className="text-xs text-slate-400">Nombre</span>
-              <input
-                type="text"
-                value={v.provider?.nombre ?? ''}
-                onChange={(e) =>
-                  onChange({
-                    provider: {
-                      ...(v.provider ?? { nombre: '' }),
-                      nombre: e.target.value,
-                    },
-                  })
-                }
-                placeholder="Ej: Dra. Ana Pérez"
-                className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-600"
-              />
-            </label>
-
-            <label className="space-y-1">
-              <span className="text-xs text-slate-400">Cargo</span>
-              <input
-                type="text"
-                value={v.provider?.cargo ?? ''}
-                onChange={(e) =>
-                  onChange({
-                    provider: {
-                      ...(v.provider ?? { nombre: '' }),
-                      cargo: e.target.value,
-                    },
-                  })
-                }
-                placeholder="Dermatóloga / Odontólogo / Esteticista"
-                className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-600"
-              />
-            </label>
-
-            <label className="space-y-1">
-              <span className="text-xs text-slate-400">Email</span>
-              <input
-                type="email"
-                value={v.provider?.email ?? ''}
-                onChange={(e) =>
-                  onChange({
-                    provider: {
-                      ...(v.provider ?? { nombre: '' }),
-                      email: e.target.value,
-                    },
-                  })
-                }
-                placeholder="contacto@negocio.com"
-                className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-600"
-              />
-            </label>
-
-            <label className="space-y-1">
-              <span className="text-xs text-slate-400">Teléfono</span>
-              <input
-                type="tel"
-                value={v.provider?.phone ?? ''}
-                onChange={(e) =>
-                  onChange({
-                    provider: {
-                      ...(v.provider ?? { nombre: '' }),
-                      phone: e.target.value,
-                    },
-                  })
-                }
-                placeholder="+57 300 000 0000"
-                className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-600"
-              />
-            </label>
-
-            <label className="space-y-1">
-              <span className="text-xs text-slate-400">Color (hex)</span>
-              <input
-                type="text"
-                value={v.provider?.colorHex ?? ''}
-                onChange={(e) =>
-                  onChange({
-                    provider: {
-                      ...(v.provider ?? { nombre: '' }),
-                      colorHex: e.target.value,
-                    },
-                  })
-                }
-                placeholder="#8b5cf6"
-                className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-600"
-              />
-            </label>
-
-            {v.provider?.id ? <input type="hidden" value={v.provider.id} /> : null}
-          </div>
-          <div className="px-3 pb-3 text-[11px] text-slate-500">
-            * Si dejas “Nombre” vacío, no se guardará ningún profesional.
-          </div>
-        </div>
-
-        {/* Botón Guardar */}
-        <div className="flex items-center justify-end gap-3 pt-2">
-          {error && <span className="text-xs text-rose-400">{error}</span>}
           <button
-            onClick={handleSave}
-            disabled={saving}
-            className="inline-flex items-center rounded-xl bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-500 disabled:opacity-60"
+            type="button"
+            onClick={() => patch('appointmentEnabled', !value.appointmentEnabled)}
+            className={`w-12 h-7 rounded-full border transition ${
+              value.appointmentEnabled ? 'bg-emerald-500/90 border-emerald-400' : 'bg-slate-700 border-slate-600'
+            } relative`}
+            aria-pressed={value.appointmentEnabled}
           >
-            {saving ? 'Guardando…' : 'Guardar agenda'}
+            <span
+              className={`absolute top-0.5 h-6 w-6 rounded-full bg-white transition ${
+                value.appointmentEnabled ? 'right-0.5' : 'left-0.5'
+              }`}
+            />
           </button>
+        </label>
+
+        <label className="p-3 rounded-xl bg-slate-800/60 border border-slate-700">
+          <div className="text-sm font-medium mb-1">Vertical / Rol</div>
+          <select
+            value={value.appointmentVertical}
+            onChange={(e) => patch('appointmentVertical', e.target.value as Vertical)}
+            className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-600"
+          >
+            <option value="none">Ninguno</option>
+            <option value="salud">Salud</option>
+            <option value="bienestar">Bienestar</option>
+            <option value="automotriz">Automotriz</option>
+            <option value="veterinaria">Veterinaria</option>
+            <option value="fitness">Fitness</option>
+            <option value="otros">Otros</option>
+          </select>
+        </label>
+
+        <label className="p-3 rounded-xl bg-slate-800/60 border border-slate-700">
+          <div className="text-sm font-medium mb-1">Zona horaria (IANA)</div>
+          <input
+            type="text"
+            placeholder="America/Bogota"
+            value={value.appointmentTimezone}
+            onChange={(e) => patch('appointmentTimezone', e.target.value)}
+            className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-600"
+          />
+        </label>
+
+        <label className="p-3 rounded-xl bg-slate-800/60 border border-slate-700">
+          <div className="flex items-center justify-between">
+            <div className="text-sm font-medium mb-1">Buffer entre citas (min)</div>
+            <div className="text-xs text-slate-400">0–240</div>
+          </div>
+          <input
+            type="number"
+            min={0}
+            max={240}
+            value={value.appointmentBufferMin}
+            onChange={(e) => patch('appointmentBufferMin', clampBuffer(parseInt(e.target.value, 10)))}
+            className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-600"
+          />
+        </label>
+      </div>
+
+      <label className="block">
+        <div className="text-sm font-medium mb-1">Políticas visibles</div>
+        <textarea
+          rows={4}
+          placeholder="Ej: Llegar 10 minutos antes. Reprogramaciones con 12h de antelación. ..."
+          value={value.appointmentPolicies || ''}
+          onChange={(e) => patch('appointmentPolicies', e.target.value)}
+          className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-600"
+        />
+      </label>
+
+      <label className="flex items-center justify-between gap-3 p-3 rounded-xl bg-slate-800/60 border border-slate-700">
+        <div>
+          <div className="text-sm font-medium">Recordatorios automáticos</div>
+          <div className="text-xs text-slate-400">Se enviará un mensaje de confirmación y recordatorio</div>
         </div>
+        <button
+          type="button"
+          onClick={() => patch('appointmentReminders', !value.appointmentReminders)}
+          className={`w-12 h-7 rounded-full border transition ${
+            value.appointmentReminders ? 'bg-emerald-500/90 border-emerald-400' : 'bg-slate-700 border-slate-600'
+          } relative`}
+          aria-pressed={value.appointmentReminders}
+        >
+          <span
+            className={`absolute top-0.5 h-6 w-6 rounded-full bg-white transition ${
+              value.appointmentReminders ? 'right-0.5' : 'left-0.5'
+            }`}
+          />
+        </button>
+      </label>
+
+      {/* ================== Horario semanal ================== */}
+      <div className="rounded-2xl border border-slate-800 bg-slate-900/70">
+        <div className="px-4 py-3 border-b border-slate-800 text-sm font-semibold">Horario semanal</div>
+        <div className="divide-y divide-slate-800">
+          {hours.map((h) => (
+            <div key={h.day} className="px-4 py-3 grid grid-cols-1 sm:grid-cols-12 gap-3 items-center">
+              <div className="sm:col-span-3 flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => toggleDay(h.day)}
+                  className={`w-10 h-6 rounded-full border transition ${
+                    h.isOpen ? 'bg-emerald-500/90 border-emerald-400' : 'bg-slate-700 border-slate-600'
+                  } relative`}
+                  aria-pressed={h.isOpen}
+                >
+                  <span
+                    className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition ${
+                      h.isOpen ? 'right-0.5' : 'left-0.5'
+                    }`}
+                  />
+                </button>
+                <div className="text-sm">{DAY_LABEL[h.day]}</div>
+              </div>
+
+              <div className="sm:col-span-9 grid grid-cols-2 sm:grid-cols-8 gap-2">
+                {/* Bloque 1 */}
+                <input
+                  type="time"
+                  value={h.start1 || ''}
+                  disabled={!h.isOpen}
+                  onChange={(e) => updateTime(h.day, 'start1', e.target.value)}
+                  className="bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5 text-sm disabled:opacity-50"
+                />
+                <input
+                  type="time"
+                  value={h.end1 || ''}
+                  disabled={!h.isOpen}
+                  onChange={(e) => updateTime(h.day, 'end1', e.target.value)}
+                  className="bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5 text-sm disabled:opacity-50"
+                />
+                {/* Bloque 2 */}
+                <input
+                  placeholder="hh:mm"
+                  type="time"
+                  value={h.start2 || ''}
+                  disabled={!h.isOpen}
+                  onChange={(e) => updateTime(h.day, 'start2', e.target.value)}
+                  className="bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5 text-sm disabled:opacity-50"
+                />
+                <input
+                  placeholder="hh:mm"
+                  type="time"
+                  value={h.end2 || ''}
+                  disabled={!h.isOpen}
+                  onChange={(e) => updateTime(h.day, 'end2', e.target.value)}
+                  className="bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5 text-sm disabled:opacity-50"
+                />
+
+                {/* Ayudas */}
+                <div className="col-span-2 sm:col-span-4 text-xs text-slate-500 self-center">
+                  {h.isOpen ? 'Bloques: 1 obligatorio, 2 opcional.' : 'Cerrado'}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* =========== Provider (opcional simple) =========== */}
+      <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4">
+        <div className="text-sm font-semibold mb-3">Profesional principal (opcional)</div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <input
+            type="text"
+            placeholder="Nombre"
+            value={value.provider?.nombre || ''}
+            onChange={(e) =>
+              onChange({
+                provider: {
+                  ...(value.provider || {}),
+                  nombre: e.target.value,
+                } as ProviderInput,
+              })
+            }
+            className="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-600"
+          />
+          <input
+            type="text"
+            placeholder="Cargo (odontólogo, entrenador...)"
+            value={value.provider?.cargo || ''}
+            onChange={(e) =>
+              onChange({
+                provider: {
+                  ...(value.provider || {}),
+                  cargo: e.target.value,
+                } as ProviderInput,
+              })
+            }
+            className="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm"
+          />
+          <input
+            type="email"
+            placeholder="Email"
+            value={value.provider?.email || ''}
+            onChange={(e) =>
+              onChange({
+                provider: {
+                  ...(value.provider || {}),
+                  email: e.target.value,
+                } as ProviderInput,
+              })
+            }
+            className="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm"
+          />
+          <input
+            type="tel"
+            placeholder="Teléfono"
+            value={value.provider?.phone || ''}
+            onChange={(e) =>
+              onChange({
+                provider: {
+                  ...(value.provider || {}),
+                  phone: e.target.value,
+                } as ProviderInput,
+              })
+            }
+            className="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm"
+          />
+        </div>
+      </div>
+
+      {/* Mensajes */}
+      {errorMsg && (
+        <div className="text-sm text-red-300 bg-red-900/20 border border-red-800 rounded-xl px-3 py-2">
+          {errorMsg}
+        </div>
+      )}
+      {savedOk && !errorMsg && (
+        <div className="flex items-center gap-2 text-sm text-emerald-300 bg-emerald-900/10 border border-emerald-800 rounded-xl px-3 py-2">
+          <Check className="w-4 h-4" />
+          Agenda guardada.
+        </div>
+      )}
+
+      {/* Botón guardar agenda */}
+      <div className="flex justify-end">
+        <button
+          type="button"
+          onClick={handleSave}
+          disabled={saving}
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm disabled:opacity-60"
+        >
+          {saving ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin" />
+              Guardando…
+            </>
+          ) : (
+            'Guardar agenda'
+          )}
+        </button>
       </div>
     </div>
   )

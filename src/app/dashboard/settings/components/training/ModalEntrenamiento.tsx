@@ -79,6 +79,35 @@ function hoursFromDb(rows: AppointmentDay[] | undefined | null): AppointmentDay[
   return ORDER.map((d) => base.get(d)!)
 }
 
+/** Construye el payload para POST /api/appointments/config */
+function buildAppointmentPayloadFromForm(form: FormState) {
+  const hours = hoursFromDb(form.hours)
+  return {
+    appointment: {
+      enabled: !!form.appointmentEnabled,
+      vertical: form.appointmentVertical,
+      timezone: form.appointmentTimezone || 'America/Bogota',
+      bufferMin: Number.isFinite(form.appointmentBufferMin) ? form.appointmentBufferMin : 10,
+      policies: form.appointmentPolicies || '',
+      reminders: !!form.appointmentReminders,
+    },
+    hours: hours.map((h) => ({
+      day: h.day,
+      isOpen: !!h.isOpen,
+      start1: h.isOpen ? h.start1 : null,
+      end1: h.isOpen ? h.end1 : null,
+      start2: h.isOpen ? h.start2 : null,
+      end2: h.isOpen ? h.end2 : null,
+    })),
+    extras: {
+      // sincronizamos con config general por si quieres usarlo en el prompt del agente
+      servicios: form.servicios || '',
+      agentDisclaimers: form.agentDisclaimers || '',
+    },
+    provider: form.provider ?? null,
+  }
+}
+
 export default function ModalEntrenamiento({
   trainingActive,
   onClose,
@@ -382,55 +411,54 @@ export default function ModalEntrenamiento({
   }, [open])
 
   // Carga agenda cuando entras a la pestaña "citas"
- // Carga agenda cuando entras a la pestaña "citas"
-async function loadAppointmentConfigIntoForm() {
-  try {
-    const data = await fetchAppointmentConfig()
+  async function loadAppointmentConfigIntoForm() {
+    try {
+      const data = await fetchAppointmentConfig()
 
-    // Tipos del backend (todo opcional porque puede venir vacío)
-    type BackendAppointmentConfig = {
-      appointmentEnabled?: boolean
-      appointmentVertical?: Vertical
-      appointmentTimezone?: string
-      appointmentBufferMin?: number
-      appointmentPolicies?: string
-      appointmentReminders?: boolean
+      // Tipos del backend (todo opcional porque puede venir vacío)
+      type BackendAppointmentConfig = {
+        appointmentEnabled?: boolean
+        appointmentVertical?: Vertical
+        appointmentTimezone?: string
+        appointmentBufferMin?: number
+        appointmentPolicies?: string
+        appointmentReminders?: boolean
+      }
+
+      const cfg = (data?.config ?? {}) as BackendAppointmentConfig
+      const p  = (data?.provider ?? null) as (ProviderInput & { id?: number }) | null
+
+      setForm((f) => ({
+        ...f,
+        appointmentEnabled: !!cfg.appointmentEnabled,
+        appointmentVertical: (cfg.appointmentVertical as Vertical) ?? 'none',
+        appointmentTimezone: cfg.appointmentTimezone ?? 'America/Bogota',
+        appointmentBufferMin: Number.isFinite(cfg.appointmentBufferMin!)
+          ? (cfg.appointmentBufferMin as number)
+          : 10,
+        appointmentPolicies: cfg.appointmentPolicies ?? '',
+        appointmentReminders: cfg.appointmentReminders ?? true,
+        hours: hoursFromDb(data?.hours as AppointmentDay[] | null | undefined),
+
+
+        // hidratar provider solo si existe
+        provider: p
+          ? {
+              id: p.id,
+              nombre: p.nombre ?? '',
+              email: p.email ?? '',
+              phone: p.phone ?? '',
+              cargo: p.cargo ?? '',
+              colorHex: p.colorHex ?? '',
+              activo: typeof p.activo === 'boolean' ? p.activo : true,
+            }
+          : null,
+      }))
+    } catch (e: any) {
+      console.error('[settings] fetchAppointmentConfig error:', e)
+      setErrorMsg(e?.response?.data?.error || e?.message || 'No se pudo cargar la agenda')
     }
-
-    const cfg = (data?.config ?? {}) as BackendAppointmentConfig
-    const p  = (data?.provider ?? null) as (ProviderInput & { id?: number }) | null
-
-    setForm((f) => ({
-      ...f,
-      appointmentEnabled: !!cfg.appointmentEnabled,
-      appointmentVertical: (cfg.appointmentVertical as Vertical) ?? 'none',
-      appointmentTimezone: cfg.appointmentTimezone ?? 'America/Bogota',
-      appointmentBufferMin: Number.isFinite(cfg.appointmentBufferMin!)
-        ? (cfg.appointmentBufferMin as number)
-        : 10,
-      appointmentPolicies: cfg.appointmentPolicies ?? '',
-      appointmentReminders: cfg.appointmentReminders ?? true,
-      hours: hoursFromDb(data?.hours),
-
-      // hidratar provider solo si existe
-      provider: p
-        ? {
-            id: p.id,
-            nombre: p.nombre ?? '',
-            email: p.email ?? '',
-            phone: p.phone ?? '',
-            cargo: p.cargo ?? '',
-            colorHex: p.colorHex ?? '',
-            activo: typeof p.activo === 'boolean' ? p.activo : true,
-          }
-        : null,
-    }))
-  } catch (e: any) {
-    console.error('[settings] fetchAppointmentConfig error:', e)
-    setErrorMsg(e?.response?.data?.error || e?.message || 'No se pudo cargar la agenda')
   }
-}
-
 
   // Cambio de tab
   async function handleChangeTab(nextTab: EditorTab) {
@@ -457,11 +485,23 @@ async function loadAppointmentConfigIntoForm() {
     try {
       setSaving(true)
       setErrorMsg(null)
+
+      // 1) Si estamos en Citas, persistimos también la agenda (config + hours) en su endpoint
+      if (tab === 'citas') {
+        const appointmentPayload = buildAppointmentPayloadFromForm(form)
+        await axios.post(`${API_URL}/api/appointments/config`, appointmentPayload as any, {
+          headers: getAuthHeaders(),
+        })
+      }
+
+      // 2) Guardamos SIEMPRE la config general
       const payload: any = { ...form, businessType }
       if (payload.envioCostoFijo === '') payload.envioCostoFijo = null
       if (payload.envioGratisDesde === '') payload.envioGratisDesde = null
       payload.aiMode = tab === 'productos' ? ('ecommerce' as AiMode) : payload.aiMode
+
       await axios.put(`${API_URL}/api/config`, payload, { headers: getAuthHeaders() })
+
       if (tab === 'productos') await loadCatalog()
       close()
     } catch (e: any) {
