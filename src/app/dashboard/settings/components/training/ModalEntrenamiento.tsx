@@ -15,7 +15,6 @@ import AppointmentForm, {
   type Vertical,
 } from './AppointmentForm'
 
-// 👇 IMPORTAMOS normalizeDays para payloads consistentes
 import { fetchAppointmentConfig, normalizeDays } from '@/lib/appointments'
 
 import type {
@@ -305,11 +304,19 @@ export default function ModalEntrenamiento({
       setSaving(true)
       setErrorMsg(null)
 
+      // 1) Reset de configuración de negocio
       await axios.post(
         `${API_URL}/api/config/reset`,
         null,
         { params: { withCatalog: false, t: Date.now() }, headers: getAuthHeaders() }
       )
+
+      // 2) Limpieza explícita de agenda en BD (si el endpoint existe)
+      try {
+        await axios.post(`${API_URL}/api/appointments/reset`, null, { headers: getAuthHeaders() })
+      } catch {
+        // Si no existe, lo ignoramos. La UI igual queda limpia.
+      }
 
       // Limpieza total de UI + remount (sin relectura inmediata)
       setLockedBy(null)
@@ -339,6 +346,7 @@ export default function ModalEntrenamiento({
     }
   }
 
+  /** Guardar Agente: mantiene modal abierto y bloquea Citas */
   async function guardarAgente() {
     try {
       if (lockedBy === 'citas') {
@@ -377,9 +385,8 @@ export default function ModalEntrenamiento({
 
       setAgentDirty(false)
       setLockedBy('agente') // 🔒 bloqueo persistente tras actualizar
-
+      // NO cerramos el modal → mantiene inputs visibles
       setUiEpoch((n) => n + 1)
-      close()
     } catch (e: any) {
       setErrorMsg(prettyAxiosError(e, 'Error guardando el agente.'))
     } finally {
@@ -387,13 +394,14 @@ export default function ModalEntrenamiento({
     }
   }
 
+  /** Guardar Citas: mantiene modal abierto y bloquea Agente si agenda habilitada */
   async function guardarCitas() {
     try {
       if (lockedBy === 'agente') {
         setErrorMsg('Bloqueado por Agente. Reinicia el entrenamiento para cambiar a Citas.')
         return
       }
-      // Validación UX premium: si activas agenda, debe haber al menos un día abierto
+      // Validación: si activas agenda, al menos un día abierto
       const normalized = normalizeDays(form.hours)
       const hasOpenDay = normalized.some((d) => d.isOpen)
       if (form.appointmentEnabled && !hasOpenDay) {
@@ -405,7 +413,6 @@ export default function ModalEntrenamiento({
       setErrorMsg(null)
 
       const appointmentPayload = buildAppointmentPayloadFromForm(form)
-
       await axios.post(`${API_URL}/api/appointments/config`, appointmentPayload as any, {
         headers: getAuthHeaders(),
       })
@@ -421,10 +428,9 @@ export default function ModalEntrenamiento({
       )
 
       setCitasDirty(false)
-      setLockedBy(appointmentPayload.appointment.enabled ? 'citas' : null) // 🔒 bloqueo persiste si activas agenda
-
+      setLockedBy(appointmentPayload.appointment.enabled ? 'citas' : null) // 🔒 si activas agenda
+      // NO cerramos el modal → mantiene inputs visibles
       setUiEpoch((n) => n + 1)
-      close()
     } catch (e: any) {
       setErrorMsg(prettyAxiosError(e, 'Error guardando la agenda.'))
     } finally {
@@ -504,7 +510,6 @@ export default function ModalEntrenamiento({
 
               {/* contenido */}
               {tab === 'agente' ? (
-                // 👇 Bloqueo por foco: con solo clickear un input ya se marca como "dirty"
                 <div
                   onFocusCapture={() => setAgentDirty(true)}
                   className={lockedBy === 'citas' ? 'pointer-events-none opacity-50' : ''}
@@ -566,7 +571,7 @@ export default function ModalEntrenamiento({
                       type="button"
                       title={lockedBy === 'citas' ? 'Bloqueado por Citas' : undefined}
                     >
-                      {saving ? 'Guardando…' : lockedBy === 'citas' ? 'Bloqueado' : 'Guardar agente'}
+                      {saving ? 'Guardando…' : lockedBy === 'citas' ? 'Bloqueado' : 'Actualizar agente'}
                     </button>
                   ) : (
                     <button
@@ -576,7 +581,7 @@ export default function ModalEntrenamiento({
                       type="button"
                       title={lockedBy === 'agente' ? 'Bloqueado por Agente' : undefined}
                     >
-                      {saving ? 'Guardando…' : lockedBy === 'agente' ? 'Bloqueado' : 'Guardar citas'}
+                      {saving ? 'Guardando…' : lockedBy === 'agente' ? 'Bloqueado' : 'Actualizar citas'}
                     </button>
                   )}
                 </div>
