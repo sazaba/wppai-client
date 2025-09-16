@@ -200,8 +200,13 @@ export default function ModalEntrenamiento({
         hours: hoursFromDb(data?.hours as AppointmentDay[] | null | undefined),
       }))
 
-      // 💡 Si en backend quedó habilitada la agenda, bloqueamos Agente
-      if (cfg?.appointmentEnabled) setLockedBy('citas')
+      // 🔒 NUEVO: bloquear por Citas si detectamos configuración “diligenciada”
+      const hours = (data?.hours as AppointmentDay[] | undefined) || []
+      const anyOpen = hours.some((h) => h?.isOpen)
+      const anyTimes = hours.some((h) => h?.start1 || h?.end1 || h?.start2 || h?.end2)
+      const hasPolicies = !!(cfg?.appointmentPolicies && cfg.appointmentPolicies.trim().length > 0)
+      const citasConfigured = !!cfg?.appointmentEnabled || anyOpen || anyTimes || hasPolicies
+      if (citasConfigured) setLockedBy('citas')
     } catch (e: any) {
       console.error('[settings] fetchAppointmentConfig error:', e)
       setErrorMsg(e?.response?.data?.error || e?.message || 'No se pudo cargar la agenda')
@@ -337,7 +342,6 @@ export default function ModalEntrenamiento({
         { headers: getAuthHeaders() }
       )
 
-      // Al guardar, este camino queda como “dueño”
       setLockedBy('agente')
       close()
     } catch (e: any) {
@@ -357,7 +361,6 @@ export default function ModalEntrenamiento({
       setSaving(true)
       setErrorMsg(null)
 
-      // Forzamos aiMode='ecommerce' cuando se guardan citas habilitadas
       const appointmentPayload = buildAppointmentPayloadFromForm(form)
 
       // 1) Guardar agenda + horas
@@ -376,10 +379,9 @@ export default function ModalEntrenamiento({
         { headers: getAuthHeaders() }
       )
 
-      // Si citas quedaron habilitadas, el dueño pasa a ser “citas”
-      if (appointmentPayload.appointment.enabled) {
-        setLockedBy('citas')
-      }
+      // 🔒 NUEVO: bloquear por Citas SIEMPRE después de guardar, esté o no habilitado el switch
+      setLockedBy('citas')
+
       close()
     } catch (e: any) {
       setErrorMsg(e?.response?.data?.error || e?.message || 'Error guardando la agenda.')
