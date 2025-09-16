@@ -15,7 +15,9 @@ import AppointmentForm, {
   type Vertical,
 } from './AppointmentForm'
 
-import { fetchAppointmentConfig, normalizeDays } from '@/lib/appointments'
+// quitamos la dependencia del helper con posible caché
+// import { fetchAppointmentConfig, normalizeDays } from '@/lib/appointments'
+import { normalizeDays } from '@/lib/appointments'
 
 import type {
   ModalEntrenamientoProps,
@@ -35,6 +37,19 @@ function getAuthHeaders(): Record<string, string> {
 /** Evita caché al leer configuración (para que el reset no rehidrate campos) */
 function noCacheHeaders() {
   return { ...getAuthHeaders(), 'Cache-Control': 'no-cache', Pragma: 'no-cache' }
+}
+
+/** GET /api/appointments/config SIN CACHÉ */
+async function fetchAppointmentsNoCache() {
+  const r = await axios.get(`${API_URL}/api/appointments/config`, {
+    headers: noCacheHeaders(),
+    params: { t: Date.now() },
+  })
+  const data = r?.data ?? {}
+  // soporta {config, hours} o {appointment, hours}
+  const config = data.config ?? data.appointment ?? {}
+  const hours = data.hours ?? []
+  return { config, hours }
 }
 
 /** Estado del form que usamos acá (agente + citas) */
@@ -105,7 +120,7 @@ function buildAppointmentPayloadFromForm(form: FormState) {
 function prettyAxiosError(e: unknown, fallback = 'Ocurrió un error') {
   const ax = e as AxiosError<any>
   if (ax?.message === 'Network Error') {
-    return 'No se pudo conectar con el backend (Network Error). Revisa API_URL, CORS y que el servidor esté en línea.'
+    return 'No se pudo conectar con el backend (Network Error). Revisa NEXT_PUBLIC_API_URL, CORS y que el servidor esté en línea.'
   }
   return ax?.response?.data?.error || fallback
 }
@@ -177,7 +192,7 @@ export default function ModalEntrenamiento({
     setReloading(true)
     setErrorMsg(null)
     try {
-      const appt = await fetchAppointmentConfig()
+      const appt = await fetchAppointmentsNoCache()
       type BackendAppointmentConfig = {
         appointmentEnabled?: boolean
         appointmentVertical?: Vertical
@@ -264,7 +279,7 @@ export default function ModalEntrenamiento({
     if (nextTab === 'citas') {
       try {
         setReloading(true)
-        const appt = await fetchAppointmentConfig()
+        const appt = await fetchAppointmentsNoCache()
         const cfg = appt?.config ?? {}
         const hrs = (appt?.hours as AppointmentDay[] | null | undefined) ?? []
         const r2 = await axios
@@ -313,12 +328,12 @@ export default function ModalEntrenamiento({
 
       // 2) Limpieza explícita de agenda en BD (si el endpoint existe)
       try {
-        await axios.post(`${API_URL}/api/appointments/reset`, null, { headers: getAuthHeaders() })
+        await axios.post(`${API_URL}/api/appointments/reset`, null, { headers: getAuthHeaders(), params: { t: Date.now() } })
       } catch {
-        // Si no existe, lo ignoramos. La UI igual queda limpia.
+        /* ignore si no existe */
       }
 
-      // Limpieza total de UI + remount (sin relectura inmediata)
+      // 3) Limpieza total de UI + remount
       setLockedBy(null)
       setAgentDirty(false)
       setCitasDirty(false)
@@ -385,8 +400,7 @@ export default function ModalEntrenamiento({
 
       setAgentDirty(false)
       setLockedBy('agente') // 🔒 bloqueo persistente tras actualizar
-      // NO cerramos el modal → mantiene inputs visibles
-      setUiEpoch((n) => n + 1)
+      setUiEpoch((n) => n + 1) // mantiene inputs
     } catch (e: any) {
       setErrorMsg(prettyAxiosError(e, 'Error guardando el agente.'))
     } finally {
@@ -415,6 +429,7 @@ export default function ModalEntrenamiento({
       const appointmentPayload = buildAppointmentPayloadFromForm(form)
       await axios.post(`${API_URL}/api/appointments/config`, appointmentPayload as any, {
         headers: getAuthHeaders(),
+        params: { t: Date.now() },
       })
 
       const serviciosText = (form.appointmentServices || '').trim()
@@ -424,13 +439,12 @@ export default function ModalEntrenamiento({
           aiMode: appointmentPayload.appointment.enabled ? ('ecommerce' as AiMode) : form.aiMode,
           servicios: serviciosText,
         },
-        { headers: getAuthHeaders() }
+        { headers: getAuthHeaders(), params: { t: Date.now() } }
       )
 
       setCitasDirty(false)
       setLockedBy(appointmentPayload.appointment.enabled ? 'citas' : null) // 🔒 si activas agenda
-      // NO cerramos el modal → mantiene inputs visibles
-      setUiEpoch((n) => n + 1)
+      setUiEpoch((n) => n + 1) // mantiene inputs
     } catch (e: any) {
       setErrorMsg(prettyAxiosError(e, 'Error guardando la agenda.'))
     } finally {
@@ -504,7 +518,8 @@ export default function ModalEntrenamiento({
                   value={tab}
                   onChange={handleChangeTab}
                   loading={reloading}
-                  disabled={{ agente: isCitasTabBlocked, citas: isAgenteTabBlocked }}
+                  // ✅ mapeo corregido
+                  disabled={{ agente: isAgenteTabBlocked, citas: isCitasTabBlocked }}
                 />
               </div>
 
