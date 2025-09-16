@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Sparkles, RotateCw } from 'lucide-react'
+import { Sparkles, RotateCw, Calendar, Bot } from 'lucide-react'
 import axios from 'axios'
 import ModalEntrenamiento from './components/training/ModalEntrenamiento'
 import WhatsappConfig from './components/WhatsappConfig'
@@ -21,7 +21,7 @@ function getAuthHeaders(): Record<string, string> {
   return token ? { Authorization: `Bearer ${token}` } : {}
 }
 
-// Defaults acotados (dejamos el resto por compatibilidad con backend)
+// Defaults acotados (compat backend)
 const DEFAULTS: ConfigForm = {
   nombre: '',
   descripcion: '',
@@ -77,22 +77,11 @@ function materializeConfig(data?: BackendBusinessConfig | null): ConfigForm {
   }
 }
 
-function emptyHoursForReset() {
-  const days: Array<'mon'|'tue'|'wed'|'thu'|'fri'|'sat'|'sun'> = ['mon','tue','wed','thu','fri','sat','sun']
-  return days.map((d) => ({
-    day: d,
-    isOpen: false,
-    start1: null,
-    end1: null,
-    start2: null,
-    end2: null,
-  }))
-}
-
 export default function SettingsPage() {
   const [form, setForm] = useState<ConfigForm>(DEFAULTS)
   const [configGuardada, setConfigGuardada] = useState<ConfigForm | null>(null)
   const [trainingActive, setTrainingActive] = useState(false)
+  const [initialTrainingPanel, setInitialTrainingPanel] = useState<'agente' | 'citas' | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -112,7 +101,6 @@ export default function SettingsPage() {
     fetchConfig()
   }, [])
 
-  // 🔁 Reset total: borra BusinessConfig (y catálogo si existiera) + limpia Appointment Hours
   const reiniciarEntrenamiento = async () => {
     try {
       if (typeof window !== 'undefined') {
@@ -121,78 +109,83 @@ export default function SettingsPage() {
         )
         if (!ok) return
       }
-  
-      // ✅ UNA sola llamada: borra BusinessConfig + AppointmentHour (+ catálogo si se pide)
+
       await axios.post(
         `${API_URL}/api/config/reset`,
         null,
         {
-          params: { withCatalog: true /*, withAppointments: true (default true en backend)*/ },
+          params: { withCatalog: true },
           headers: getAuthHeaders()
         }
       )
-  
-      // Estado limpio en UI
+
       setConfigGuardada(null)
       setForm(DEFAULTS)
-      setTrainingActive(true) // abre el modal pero NO guarda nada por sí solo
+      setInitialTrainingPanel(null)
+      setTrainingActive(true)
     } catch (e: any) {
       console.error('[reiniciarEntrenamiento] error:', e?.response?.data || e?.message || e)
       alert('Error al reiniciar configuración')
     }
   }
-  
 
   if (loading) return <p className="p-8 text-slate-300">Cargando configuración...</p>
+
+  const Card = ({
+    icon,
+    title,
+    desc,
+    onClick,
+  }: {
+    icon: React.ReactNode
+    title: string
+    desc: string
+    onClick: () => void
+  }) => (
+    <button
+      type="button"
+      onClick={onClick}
+      className="group rounded-2xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800/70 p-5 text-left transition"
+    >
+      <div className="flex items-center gap-3 mb-2">
+        <div className="p-2 rounded-xl bg-slate-700/30 border border-slate-700">
+          {icon}
+        </div>
+        <div className="text-lg font-medium text-white">{title}</div>
+      </div>
+      <p className="text-sm text-slate-300">{desc}</p>
+    </button>
+  )
 
   return (
     <div className="h-full overflow-y-auto max-h-screen px-4 sm:px-6 py-8 scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-transparent">
       <div className="max-w-5xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <h1 className="text-2xl font-bold text-white text-center">Entrenamiento de tu IA</h1>
-
-          {/* Tipo de negocio (se mantiene por compatibilidad con backend) */}
-          <div className="flex items-center gap-2">
-            <label className="text-sm text-slate-300">Tipo de negocio</label>
-            <select
-              value={form.businessType}
-              onChange={async (e) => {
-                const newType = e.target.value as BusinessType
-                const next = { ...form, businessType: newType }
-                setForm(next)
-                try {
-                  const { data } = await axios.put(
-                    `${API_URL}/api/config`,
-                    next,
-                    { headers: getAuthHeaders() }
-                  )
-                  const safe = materializeConfig(data as BackendBusinessConfig)
-                  setConfigGuardada(safe)
-                  setForm(safe)
-                } catch (err) {
-                  console.error('No se pudo actualizar businessType:', err)
-                }
-              }}
-              className="bg-slate-800 border border-slate-700 text-white text-sm rounded-lg px-3 py-2"
-            >
-              <option value="servicios">Servicios</option>
-              <option value="productos">Productos</option>
-            </select>
-          </div>
-
-          {!configGuardada && (
-            <button
-              onClick={() => setTrainingActive(true)}
-              className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg shadow-lg"
-            >
-              <Sparkles className="w-5 h-5" />
-              Comenzar entrenamiento
-            </button>
-          )}
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-bold text-white">Entrenamiento de tu IA</h1>
         </div>
 
-        {/* Resumen simplificado (sin campos; solo acciones) */}
+        {/* Cards (reemplazan dropdown + botón) */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <Card
+            icon={<Calendar className="w-5 h-5 text-emerald-300" />}
+            title="Configurar Citas"
+            desc="Define horarios, políticas, recordatorios y servicios."
+            onClick={() => {
+              setInitialTrainingPanel('citas')
+              setTrainingActive(true)
+            }}
+          />
+          <Card
+            icon={<Bot className="w-5 h-5 text-violet-300" />}
+            title="Configurar Agente"
+            desc="Define el modo, especialidad y prompts del agente."
+            onClick={() => {
+              setInitialTrainingPanel('agente')
+              setTrainingActive(true)
+            }}
+          />
+        </div>
+
         {configGuardada && (
           <div className="bg-slate-800 border border-slate-700 p-6 rounded-2xl shadow-xl text-white space-y-4">
             <h2 className="text-xl font-bold">⚙️ Acciones de configuración</h2>
@@ -202,7 +195,10 @@ export default function SettingsPage() {
 
             <div className="flex flex-wrap gap-3">
               <button
-                onClick={() => setTrainingActive(true)}
+                onClick={() => {
+                  setInitialTrainingPanel(null)
+                  setTrainingActive(true)
+                }}
                 className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg shadow"
               >
                 <Sparkles className="w-4 h-4" />
@@ -224,8 +220,10 @@ export default function SettingsPage() {
         <ModalEntrenamiento
           trainingActive={trainingActive}
           initialConfig={form}
+          initialPanel={initialTrainingPanel}   // <- NUEVO
           onClose={async () => {
             setTrainingActive(false)
+            setInitialTrainingPanel(null)        // <- limpiar selección
             try {
               const { data } = await axios.get(`${API_URL}/api/config`, { headers: getAuthHeaders() })
               const safe = materializeConfig(data as BackendBusinessConfig)
@@ -235,7 +233,6 @@ export default function SettingsPage() {
           }}
         />
 
-        {/* Config WhatsApp / Conexión */}
         <WhatsappConfig />
         <ActivatePhoneCard />
       </div>

@@ -2,7 +2,7 @@
 
 import { useMemo } from 'react'
 
-/* ================= Tipos exportados (coinciden con el padre) ================ */
+/* ================= Tipos exportados ================= */
 export type Weekday = 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat' | 'sun'
 export type Vertical =
   | 'none'
@@ -22,16 +22,6 @@ export type AppointmentDay = {
   end2: string | null
 }
 
-export type ProviderInput = {
-  id?: number
-  nombre: string
-  email?: string
-  phone?: string
-  cargo?: string
-  colorHex?: string
-  activo?: boolean
-}
-
 export type AppointmentConfigValue = {
   appointmentEnabled: boolean
   appointmentVertical: Vertical
@@ -40,10 +30,7 @@ export type AppointmentConfigValue = {
   appointmentPolicies?: string
   appointmentReminders: boolean
   hours?: AppointmentDay[]
-  /** Nuevo: texto libre con los servicios que se pueden agendar */
   appointmentServices?: string
-  /** Opcional: por ahora no se persiste, pero mantenemos el UI */
-  provider?: ProviderInput | null
 }
 
 type Props = {
@@ -96,13 +83,9 @@ function clampBuffer(n: number) {
 
 /* ================= Componente ================= */
 export default function AppointmentForm({ value, onChange }: Props) {
-  // Siempre trabajamos con 7 filas en memoria
   const hours = useMemo(() => normalizeHours(value.hours), [value.hours])
 
-  function patch<K extends keyof AppointmentConfigValue>(
-    key: K,
-    v: AppointmentConfigValue[K]
-  ) {
+  function patch<K extends keyof AppointmentConfigValue>(key: K, v: AppointmentConfigValue[K]) {
     onChange({ [key]: v } as Partial<AppointmentConfigValue>)
   }
 
@@ -116,7 +99,6 @@ export default function AppointmentForm({ value, onChange }: Props) {
     const nextOpen = !current.isOpen
     patchDay(d, {
       isOpen: nextOpen,
-      // si abrimos, prellenamos horario típico 09-13 / 15-19
       start1: nextOpen ? current.start1 ?? '09:00' : null,
       end1: nextOpen ? current.end1 ?? '13:00' : null,
       start2: nextOpen ? current.start2 : null,
@@ -126,7 +108,6 @@ export default function AppointmentForm({ value, onChange }: Props) {
 
   function updateTime(d: Weekday, field: keyof AppointmentDay, val: string) {
     const safe = val || ''
-    // el input type="time" ya valida, esto evita valores raros por si acaso
     if (safe && !isHHMM(safe)) return
     patchDay(d, { [field]: safe ? safe : null } as any)
   }
@@ -138,9 +119,7 @@ export default function AppointmentForm({ value, onChange }: Props) {
         <label className="flex items-center justify-between gap-3 p-3 rounded-xl bg-slate-800/60 border border-slate-700">
           <div>
             <div className="text-sm font-medium">Habilitar agenda</div>
-            <div className="text-xs text-slate-400">
-              Permite que la IA ofrezca y confirme citas
-            </div>
+            <div className="text-xs text-slate-400">Permite que la IA ofrezca y confirme citas</div>
           </div>
           <button
             type="button"
@@ -198,9 +177,7 @@ export default function AppointmentForm({ value, onChange }: Props) {
             min={0}
             max={240}
             value={value.appointmentBufferMin}
-            onChange={(e) =>
-              patch('appointmentBufferMin', clampBuffer(parseInt(e.target.value, 10)))
-            }
+            onChange={(e) => patch('appointmentBufferMin', clampBuffer(parseInt(e.target.value, 10)))}
             className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-600"
           />
         </label>
@@ -217,7 +194,6 @@ export default function AppointmentForm({ value, onChange }: Props) {
         />
       </label>
 
-      {/* Nuevo: Servicios agendables */}
       <label className="block">
         <div className="text-sm font-medium mb-1">Servicios agendables</div>
         <textarea
@@ -232,47 +208,18 @@ export default function AppointmentForm({ value, onChange }: Props) {
         </p>
       </label>
 
-      <label className="flex items-center justify-between gap-3 p-3 rounded-xl bg-slate-800/60 border border-slate-700">
-        <div>
-          <div className="text-sm font-medium">Recordatorios automáticos</div>
-        </div>
-        <button
-          type="button"
-          onClick={() => patch('appointmentReminders', !value.appointmentReminders)}
-          className={`w-12 h-7 rounded-full border transition ${
-            value.appointmentReminders
-              ? 'bg-emerald-500/90 border-emerald-400'
-              : 'bg-slate-700 border-slate-600'
-          } relative`}
-          aria-pressed={value.appointmentReminders}
-        >
-          <span
-            className={`absolute top-0.5 h-6 w-6 rounded-full bg-white transition ${
-              value.appointmentReminders ? 'right-0.5' : 'left-0.5'
-            }`}
-          />
-        </button>
-      </label>
-
-      {/* ================== Horario semanal ================== */}
+      {/* Horario semanal */}
       <div className="rounded-2xl border border-slate-800 bg-slate-900/70">
-        <div className="px-4 py-3 border-b border-slate-800 text-sm font-semibold">
-          Horario semanal
-        </div>
+        <div className="px-4 py-3 border-b border-slate-800 text-sm font-semibold">Horario semanal</div>
         <div className="divide-y divide-slate-800">
           {hours.map((h) => (
-            <div
-              key={h.day}
-              className="px-4 py-3 grid grid-cols-1 sm:grid-cols-12 gap-3 items-center"
-            >
+            <div key={h.day} className="px-4 py-3 grid grid-cols-1 sm:grid-cols-12 gap-3 items-center">
               <div className="sm:col-span-3 flex items-center gap-3">
                 <button
                   type="button"
                   onClick={() => toggleDay(h.day)}
                   className={`w-10 h-6 rounded-full border transition ${
-                    h.isOpen
-                      ? 'bg-emerald-500/90 border-emerald-400'
-                      : 'bg-slate-700 border-slate-600'
+                    h.isOpen ? 'bg-emerald-500/90 border-emerald-400' : 'bg-slate-700 border-slate-600'
                   } relative`}
                   aria-pressed={h.isOpen}
                 >
@@ -317,76 +264,12 @@ export default function AppointmentForm({ value, onChange }: Props) {
                   className="bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5 text-sm disabled:opacity-50"
                 />
 
-                {/* Ayudas */}
                 <div className="col-span-2 sm:col-span-4 text-xs text-slate-500 self-center">
                   {h.isOpen ? 'Bloques: 1 obligatorio, 2 opcional.' : 'Cerrado'}
                 </div>
               </div>
             </div>
           ))}
-        </div>
-      </div>
-
-      {/* =========== Provider (opcional simple) =========== */}
-      <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4">
-        <div className="text-sm font-semibold mb-3">Profesional principal (opcional)</div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <input
-            type="text"
-            placeholder="Nombre"
-            value={value.provider?.nombre || ''}
-            onChange={(e) =>
-              onChange({
-                provider: {
-                  ...(value.provider || {}),
-                  nombre: e.target.value,
-                } as ProviderInput,
-              })
-            }
-            className="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-600"
-          />
-          <input
-            type="text"
-            placeholder="Cargo (odontólogo, entrenador...)"
-            value={value.provider?.cargo || ''}
-            onChange={(e) =>
-              onChange({
-                provider: {
-                  ...(value.provider || {}),
-                  cargo: e.target.value,
-                } as ProviderInput,
-              })
-            }
-            className="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm"
-          />
-          <input
-            type="email"
-            placeholder="Email"
-            value={value.provider?.email || ''}
-            onChange={(e) =>
-              onChange({
-                provider: {
-                  ...(value.provider || {}),
-                  email: e.target.value,
-                } as ProviderInput,
-              })
-            }
-            className="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm"
-          />
-          <input
-            type="tel"
-            placeholder="Teléfono"
-            value={value.provider?.phone || ''}
-            onChange={(e) =>
-              onChange({
-                provider: {
-                  ...(value.provider || {}),
-                  phone: e.target.value,
-                } as ProviderInput,
-              })
-            }
-            className="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm"
-          />
         </div>
       </div>
     </div>
