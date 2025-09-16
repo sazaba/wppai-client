@@ -111,7 +111,7 @@ export async function fetchAppointmentConfig(): Promise<{
     hours: AppointmentDay[]
     provider?: ProviderInput | null
 }> {
-    const headers = { ...getAuthHeaders() }
+    const headers = { ...getAuthHeaders(), 'Cache-Control': 'no-cache' } // 👈 evita caché
     const { data } = await axios.get(`${API_URL}/api/appointments/config`, { headers })
 
     return {

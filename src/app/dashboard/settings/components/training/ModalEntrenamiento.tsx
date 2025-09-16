@@ -111,11 +111,11 @@ export default function ModalEntrenamiento({
   // Forzamos remount de los formularios (para limpiar inputs al reiniciar)
   const [uiEpoch, setUiEpoch] = useState(0)
 
-  // 🔎 NUEVO: “actividad local” por pestaña (detector de inputs)
+  // Detector de edición por pestaña
   const [agentDirty, setAgentDirty] = useState(false)
   const [citasDirty, setCitasDirty] = useState(false)
 
-  // Lock permanente (si lo quieres mantener puedes usarlo; si no, ignóralo)
+  // Lock opcional por BD
   const [lockedBy, setLockedBy] = useState<LockedBy>(null)
 
   const [form, setForm] = useState<FormState>(() => ({
@@ -136,7 +136,7 @@ export default function ModalEntrenamiento({
 
   /** Cambios locales que marcan “dirty” */
   function handleAgentChange(patch: Partial<FormState>) {
-    setAgentDirty(true) // 👉 se está diligenciando AGENTE
+    setAgentDirty(true)
     setForm((prev) => {
       const next: FormState = { ...prev, ...patch }
       if (patch.aiMode === 'agente') next.appointmentEnabled = false
@@ -144,7 +144,7 @@ export default function ModalEntrenamiento({
     })
   }
   function handleAppointmentChange(patch: Partial<FormState>) {
-    setCitasDirty(true) // 👉 se está diligenciando CITAS
+    setCitasDirty(true)
     setForm((prev) => {
       const next: FormState = { ...prev, ...patch }
       if (patch.appointmentEnabled === true) next.aiMode = 'ecommerce' as AiMode
@@ -157,7 +157,7 @@ export default function ModalEntrenamiento({
     onClose?.()
   }
 
-  /** Carga inicial (puedes mantenerla; no afecta el detector local) */
+  /** Carga inicial: agenda + servicios (BusinessConfig) */
   async function loadAllConfig() {
     setReloading(true)
     setErrorMsg(null)
@@ -174,8 +174,10 @@ export default function ModalEntrenamiento({
       const cfg = ((appt?.config ?? null) as BackendAppointmentConfig | null)
       const hrs = (appt?.hours as AppointmentDay[] | null | undefined) ?? []
 
+      // 👇 Traemos también BusinessConfig (aiMode + servicios)
       const r = await axios.get(`${API_URL}/api/config`, { headers: getAuthHeaders() }).catch(() => null)
       const aiModeDb = ((r?.data?.aiMode as AiMode) ?? 'ecommerce') as AiMode
+      const serviciosDb = (r?.data?.servicios ?? '') as string // 👈 NUEVO
 
       setForm((f) => ({
         ...f,
@@ -189,14 +191,13 @@ export default function ModalEntrenamiento({
         appointmentPolicies: cfg?.appointmentPolicies ?? '',
         appointmentReminders: (cfg?.appointmentReminders ?? true) as boolean,
         hours: hoursFromDb(hrs),
+        appointmentServices: serviciosDb, // 👈 NUEVO
       }))
 
-      // lock opcional basado en BD (lo puedes quitar si no lo quieres)
       if (cfg?.appointmentEnabled) setLockedBy('citas')
       else if (aiModeDb === 'agente') setLockedBy('agente')
       else setLockedBy(null)
 
-      // Al cargar desde BD no estamos diligenciando nada todavía
       setAgentDirty(false)
       setCitasDirty(false)
 
@@ -215,7 +216,6 @@ export default function ModalEntrenamiento({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open])
 
-  /** Regla simple de bloqueo local */
   const isAgenteTabBlocked = useMemo(
     () => citasDirty || lockedBy === 'citas',
     [citasDirty, lockedBy]
@@ -225,7 +225,7 @@ export default function ModalEntrenamiento({
     [agentDirty, lockedBy]
   )
 
-  /** Ignora el click si el tab destino está bloqueado */
+  /** Cambiar de tab respetando bloqueos y refrescando datos de Citas */
   async function handleChangeTab(nextTab: EditorTab) {
     setErrorMsg(null)
     if (nextTab === 'agente' && isAgenteTabBlocked) {
@@ -239,13 +239,17 @@ export default function ModalEntrenamiento({
 
     setTab(nextTab)
 
-    // Si abres Citas, refresco sus datos (opcional)
     if (nextTab === 'citas') {
       try {
         setReloading(true)
         const appt = await fetchAppointmentConfig()
         const cfg = appt?.config ?? {}
         const hrs = (appt?.hours as AppointmentDay[] | null | undefined) ?? []
+
+        // 👇 NUEVO: refrescamos también servicios desde BusinessConfig
+        const r2 = await axios.get(`${API_URL}/api/config`, { headers: getAuthHeaders() }).catch(() => null)
+        const serviciosDb = (r2?.data?.servicios ?? '') as string
+
         setForm((f) => ({
           ...f,
           appointmentEnabled: !!(cfg as any)?.appointmentEnabled,
@@ -257,6 +261,7 @@ export default function ModalEntrenamiento({
           appointmentPolicies: (cfg as any)?.appointmentPolicies ?? '',
           appointmentReminders: ((cfg as any)?.appointmentReminders ?? true) as boolean,
           hours: hoursFromDb(hrs),
+          appointmentServices: serviciosDb, // 👈 NUEVO
         }))
         setUiEpoch((n) => n + 1)
       } finally {
@@ -283,7 +288,6 @@ export default function ModalEntrenamiento({
         { params: { withCatalog: false }, headers: getAuthHeaders() }
       )
 
-      // Limpieza total de UI
       setLockedBy(null)
       setAgentDirty(false)
       setCitasDirty(false)
@@ -300,10 +304,10 @@ export default function ModalEntrenamiento({
         appointmentPolicies: '',
         appointmentReminders: true,
         hours: [],
-        appointmentServices: '',
+        appointmentServices: '', // 👈 aseguramos limpieza
       })
       setTab('citas')
-      setUiEpoch((n) => n + 1) // remount: inputs limpios
+      setUiEpoch((n) => n + 1)
     } catch (e: any) {
       setErrorMsg(e?.response?.data?.error || e?.message || 'No se pudo reiniciar.')
     } finally {
@@ -313,7 +317,6 @@ export default function ModalEntrenamiento({
 
   async function guardarAgente() {
     try {
-      // (opcional) puedes mantener este guard si también quieres lock por BD
       if (lockedBy === 'citas') {
         setErrorMsg('Bloqueado por Citas. Reinicia el entrenamiento para cambiar a Agente.')
         return
@@ -355,9 +358,7 @@ export default function ModalEntrenamiento({
         { headers: getAuthHeaders() }
       )
 
-      // Si quieres que, al guardar, deje de contar como “editando”
       setAgentDirty(false)
-      // Y si quieres lock duro a partir de aquí:
       setLockedBy('agente')
 
       setUiEpoch((n) => n + 1)
@@ -405,7 +406,6 @@ export default function ModalEntrenamiento({
     }
   }
 
-  /** Banner: bloqueos activos */
   const lockBanner = useMemo(() => {
     const localLock =
       agentDirty ? 'Estás editando Agente: “Citas” está bloqueado temporalmente.' :
@@ -468,7 +468,7 @@ export default function ModalEntrenamiento({
               {lockBanner}
 
               <div className="mb-4">
-                {/* 👇 aunque no modifiquemos TypeTabs, ignoramos clicks en onChange */}
+                {/* ignoramos clicks en onChange si destino está bloqueado */}
                 <TypeTabs value={tab} onChange={handleChangeTab} loading={reloading} />
               </div>
 
@@ -499,7 +499,7 @@ export default function ModalEntrenamiento({
                       appointmentPolicies: form.appointmentPolicies,
                       appointmentReminders: form.appointmentReminders,
                       hours: form.hours,
-                      appointmentServices: form.appointmentServices,
+                      appointmentServices: form.appointmentServices, // ✅ ahora llega desde BD
                     } as AppointmentConfigValue}
                     onChange={(patch) => handleAppointmentChange(patch as Partial<FormState>)}
                   />
