@@ -77,9 +77,46 @@ function materializeConfig(data?: BackendBusinessConfig | null): ConfigForm {
   }
 }
 
+// ===== Helpers de detección de configuración =====
+function isAgentConfigured(cfg: ConfigForm | null): boolean {
+  if (!cfg) return false
+  const hasText =
+    (cfg.agentPrompt && cfg.agentPrompt.trim().length > 0) ||
+    (cfg.agentScope && cfg.agentScope.trim().length > 0) ||
+    (cfg.agentDisclaimers && cfg.agentDisclaimers.trim().length > 0)
+  const specialtySet = cfg.agentSpecialty && cfg.agentSpecialty !== 'generico'
+  // si cualquiera de estos está presente, consideramos Agente configurado
+  return Boolean(hasText || specialtySet)
+}
+
+async function fetchAppointmentsConfigured(): Promise<boolean> {
+  try {
+    const { data } = await axios.get(`${API_URL}/api/appointments/config`, {
+      headers: getAuthHeaders(),
+      params: { t: Date.now() },
+    })
+    const appt = data?.config ?? data?.appointment ?? {}
+    const hours = Array.isArray(data?.hours) ? data.hours : []
+    const enabled = !!appt?.enabled
+    const anyOpen = hours.some((h: any) => !!h?.isOpen)
+    const hasFields =
+      (appt?.vertical && appt.vertical !== 'none') ||
+      !!appt?.policies ||
+      !!appt?.timezone
+    // si está habilitado, hay horarios abiertos o hay campos relevantes, consideramos Citas configurado
+    return Boolean(enabled || anyOpen || hasFields)
+  } catch {
+    return false
+  }
+}
+
 export default function SettingsPage() {
   const [form, setForm] = useState<ConfigForm>(DEFAULTS)
   const [configGuardada, setConfigGuardada] = useState<ConfigForm | null>(null)
+
+  // Estado para ocultar cards cuando ya hay alguna configuración
+  const [agentConfigured, setAgentConfigured] = useState(false)
+  const [appointmentsConfigured, setAppointmentsConfigured] = useState(false)
 
   // Modal control
   const [trainingActive, setTrainingActive] = useState(false)
@@ -88,21 +125,30 @@ export default function SettingsPage() {
 
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    const fetchConfig = async () => {
-      try {
-        const { data } = await axios.get(`${API_URL}/api/config`, { headers: getAuthHeaders() })
-        const safe = materializeConfig(data as BackendBusinessConfig)
-        setConfigGuardada(Object.keys(data || {}).length ? safe : null)
-        setForm(safe)
-      } catch (err) {
-        console.error('Error al cargar configuración existente:', err)
-        setForm(DEFAULTS)
-      } finally {
-        setLoading(false)
-      }
+  async function refreshAll() {
+    try {
+      const { data } = await axios.get(`${API_URL}/api/config`, { headers: getAuthHeaders() })
+      const safe = materializeConfig(data as BackendBusinessConfig)
+      setConfigGuardada(Object.keys(data || {}).length ? safe : null)
+      setForm(safe)
+
+      // Flags
+      setAgentConfigured(isAgentConfigured(safe))
+      const apptOk = await fetchAppointmentsConfigured()
+      setAppointmentsConfigured(apptOk)
+    } catch (err) {
+      console.error('Error al cargar configuración existente:', err)
+      setForm(DEFAULTS)
+      setConfigGuardada(null)
+      setAgentConfigured(false)
+      setAppointmentsConfigured(false)
+    } finally {
+      setLoading(false)
     }
-    fetchConfig()
+  }
+
+  useEffect(() => {
+    refreshAll()
   }, [])
 
   const reiniciarEntrenamiento = async () => {
@@ -117,15 +163,20 @@ export default function SettingsPage() {
       await axios.post(
         `${API_URL}/api/config/reset`,
         null,
-        {
-          params: { withCatalog: true },
-          headers: getAuthHeaders()
-        }
+        { params: { withCatalog: true }, headers: getAuthHeaders() }
       )
+      // limpiar también agenda
+      await axios.post(`${API_URL}/api/appointments/reset`, null, {
+        headers: getAuthHeaders(),
+        params: { t: Date.now() },
+      }).catch(() => {})
 
       setConfigGuardada(null)
       setForm(DEFAULTS)
-      // Abrimos el modal en modo "cards internas" después del reset
+      setAgentConfigured(false)
+      setAppointmentsConfigured(false)
+
+      // Abre el modal con cards internas después del reset
       setInitialTrainingPanel(null)
       setTrainingActive(true)
     } catch (e: any) {
@@ -136,7 +187,7 @@ export default function SettingsPage() {
 
   // Helper: abrir modal directo en panel
   const openTraining = (panel: 'citas' | 'agente' | null) => {
-    setInitialTrainingPanel(panel) // si es null, muestra cards internas; si es 'citas' o 'agente', abre directo el formulario
+    setInitialTrainingPanel(panel) // null => cards internas; 'citas'/'agente' => formulario directo
     setTrainingActive(true)
   }
 
@@ -168,6 +219,10 @@ export default function SettingsPage() {
     </button>
   )
 
+  // Mostrar u ocultar cards superiores si YA hay algo configurado
+  const hideTopCards = agentConfigured || appointmentsConfigured
+  const hasAnyConfig = hideTopCards || !!configGuardada
+
   return (
     <div className="h-full overflow-y-auto max-h-screen px-4 sm:px-6 py-8 scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-transparent">
       <div className="max-w-5xl mx-auto space-y-6">
@@ -175,36 +230,80 @@ export default function SettingsPage() {
           <h1 className="text-2xl font-bold text-white">Entrenamiento de tu IA</h1>
         </div>
 
-        {/* Cards (trigger del modal) */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Card
-            icon={<Calendar className="w-5 h-5 text-emerald-300" />}
-            title="Configurar Citas"
-            desc="Define horarios, políticas, recordatorios y servicios."
-            onClick={() => openTraining('citas')}
-          />
-          <Card
-            icon={<Bot className="w-5 h-5 text-violet-300" />}
-            title="Configurar Agente"
-            desc="Define el modo, especialidad y prompts del agente."
-            onClick={() => openTraining('agente')}
-          />
-        </div>
+        {/* Cards (trigger del modal) — se ocultan si ya está configurado al menos uno */}
+        {!hideTopCards && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Card
+              icon={<Calendar className="w-5 h-5 text-emerald-300" />}
+              title="Configurar Citas"
+              desc="Define horarios, políticas, recordatorios y servicios."
+              onClick={() => openTraining('citas')}
+            />
+            <Card
+              icon={<Bot className="w-5 h-5 text-violet-300" />}
+              title="Configurar Agente"
+              desc="Define el modo, especialidad y prompts del agente."
+              onClick={() => openTraining('agente')}
+            />
+          </div>
+        )}
 
-        {configGuardada && (
+        {/* Estado + Acciones cuando ya hay algo configurado */}
+        {hasAnyConfig && (
           <div className="bg-slate-800 border border-slate-700 p-6 rounded-2xl shadow-xl text-white space-y-4">
-            <h2 className="text-xl font-bold">⚙️ Acciones de configuración</h2>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <h2 className="text-xl font-bold">⚙️ Acciones de configuración</h2>
+              <div className="flex gap-2 text-xs">
+                <span
+                  className={[
+                    'rounded-full px-3 py-1 border',
+                    agentConfigured
+                      ? 'bg-emerald-900/30 border-emerald-700 text-emerald-200'
+                      : 'bg-slate-700/40 border-slate-600 text-slate-300',
+                  ].join(' ')}
+                >
+                  Agente: {agentConfigured ? 'Configurado' : 'No configurado'}
+                </span>
+                <span
+                  className={[
+                    'rounded-full px-3 py-1 border',
+                    appointmentsConfigured
+                      ? 'bg-emerald-900/30 border-emerald-700 text-emerald-200'
+                      : 'bg-slate-700/40 border-slate-600 text-slate-300',
+                  ].join(' ')}
+                >
+                  Citas: {appointmentsConfigured ? 'Configuradas' : 'No configuradas'}
+                </span>
+              </div>
+            </div>
+
             <p className="text-sm text-slate-300">
-              Tu IA ya está configurada. Puedes actualizar los parámetros o reiniciar todo cuando lo necesites.
+              Puedes actualizar los parámetros o reiniciar todo cuando lo necesites.
             </p>
 
             <div className="flex flex-wrap gap-3">
               <button
-                onClick={() => openTraining(null)} // abre con las cards internas del modal
+                onClick={() => openTraining('citas')}
+                className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg shadow"
+              >
+                <Calendar className="w-4 h-4" />
+                Editar Citas
+              </button>
+
+              <button
+                onClick={() => openTraining('agente')}
+                className="flex items-center gap-2 bg-violet-600 hover:bg-violet-700 text-white px-4 py-2 rounded-lg shadow"
+              >
+                <Bot className="w-4 h-4" />
+                Editar Agente
+              </button>
+
+              <button
+                onClick={() => openTraining(null)} // abrir con las cards internas del modal si quieres explorar
                 className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg shadow"
               >
                 <Sparkles className="w-4 h-4" />
-                Actualizar entrenamiento
+                Explorar entrenamiento
               </button>
 
               <button
@@ -218,28 +317,17 @@ export default function SettingsPage() {
           </div>
         )}
 
-        {/* Modal de entrenamiento (pasa el panel para evitar popup intermedio) */}
-        {(
-          <ModalEntrenamiento
-            key={`modal-${initialTrainingPanel ?? 'cards'}`} // fuerza re-mount cuando cambias de destino
-            trainingActive={trainingActive}
-            initialConfig={form}
-            initialPanel={initialTrainingPanel} // 👈 CLAVE: abre directo en 'citas' o 'agente' y no muestra cards internas
-            onClose={async () => {
-              setTrainingActive(false)
-              // opcional: limpia el panel para el próximo uso desde "Actualizar entrenamiento"
-              // setInitialTrainingPanel(null)
-              try {
-                const { data } = await axios.get(`${API_URL}/api/config`, { headers: getAuthHeaders() })
-                const safe = materializeConfig(data as BackendBusinessConfig)
-                setConfigGuardada(Object.keys(data || {}).length ? safe : null)
-                setForm(safe)
-              } catch {
-                /* noop */
-              }
-            }}
-          />
-        )}
+        {/* Modal de entrenamiento */}
+        <ModalEntrenamiento
+          key={`modal-${initialTrainingPanel ?? 'cards'}`}
+          trainingActive={trainingActive}
+          initialConfig={form}
+          initialPanel={initialTrainingPanel} // abre directo en 'citas'/'agente' y no muestra cards internas
+          onClose={async () => {
+            setTrainingActive(false)
+            await refreshAll() // vuelve a calcular flags para ocultar/mostrar cards
+          }}
+        />
 
         <WhatsappConfig />
         <ActivatePhoneCard />
