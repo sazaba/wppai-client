@@ -117,7 +117,7 @@ export default function ModalEntrenamiento({
   trainingActive,
   onClose,
   initialConfig,
-  initialPanel = null, // si viene -> abre directo ese formulario y NO muestra cards internas
+  initialPanel = null, // si viene -> abrimos DIRECTO ese formulario y NUNCA mostramos cards internas
 }: ModalEntrenamientoProps & { initialPanel?: ActivePanel }) {
   const [open, setOpen] = useState<boolean>(trainingActive)
   useEffect(() => setOpen(trainingActive), [trainingActive])
@@ -128,7 +128,7 @@ export default function ModalEntrenamiento({
   const [uiEpoch, setUiEpoch] = useState(0)
   const [lockedBy, setLockedBy] = useState<LockedBy>(null)
 
-  // ⚠️ clave: si viene initialPanel, lo usamos como estado inicial para evitar cualquier “flash” de cards
+  // 👇 clave: iniciamos el panel con initialPanel para evitar cualquier "flash" de cards
   const [activePanel, setActivePanel] = useState<ActivePanel>(initialPanel ?? null)
 
   const [form, setForm] = useState<FormState>(() => ({
@@ -152,7 +152,7 @@ export default function ModalEntrenamiento({
     onClose?.()
   }
 
-  // si se abre el modal y nos pasan initialPanel, mantenemos ese panel activo
+  // Si se abre y nos pasan initialPanel, mantenlo (sin mostrar cards jamás)
   useEffect(() => {
     if (trainingActive && initialPanel) setActivePanel(initialPanel)
   }, [trainingActive, initialPanel])
@@ -245,7 +245,7 @@ export default function ModalEntrenamiento({
       }
 
       setLockedBy(null)
-      // si el modal fue abierto dirigido, mantenemos el mismo panel; si no, volvemos a cards
+      // si abriste dirigido (initialPanel), te dejamos en ese mismo formulario; si no, vuelves a cards
       setActivePanel(initialPanel ?? null)
       setForm({
         aiMode: 'agente',
@@ -380,8 +380,8 @@ export default function ModalEntrenamiento({
     )
   }, [lockedBy, saving])
 
-  // solo mostramos las cards internas si NO se solicitó abrir directo un panel
-  const shouldShowCards = activePanel === null && !initialPanel
+  // 🔒 REGRA: si viene initialPanel, NUNCA mostramos cards internas
+  const shouldShowCards = activePanel === null && initialPanel == null
 
   const Card = ({
     icon,
