@@ -96,7 +96,7 @@ function buildAppointmentPayloadFromForm(form: FormState) {
       policies: form.appointmentPolicies || '',
       reminders: !!form.appointmentReminders,
     },
-    hours: hours.map((h) => ({
+  hours: hours.map((h) => ({
       day: h.day,
       isOpen: !!h.isOpen,
       start1: h.isOpen ? h.start1 : null,
@@ -139,6 +139,30 @@ export default function ModalEntrenamiento({
     appointmentServices: initialConfig?.servicios || '',
   }))
 
+  /** ===== Exclusividad en el estado local =====
+   * - Si el usuario habilita Citas -> forzamos aiMode='ecommerce'
+   * - Si el usuario pone aiMode='agente' -> forzamos appointmentEnabled=false
+   */
+  function handleAgentChange(patch: Partial<FormState>) {
+    setForm((prev) => {
+      const next: FormState = { ...prev, ...patch }
+      if (patch.aiMode === 'agente') {
+        next.appointmentEnabled = false
+      }
+      return next
+    })
+  }
+
+  function handleAppointmentChange(patch: Partial<FormState>) {
+    setForm((prev) => {
+      const next: FormState = { ...prev, ...patch }
+      if (patch.appointmentEnabled === true) {
+        next.aiMode = 'ecommerce' as AiMode
+      }
+      return next
+    })
+  }
+
   const close = () => {
     setOpen(false)
     onClose?.()
@@ -171,7 +195,7 @@ export default function ModalEntrenamiento({
         appointmentPolicies: cfg.appointmentPolicies ?? '',
         appointmentReminders: cfg.appointmentReminders ?? true,
         hours: hoursFromDb(data?.hours as AppointmentDay[] | null | undefined),
-        // 👇 OJO: NO tocamos appointmentServices aquí para no pisar lo ya escrito
+        // 👇 NO tocamos appointmentServices para no pisar lo escrito manualmente
       }))
     } catch (e: any) {
       console.error('[settings] fetchAppointmentConfig error:', e)
@@ -202,7 +226,7 @@ export default function ModalEntrenamiento({
       setSaving(true)
       setErrorMsg(null)
 
-      // 1) Guardar/actualizar el perfil del agente
+      // 🔒 En este punto, por la exclusividad local, appointmentEnabled ya debe ser false
       const payload = {
         aiMode: form.aiMode as AiMode,
         agentSpecialty: form.agentSpecialty,
@@ -212,7 +236,7 @@ export default function ModalEntrenamiento({
       }
       await axios.put(`${API_URL}/api/config/agent`, payload, { headers: getAuthHeaders() })
 
-      // 2) Exclusividad: al activar Agente, desactivar Citas (pero conservando el horario)
+      // Extra robustez: asegurar agenda apagada en backend (conserva horas)
       const currentHours = hoursFromDb(form.hours)
       await axios.post(
         `${API_URL}/api/appointments/config`,
@@ -222,8 +246,8 @@ export default function ModalEntrenamiento({
             vertical: form.appointmentVertical || 'none',
             timezone: form.appointmentTimezone || 'America/Bogota',
             bufferMin: Number.isFinite(form.appointmentBufferMin) ? form.appointmentBufferMin : 10,
-            policies: '',
-            reminders: true,
+            policies: form.appointmentPolicies || '',
+            reminders: !!form.appointmentReminders,
           },
           hours: currentHours.map((h) => ({
             day: h.day,
@@ -250,6 +274,7 @@ export default function ModalEntrenamiento({
       setSaving(true)
       setErrorMsg(null)
 
+      // Por exclusividad local, si appointmentEnabled=true, aiMode ya es 'ecommerce'
       const appointmentPayload = buildAppointmentPayloadFromForm(form)
 
       // 1) Guardar config de agenda + horas
@@ -258,18 +283,17 @@ export default function ModalEntrenamiento({
       })
 
       // 2) Guardar servicios (texto) en BusinessConfig.servicios sin romper nada
-      //    Usamos /api/config/agent que permite actualizar parciales sin validación estricta.
       const serviciosText = (form.appointmentServices || '').trim()
       await axios.put(
         `${API_URL}/api/config/agent`,
         {
-          aiMode: form.aiMode, // preserva el modo actual salvo que forcemos abajo
+          aiMode: form.aiMode, // ya es 'ecommerce' si habilitaste citas
           servicios: serviciosText,
         },
         { headers: getAuthHeaders() }
       )
 
-      // 3) Exclusividad: si Citas quedó habilitado, forzar aiMode = 'ecommerce'
+      // Extra robustez: si quedaron citas habilitadas, asegurar aiMode='ecommerce'
       if (appointmentPayload.appointment.enabled) {
         await axios.put(
           `${API_URL}/api/config/agent`,
@@ -278,7 +302,6 @@ export default function ModalEntrenamiento({
         )
       }
 
-      // ✅ cerrar al guardar
       close()
     } catch (e: any) {
       setErrorMsg(e?.response?.data?.error || e?.message || 'Error guardando la agenda.')
@@ -368,7 +391,7 @@ export default function ModalEntrenamiento({
                     agentScope: form.agentScope,
                     agentDisclaimers: form.agentDisclaimers,
                   }}
-                  onChange={(patch) => setForm((f) => ({ ...f, ...patch }))}
+                  onChange={handleAgentChange}
                 />
               ) : (
                 <AppointmentForm
@@ -382,7 +405,7 @@ export default function ModalEntrenamiento({
                     hours: form.hours,
                     appointmentServices: form.appointmentServices,
                   } as AppointmentConfigValue}
-                  onChange={(patch) => setForm((f) => ({ ...f, ...(patch as Partial<FormState>) }))}
+                  onChange={(patch) => handleAppointmentChange(patch as Partial<FormState>)}
                 />
               )}
 
