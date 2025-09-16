@@ -201,6 +201,8 @@ export default function ModalEntrenamiento({
     try {
       setSaving(true)
       setErrorMsg(null)
+
+      // 1) Guardar/actualizar el perfil del agente
       const payload = {
         aiMode: form.aiMode as AiMode,
         agentSpecialty: form.agentSpecialty,
@@ -209,6 +211,32 @@ export default function ModalEntrenamiento({
         agentDisclaimers: form.agentDisclaimers ?? '',
       }
       await axios.put(`${API_URL}/api/config/agent`, payload, { headers: getAuthHeaders() })
+
+      // 2) Exclusividad: al activar Agente, desactivar Citas (pero conservando el horario)
+      const currentHours = hoursFromDb(form.hours)
+      await axios.post(
+        `${API_URL}/api/appointments/config`,
+        {
+          appointment: {
+            enabled: false,
+            vertical: form.appointmentVertical || 'none',
+            timezone: form.appointmentTimezone || 'America/Bogota',
+            bufferMin: Number.isFinite(form.appointmentBufferMin) ? form.appointmentBufferMin : 10,
+            policies: '',
+            reminders: true,
+          },
+          hours: currentHours.map((h) => ({
+            day: h.day,
+            isOpen: h.isOpen,
+            start1: h.start1,
+            end1: h.end1,
+            start2: h.start2,
+            end2: h.end2,
+          })),
+        },
+        { headers: getAuthHeaders() }
+      )
+
       close()
     } catch (e: any) {
       setErrorMsg(e?.response?.data?.error || e?.message || 'Error guardando el agente.')
@@ -221,6 +249,7 @@ export default function ModalEntrenamiento({
     try {
       setSaving(true)
       setErrorMsg(null)
+
       const appointmentPayload = buildAppointmentPayloadFromForm(form)
 
       // 1) Guardar config de agenda + horas
@@ -234,11 +263,20 @@ export default function ModalEntrenamiento({
       await axios.put(
         `${API_URL}/api/config/agent`,
         {
-          aiMode: form.aiMode, // preserva el modo actual
+          aiMode: form.aiMode, // preserva el modo actual salvo que forcemos abajo
           servicios: serviciosText,
         },
         { headers: getAuthHeaders() }
       )
+
+      // 3) Exclusividad: si Citas quedó habilitado, forzar aiMode = 'ecommerce'
+      if (appointmentPayload.appointment.enabled) {
+        await axios.put(
+          `${API_URL}/api/config/agent`,
+          { aiMode: 'ecommerce' as AiMode },
+          { headers: getAuthHeaders() }
+        )
+      }
 
       // ✅ cerrar al guardar
       close()
