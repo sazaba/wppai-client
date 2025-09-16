@@ -1,20 +1,12 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Dialog } from '@headlessui/react'
 import { AnimatePresence, motion } from 'framer-motion'
 import axios, { AxiosError } from 'axios'
-import { X, Lock, Calendar, Bot } from 'lucide-react'
+import { X } from 'lucide-react'
 
 import AgentForm from './AgentForm'
-import AppointmentForm, {
-  type AppointmentDay,
-  type Weekday,
-  type AppointmentConfigValue,
-  type Vertical,
-} from './AppointmentForm'
-
-import { normalizeDays } from '@/lib/appointments'
 
 import type {
   ModalEntrenamientoProps,
@@ -25,8 +17,6 @@ import type {
 
 /* ================= Constantes / helpers ================= */
 const API_URL = (process.env.NEXT_PUBLIC_API_URL || '') as string
-const FRONTEND_LOCK_KEY = 'trainingLockedBy' as const // 'agente' | 'citas'
-const RESET_MARKER_KEY = 'trainingResetAt'
 
 function getAuthHeaders(): Record<string, string> {
   if (typeof window === 'undefined') return {}
@@ -38,80 +28,6 @@ function noCacheHeaders() {
   return { ...getAuthHeaders(), 'Cache-Control': 'no-cache', Pragma: 'no-cache' }
 }
 
-async function fetchAppointmentsNoCache() {
-  const r = await axios.get(`${API_URL}/api/appointments/config`, {
-    headers: noCacheHeaders(),
-    params: { t: Date.now() },
-  })
-  const data = r?.data ?? {}
-  const config = data.config ?? data.appointment ?? {}
-  const hours = data.hours ?? []
-  return { config, hours }
-}
-
-type FormState = Pick<
-  ConfigForm,
-  'aiMode' | 'agentSpecialty' | 'agentPrompt' | 'agentScope' | 'agentDisclaimers'
-> & {
-  appointmentEnabled: boolean
-  appointmentVertical: Vertical
-  appointmentTimezone: string
-  appointmentBufferMin: number
-  appointmentPolicies?: string
-  appointmentReminders: boolean
-  hours?: AppointmentDay[]
-  appointmentServices?: string
-}
-
-type LockedBy = 'agente' | 'citas' | null
-type ActivePanel = 'agente' | 'citas' | null
-
-const ORDER: Weekday[] = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']
-
-function hoursFromDb(rows: AppointmentDay[] | undefined | null): AppointmentDay[] {
-  const base = new Map<Weekday, AppointmentDay>()
-  for (const d of ORDER) {
-    base.set(d, { day: d, isOpen: false, start1: null, end1: null, start2: null, end2: null })
-  }
-  if (Array.isArray(rows)) {
-    for (const r of rows) {
-      const k = r.day as Weekday
-      if (!ORDER.includes(k)) continue
-      base.set(k, {
-        day: k,
-        isOpen: !!r.isOpen,
-        start1: r.start1 ?? null,
-        end1: r.end1 ?? null,
-        start2: r.start2 ?? null,
-        end2: r.end2 ?? null,
-      })
-    }
-  }
-  return ORDER.map((d) => base.get(d)!)
-}
-
-function buildAppointmentPayloadFromForm(form: FormState) {
-  const normalized = normalizeDays(form.hours)
-  return {
-    appointment: {
-      enabled: !!form.appointmentEnabled,
-      vertical: form.appointmentVertical,
-      timezone: form.appointmentTimezone || 'America/Bogota',
-      bufferMin: Number.isFinite(form.appointmentBufferMin) ? form.appointmentBufferMin : 10,
-      policies: form.appointmentPolicies || '',
-      reminders: !!form.appointmentReminders,
-    },
-    hours: normalized.map((h) => ({
-      day: h.day,
-      isOpen: !!h.isOpen,
-      start1: h.isOpen ? h.start1 ?? null : null,
-      end1: h.isOpen ? h.end1 ?? null : null,
-      start2: h.isOpen ? h.start2 ?? null : null,
-      end2: h.isOpen ? h.end2 ?? null : null,
-    })),
-  }
-}
-
 function prettyAxiosError(e: unknown, fallback = 'Ocurrió un error') {
   const ax = e as AxiosError<any>
   if (ax?.message === 'Network Error') {
@@ -120,23 +36,23 @@ function prettyAxiosError(e: unknown, fallback = 'Ocurrió un error') {
   return ax?.response?.data?.error || fallback
 }
 
+/* =================== Tipado del formulario =================== */
+type FormState = Pick<
+  ConfigForm,
+  'aiMode' | 'agentSpecialty' | 'agentPrompt' | 'agentScope' | 'agentDisclaimers'
+>
+
 /* =================== Componente principal =================== */
 export default function ModalEntrenamiento({
   trainingActive,
   onClose,
   initialConfig,
-  initialPanel = null, // <- NUEVO
-}: ModalEntrenamientoProps & { initialPanel?: ActivePanel }) {
+}: ModalEntrenamientoProps) {
   const [open, setOpen] = useState<boolean>(trainingActive)
   useEffect(() => setOpen(trainingActive), [trainingActive])
 
   const [saving, setSaving] = useState(false)
   const [reloading, setReloading] = useState(false)
-  const [errorMsg, setErrorMsg] = useState<string | null>(null)
-
-  const [uiEpoch, setUiEpoch] = useState(0)
-  const [lockedBy, setLockedBy] = useState<LockedBy>(null)
-  const [activePanel, setActivePanel] = useState<ActivePanel>(null)
 
   const [form, setForm] = useState<FormState>(() => ({
     aiMode: (initialConfig?.aiMode as AiMode) || 'agente',
@@ -144,14 +60,6 @@ export default function ModalEntrenamiento({
     agentPrompt: initialConfig?.agentPrompt || '',
     agentScope: initialConfig?.agentScope || '',
     agentDisclaimers: initialConfig?.agentDisclaimers || '',
-    appointmentEnabled: false,
-    appointmentVertical: 'none',
-    appointmentTimezone: 'America/Bogota',
-    appointmentBufferMin: 10,
-    appointmentPolicies: '',
-    appointmentReminders: true,
-    hours: [],
-    appointmentServices: initialConfig?.servicios || '',
   }))
 
   const close = () => {
@@ -159,30 +67,14 @@ export default function ModalEntrenamiento({
     onClose?.()
   }
 
-  // si se abre el modal, enfoca el panel recibido
-  useEffect(() => {
-    if (trainingActive) setActivePanel(initialPanel ?? null)
-  }, [trainingActive, initialPanel])
-
-  /* ============ Carga inicial (sin bloquear por backend) ============ */
-  async function loadAllConfig() {
+  /* ============ Carga inicial: solo configuración de agente ============ */
+  async function loadAgentConfig() {
     setReloading(true)
-    setErrorMsg(null)
     try {
-      if (typeof window !== 'undefined') {
-        const mk = localStorage.getItem(RESET_MARKER_KEY)
-        if (mk) localStorage.removeItem(RESET_MARKER_KEY)
-      }
-
-      const appt = await fetchAppointmentsNoCache()
-      const cfg = (appt?.config ?? null) as any
-      const hrs = (appt?.hours as AppointmentDay[] | null | undefined) ?? []
-
       const r = await axios
         .get(`${API_URL}/api/config`, { headers: noCacheHeaders(), params: { t: Date.now() } })
         .catch(() => null)
 
-      const serviciosDb = (r?.data?.servicios ?? '') as string
       const agentPromptDb = (r?.data?.agentPrompt ?? '') as string
       const agentScopeDb = (r?.data?.agentScope ?? '') as string
       const agentDiscDb = (r?.data?.agentDisclaimers ?? '') as string
@@ -194,90 +86,24 @@ export default function ModalEntrenamiento({
         agentPrompt: agentPromptDb,
         agentScope: agentScopeDb,
         agentDisclaimers: agentDiscDb,
-        appointmentEnabled: !!cfg?.appointmentEnabled,
-        appointmentVertical: (cfg?.appointmentVertical as Vertical) ?? 'none',
-        appointmentTimezone: cfg?.appointmentTimezone ?? 'America/Bogota',
-        appointmentBufferMin: Number.isFinite(cfg?.appointmentBufferMin as number)
-          ? ((cfg?.appointmentBufferMin as number) ?? 10)
-          : 10,
-        appointmentPolicies: cfg?.appointmentPolicies ?? '',
-        appointmentReminders: (cfg?.appointmentReminders ?? true) as boolean,
-        hours: hoursFromDb(hrs),
-        appointmentServices: serviciosDb,
+        aiMode: 'agente',
       }))
-
-      // bloqueo solo desde localStorage
-      if (typeof window !== 'undefined') {
-        const stored = localStorage.getItem(FRONTEND_LOCK_KEY) as LockedBy | null
-        setLockedBy(stored === 'agente' || stored === 'citas' ? stored : null)
-      }
-
-      setUiEpoch((n) => n + 1)
-    } catch (e: any) {
-      console.error('[settings] loadAllConfig error:', e)
-      setErrorMsg(prettyAxiosError(e, 'No se pudo cargar la configuración.'))
+    } catch (e) {
+      // Solo log: no mostrar banner rojo
+      console.error('[settings] loadAgentConfig:', prettyAxiosError(e))
     } finally {
       setReloading(false)
     }
   }
 
   useEffect(() => {
-    if (open) loadAllConfig()
+    if (open) loadAgentConfig()
   }, [open])
 
   /* ================= Acciones ================= */
-
-  async function reiniciarEntrenamiento() {
-    try {
-      if (typeof window !== 'undefined') {
-        const ok = window.confirm('¿Reiniciar entrenamiento? Esto borrará tu configuración.')
-        if (!ok) return
-      }
-      setSaving(true)
-      setErrorMsg(null)
-
-      await axios.post(`${API_URL}/api/config/reset`, null, {
-        params: { withCatalog: false, t: Date.now() },
-        headers: getAuthHeaders(),
-      }).catch(() => {})
-
-      await axios.post(`${API_URL}/api/appointments/reset`, null, {
-        headers: getAuthHeaders(),
-        params: { t: Date.now() },
-      }).catch(() => {})
-
-      if (typeof window !== 'undefined') {
-        localStorage.removeItem(FRONTEND_LOCK_KEY)
-        localStorage.setItem(RESET_MARKER_KEY, String(Date.now()))
-      }
-
-      setLockedBy(null)
-      setActivePanel(null)
-      setForm({
-        aiMode: 'agente',
-        agentSpecialty: 'generico',
-        agentPrompt: '',
-        agentScope: '',
-        agentDisclaimers: '',
-        appointmentEnabled: false,
-        appointmentVertical: 'none',
-        appointmentTimezone: 'America/Bogota',
-        appointmentBufferMin: 10,
-        appointmentPolicies: '',
-        appointmentReminders: true,
-        hours: [],
-        appointmentServices: '',
-      })
-      setUiEpoch((n) => n + 1)
-    } finally {
-      setSaving(false)
-    }
-  }
-
   async function guardarAgente() {
     try {
       setSaving(true)
-      setErrorMsg(null)
 
       await axios.put(
         `${API_URL}/api/config/agent`,
@@ -291,126 +117,13 @@ export default function ModalEntrenamiento({
         { headers: getAuthHeaders(), params: { t: Date.now() } }
       ).catch(() => {})
 
-      const currentHours = normalizeDays(form.hours)
-      await axios.post(
-        `${API_URL}/api/appointments/config`,
-        {
-          appointment: {
-            enabled: false,
-            vertical: form.appointmentVertical || 'none',
-            timezone: form.appointmentTimezone || 'America/Bogota',
-            bufferMin: Number.isFinite(form.appointmentBufferMin) ? form.appointmentBufferMin : 10,
-            policies: form.appointmentPolicies || '',
-            reminders: !!form.appointmentReminders,
-          },
-          hours: currentHours,
-        },
-        { headers: getAuthHeaders(), params: { t: Date.now() } }
-      ).catch(() => {})
-
-      if (typeof window !== 'undefined') localStorage.setItem(FRONTEND_LOCK_KEY, 'agente')
-      setLockedBy('agente')
-
       close()
     } finally {
       setSaving(false)
     }
   }
 
-  async function guardarCitas() {
-    try {
-      setSaving(true)
-      setErrorMsg(null)
-
-      const normalized = normalizeDays(form.hours)
-      const hasOpenDay = normalized.some((d) => d.isOpen)
-      if (form.appointmentEnabled && !hasOpenDay) {
-        if (typeof window !== 'undefined') alert('Abre al menos un día en el horario para habilitar la agenda.')
-        setSaving(false)
-        return
-      }
-
-      const appointmentPayload = buildAppointmentPayloadFromForm(form)
-      await axios.post(`${API_URL}/api/appointments/config`, appointmentPayload as any, {
-        headers: getAuthHeaders(),
-        params: { t: Date.now() },
-      }).catch(() => {})
-
-      const serviciosText = (form.appointmentServices || '').trim()
-      await axios.put(
-        `${API_URL}/api/config/agent`,
-        { aiMode: 'ecommerce' as AiMode, servicios: serviciosText },
-        { headers: getAuthHeaders(), params: { t: Date.now() } }
-      ).catch(() => {})
-
-      if (typeof window !== 'undefined') localStorage.setItem(FRONTEND_LOCK_KEY, 'citas')
-      setLockedBy('citas')
-
-      close()
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  /* =================== UI =================== */
-
-  const lockBanner = useMemo(() => {
-    const text =
-      lockedBy === 'agente'
-        ? 'Entrenamiento bloqueado por configuración de Agente (bloqueo frontend).'
-        : lockedBy === 'citas'
-        ? 'Entrenamiento bloqueado por configuración de Citas (bloqueo frontend).'
-        : null
-    if (!text) return null
-    return (
-      <div className="mb-3 flex items-center justify-between gap-3 rounded-xl border border-amber-600/40 bg-amber-900/20 px-3 py-2 text-amber-200">
-        <span className="text-sm flex items-center gap-2"><Lock className="w-4 h-4" /> {text}</span>
-        <button
-          type="button"
-          onClick={reiniciarEntrenamiento}
-          className="px-3 py-1.5 rounded-lg text-sm bg-amber-600 hover:bg-amber-700 text-white"
-          disabled={saving}
-        >
-          {saving ? 'Reiniciando…' : 'Reiniciar entrenamiento'}
-        </button>
-      </div>
-    )
-  }, [lockedBy, saving])
-
-  const Card = ({
-    icon,
-    title,
-    desc,
-    disabled,
-    onOpen,
-  }: {
-    icon: React.ReactNode
-    title: string
-    desc: string
-    disabled?: boolean
-    onOpen: () => void
-  }) => (
-    <button
-      type="button"
-      onClick={onOpen}
-      disabled={!!disabled}
-      className={[
-        'group rounded-2xl border p-5 text-left transition',
-        disabled
-          ? 'border-slate-800 bg-slate-800/30 text-slate-400 cursor-not-allowed'
-          : 'border-slate-800 bg-slate-800/40 hover:bg-slate-800/70',
-      ].join(' ')}
-    >
-      <div className="flex items-center gap-3 mb-2">
-        <div className="p-2 rounded-xl bg-slate-700/30 border border-slate-700">
-          {icon}
-        </div>
-        <div className="text-lg font-medium">{title}</div>
-      </div>
-      <p className="text-sm text-slate-300">{desc}</p>
-    </button>
-  )
-
+  /* =================== UI (sin banners ni cards) =================== */
   return (
     <AnimatePresence>
       {open && (
@@ -439,99 +152,29 @@ export default function ModalEntrenamiento({
                 </button>
               </div>
 
-              {lockBanner}
+              {/* ÚNICAMENTE el formulario de Agente */}
+              <AgentForm
+                value={{
+                  aiMode: form.aiMode,
+                  agentSpecialty: form.agentSpecialty,
+                  agentPrompt: form.agentPrompt,
+                  agentScope: form.agentScope,
+                  agentDisclaimers: form.agentDisclaimers,
+                }}
+                onChange={(patch) => setForm((prev) => ({ ...prev, ...patch }))}
+              />
 
-              {/* Cards de selección */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-                <Card
-                  icon={<Calendar className="w-5 h-5 text-emerald-300" />}
-                  title="Configurar Citas"
-                  desc="Define horarios, políticas, recordatorios y servicios."
-                  disabled={lockedBy === 'agente' || saving}
-                  onOpen={() => setActivePanel('citas')}
-                />
-                <Card
-                  icon={<Bot className="w-5 h-5 text-violet-300" />}
-                  title="Configurar Agente"
-                  desc="Define el modo, especialidad y prompts del agente."
-                  disabled={lockedBy === 'citas' || saving}
-                  onOpen={() => setActivePanel('agente')}
-                />
+              {/* Botón Guardar */}
+              <div className="mt-6 flex items-center justify-end">
+                <button
+                  onClick={guardarAgente}
+                  disabled={saving || reloading}
+                  className="px-4 py-2 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-sm disabled:opacity-60"
+                  type="button"
+                >
+                  {saving ? 'Guardando…' : 'Guardar'}
+                </button>
               </div>
-
-              {/* Formularios */}
-              {activePanel === 'agente' && (
-                <div className={lockedBy === 'citas' ? 'pointer-events-none opacity-50' : ''}>
-                  <AgentForm
-                    key={`agent-${uiEpoch}`}
-                    value={{
-                      aiMode: form.aiMode,
-                      agentSpecialty: form.agentSpecialty,
-                      agentPrompt: form.agentPrompt,
-                      agentScope: form.agentScope,
-                      agentDisclaimers: form.agentDisclaimers,
-                    }}
-                    onChange={(patch) => setForm((prev) => ({ ...prev, ...patch }))}
-                  />
-
-                  {errorMsg && (
-                    <div className="mt-4 text-sm text-red-300 bg-red-900/20 border border-red-800 rounded-xl px-3 py-2">
-                      {errorMsg}
-                    </div>
-                  )}
-
-                  <div className="mt-6 flex items-center justify-end">
-                    <button
-                      onClick={async () => {
-                        await guardarAgente()
-                        close()
-                      }}
-                      disabled={saving || lockedBy === 'citas'}
-                      className="px-4 py-2 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-sm disabled:opacity-60"
-                      type="button"
-                    >
-                      {saving ? 'Guardando…' : lockedBy === 'citas' ? 'Bloqueado' : 'Guardar'}
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {activePanel === 'citas' && (
-                <div className={lockedBy === 'agente' ? 'pointer-events-none opacity-50' : ''}>
-                  <AppointmentForm
-                    key={`citas-${uiEpoch}`}
-                    value={{
-                      appointmentEnabled: form.appointmentEnabled,
-                      appointmentVertical: form.appointmentVertical,
-                      appointmentTimezone: form.appointmentTimezone,
-                      appointmentBufferMin: form.appointmentBufferMin,
-                      appointmentPolicies: form.appointmentPolicies,
-                      appointmentReminders: form.appointmentReminders,
-                      hours: form.hours,
-                      appointmentServices: form.appointmentServices,
-                    } as AppointmentConfigValue}
-                    onChange={(patch) =>
-                      setForm((prev) => ({ ...prev, ...(patch as Partial<FormState>) }))
-                    }
-                  />
-
-                  {/* sin bloque de error aquí */}
-
-                  <div className="mt-6 flex items-center justify-end">
-                    <button
-                      onClick={async () => {
-                        await guardarCitas()
-                        close()
-                      }}
-                      disabled={saving || lockedBy === 'agente'}
-                      className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm disabled:opacity-60"
-                      type="button"
-                    >
-                      {saving ? 'Guardando…' : lockedBy === 'agente' ? 'Bloqueado' : 'Guardar'}
-                    </button>
-                  </div>
-                </div>
-              )}
             </Dialog.Panel>
           </div>
         </Dialog>

@@ -218,20 +218,21 @@ export default function SettingsPage() {
 
         {/* Modal de entrenamiento */}
         <ModalEntrenamiento
-          trainingActive={trainingActive}
-          initialConfig={form}
-          initialPanel={initialTrainingPanel}   // <- NUEVO
-          onClose={async () => {
-            setTrainingActive(false)
-            setInitialTrainingPanel(null)        // <- limpiar selección
-            try {
-              const { data } = await axios.get(`${API_URL}/api/config`, { headers: getAuthHeaders() })
-              const safe = materializeConfig(data as BackendBusinessConfig)
-              setConfigGuardada(Object.keys(data || {}).length ? safe : null)
-              setForm(safe)
-            } catch {/* noop */}
-          }}
-        />
+  trainingActive={trainingActive}
+  initialConfig={form}
+  onClose={async () => {
+    setTrainingActive(false)
+    try {
+      const { data } = await axios.get(`${API_URL}/api/config`, { headers: getAuthHeaders() })
+      const safe = materializeConfig(data as BackendBusinessConfig)
+      setConfigGuardada(Object.keys(data || {}).length ? safe : null)
+      setForm(safe)
+    } catch {
+      /* noop */
+    }
+  }}
+/>
+
 
         <WhatsappConfig />
         <ActivatePhoneCard />
