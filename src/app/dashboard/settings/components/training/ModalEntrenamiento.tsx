@@ -64,7 +64,7 @@ type FormState = Pick<
 }
 
 type LockedBy = 'agente' | 'citas' | null
-type ActivePanel = 'agente' | 'citas' | null
+export type ActivePanel = 'agente' | 'citas' | null
 
 const ORDER: Weekday[] = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']
 
@@ -117,8 +117,11 @@ export default function ModalEntrenamiento({
   trainingActive,
   onClose,
   initialConfig,
-  initialPanel = null, // si viene -> abrimos DIRECTO ese formulario y NUNCA mostramos cards internas
-}: ModalEntrenamientoProps & { initialPanel?: ActivePanel }) {
+  /** Si pasas `panel`, el modal abre DIRECTO ese formulario y jamás muestra las cards internas */
+  panel, // 'agente' | 'citas' | undefined (controlado desde afuera)
+  /** Compatibilidad: si no usas `panel`, aún puedes pasar `initialPanel` una vez */
+  initialPanel = null,
+}: ModalEntrenamientoProps & { panel?: ActivePanel; initialPanel?: ActivePanel }) {
   const [open, setOpen] = useState<boolean>(trainingActive)
   useEffect(() => setOpen(trainingActive), [trainingActive])
 
@@ -128,8 +131,11 @@ export default function ModalEntrenamiento({
   const [uiEpoch, setUiEpoch] = useState(0)
   const [lockedBy, setLockedBy] = useState<LockedBy>(null)
 
-  // 👇 clave: iniciamos el panel con initialPanel para evitar cualquier "flash" de cards
-  const [activePanel, setActivePanel] = useState<ActivePanel>(initialPanel ?? null)
+  // Estado interno solo si NO hay `panel` controlado
+  const [internalPanel, setInternalPanel] = useState<ActivePanel>(panel ?? initialPanel ?? null)
+
+  // Si recibimos `panel` (controlado), lo usamos siempre
+  const effectivePanel: ActivePanel = panel ?? internalPanel
 
   const [form, setForm] = useState<FormState>(() => ({
     aiMode: (initialConfig?.aiMode as AiMode) || 'agente',
@@ -152,10 +158,20 @@ export default function ModalEntrenamiento({
     onClose?.()
   }
 
-  // Si se abre y nos pasan initialPanel, mantenlo (sin mostrar cards jamás)
+  // Si cambia `panel` desde afuera, sincronizamos (evita cualquier "flash")
   useEffect(() => {
-    if (trainingActive && initialPanel) setActivePanel(initialPanel)
-  }, [trainingActive, initialPanel])
+    if (panel !== undefined) {
+      // cuando está controlado, forzamos el panel efectivo
+      // (sin tocar internalPanel si no es necesario)
+    }
+  }, [panel])
+
+  // Si se abre el modal y hay initialPanel pero no `panel`, lo fijamos una sola vez
+  useEffect(() => {
+    if (trainingActive && panel === undefined && initialPanel) {
+      setInternalPanel(initialPanel)
+    }
+  }, [trainingActive, panel, initialPanel])
 
   /* ============ Carga inicial ============ */
   async function loadAllConfig() {
@@ -245,8 +261,9 @@ export default function ModalEntrenamiento({
       }
 
       setLockedBy(null)
-      // si abriste dirigido (initialPanel), te dejamos en ese mismo formulario; si no, vuelves a cards
-      setActivePanel(initialPanel ?? null)
+      // si está controlado por `panel`, respetamos; si no, volvemos a null (cards)
+      if (panel === undefined) setInternalPanel(initialPanel ?? null)
+
       setForm({
         aiMode: 'agente',
         agentSpecialty: 'generico',
@@ -380,8 +397,8 @@ export default function ModalEntrenamiento({
     )
   }, [lockedBy, saving])
 
-  // 🔒 REGRA: si viene initialPanel, NUNCA mostramos cards internas
-  const shouldShowCards = activePanel === null && initialPanel == null
+  // Mostrar cards internas solo si NO hay `panel` controlado y no hay panel interno activo
+  const shouldShowCards = !effectivePanel && panel === undefined
 
   const Card = ({
     icon,
@@ -445,7 +462,7 @@ export default function ModalEntrenamiento({
 
               {lockBanner}
 
-              {/* Cards internas SOLO si no se pidió abrir directo */}
+              {/* Cards internas SOLO si el modal no está dirigido desde fuera */}
               {shouldShowCards && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                   <Card
@@ -453,20 +470,20 @@ export default function ModalEntrenamiento({
                     title="Configurar Citas"
                     desc="Define horarios, políticas, recordatorios y servicios."
                     disabled={lockedBy === 'agente' || saving}
-                    onOpen={() => setActivePanel('citas')}
+                    onOpen={() => setInternalPanel('citas')}
                   />
                   <Card
                     icon={<Bot className="w-5 h-5 text-violet-300" />}
                     title="Configurar Agente"
                     desc="Define el modo, especialidad y prompts del agente."
                     disabled={lockedBy === 'citas' || saving}
-                    onOpen={() => setActivePanel('agente')}
+                    onOpen={() => setInternalPanel('agente')}
                   />
                 </div>
               )}
 
               {/* Formularios */}
-              {activePanel === 'agente' && (
+              {effectivePanel === 'agente' && (
                 <div className={lockedBy === 'citas' ? 'pointer-events-none opacity-50' : ''}>
                   <AgentForm
                     key={`agent-${uiEpoch}`}
@@ -496,7 +513,7 @@ export default function ModalEntrenamiento({
                 </div>
               )}
 
-              {activePanel === 'citas' && (
+              {effectivePanel === 'citas' && (
                 <div className={lockedBy === 'agente' ? 'pointer-events-none opacity-50' : ''}>
                   <AppointmentForm
                     key={`citas-${uiEpoch}`}

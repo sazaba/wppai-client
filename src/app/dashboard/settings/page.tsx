@@ -73,15 +73,19 @@ function materializeConfig(data?: BackendBusinessConfig | null): ConfigForm {
     businessType: (d.businessType as BusinessType) ?? DEFAULTS.businessType,
     envioCostoFijo: (d as any)?.envioCostoFijo ?? '',
     envioGratisDesde: (d as any)?.envioGratisDesde ?? '',
-    pagoNotas: d.pagoNotas ?? '',
+    pagoNotas: d?.pagoNotas ?? '',
   }
 }
 
 export default function SettingsPage() {
   const [form, setForm] = useState<ConfigForm>(DEFAULTS)
   const [configGuardada, setConfigGuardada] = useState<ConfigForm | null>(null)
+
+  // Modal control
   const [trainingActive, setTrainingActive] = useState(false)
+  /** Panel que se abrirá DIRECTO dentro del modal: 'citas' | 'agente' | null (cards internas) */
   const [initialTrainingPanel, setInitialTrainingPanel] = useState<'agente' | 'citas' | null>(null)
+
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -121,12 +125,19 @@ export default function SettingsPage() {
 
       setConfigGuardada(null)
       setForm(DEFAULTS)
+      // Abrimos el modal en modo "cards internas" después del reset
       setInitialTrainingPanel(null)
       setTrainingActive(true)
     } catch (e: any) {
       console.error('[reiniciarEntrenamiento] error:', e?.response?.data || e?.message || e)
       alert('Error al reiniciar configuración')
     }
+  }
+
+  // Helper: abrir modal directo en panel
+  const openTraining = (panel: 'citas' | 'agente' | null) => {
+    setInitialTrainingPanel(panel) // si es null, muestra cards internas; si es 'citas' o 'agente', abre directo el formulario
+    setTrainingActive(true)
   }
 
   if (loading) return <p className="p-8 text-slate-300">Cargando configuración...</p>
@@ -164,25 +175,19 @@ export default function SettingsPage() {
           <h1 className="text-2xl font-bold text-white">Entrenamiento de tu IA</h1>
         </div>
 
-        {/* Cards (reemplazan dropdown + botón) */}
+        {/* Cards (trigger del modal) */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Card
             icon={<Calendar className="w-5 h-5 text-emerald-300" />}
             title="Configurar Citas"
             desc="Define horarios, políticas, recordatorios y servicios."
-            onClick={() => {
-              setInitialTrainingPanel('citas')
-              setTrainingActive(true)
-            }}
+            onClick={() => openTraining('citas')}
           />
           <Card
             icon={<Bot className="w-5 h-5 text-violet-300" />}
             title="Configurar Agente"
             desc="Define el modo, especialidad y prompts del agente."
-            onClick={() => {
-              setInitialTrainingPanel('agente')
-              setTrainingActive(true)
-            }}
+            onClick={() => openTraining('agente')}
           />
         </div>
 
@@ -195,10 +200,7 @@ export default function SettingsPage() {
 
             <div className="flex flex-wrap gap-3">
               <button
-                onClick={() => {
-                  setInitialTrainingPanel(null)
-                  setTrainingActive(true)
-                }}
+                onClick={() => openTraining(null)} // abre con las cards internas del modal
                 className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg shadow"
               >
                 <Sparkles className="w-4 h-4" />
@@ -216,23 +218,28 @@ export default function SettingsPage() {
           </div>
         )}
 
-        {/* Modal de entrenamiento */}
-        <ModalEntrenamiento
-  trainingActive={trainingActive}
-  initialConfig={form}
-  onClose={async () => {
-    setTrainingActive(false)
-    try {
-      const { data } = await axios.get(`${API_URL}/api/config`, { headers: getAuthHeaders() })
-      const safe = materializeConfig(data as BackendBusinessConfig)
-      setConfigGuardada(Object.keys(data || {}).length ? safe : null)
-      setForm(safe)
-    } catch {
-      /* noop */
-    }
-  }}
-/>
-
+        {/* Modal de entrenamiento (pasa el panel para evitar popup intermedio) */}
+        {(
+          <ModalEntrenamiento
+            key={`modal-${initialTrainingPanel ?? 'cards'}`} // fuerza re-mount cuando cambias de destino
+            trainingActive={trainingActive}
+            initialConfig={form}
+            initialPanel={initialTrainingPanel} // 👈 CLAVE: abre directo en 'citas' o 'agente' y no muestra cards internas
+            onClose={async () => {
+              setTrainingActive(false)
+              // opcional: limpia el panel para el próximo uso desde "Actualizar entrenamiento"
+              // setInitialTrainingPanel(null)
+              try {
+                const { data } = await axios.get(`${API_URL}/api/config`, { headers: getAuthHeaders() })
+                const safe = materializeConfig(data as BackendBusinessConfig)
+                setConfigGuardada(Object.keys(data || {}).length ? safe : null)
+                setForm(safe)
+              } catch {
+                /* noop */
+              }
+            }}
+          />
+        )}
 
         <WhatsappConfig />
         <ActivatePhoneCard />
