@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Dialog } from '@headlessui/react'
 import { AnimatePresence, motion } from 'framer-motion'
-import axios from 'axios'
+import axios, { AxiosError } from 'axios'
 import { X, Lock } from 'lucide-react'
 
 import TypeTabs, { type EditorTab } from './TypeTabs'
@@ -15,7 +15,8 @@ import AppointmentForm, {
   type Vertical,
 } from './AppointmentForm'
 
-import { fetchAppointmentConfig } from '@/lib/appointments'
+// 👇 IMPORTAMOS normalizeDays para payloads consistentes
+import { fetchAppointmentConfig, normalizeDays } from '@/lib/appointments'
 
 import type {
   ModalEntrenamientoProps,
@@ -73,8 +74,9 @@ function hoursFromDb(rows: AppointmentDay[] | undefined | null): AppointmentDay[
   return ORDER.map((d) => base.get(d)!)
 }
 
+/** Payload usando normalizeDays (shape idéntico al backend) */
 function buildAppointmentPayloadFromForm(form: FormState) {
-  const hours = hoursFromDb(form.hours)
+  const normalized = normalizeDays(form.hours)
   return {
     appointment: {
       enabled: !!form.appointmentEnabled,
@@ -84,15 +86,24 @@ function buildAppointmentPayloadFromForm(form: FormState) {
       policies: form.appointmentPolicies || '',
       reminders: !!form.appointmentReminders,
     },
-    hours: hours.map((h) => ({
+    hours: normalized.map((h) => ({
       day: h.day,
       isOpen: !!h.isOpen,
-      start1: h.isOpen ? h.start1 : null,
-      end1: h.isOpen ? h.end1 : null,
-      start2: h.isOpen ? h.start2 : null,
-      end2: h.isOpen ? h.end2 : null,
+      start1: h.isOpen ? h.start1 ?? null : null,
+      end1: h.isOpen ? h.end1 ?? null : null,
+      start2: h.isOpen ? h.start2 ?? null : null,
+      end2: h.isOpen ? h.end2 ?? null : null,
     })),
   }
+}
+
+/** Mensaje humano para AxiosError */
+function prettyAxiosError(e: unknown, fallback = 'Ocurrió un error') {
+  const ax = e as AxiosError<any>
+  if (ax?.message === 'Network Error') {
+    return 'No se pudo conectar con el backend (Network Error). Revisa API_URL, CORS y que el servidor esté en línea.'
+  }
+  return ax?.response?.data?.error || fallback
 }
 
 export default function ModalEntrenamiento({
@@ -174,10 +185,10 @@ export default function ModalEntrenamiento({
       const cfg = ((appt?.config ?? null) as BackendAppointmentConfig | null)
       const hrs = (appt?.hours as AppointmentDay[] | null | undefined) ?? []
 
-      // 👇 Traemos también BusinessConfig (aiMode + servicios)
+      // BusinessConfig (aiMode + servicios)
       const r = await axios.get(`${API_URL}/api/config`, { headers: getAuthHeaders() }).catch(() => null)
       const aiModeDb = ((r?.data?.aiMode as AiMode) ?? 'ecommerce') as AiMode
-      const serviciosDb = (r?.data?.servicios ?? '') as string // 👈 NUEVO
+      const serviciosDb = (r?.data?.servicios ?? '') as string
 
       setForm((f) => ({
         ...f,
@@ -191,7 +202,7 @@ export default function ModalEntrenamiento({
         appointmentPolicies: cfg?.appointmentPolicies ?? '',
         appointmentReminders: (cfg?.appointmentReminders ?? true) as boolean,
         hours: hoursFromDb(hrs),
-        appointmentServices: serviciosDb, // 👈 NUEVO
+        appointmentServices: serviciosDb,
       }))
 
       if (cfg?.appointmentEnabled) setLockedBy('citas')
@@ -204,7 +215,7 @@ export default function ModalEntrenamiento({
       setUiEpoch((n) => n + 1)
     } catch (e: any) {
       console.error('[settings] loadAllConfig error:', e)
-      setErrorMsg(e?.response?.data?.error || e?.message || 'No se pudo cargar la configuración.')
+      setErrorMsg(prettyAxiosError(e, 'No se pudo cargar la configuración.'))
       setLockedBy(null)
     } finally {
       setReloading(false)
@@ -227,6 +238,7 @@ export default function ModalEntrenamiento({
 
   /** Cambiar de tab respetando bloqueos y refrescando datos de Citas */
   async function handleChangeTab(nextTab: EditorTab) {
+    if (nextTab === tab) return
     setErrorMsg(null)
     if (nextTab === 'agente' && isAgenteTabBlocked) {
       setErrorMsg('No puedes cambiar a “Agente” mientras estás editando Citas.')
@@ -245,8 +257,6 @@ export default function ModalEntrenamiento({
         const appt = await fetchAppointmentConfig()
         const cfg = appt?.config ?? {}
         const hrs = (appt?.hours as AppointmentDay[] | null | undefined) ?? []
-
-        // 👇 NUEVO: refrescamos también servicios desde BusinessConfig
         const r2 = await axios.get(`${API_URL}/api/config`, { headers: getAuthHeaders() }).catch(() => null)
         const serviciosDb = (r2?.data?.servicios ?? '') as string
 
@@ -261,7 +271,7 @@ export default function ModalEntrenamiento({
           appointmentPolicies: (cfg as any)?.appointmentPolicies ?? '',
           appointmentReminders: ((cfg as any)?.appointmentReminders ?? true) as boolean,
           hours: hoursFromDb(hrs),
-          appointmentServices: serviciosDb, // 👈 NUEVO
+          appointmentServices: serviciosDb,
         }))
         setUiEpoch((n) => n + 1)
       } finally {
@@ -288,6 +298,7 @@ export default function ModalEntrenamiento({
         { params: { withCatalog: false }, headers: getAuthHeaders() }
       )
 
+      // Limpieza total de UI + remount
       setLockedBy(null)
       setAgentDirty(false)
       setCitasDirty(false)
@@ -304,12 +315,12 @@ export default function ModalEntrenamiento({
         appointmentPolicies: '',
         appointmentReminders: true,
         hours: [],
-        appointmentServices: '', // 👈 aseguramos limpieza
+        appointmentServices: '',
       })
       setTab('citas')
       setUiEpoch((n) => n + 1)
     } catch (e: any) {
-      setErrorMsg(e?.response?.data?.error || e?.message || 'No se pudo reiniciar.')
+      setErrorMsg(prettyAxiosError(e, 'No se pudo reiniciar.'))
     } finally {
       setSaving(false)
     }
@@ -333,8 +344,8 @@ export default function ModalEntrenamiento({
       }
       await axios.put(`${API_URL}/api/config/agent`, payload, { headers: getAuthHeaders() })
 
-      // (opcional) apagar agenda en BD
-      const currentHours = hoursFromDb(form.hours)
+      // Apaga agenda en BD (conserva horas)
+      const currentHours = normalizeDays(form.hours)
       await axios.post(
         `${API_URL}/api/appointments/config`,
         {
@@ -346,14 +357,7 @@ export default function ModalEntrenamiento({
             policies: form.appointmentPolicies || '',
             reminders: !!form.appointmentReminders,
           },
-          hours: currentHours.map((h) => ({
-            day: h.day,
-            isOpen: h.isOpen,
-            start1: h.start1,
-            end1: h.end1,
-            start2: h.start2,
-            end2: h.end2,
-          })),
+          hours: currentHours,
         },
         { headers: getAuthHeaders() }
       )
@@ -364,7 +368,7 @@ export default function ModalEntrenamiento({
       setUiEpoch((n) => n + 1)
       close()
     } catch (e: any) {
-      setErrorMsg(e?.response?.data?.error || e?.message || 'Error guardando el agente.')
+      setErrorMsg(prettyAxiosError(e, 'Error guardando el agente.'))
     } finally {
       setSaving(false)
     }
@@ -376,10 +380,19 @@ export default function ModalEntrenamiento({
         setErrorMsg('Bloqueado por Agente. Reinicia el entrenamiento para cambiar a Citas.')
         return
       }
+      // Validación UX premium: si activas agenda, debe haber al menos un día abierto
+      const normalized = normalizeDays(form.hours)
+      const hasOpenDay = normalized.some((d) => d.isOpen)
+      if (form.appointmentEnabled && !hasOpenDay) {
+        setErrorMsg('Para habilitar la agenda, abre al menos un día en el horario semanal.')
+        return
+      }
+
       setSaving(true)
       setErrorMsg(null)
 
       const appointmentPayload = buildAppointmentPayloadFromForm(form)
+
       await axios.post(`${API_URL}/api/appointments/config`, appointmentPayload as any, {
         headers: getAuthHeaders(),
       })
@@ -400,7 +413,7 @@ export default function ModalEntrenamiento({
       setUiEpoch((n) => n + 1)
       close()
     } catch (e: any) {
-      setErrorMsg(e?.response?.data?.error || e?.message || 'Error guardando la agenda.')
+      setErrorMsg(prettyAxiosError(e, 'Error guardando la agenda.'))
     } finally {
       setSaving(false)
     }
@@ -468,13 +481,16 @@ export default function ModalEntrenamiento({
               {lockBanner}
 
               <div className="mb-4">
-                {/* ignoramos clicks en onChange si destino está bloqueado */}
                 <TypeTabs value={tab} onChange={handleChangeTab} loading={reloading} />
               </div>
 
               {/* contenido */}
               {tab === 'agente' ? (
-                <div className={(lockedBy === 'citas') ? 'pointer-events-none opacity-50' : ''}>
+                // 👇 Bloqueo por foco: con solo clickear un input ya se marca como "dirty"
+                <div
+                  onFocusCapture={() => setAgentDirty(true)}
+                  className={lockedBy === 'citas' ? 'pointer-events-none opacity-50' : ''}
+                >
                   <AgentForm
                     key={`agent-${uiEpoch}`}
                     value={{
@@ -488,7 +504,10 @@ export default function ModalEntrenamiento({
                   />
                 </div>
               ) : (
-                <div className={(lockedBy === 'agente') ? 'pointer-events-none opacity-50' : ''}>
+                <div
+                  onFocusCapture={() => setCitasDirty(true)}
+                  className={lockedBy === 'agente' ? 'pointer-events-none opacity-50' : ''}
+                >
                   <AppointmentForm
                     key={`citas-${uiEpoch}`}
                     value={{
@@ -499,7 +518,7 @@ export default function ModalEntrenamiento({
                       appointmentPolicies: form.appointmentPolicies,
                       appointmentReminders: form.appointmentReminders,
                       hours: form.hours,
-                      appointmentServices: form.appointmentServices, // ✅ ahora llega desde BD
+                      appointmentServices: form.appointmentServices,
                     } as AppointmentConfigValue}
                     onChange={(patch) => handleAppointmentChange(patch as Partial<FormState>)}
                   />
