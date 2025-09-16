@@ -40,6 +40,7 @@ export type AppointmentConfigValue = {
   appointmentPolicies?: string
   appointmentReminders: boolean
   hours?: AppointmentDay[]
+  /** se mantiene por compatibilidad, pero no se usa en UI */
   provider?: ProviderInput | null
 }
 
@@ -130,6 +131,11 @@ export default function AppointmentForm({ value, onChange }: Props) {
 
   return (
     <div className="space-y-6">
+      {/* Nota: los servicios agendables viven en la pestaña Agente */}
+      <div className="text-xs text-slate-400">
+        Los <strong>servicios agendables</strong> se configuran en la pestaña <em>Agente</em>. La IA solo ofrecerá lo que definas allí.
+      </div>
+
       {/* Básicos */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <label className="flex items-center justify-between gap-3 p-3 rounded-xl bg-slate-800/60 border border-slate-700">
@@ -312,68 +318,8 @@ export default function AppointmentForm({ value, onChange }: Props) {
         </div>
       </div>
 
-      {/* =========== Provider (opcional simple) =========== */}
-      <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4">
-        <div className="text-sm font-semibold mb-3">Profesional principal (opcional)</div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <input
-            type="text"
-            placeholder="Nombre"
-            value={value.provider?.nombre || ''}
-            onChange={(e) =>
-              onChange({
-                provider: {
-                  ...(value.provider || {}),
-                  nombre: e.target.value,
-                } as ProviderInput,
-              })
-            }
-            className="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-600"
-          />
-          <input
-            type="text"
-            placeholder="Cargo (odontólogo, entrenador...)"
-            value={value.provider?.cargo || ''}
-            onChange={(e) =>
-              onChange({
-                provider: {
-                  ...(value.provider || {}),
-                  cargo: e.target.value,
-                } as ProviderInput,
-              })
-            }
-            className="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm"
-          />
-          <input
-            type="email"
-            placeholder="Email"
-            value={value.provider?.email || ''}
-            onChange={(e) =>
-              onChange({
-                provider: {
-                  ...(value.provider || {}),
-                  email: e.target.value,
-                } as ProviderInput,
-              })
-            }
-            className="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm"
-          />
-          <input
-            type="tel"
-            placeholder="Teléfono"
-            value={value.provider?.phone || ''}
-            onChange={(e) =>
-              onChange({
-                provider: {
-                  ...(value.provider || {}),
-                  phone: e.target.value,
-                } as ProviderInput,
-              })
-            }
-            className="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm"
-          />
-        </div>
-      </div>
+      {/* ❌ Quitamos UI de “Profesional principal” para no confundir (no se persiste).
+          Si en el futuro se agrega a la base, reponemos este bloque. */}
     </div>
   )
 }

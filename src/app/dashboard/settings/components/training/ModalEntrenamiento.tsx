@@ -13,7 +13,6 @@ import AppointmentForm, {
   type Weekday,
   type AppointmentConfigValue,
   type Vertical,
-  type ProviderInput,
 } from './AppointmentForm'
 
 import { fetchAppointmentConfig } from '@/lib/appointments'
@@ -46,7 +45,6 @@ type FormState = Pick<
   appointmentPolicies?: string
   appointmentReminders: boolean
   hours?: AppointmentDay[]
-  provider?: ProviderInput | null
 }
 
 const ORDER: Weekday[] = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']
@@ -104,7 +102,6 @@ function buildAppointmentPayloadFromForm(form: FormState) {
       start2: h.isOpen ? h.start2 : null,
       end2: h.isOpen ? h.end2 : null,
     })),
-    provider: form.provider ?? null,
   }
 }
 
@@ -136,7 +133,6 @@ export default function ModalEntrenamiento({
     appointmentPolicies: '',
     appointmentReminders: true,
     hours: undefined,
-    provider: null,
   }))
 
   const close = () => {
@@ -159,7 +155,6 @@ export default function ModalEntrenamiento({
       }
 
       const cfg = (data?.config ?? {}) as BackendAppointmentConfig
-      const p  = (data?.provider ?? null) as (ProviderInput & { id?: number }) | null
 
       setForm((f) => ({
         ...f,
@@ -172,17 +167,6 @@ export default function ModalEntrenamiento({
         appointmentPolicies: cfg.appointmentPolicies ?? '',
         appointmentReminders: cfg.appointmentReminders ?? true,
         hours: hoursFromDb(data?.hours as AppointmentDay[] | null | undefined),
-        provider: p
-          ? {
-              id: p.id,
-              nombre: p.nombre ?? '',
-              email: p.email ?? '',
-              phone: p.phone ?? '',
-              cargo: p.cargo ?? '',
-              colorHex: p.colorHex ?? '',
-              activo: typeof p.activo === 'boolean' ? p.activo : true,
-            }
-          : null,
       }))
     } catch (e: any) {
       console.error('[settings] fetchAppointmentConfig error:', e)
@@ -263,7 +247,6 @@ export default function ModalEntrenamiento({
             reminders: true,
           },
           hours: emptyHours(),
-          provider: null,
         },
         { headers: getAuthHeaders() }
       )
@@ -274,7 +257,6 @@ export default function ModalEntrenamiento({
         appointmentPolicies: '',
         appointmentReminders: true,
         hours: emptyHours(),
-        provider: null,
       }))
     } catch (e: any) {
       setErrorMsg(e?.response?.data?.error || e?.message || 'No se pudo reiniciar la agenda.')
@@ -339,7 +321,6 @@ export default function ModalEntrenamiento({
                     appointmentPolicies: form.appointmentPolicies,
                     appointmentReminders: form.appointmentReminders,
                     hours: form.hours,
-                    provider: form.provider,
                   } as AppointmentConfigValue}
                   onChange={(patch) => setForm((f) => ({ ...f, ...(patch as Partial<FormState>) }))}
                 />
