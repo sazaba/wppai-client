@@ -85,7 +85,6 @@ function isAgentConfigured(cfg: ConfigForm | null): boolean {
     (cfg.agentScope && cfg.agentScope.trim().length > 0) ||
     (cfg.agentDisclaimers && cfg.agentDisclaimers.trim().length > 0)
   const specialtySet = cfg.agentSpecialty && cfg.agentSpecialty !== 'generico'
-  // si cualquiera de estos está presente, consideramos Agente configurado
   return Boolean(hasText || specialtySet)
 }
 
@@ -103,7 +102,6 @@ async function fetchAppointmentsConfigured(): Promise<boolean> {
       (appt?.vertical && appt.vertical !== 'none') ||
       !!appt?.policies ||
       !!appt?.timezone
-    // si está habilitado, hay horarios abiertos o hay campos relevantes, consideramos Citas configurado
     return Boolean(enabled || anyOpen || hasFields)
   } catch {
     return false
@@ -114,7 +112,7 @@ export default function SettingsPage() {
   const [form, setForm] = useState<ConfigForm>(DEFAULTS)
   const [configGuardada, setConfigGuardada] = useState<ConfigForm | null>(null)
 
-  // Estado para ocultar cards cuando ya hay alguna configuración
+  // Flags para ocultar cards y mostrar acciones
   const [agentConfigured, setAgentConfigured] = useState(false)
   const [appointmentsConfigured, setAppointmentsConfigured] = useState(false)
 
@@ -160,23 +158,19 @@ export default function SettingsPage() {
         if (!ok) return
       }
 
-      await axios.post(
-        `${API_URL}/api/config/reset`,
-        null,
-        { params: { withCatalog: true }, headers: getAuthHeaders() }
-      )
-      // limpiar también agenda
-      await axios.post(`${API_URL}/api/appointments/reset`, null, {
+      // ⚠️ Volvemos a la lógica original del proyecto: un único reset principal
+      await axios.post(`${API_URL}/api/config/reset`, null, {
+        params: { withCatalog: true },
         headers: getAuthHeaders(),
-        params: { t: Date.now() },
-      }).catch(() => {})
+      })
 
+      // Estado local limpio
       setConfigGuardada(null)
       setForm(DEFAULTS)
       setAgentConfigured(false)
       setAppointmentsConfigured(false)
 
-      // Abre el modal con cards internas después del reset
+      // Después de reset, abrimos el modal con las cards internas para volver a configurar
       setInitialTrainingPanel(null)
       setTrainingActive(true)
     } catch (e: any) {
@@ -219,9 +213,9 @@ export default function SettingsPage() {
     </button>
   )
 
-  // Mostrar u ocultar cards superiores si YA hay algo configurado
+  // Ocultar cards superiores si ya hay al menos uno configurado
   const hideTopCards = agentConfigured || appointmentsConfigured
-  const hasAnyConfig = hideTopCards || !!configGuardada
+  const showActions = agentConfigured || appointmentsConfigured
 
   return (
     <div className="h-full overflow-y-auto max-h-screen px-4 sm:px-6 py-8 scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-transparent">
@@ -248,8 +242,8 @@ export default function SettingsPage() {
           </div>
         )}
 
-        {/* Estado + Acciones cuando ya hay algo configurado */}
-        {hasAnyConfig && (
+        {/* Acciones de configuración (sin 'Explorar') y solo los botones que apliquen */}
+        {showActions && (
           <div className="bg-slate-800 border border-slate-700 p-6 rounded-2xl shadow-xl text-white space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <h2 className="text-xl font-bold">⚙️ Acciones de configuración</h2>
@@ -282,36 +276,32 @@ export default function SettingsPage() {
             </p>
 
             <div className="flex flex-wrap gap-3">
-              <button
-                onClick={() => openTraining('citas')}
-                className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg shadow"
-              >
-                <Calendar className="w-4 h-4" />
-                Editar Citas
-              </button>
+              {appointmentsConfigured && (
+                <button
+                  onClick={() => openTraining('citas')}
+                  className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg shadow"
+                >
+                  <Calendar className="w-4 h-4" />
+                  Editar Citas
+                </button>
+              )}
 
-              <button
-                onClick={() => openTraining('agente')}
-                className="flex items-center gap-2 bg-violet-600 hover:bg-violet-700 text-white px-4 py-2 rounded-lg shadow"
-              >
-                <Bot className="w-4 h-4" />
-                Editar Agente
-              </button>
-
-              <button
-                onClick={() => openTraining(null)} // abrir con las cards internas del modal si quieres explorar
-                className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg shadow"
-              >
-                <Sparkles className="w-4 h-4" />
-                Explorar entrenamiento
-              </button>
+              {agentConfigured && (
+                <button
+                  onClick={() => openTraining('agente')}
+                  className="flex items-center gap-2 bg-violet-600 hover:bg-violet-700 text-white px-4 py-2 rounded-lg shadow"
+                >
+                  <Bot className="w-4 h-4" />
+                  Editar Agente
+                </button>
+              )}
 
               <button
                 onClick={reiniciarEntrenamiento}
                 className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg shadow"
               >
                 <RotateCw className="w-4 h-4" />
-                Reiniciar todo
+                Reiniciar entrenamiento
               </button>
             </div>
           </div>
@@ -325,7 +315,7 @@ export default function SettingsPage() {
           initialPanel={initialTrainingPanel} // abre directo en 'citas'/'agente' y no muestra cards internas
           onClose={async () => {
             setTrainingActive(false)
-            await refreshAll() // vuelve a calcular flags para ocultar/mostrar cards
+            await refreshAll() // recalcula flags para ocultar/mostrar cards y acciones
           }}
         />
 
