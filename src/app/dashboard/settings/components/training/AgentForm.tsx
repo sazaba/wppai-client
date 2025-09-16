@@ -5,10 +5,7 @@ import { HelpCircle } from 'lucide-react'
 import type { ConfigForm, AiMode, AgentSpecialty } from './types'
 
 type Props = {
-  value: Pick<
-    ConfigForm,
-    'aiMode' | 'agentSpecialty' | 'agentPrompt' | 'agentScope' | 'agentDisclaimers'
-  >
+  value: Pick<ConfigForm, 'aiMode' | 'agentSpecialty' | 'agentPrompt' | 'agentScope' | 'agentDisclaimers'>
   onChange: (patch: Partial<ConfigForm>) => void
 }
 
@@ -23,15 +20,7 @@ function Hint({ text }: { text: string }) {
   )
 }
 
-function Section({
-  title,
-  subtitle,
-  children,
-}: {
-  title: string
-  subtitle?: string
-  children: React.ReactNode
-}) {
+function Section({ title, subtitle, children }: { title: string; subtitle?: string; children: React.ReactNode }) {
   return (
     <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-4 md:p-5 shadow-sm">
       <div className="mb-4">
@@ -44,15 +33,9 @@ function Section({
 }
 
 function Select<T extends string>({
-  value,
-  onChange,
-  options,
-  placeholder,
+  value, onChange, options, placeholder,
 }: {
-  value: T
-  onChange: (v: T) => void
-  options: Array<{ label: string; value: T }>
-  placeholder?: string
+  value: T; onChange: (v: T) => void; options: Array<{label:string; value:T}>; placeholder?: string
 }) {
   return (
     <select
@@ -61,21 +44,16 @@ function Select<T extends string>({
       className="w-full bg-slate-800 border border-slate-700 px-3 py-2 rounded-xl text-sm focus:outline-none focus:ring focus:ring-blue-500/40"
     >
       {placeholder ? <option value="">{placeholder}</option> : null}
-      {options.map((o) => (
-        <option key={o.value} value={o.value}>
-          {o.label}
-        </option>
-      ))}
+      {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
     </select>
   )
 }
 
-const aiModeOpts: Array<{ label: string; value: AiMode }> = [
+const aiModeOpts: Array<{label: string; value: AiMode}> = [
   { label: 'Agente personalizado', value: 'agente' },
   { label: 'Ecommerce (productos)', value: 'ecommerce' },
 ]
-
-const specialtyOpts: Array<{ label: string; value: AgentSpecialty }> = [
+const specialtyOpts: Array<{label: string; value: AgentSpecialty}> = [
   { label: 'Genérico', value: 'generico' },
   { label: 'Médico', value: 'medico' },
   { label: 'Dermatología', value: 'dermatologia' },
