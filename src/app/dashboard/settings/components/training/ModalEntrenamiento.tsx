@@ -37,7 +37,6 @@ type FormState = Pick<
   ConfigForm,
   'aiMode' | 'agentSpecialty' | 'agentPrompt' | 'agentScope' | 'agentDisclaimers'
 > & {
-  // citas
   appointmentEnabled: boolean
   appointmentVertical: Vertical
   appointmentTimezone: string
@@ -45,7 +44,6 @@ type FormState = Pick<
   appointmentPolicies?: string
   appointmentReminders: boolean
   hours?: AppointmentDay[]
-  /** Servicios agendables (se guarda en BusinessConfig.servicios) */
   appointmentServices?: string
 }
 
@@ -109,7 +107,7 @@ function buildAppointmentPayloadFromForm(form: FormState) {
   }
 }
 
-/** ✅ Solo consideramos Citas “configuradas” si appointmentEnabled === true */
+/** Citas solo “lockea” si realmente está habilitado */
 function isCitasEnabled(cfg: { appointmentEnabled?: boolean } | null | undefined): boolean {
   return !!cfg?.appointmentEnabled
 }
@@ -127,14 +125,12 @@ export default function ModalEntrenamiento({
   const [reloading, setReloading] = useState(false)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
 
-  // Estado inicial
   const [form, setForm] = useState<FormState>(() => ({
     aiMode: (initialConfig?.aiMode as AiMode) || 'agente',
     agentSpecialty: (initialConfig?.agentSpecialty as AgentSpecialty) || 'generico',
     agentPrompt: initialConfig?.agentPrompt || '',
     agentScope: initialConfig?.agentScope || '',
     agentDisclaimers: initialConfig?.agentDisclaimers || '',
-    // citas
     appointmentEnabled: false,
     appointmentVertical: 'none',
     appointmentTimezone: 'America/Bogota',
@@ -145,11 +141,8 @@ export default function ModalEntrenamiento({
     appointmentServices: initialConfig?.servicios || '',
   }))
 
-  // Bloqueo inicial por aiMode (si vino 'agente')
-  const [lockedBy, setLockedBy] = useState<LockedBy>(() =>
-    (initialConfig?.aiMode as AiMode) === 'agente' ? 'agente' : null
-  )
-  // “Lock real” leído de DB (solo mostramos banner si hay lock en DB)
+  // ⛔️ IMPORTANTE: NO asumimos lock al abrir
+  const [lockedBy, setLockedBy] = useState<LockedBy>(null)
   const [dbLock, setDbLock] = useState<LockedBy>(null)
 
   function handleAgentChange(patch: Partial<FormState>) {
@@ -159,7 +152,6 @@ export default function ModalEntrenamiento({
       return next
     })
   }
-
   function handleAppointmentChange(patch: Partial<FormState>) {
     setForm((prev) => {
       const next: FormState = { ...prev, ...patch }
@@ -173,11 +165,9 @@ export default function ModalEntrenamiento({
     onClose?.()
   }
 
-  /** Carga config de Citas y ajusta lock según DB
-   *  preserveAgentLock: si `false`, NO preserva un lock previo por agente (útil tras reset). */
-  async function loadAppointmentConfigIntoForm(preserveAgentLock = true) {
+  async function loadAppointmentConfigIntoForm() {
+    setReloading(true)
     try {
-      setReloading(true)
       const data = await fetchAppointmentConfig()
       type BackendAppointmentConfig = {
         appointmentEnabled?: boolean
@@ -187,7 +177,6 @@ export default function ModalEntrenamiento({
         appointmentPolicies?: string | null
         appointmentReminders?: boolean
       }
-
       const cfg = ((data?.config ?? null) as BackendAppointmentConfig | null)
       const hrs = (data?.hours as AppointmentDay[] | null | undefined) ?? []
 
@@ -206,11 +195,7 @@ export default function ModalEntrenamiento({
 
       const citasOn = isCitasEnabled(cfg)
       setDbLock(citasOn ? 'citas' : null)
-      setLockedBy((prev) => {
-        if (!preserveAgentLock) return citasOn ? 'citas' : null
-        // si venías en agente, mantenlo; si no, lock por citas si aplica
-        return prev === 'agente' ? 'agente' : (citasOn ? 'citas' : null)
-      })
+      if (citasOn) setLockedBy('citas')
     } catch (e: any) {
       console.error('[settings] fetchAppointmentConfig error:', e)
       setErrorMsg(e?.response?.data?.error || e?.message || 'No se pudo cargar la agenda')
@@ -219,7 +204,39 @@ export default function ModalEntrenamiento({
     }
   }
 
+  /** Lee aiMode real desde BD para decidir si bloquear por “agente”. */
+  async function loadAgentLockFromDb() {
+    try {
+      const r = await axios.get(`${API_URL}/api/config`, { headers: getAuthHeaders() })
+      const aiModeDb = (r?.data?.aiMode as AiMode) || 'ecommerce'
+      // si no hay lock por citas, aplicar lock por agente si corresponde
+      setLockedBy((prev) => (dbLock === 'citas' ? 'citas' : aiModeDb === 'agente' ? 'agente' : prev ?? null))
+    } catch {
+      // si no hay registro, no hay lock
+      setLockedBy((prev) => (dbLock === 'citas' ? 'citas' : prev ?? null))
+    }
+  }
+
+  /** Carga ambos y decide lock; si vienes de reset, todo debería quedar desbloqueado. */
+  async function initLocks() {
+    await loadAppointmentConfigIntoForm()
+    await loadAgentLockFromDb()
+  }
+
+  // Primera carga al abrir modal
+  useEffect(() => {
+    if (open) initLocks()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open])
+
+  // Si hay lock, forzamos la pestaña correspondiente
+  useEffect(() => {
+    if (lockedBy === 'agente' && tab !== 'agente') setTab('agente')
+    if (lockedBy === 'citas' && tab !== 'citas') setTab('citas')
+  }, [lockedBy, tab])
+
   async function handleChangeTab(nextTab: EditorTab) {
+    setErrorMsg(null) // limpia mensajes anteriores
     if (lockedBy === 'agente' && nextTab === 'citas') {
       setErrorMsg('Esta empresa ya está configurada en modo Agente. Reinicia el entrenamiento para cambiar a Citas.')
       return
@@ -229,29 +246,15 @@ export default function ModalEntrenamiento({
       return
     }
     setTab(nextTab)
-    setErrorMsg(null)
     if (nextTab === 'citas') await loadAppointmentConfigIntoForm()
   }
 
-  // Cargar Citas la primera vez
-  useEffect(() => {
-    if (open && tab === 'citas' && !form.hours) {
-      loadAppointmentConfigIntoForm()
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, tab])
-
-  useEffect(() => {
-    if (lockedBy === 'agente' && tab !== 'agente') setTab('agente')
-    if (lockedBy === 'citas' && tab !== 'citas') setTab('citas')
-  }, [lockedBy, tab])
-
-  /** ⛔️ Reset total: borra BusinessConfig + AppointmentHour y limpia estado/UI. */
+  /** ⛔️ Reset total (borra BusinessConfig + AppointmentHour) y limpia UI */
   async function reiniciarEntrenamiento() {
     try {
       if (typeof window !== 'undefined') {
         const ok = window.confirm(
-          '¿Reiniciar entrenamiento?\n\nSe eliminará la configuración del negocio y se limpiará la agenda (no se borrará el catálogo).'
+          '¿Reiniciar entrenamiento?\n\nSe eliminará la configuración del negocio y se limpiará la agenda.'
         )
         if (!ok) return
       }
@@ -264,7 +267,7 @@ export default function ModalEntrenamiento({
         { params: { withCatalog: false }, headers: getAuthHeaders() }
       )
 
-      // 🔓 desbloquear y limpiar UI inmediatamente
+      // limpia todo en UI
       setLockedBy(null)
       setDbLock(null)
       setForm((f) => ({
@@ -285,8 +288,8 @@ export default function ModalEntrenamiento({
       }))
       setTab('citas')
 
-      // 🔄 recargar desde backend SIN preservar lock previo
-      await loadAppointmentConfigIntoForm(false)
+      // vuelve a leer desde backend (ya sin locks)
+      await initLocks()
     } catch (e: any) {
       setErrorMsg(e?.response?.data?.error || e?.message || 'No se pudo reiniciar.')
     } finally {
@@ -312,13 +315,13 @@ export default function ModalEntrenamiento({
       }
       await axios.put(`${API_URL}/api/config/agent`, payload, { headers: getAuthHeaders() })
 
-      // Apaga agenda en backend (conserva horas si existieran)
+      // Apaga agenda (conserva horas)
       const currentHours = hoursFromDb(form.hours)
       await axios.post(
         `${API_URL}/api/appointments/config`,
         {
           appointment: {
-            enabled: false, // <- clave para que NO bloquee por Citas
+            enabled: false,
             vertical: form.appointmentVertical || 'none',
             timezone: form.appointmentTimezone || 'America/Bogota',
             bufferMin: Number.isFinite(form.appointmentBufferMin) ? form.appointmentBufferMin : 10,
@@ -387,10 +390,7 @@ export default function ModalEntrenamiento({
     }
   }
 
-  const showBanner = useMemo(() => {
-    // Mostramos banner solo si hay lock real en DB (dbLock !== null) y lock activo en UI
-    return dbLock !== null && lockedBy !== null
-  }, [dbLock, lockedBy])
+  const showBanner = useMemo(() => dbLock !== null && lockedBy !== null, [dbLock, lockedBy])
 
   const lockBanner = useMemo(() => {
     if (!showBanner) return null
