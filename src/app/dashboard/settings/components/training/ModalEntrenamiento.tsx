@@ -45,6 +45,8 @@ type FormState = Pick<
   appointmentPolicies?: string
   appointmentReminders: boolean
   hours?: AppointmentDay[]
+  /** Nuevo: servicios que se pueden agendar (se guarda en BusinessConfig.servicios) */
+  appointmentServices?: string
 }
 
 const ORDER: Weekday[] = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']
@@ -133,6 +135,8 @@ export default function ModalEntrenamiento({
     appointmentPolicies: '',
     appointmentReminders: true,
     hours: undefined,
+    // Nuevo: arrancamos con lo que venga de la config general
+    appointmentServices: initialConfig?.servicios || '',
   }))
 
   const close = () => {
@@ -167,6 +171,7 @@ export default function ModalEntrenamiento({
         appointmentPolicies: cfg.appointmentPolicies ?? '',
         appointmentReminders: cfg.appointmentReminders ?? true,
         hours: hoursFromDb(data?.hours as AppointmentDay[] | null | undefined),
+        // 👇 OJO: NO tocamos appointmentServices aquí para no pisar lo ya escrito
       }))
     } catch (e: any) {
       console.error('[settings] fetchAppointmentConfig error:', e)
@@ -197,7 +202,7 @@ export default function ModalEntrenamiento({
       setSaving(true)
       setErrorMsg(null)
       const payload = {
-        aiMode: 'agente' as AiMode,
+        aiMode: form.aiMode as AiMode,
         agentSpecialty: form.agentSpecialty,
         agentPrompt: form.agentPrompt ?? '',
         agentScope: form.agentScope ?? '',
@@ -217,10 +222,25 @@ export default function ModalEntrenamiento({
       setSaving(true)
       setErrorMsg(null)
       const appointmentPayload = buildAppointmentPayloadFromForm(form)
+
+      // 1) Guardar config de agenda + horas
       await axios.post(`${API_URL}/api/appointments/config`, appointmentPayload as any, {
         headers: getAuthHeaders(),
       })
-      // ✅ cerrar al guardar (igual que agente)
+
+      // 2) Guardar servicios (texto) en BusinessConfig.servicios sin romper nada
+      //    Usamos /api/config/agent que permite actualizar parciales sin validación estricta.
+      const serviciosText = (form.appointmentServices || '').trim()
+      await axios.put(
+        `${API_URL}/api/config/agent`,
+        {
+          aiMode: form.aiMode, // preserva el modo actual
+          servicios: serviciosText,
+        },
+        { headers: getAuthHeaders() }
+      )
+
+      // ✅ cerrar al guardar
       close()
     } catch (e: any) {
       setErrorMsg(e?.response?.data?.error || e?.message || 'Error guardando la agenda.')
@@ -257,6 +277,7 @@ export default function ModalEntrenamiento({
         appointmentPolicies: '',
         appointmentReminders: true,
         hours: emptyHours(),
+        // no tocamos appointmentServices aquí
       }))
     } catch (e: any) {
       setErrorMsg(e?.response?.data?.error || e?.message || 'No se pudo reiniciar la agenda.')
@@ -321,6 +342,7 @@ export default function ModalEntrenamiento({
                     appointmentPolicies: form.appointmentPolicies,
                     appointmentReminders: form.appointmentReminders,
                     hours: form.hours,
+                    appointmentServices: form.appointmentServices,
                   } as AppointmentConfigValue}
                   onChange={(patch) => setForm((f) => ({ ...f, ...(patch as Partial<FormState>) }))}
                 />
@@ -337,7 +359,7 @@ export default function ModalEntrenamiento({
                 <div className="text-xs text-slate-400">
                   {tab === 'agente'
                     ? 'Configura el modo y el perfil del agente.'
-                    : 'Configura tu agenda y políticas de atención.'}
+                    : 'Configura tu agenda, servicios y políticas.'}
                 </div>
 
                 <div className="flex items-center gap-2">
