@@ -173,8 +173,9 @@ export default function ModalEntrenamiento({
     onClose?.()
   }
 
-  /** Carga config de Citas y ajusta lock según DB */
-  async function loadAppointmentConfigIntoForm() {
+  /** Carga config de Citas y ajusta lock según DB
+   *  preserveAgentLock: si `false`, NO preserva un lock previo por agente (útil tras reset). */
+  async function loadAppointmentConfigIntoForm(preserveAgentLock = true) {
     try {
       setReloading(true)
       const data = await fetchAppointmentConfig()
@@ -206,8 +207,9 @@ export default function ModalEntrenamiento({
       const citasOn = isCitasEnabled(cfg)
       setDbLock(citasOn ? 'citas' : null)
       setLockedBy((prev) => {
-        if (prev === 'agente') return 'agente'
-        return citasOn ? 'citas' : null
+        if (!preserveAgentLock) return citasOn ? 'citas' : null
+        // si venías en agente, mantenlo; si no, lock por citas si aplica
+        return prev === 'agente' ? 'agente' : (citasOn ? 'citas' : null)
       })
     } catch (e: any) {
       console.error('[settings] fetchAppointmentConfig error:', e)
@@ -244,7 +246,7 @@ export default function ModalEntrenamiento({
     if (lockedBy === 'citas' && tab !== 'citas') setTab('citas')
   }, [lockedBy, tab])
 
-  /** ⛔️ Reset total: borra BusinessConfig + AppointmentHour. */
+  /** ⛔️ Reset total: borra BusinessConfig + AppointmentHour y limpia estado/UI. */
   async function reiniciarEntrenamiento() {
     try {
       if (typeof window !== 'undefined') {
@@ -262,12 +264,16 @@ export default function ModalEntrenamiento({
         { params: { withCatalog: false }, headers: getAuthHeaders() }
       )
 
-      // Limpiar UI y desbloquear
+      // 🔓 desbloquear y limpiar UI inmediatamente
       setLockedBy(null)
       setDbLock(null)
       setForm((f) => ({
         ...f,
         aiMode: 'agente',
+        agentSpecialty: 'generico',
+        agentPrompt: '',
+        agentScope: '',
+        agentDisclaimers: '',
         appointmentEnabled: false,
         appointmentVertical: 'none',
         appointmentTimezone: 'America/Bogota',
@@ -279,8 +285,8 @@ export default function ModalEntrenamiento({
       }))
       setTab('citas')
 
-      // Releer para confirmar (DB vacía => sin lock)
-      await loadAppointmentConfigIntoForm()
+      // 🔄 recargar desde backend SIN preservar lock previo
+      await loadAppointmentConfigIntoForm(false)
     } catch (e: any) {
       setErrorMsg(e?.response?.data?.error || e?.message || 'No se pudo reiniciar.')
     } finally {
@@ -312,7 +318,7 @@ export default function ModalEntrenamiento({
         `${API_URL}/api/appointments/config`,
         {
           appointment: {
-            enabled: false, // <- clave para NO bloquear por Citas
+            enabled: false, // <- clave para que NO bloquee por Citas
             vertical: form.appointmentVertical || 'none',
             timezone: form.appointmentTimezone || 'America/Bogota',
             bufferMin: Number.isFinite(form.appointmentBufferMin) ? form.appointmentBufferMin : 10,
@@ -382,7 +388,7 @@ export default function ModalEntrenamiento({
   }
 
   const showBanner = useMemo(() => {
-    // Mostramos banner solo si hay lock real en DB (dbLock !== null)
+    // Mostramos banner solo si hay lock real en DB (dbLock !== null) y lock activo en UI
     return dbLock !== null && lockedBy !== null
   }, [dbLock, lockedBy])
 
