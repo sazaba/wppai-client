@@ -25,7 +25,7 @@ import type {
 
 /* ============ Helpers básicos ============ */
 const API_URL = (process.env.NEXT_PUBLIC_API_URL || '') as string
-const RESET_MARKER_KEY = 'trainingResetAt' // 👈 marcador local para forzar el picker tras reset
+const RESET_MARKER_KEY = 'trainingResetAt'
 
 function getAuthHeaders(): Record<string, string> {
   if (typeof window === 'undefined') return {}
@@ -33,19 +33,16 @@ function getAuthHeaders(): Record<string, string> {
   return token ? { Authorization: `Bearer ${token}` } : {}
 }
 
-/** Evita caché al leer configuración (para que el reset no rehidrate campos) */
 function noCacheHeaders() {
   return { ...getAuthHeaders(), 'Cache-Control': 'no-cache', Pragma: 'no-cache' }
 }
 
-/** GET /api/appointments/config SIN CACHÉ */
 async function fetchAppointmentsNoCache() {
   const r = await axios.get(`${API_URL}/api/appointments/config`, {
     headers: noCacheHeaders(),
     params: { t: Date.now() },
   })
   const data = r?.data ?? {}
-  // soporta {config, hours} o {appointment, hours}
   const config = data.config ?? data.appointment ?? {}
   const hours = data.hours ?? []
   return { config, hours }
@@ -67,7 +64,7 @@ type FormState = Pick<
 }
 
 type LockedBy = 'agente' | 'citas' | null
-type Step = 'pick' | 'agente' | 'citas'
+type ActivePanel = 'agente' | 'citas' | null
 
 const ORDER: Weekday[] = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']
 
@@ -93,7 +90,6 @@ function hoursFromDb(rows: AppointmentDay[] | undefined | null): AppointmentDay[
   return ORDER.map((d) => base.get(d)!)
 }
 
-/** Payload usando normalizeDays (shape idéntico al backend) */
 function buildAppointmentPayloadFromForm(form: FormState) {
   const normalized = normalizeDays(form.hours)
   return {
@@ -116,7 +112,6 @@ function buildAppointmentPayloadFromForm(form: FormState) {
   }
 }
 
-/** Mensaje humano para AxiosError */
 function prettyAxiosError(e: unknown, fallback = 'Ocurrió un error') {
   const ax = e as AxiosError<any>
   if (ax?.message === 'Network Error') {
@@ -138,13 +133,9 @@ export default function ModalEntrenamiento({
   const [reloading, setReloading] = useState(false)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
 
-  // Forzamos remount de los formularios (para limpiar inputs al reiniciar)
   const [uiEpoch, setUiEpoch] = useState(0)
-
-  // Lock persistente (derivado de BD)
   const [lockedBy, setLockedBy] = useState<LockedBy>(null)
-  // Paso del wizard
-  const [step, setStep] = useState<Step>('pick')
+  const [activePanel, setActivePanel] = useState<ActivePanel>(null)
 
   const [form, setForm] = useState<FormState>(() => ({
     aiMode: (initialConfig?.aiMode as AiMode) || 'agente',
@@ -167,48 +158,29 @@ export default function ModalEntrenamiento({
     onClose?.()
   }
 
-  /** Carga inicial: determina el paso según BD (aiMode) y agenda */
   async function loadAllConfig() {
     setReloading(true)
     setErrorMsg(null)
     try {
-      // 👇 si hay marcador de reset, forzamos picker
-      let forcePick = false
       if (typeof window !== 'undefined') {
         const mk = localStorage.getItem(RESET_MARKER_KEY)
-        if (mk) {
-          forcePick = true
-          localStorage.removeItem(RESET_MARKER_KEY)
-        }
+        if (mk) localStorage.removeItem(RESET_MARKER_KEY)
       }
 
       const appt = await fetchAppointmentsNoCache()
-      type BackendAppointmentConfig = {
-        appointmentEnabled?: boolean
-        appointmentVertical?: Vertical
-        appointmentTimezone?: string
-        appointmentBufferMin?: number
-        appointmentPolicies?: string | null
-        appointmentReminders?: boolean
-      }
-      const cfg = ((appt?.config ?? null) as BackendAppointmentConfig | null)
+      const cfg = (appt?.config ?? null) as any
       const hrs = (appt?.hours as AppointmentDay[] | null | undefined) ?? []
 
-      // BusinessConfig (aiMode + servicios) sin caché
       const r = await axios
-        .get(`${API_URL}/api/config`, {
-          headers: noCacheHeaders(),
-          params: { t: Date.now() },
-        })
+        .get(`${API_URL}/api/config`, { headers: noCacheHeaders(), params: { t: Date.now() } })
         .catch(() => null)
 
-      // ❗️NO default a 'ecommerce'; si no viene, dejamos undefined y vamos a picker
       const aiModeDb = r?.data?.aiMode as AiMode | undefined
       const serviciosDb = (r?.data?.servicios ?? '') as string
 
       setForm((f) => ({
         ...f,
-        aiMode: (aiModeDb as any) ?? f.aiMode, // solo si vino, lo aplico; si no, mantengo local
+        aiMode: (aiModeDb as any) ?? f.aiMode,
         appointmentEnabled: !!cfg?.appointmentEnabled,
         appointmentVertical: (cfg?.appointmentVertical as Vertical) ?? 'none',
         appointmentTimezone: cfg?.appointmentTimezone ?? 'America/Bogota',
@@ -221,27 +193,17 @@ export default function ModalEntrenamiento({
         appointmentServices: serviciosDb,
       }))
 
-      // 🔐 Criterio de bloqueo/step (con override por reset)
-      if (forcePick) {
-        setLockedBy(null)
-        setStep('pick')
-      } else if (aiModeDb === 'agente') {
-        setLockedBy('agente')
-        setStep('agente')
-      } else if (aiModeDb === 'ecommerce') {
-        setLockedBy('citas')
-        setStep('citas')
-      } else {
-        setLockedBy(null)
-        setStep('pick')
-      }
+      if (aiModeDb === 'agente') setLockedBy('agente')
+      else if (aiModeDb === 'ecommerce') setLockedBy('citas')
+      else setLockedBy(null)
 
+      setActivePanel(null)
       setUiEpoch((n) => n + 1)
     } catch (e: any) {
       console.error('[settings] loadAllConfig error:', e)
       setErrorMsg(prettyAxiosError(e, 'No se pudo cargar la configuración.'))
       setLockedBy(null)
-      setStep('pick')
+      setActivePanel(null)
     } finally {
       setReloading(false)
     }
@@ -249,43 +211,37 @@ export default function ModalEntrenamiento({
 
   useEffect(() => {
     if (open) loadAllConfig()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open])
 
-  /** Reiniciar: limpia BD, limpia UI y vuelve a 'pick' (sin abrir nada) */
   async function reiniciarEntrenamiento() {
     try {
       if (typeof window !== 'undefined') {
         const ok = window.confirm(
-          '¿Reiniciar entrenamiento?\n\nSe eliminará la configuración y deberás elegir una opción nuevamente.'
+          '¿Reiniciar entrenamiento?\n\nSe eliminará la configuración y deberás elegir nuevamente.'
         )
         if (!ok) return
       }
       setSaving(true)
       setErrorMsg(null)
 
-      // Reset de negocio
-      await axios.post(
-        `${API_URL}/api/config/reset`,
-        null,
-        { params: { withCatalog: false, t: Date.now() }, headers: getAuthHeaders() }
-      )
+      await axios.post(`${API_URL}/api/config/reset`, null, {
+        params: { withCatalog: false, t: Date.now() },
+        headers: getAuthHeaders(),
+      })
 
-      // Limpieza de agenda (si existe endpoint)
       try {
         await axios.post(`${API_URL}/api/appointments/reset`, null, {
           headers: getAuthHeaders(),
           params: { t: Date.now() },
         })
-      } catch { /* ignore */ }
+      } catch {}
 
-      // 👇 Guardamos marcador local para que la próxima apertura vaya a 'pick'
       if (typeof window !== 'undefined') {
         localStorage.setItem(RESET_MARKER_KEY, String(Date.now()))
       }
 
-      // Limpieza UI total
       setLockedBy(null)
+      setActivePanel(null)
       setForm({
         aiMode: 'agente',
         agentSpecialty: 'generico',
@@ -301,7 +257,6 @@ export default function ModalEntrenamiento({
         hours: [],
         appointmentServices: '',
       })
-      setStep('pick')
       setUiEpoch((n) => n + 1)
     } catch (e: any) {
       setErrorMsg(prettyAxiosError(e, 'No se pudo reiniciar.'))
@@ -310,83 +265,6 @@ export default function ModalEntrenamiento({
     }
   }
 
-  /** Elegir “Agente”: bloquea inmediatamente y persiste */
-  async function pickAgente() {
-    try {
-      setSaving(true)
-      setErrorMsg(null)
-      await axios.put(
-        `${API_URL}/api/config/agent`,
-        { aiMode: 'agente' as AiMode },
-        { headers: getAuthHeaders(), params: { t: Date.now() } }
-      )
-
-      // apaga agenda (conserva horas si hubieran)
-      const currentHours = normalizeDays(form.hours)
-      await axios.post(
-        `${API_URL}/api/appointments/config`,
-        {
-          appointment: {
-            enabled: false,
-            vertical: form.appointmentVertical || 'none',
-            timezone: form.appointmentTimezone || 'America/Bogota',
-            bufferMin: Number.isFinite(form.appointmentBufferMin) ? form.appointmentBufferMin : 10,
-            policies: form.appointmentPolicies || '',
-            reminders: !!form.appointmentReminders,
-          },
-          hours: currentHours,
-        },
-        { headers: getAuthHeaders(), params: { t: Date.now() } }
-      )
-
-      setLockedBy('agente')
-      setStep('agente')
-      setUiEpoch((n) => n + 1)
-    } catch (e: any) {
-      setErrorMsg(prettyAxiosError(e, 'No se pudo seleccionar Agente.'))
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  /** Elegir “Citas”: bloquea inmediatamente y persiste */
-  async function pickCitas() {
-    try {
-      setSaving(true)
-      setErrorMsg(null)
-      await axios.put(
-        `${API_URL}/api/config/agent`,
-        { aiMode: 'ecommerce' as AiMode },
-        { headers: getAuthHeaders(), params: { t: Date.now() } }
-      )
-      const currentHours = normalizeDays(form.hours)
-      await axios.post(
-        `${API_URL}/api/appointments/config`,
-        {
-          appointment: {
-            enabled: !!form.appointmentEnabled, // normalmente false al empezar
-            vertical: form.appointmentVertical || 'none',
-            timezone: form.appointmentTimezone || 'America/Bogota',
-            bufferMin: Number.isFinite(form.appointmentBufferMin) ? form.appointmentBufferMin : 10,
-            policies: form.appointmentPolicies || '',
-            reminders: !!form.appointmentReminders,
-          },
-          hours: currentHours,
-        },
-        { headers: getAuthHeaders(), params: { t: Date.now() } }
-      )
-
-      setLockedBy('citas')
-      setStep('citas')
-      setUiEpoch((n) => n + 1)
-    } catch (e: any) {
-      setErrorMsg(prettyAxiosError(e, 'No se pudo seleccionar Citas.'))
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  /** Guardar Agente: mantiene paso y bloqueo */
   async function guardarAgente() {
     try {
       if (lockedBy === 'citas') {
@@ -405,7 +283,6 @@ export default function ModalEntrenamiento({
       }
       await axios.put(`${API_URL}/api/config/agent`, payload, { headers: getAuthHeaders() })
 
-      // Apaga agenda en BD (conserva horas)
       const currentHours = normalizeDays(form.hours)
       await axios.post(
         `${API_URL}/api/appointments/config`,
@@ -424,7 +301,7 @@ export default function ModalEntrenamiento({
       )
 
       setLockedBy('agente')
-      setUiEpoch((n) => n + 1) // mantiene inputs
+      close() // ⬅️ cerrar modal al guardar
     } catch (e: any) {
       setErrorMsg(prettyAxiosError(e, 'Error guardando el agente.'))
     } finally {
@@ -432,14 +309,13 @@ export default function ModalEntrenamiento({
     }
   }
 
-  /** Guardar Citas: mantiene paso y bloqueo */
   async function guardarCitas() {
     try {
       if (lockedBy === 'agente') {
         setErrorMsg('Bloqueado por Agente. Reinicia el entrenamiento para cambiar a Citas.')
         return
       }
-      // Validación: si activas agenda, al menos un día abierto
+
       const normalized = normalizeDays(form.hours)
       const hasOpenDay = normalized.some((d) => d.isOpen)
       if (form.appointmentEnabled && !hasOpenDay) {
@@ -460,14 +336,14 @@ export default function ModalEntrenamiento({
       await axios.put(
         `${API_URL}/api/config/agent`,
         {
-          aiMode: 'ecommerce' as AiMode, // modo citas
+          aiMode: 'ecommerce' as AiMode,
           servicios: serviciosText,
         },
         { headers: getAuthHeaders(), params: { t: Date.now() } }
       )
 
       setLockedBy('citas')
-      setUiEpoch((n) => n + 1) // mantiene inputs
+      close() // ⬅️ cerrar modal al guardar
     } catch (e: any) {
       setErrorMsg(prettyAxiosError(e, 'Error guardando la agenda.'))
     } finally {
@@ -499,6 +375,40 @@ export default function ModalEntrenamiento({
     )
   }, [lockedBy, saving])
 
+  const Card = ({
+    icon,
+    title,
+    desc,
+    disabled,
+    onOpen,
+  }: {
+    icon: React.ReactNode
+    title: string
+    desc: string
+    disabled?: boolean
+    onOpen: () => void
+  }) => (
+    <button
+      type="button"
+      onClick={onOpen}
+      disabled={!!disabled}
+      className={[
+        'group rounded-2xl border p-5 text-left transition',
+        disabled
+          ? 'border-slate-800 bg-slate-800/30 text-slate-400 cursor-not-allowed'
+          : 'border-slate-800 bg-slate-800/40 hover:bg-slate-800/70',
+      ].join(' ')}
+    >
+      <div className="flex items-center gap-3 mb-2">
+        <div className="p-2 rounded-xl bg-slate-700/30 border border-slate-700">
+          {icon}
+        </div>
+        <div className="text-lg font-medium">{title}</div>
+      </div>
+      <p className="text-sm text-slate-300">{desc}</p>
+    </button>
+  )
+
   return (
     <AnimatePresence>
       {open && (
@@ -514,10 +424,8 @@ export default function ModalEntrenamiento({
             >
               {/* header */}
               <div className="flex items-center justify-between gap-3 mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="px-2 py-1 rounded-lg bg-slate-800 text-xs font-medium border border-slate-700">
-                    Entrenamiento de IA
-                  </div>
+                <div className="px-2 py-1 rounded-lg bg-slate-800 text-xs font-medium border border-slate-700">
+                  Entrenamiento de IA
                 </div>
                 <button
                   onClick={close}
@@ -531,47 +439,26 @@ export default function ModalEntrenamiento({
 
               {lockBanner}
 
-              {/* Paso 0: Picker */}
-              {step === 'pick' && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <button
-                    type="button"
-                    onClick={pickCitas}
-                    className="group rounded-2xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800/70 p-5 text-left transition"
-                    disabled={saving}
-                  >
-                    <div className="flex items-center gap-3 mb-2">
-                      <div className="p-2 rounded-xl bg-emerald-600/20 border border-emerald-600/40">
-                        <Calendar className="w-5 h-5 text-emerald-300" />
-                      </div>
-                      <div className="text-lg font-medium">Configurar Citas</div>
-                    </div>
-                    <p className="text-sm text-slate-300">
-                      Define horarios, políticas, recordatorios y servicios. Esta opción bloqueará la configuración del Agente hasta reiniciar.
-                    </p>
-                  </button>
+              {/* Panel de cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                <Card
+                  icon={<Calendar className="w-5 h-5 text-emerald-300" />}
+                  title="Configurar Citas"
+                  desc="Define horarios, políticas, recordatorios y servicios."
+                  disabled={lockedBy === 'agente' || saving}
+                  onOpen={() => setActivePanel('citas')}
+                />
+                <Card
+                  icon={<Bot className="w-5 h-5 text-violet-300" />}
+                  title="Configurar Agente"
+                  desc="Define el modo, especialidad y prompts del agente."
+                  disabled={lockedBy === 'citas' || saving}
+                  onOpen={() => setActivePanel('agente')}
+                />
+              </div>
 
-                  <button
-                    type="button"
-                    onClick={pickAgente}
-                    className="group rounded-2xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800/70 p-5 text-left transition"
-                    disabled={saving}
-                  >
-                    <div className="flex items-center gap-3 mb-2">
-                      <div className="p-2 rounded-xl bg-violet-600/20 border border-violet-600/40">
-                        <Bot className="w-5 h-5 text-violet-300" />
-                      </div>
-                      <div className="text-lg font-medium">Configurar Agente</div>
-                    </div>
-                    <p className="text-sm text-slate-300">
-                      Define el modo, especialidad y prompts del agente. Esta opción bloqueará la configuración de Citas hasta reiniciar.
-                    </p>
-                  </button>
-                </div>
-              )}
-
-              {/* Paso Agente */}
-              {step === 'agente' && (
+              {/* Formularios */}
+              {activePanel === 'agente' && (
                 <div className={lockedBy === 'citas' ? 'pointer-events-none opacity-50' : ''}>
                   <AgentForm
                     key={`agent-${uiEpoch}`}
@@ -582,9 +469,7 @@ export default function ModalEntrenamiento({
                       agentScope: form.agentScope,
                       agentDisclaimers: form.agentDisclaimers,
                     }}
-                    onChange={(patch) =>
-                      setForm((prev) => ({ ...prev, ...patch }))
-                    }
+                    onChange={(patch) => setForm((prev) => ({ ...prev, ...patch }))}
                   />
 
                   {errorMsg && (
@@ -594,10 +479,16 @@ export default function ModalEntrenamiento({
                   )}
 
                   <div className="mt-6 flex items-center justify-between">
-                    <div className="text-xs text-slate-400">
-                      Configura el modo y el perfil del agente.
-                    </div>
+                    <div className="text-xs text-slate-400">Configura el modo y el perfil del agente.</div>
                     <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setActivePanel(null)}
+                        disabled={saving}
+                        className="px-4 py-2 rounded-xl bg-slate-700 hover:bg-slate-600 text-white text-sm disabled:opacity-60"
+                        type="button"
+                      >
+                        Cancelar
+                      </button>
                       <button
                         onClick={reiniciarEntrenamiento}
                         disabled={saving}
@@ -607,20 +498,22 @@ export default function ModalEntrenamiento({
                         Reiniciar
                       </button>
                       <button
-                        onClick={guardarAgente}
+                        onClick={async () => {
+                          await guardarAgente()
+                          close() // cerrar modal al guardar
+                        }}
                         disabled={saving || lockedBy === 'citas'}
                         className="px-4 py-2 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-sm disabled:opacity-60"
                         type="button"
                       >
-                        {saving ? 'Guardando…' : lockedBy === 'citas' ? 'Bloqueado' : 'Actualizar agente'}
+                        {saving ? 'Guardando…' : lockedBy === 'citas' ? 'Bloqueado' : 'Guardar'}
                       </button>
                     </div>
                   </div>
                 </div>
               )}
 
-              {/* Paso Citas */}
-              {step === 'citas' && (
+              {activePanel === 'citas' && (
                 <div className={lockedBy === 'agente' ? 'pointer-events-none opacity-50' : ''}>
                   <AppointmentForm
                     key={`citas-${uiEpoch}`}
@@ -646,10 +539,16 @@ export default function ModalEntrenamiento({
                   )}
 
                   <div className="mt-6 flex items-center justify-between">
-                    <div className="text-xs text-slate-400">
-                      Configura tu agenda, servicios y políticas.
-                    </div>
+                    <div className="text-xs text-slate-400">Configura tu agenda, servicios y políticas.</div>
                     <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setActivePanel(null)}
+                        disabled={saving}
+                        className="px-4 py-2 rounded-xl bg-slate-700 hover:bg-slate-600 text-white text-sm disabled:opacity-60"
+                        type="button"
+                      >
+                        Cancelar
+                      </button>
                       <button
                         onClick={reiniciarEntrenamiento}
                         disabled={saving}
@@ -659,12 +558,15 @@ export default function ModalEntrenamiento({
                         Reiniciar
                       </button>
                       <button
-                        onClick={guardarCitas}
+                        onClick={async () => {
+                          await guardarCitas()
+                          close() // cerrar modal al guardar
+                        }}
                         disabled={saving || lockedBy === 'agente'}
                         className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm disabled:opacity-60"
                         type="button"
                       >
-                        {saving ? 'Guardando…' : lockedBy === 'agente' ? 'Bloqueado' : 'Actualizar citas'}
+                        {saving ? 'Guardando…' : lockedBy === 'agente' ? 'Bloqueado' : 'Guardar'}
                       </button>
                     </div>
                   </div>
