@@ -33,6 +33,11 @@ function getAuthHeaders(): Record<string, string> {
   return token ? { Authorization: `Bearer ${token}` } : {}
 }
 
+/** Evita caché al leer configuración (para que el reset no rehidrate campos) */
+function noCacheHeaders() {
+  return { ...getAuthHeaders(), 'Cache-Control': 'no-cache', Pragma: 'no-cache' }
+}
+
 /** Estado del form que usamos acá (agente + citas) */
 type FormState = Pick<
   ConfigForm,
@@ -185,8 +190,14 @@ export default function ModalEntrenamiento({
       const cfg = ((appt?.config ?? null) as BackendAppointmentConfig | null)
       const hrs = (appt?.hours as AppointmentDay[] | null | undefined) ?? []
 
-      // BusinessConfig (aiMode + servicios)
-      const r = await axios.get(`${API_URL}/api/config`, { headers: getAuthHeaders() }).catch(() => null)
+      // BusinessConfig (aiMode + servicios) sin caché
+      const r = await axios
+        .get(`${API_URL}/api/config`, {
+          headers: noCacheHeaders(),
+          params: { t: Date.now() },
+        })
+        .catch(() => null)
+
       const aiModeDb = ((r?.data?.aiMode as AiMode) ?? 'ecommerce') as AiMode
       const serviciosDb = (r?.data?.servicios ?? '') as string
 
@@ -257,7 +268,9 @@ export default function ModalEntrenamiento({
         const appt = await fetchAppointmentConfig()
         const cfg = appt?.config ?? {}
         const hrs = (appt?.hours as AppointmentDay[] | null | undefined) ?? []
-        const r2 = await axios.get(`${API_URL}/api/config`, { headers: getAuthHeaders() }).catch(() => null)
+        const r2 = await axios
+          .get(`${API_URL}/api/config`, { headers: noCacheHeaders(), params: { t: Date.now() } })
+          .catch(() => null)
         const serviciosDb = (r2?.data?.servicios ?? '') as string
 
         setForm((f) => ({
@@ -295,10 +308,10 @@ export default function ModalEntrenamiento({
       await axios.post(
         `${API_URL}/api/config/reset`,
         null,
-        { params: { withCatalog: false }, headers: getAuthHeaders() }
+        { params: { withCatalog: false, t: Date.now() }, headers: getAuthHeaders() }
       )
 
-      // Limpieza total de UI + remount
+      // Limpieza total de UI + remount (sin relectura inmediata)
       setLockedBy(null)
       setAgentDirty(false)
       setCitasDirty(false)
@@ -363,7 +376,7 @@ export default function ModalEntrenamiento({
       )
 
       setAgentDirty(false)
-      setLockedBy('agente')
+      setLockedBy('agente') // 🔒 bloqueo persistente tras actualizar
 
       setUiEpoch((n) => n + 1)
       close()
@@ -408,7 +421,7 @@ export default function ModalEntrenamiento({
       )
 
       setCitasDirty(false)
-      setLockedBy(appointmentPayload.appointment.enabled ? 'citas' : null)
+      setLockedBy(appointmentPayload.appointment.enabled ? 'citas' : null) // 🔒 bloqueo persiste si activas agenda
 
       setUiEpoch((n) => n + 1)
       close()
@@ -481,7 +494,12 @@ export default function ModalEntrenamiento({
               {lockBanner}
 
               <div className="mb-4">
-                <TypeTabs value={tab} onChange={handleChangeTab} loading={reloading} />
+                <TypeTabs
+                  value={tab}
+                  onChange={handleChangeTab}
+                  loading={reloading}
+                  disabled={{ agente: isCitasTabBlocked, citas: isAgenteTabBlocked }}
+                />
               </div>
 
               {/* contenido */}
