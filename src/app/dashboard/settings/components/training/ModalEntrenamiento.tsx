@@ -109,21 +109,9 @@ function buildAppointmentPayloadFromForm(form: FormState) {
   }
 }
 
-/** 🔎 Solo bloquear Citas si realmente hay configuración en DB */
-function isCitasConfigured(
-  cfg: {
-    appointmentEnabled?: boolean
-    appointmentPolicies?: string | null
-  } | null | undefined,
-  hours: AppointmentDay[] | null | undefined
-): boolean {
-  const hasConfigRow = !!cfg // si no hay fila de BusinessConfig, no bloquear
-  if (!hasConfigRow) return false
-  const enabled = !!cfg?.appointmentEnabled
-  const hasPolicies = !!cfg?.appointmentPolicies && cfg!.appointmentPolicies!.trim().length > 0
-  const anyOpen = !!hours?.some((h) => h?.isOpen)
-  const anyTimes = !!hours?.some((h) => h?.start1 || h?.end1 || h?.start2 || h?.end2)
-  return enabled || hasPolicies || anyOpen || anyTimes
+/** ✅ Solo consideramos Citas “configuradas” si appointmentEnabled === true */
+function isCitasEnabled(cfg: { appointmentEnabled?: boolean } | null | undefined): boolean {
+  return !!cfg?.appointmentEnabled
 }
 
 export default function ModalEntrenamiento({
@@ -161,6 +149,8 @@ export default function ModalEntrenamiento({
   const [lockedBy, setLockedBy] = useState<LockedBy>(() =>
     (initialConfig?.aiMode as AiMode) === 'agente' ? 'agente' : null
   )
+  // “Lock real” leído de DB (solo mostramos banner si hay lock en DB)
+  const [dbLock, setDbLock] = useState<LockedBy>(null)
 
   function handleAgentChange(patch: Partial<FormState>) {
     setForm((prev) => {
@@ -188,7 +178,6 @@ export default function ModalEntrenamiento({
     try {
       setReloading(true)
       const data = await fetchAppointmentConfig()
-
       type BackendAppointmentConfig = {
         appointmentEnabled?: boolean
         appointmentVertical?: Vertical
@@ -214,9 +203,12 @@ export default function ModalEntrenamiento({
         hours: hoursFromDb(hrs),
       }))
 
-      // 🔒 Solo si hay algo en DB
-      const lockCitas = isCitasConfigured(cfg, hrs)
-      setLockedBy((prev) => (prev === 'agente' ? 'agente' : lockCitas ? 'citas' : null))
+      const citasOn = isCitasEnabled(cfg)
+      setDbLock(citasOn ? 'citas' : null)
+      setLockedBy((prev) => {
+        if (prev === 'agente') return 'agente'
+        return citasOn ? 'citas' : null
+      })
     } catch (e: any) {
       console.error('[settings] fetchAppointmentConfig error:', e)
       setErrorMsg(e?.response?.data?.error || e?.message || 'No se pudo cargar la agenda')
@@ -252,7 +244,7 @@ export default function ModalEntrenamiento({
     if (lockedBy === 'citas' && tab !== 'citas') setTab('citas')
   }, [lockedBy, tab])
 
-  /** ⛔️ Reset total: borra BusinessConfig + AppointmentHour. No re-siembra horas. */
+  /** ⛔️ Reset total: borra BusinessConfig + AppointmentHour. */
   async function reiniciarEntrenamiento() {
     try {
       if (typeof window !== 'undefined') {
@@ -272,6 +264,7 @@ export default function ModalEntrenamiento({
 
       // Limpiar UI y desbloquear
       setLockedBy(null)
+      setDbLock(null)
       setForm((f) => ({
         ...f,
         aiMode: 'agente',
@@ -281,12 +274,12 @@ export default function ModalEntrenamiento({
         appointmentBufferMin: 10,
         appointmentPolicies: '',
         appointmentReminders: true,
-        hours: undefined,          // <- forzamos recarga desde backend
+        hours: undefined,
         appointmentServices: '',
       }))
       setTab('citas')
 
-      // Releer para confirmar (DB vacía => no lock)
+      // Releer para confirmar (DB vacía => sin lock)
       await loadAppointmentConfigIntoForm()
     } catch (e: any) {
       setErrorMsg(e?.response?.data?.error || e?.message || 'No se pudo reiniciar.')
@@ -319,7 +312,7 @@ export default function ModalEntrenamiento({
         `${API_URL}/api/appointments/config`,
         {
           appointment: {
-            enabled: false,
+            enabled: false, // <- clave para NO bloquear por Citas
             vertical: form.appointmentVertical || 'none',
             timezone: form.appointmentTimezone || 'America/Bogota',
             bufferMin: Number.isFinite(form.appointmentBufferMin) ? form.appointmentBufferMin : 10,
@@ -339,6 +332,7 @@ export default function ModalEntrenamiento({
       )
 
       setLockedBy('agente')
+      setDbLock('agente')
       close()
     } catch (e: any) {
       setErrorMsg(e?.response?.data?.error || e?.message || 'Error guardando el agente.')
@@ -372,7 +366,13 @@ export default function ModalEntrenamiento({
         { headers: getAuthHeaders() }
       )
 
-      setLockedBy('citas')
+      if (appointmentPayload.appointment.enabled) {
+        setLockedBy('citas')
+        setDbLock('citas')
+      } else {
+        setLockedBy(null)
+        setDbLock(null)
+      }
       close()
     } catch (e: any) {
       setErrorMsg(e?.response?.data?.error || e?.message || 'Error guardando la agenda.')
@@ -381,8 +381,13 @@ export default function ModalEntrenamiento({
     }
   }
 
+  const showBanner = useMemo(() => {
+    // Mostramos banner solo si hay lock real en DB (dbLock !== null)
+    return dbLock !== null && lockedBy !== null
+  }, [dbLock, lockedBy])
+
   const lockBanner = useMemo(() => {
-    if (!lockedBy) return null
+    if (!showBanner) return null
     const msg =
       lockedBy === 'agente'
         ? 'Este entrenamiento está bloqueado por el modo Agente.'
@@ -400,7 +405,7 @@ export default function ModalEntrenamiento({
         </button>
       </div>
     )
-  }, [lockedBy, saving])
+  }, [showBanner, lockedBy, saving])
 
   return (
     <AnimatePresence>
