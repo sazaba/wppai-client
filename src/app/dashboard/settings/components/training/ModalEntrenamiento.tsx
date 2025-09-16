@@ -107,6 +107,9 @@ export default function ModalEntrenamiento({
   const [reloading, setReloading] = useState(false)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
 
+  // 👇 Epoch para forzar remount de forms cuando reiniciamos o recargamos todo
+  const [uiEpoch, setUiEpoch] = useState(0)
+
   const [form, setForm] = useState<FormState>(() => ({
     aiMode: (initialConfig?.aiMode as AiMode) || 'agente',
     agentSpecialty: (initialConfig?.agentSpecialty as AgentSpecialty) || 'generico',
@@ -119,11 +122,10 @@ export default function ModalEntrenamiento({
     appointmentBufferMin: 10,
     appointmentPolicies: '',
     appointmentReminders: true,
-    hours: undefined,
+    hours: [], // controlado
     appointmentServices: initialConfig?.servicios || '',
   }))
 
-  // 🔒 ÚNICA fuente de verdad del lock
   const [lockedBy, setLockedBy] = useState<LockedBy>(null)
 
   function handleAgentChange(patch: Partial<FormState>) {
@@ -146,12 +148,11 @@ export default function ModalEntrenamiento({
     onClose?.()
   }
 
-  // 🧠 Lee TODO de BD y decide lock en un solo paso (evita carreras)
+  // 🔄 Carga atómica (decide lock: Citas > Agente)
   async function loadAllConfig() {
     setReloading(true)
     setErrorMsg(null)
     try {
-      // Agenda
       const appt = await fetchAppointmentConfig()
       type BackendAppointmentConfig = {
         appointmentEnabled?: boolean
@@ -164,11 +165,9 @@ export default function ModalEntrenamiento({
       const cfg = ((appt?.config ?? null) as BackendAppointmentConfig | null)
       const hrs = (appt?.hours as AppointmentDay[] | null | undefined) ?? []
 
-      // Agente / aiMode
       const r = await axios.get(`${API_URL}/api/config`, { headers: getAuthHeaders() }).catch(() => null)
       const aiModeDb = ((r?.data?.aiMode as AiMode) ?? 'ecommerce') as AiMode
 
-      // Sincroniza formulario visible
       setForm((f) => ({
         ...f,
         aiMode: aiModeDb,
@@ -183,7 +182,6 @@ export default function ModalEntrenamiento({
         hours: hoursFromDb(hrs),
       }))
 
-      // 🔐 Decisión de lock atómica
       if (cfg?.appointmentEnabled) {
         setLockedBy('citas')
       } else if (aiModeDb === 'agente') {
@@ -191,23 +189,23 @@ export default function ModalEntrenamiento({
       } else {
         setLockedBy(null)
       }
+
+      // Si veníamos de “reiniciar”, aseguremos remount fresco
+      setUiEpoch((n) => n + 1)
     } catch (e: any) {
       console.error('[settings] loadAllConfig error:', e)
       setErrorMsg(e?.response?.data?.error || e?.message || 'No se pudo cargar la configuración.')
-      // En caso de error, no bloquees por precaución
       setLockedBy(null)
     } finally {
       setReloading(false)
     }
   }
 
-  // Primera carga
   useEffect(() => {
     if (open) loadAllConfig()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open])
 
-  // Fuerza pestaña si hay lock
   useEffect(() => {
     if (lockedBy === 'agente' && tab !== 'agente') setTab('agente')
     if (lockedBy === 'citas' && tab !== 'citas') setTab('citas')
@@ -225,7 +223,6 @@ export default function ModalEntrenamiento({
     }
     setTab(nextTab)
 
-    // Si abres Citas, refresco SOLO la agenda (sin tocar lock)
     if (nextTab === 'citas') {
       try {
         setReloading(true)
@@ -244,15 +241,16 @@ export default function ModalEntrenamiento({
           appointmentReminders: (cfg?.appointmentReminders ?? true) as boolean,
           hours: hoursFromDb(hrs),
         }))
-      } catch (e) {
-        // no-op; ya habrá mensaje si falla la carga general
-      } finally {
+        // refresco visual del form de citas
+        setUiEpoch((n) => n + 1)
+      } catch {}
+      finally {
         setReloading(false)
       }
     }
   }
 
-  // 🔄 Reset total: limpia BD y NO recarga inmediatamente (evita re-lock por caché)
+  // 🚨 Reset total: limpia BD y fuerza remount de forms para vaciar inputs
   async function reiniciarEntrenamiento() {
     try {
       if (typeof window !== 'undefined') {
@@ -270,7 +268,7 @@ export default function ModalEntrenamiento({
         { params: { withCatalog: false }, headers: getAuthHeaders() }
       )
 
-      // Limpia UI completamente
+      // Limpieza total UI (sin relectura inmediata, evitamos re-lock por cache)
       setLockedBy(null)
       setForm({
         aiMode: 'agente',
@@ -284,13 +282,13 @@ export default function ModalEntrenamiento({
         appointmentBufferMin: 10,
         appointmentPolicies: '',
         appointmentReminders: true,
-        hours: undefined,
+        hours: [], // vacío controlado
         appointmentServices: '',
       })
       setTab('citas')
 
-      // 👇 Importante: NO llamamos a loadAllConfig aquí.
-      // Si el usuario reabre el modal o cambia de pestaña luego, se leerá de BD fresca.
+      // 🔑 Forzamos remount de formularios para limpiar inputs residuales
+      setUiEpoch((n) => n + 1)
     } catch (e: any) {
       setErrorMsg(e?.response?.data?.error || e?.message || 'No se pudo reiniciar.')
     } finally {
@@ -316,7 +314,7 @@ export default function ModalEntrenamiento({
       }
       await axios.put(`${API_URL}/api/config/agent`, payload, { headers: getAuthHeaders() })
 
-      // Apaga agenda (conservando horas)
+      // Apaga agenda (conserva horas)
       const currentHours = hoursFromDb(form.hours)
       await axios.post(
         `${API_URL}/api/appointments/config`,
@@ -342,6 +340,8 @@ export default function ModalEntrenamiento({
       )
 
       setLockedBy('agente')
+      // Refresco visual por si el modal sigue abierto
+      setUiEpoch((n) => n + 1)
       close()
     } catch (e: any) {
       setErrorMsg(e?.response?.data?.error || e?.message || 'Error guardando el agente.')
@@ -375,7 +375,11 @@ export default function ModalEntrenamiento({
         { headers: getAuthHeaders() }
       )
 
+      // 🔒 Lock inmediato si citas está habilitado
       setLockedBy(appointmentPayload.appointment.enabled ? 'citas' : null)
+
+      // Refresco visual (si sigues en pantalla)
+      setUiEpoch((n) => n + 1)
       close()
     } catch (e: any) {
       setErrorMsg(e?.response?.data?.error || e?.message || 'Error guardando la agenda.')
@@ -447,6 +451,7 @@ export default function ModalEntrenamiento({
               {tab === 'agente' ? (
                 <div className={lockedBy === 'citas' ? 'pointer-events-none opacity-50' : ''}>
                   <AgentForm
+                    key={`agent-${uiEpoch}`} // 👈 remount controlado
                     value={{
                       aiMode: form.aiMode,
                       agentSpecialty: form.agentSpecialty,
@@ -460,6 +465,7 @@ export default function ModalEntrenamiento({
               ) : (
                 <div className={lockedBy === 'agente' ? 'pointer-events-none opacity-50' : ''}>
                   <AppointmentForm
+                    key={`citas-${uiEpoch}`} // 👈 remount controlado
                     value={{
                       appointmentEnabled: form.appointmentEnabled,
                       appointmentVertical: form.appointmentVertical,
