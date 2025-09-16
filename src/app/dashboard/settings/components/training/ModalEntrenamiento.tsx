@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Dialog } from '@headlessui/react'
 import { AnimatePresence, motion } from 'framer-motion'
 import axios from 'axios'
@@ -45,9 +45,11 @@ type FormState = Pick<
   appointmentPolicies?: string
   appointmentReminders: boolean
   hours?: AppointmentDay[]
-  /** Nuevo: servicios que se pueden agendar (se guarda en BusinessConfig.servicios) */
+  /** Servicios agendables (texto libre, se guarda en BusinessConfig.servicios) */
   appointmentServices?: string
 }
+
+type LockedBy = 'agente' | 'citas' | null
 
 const ORDER: Weekday[] = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']
 
@@ -96,7 +98,7 @@ function buildAppointmentPayloadFromForm(form: FormState) {
       policies: form.appointmentPolicies || '',
       reminders: !!form.appointmentReminders,
     },
-  hours: hours.map((h) => ({
+    hours: hours.map((h) => ({
       day: h.day,
       isOpen: !!h.isOpen,
       start1: h.isOpen ? h.start1 : null,
@@ -135,14 +137,15 @@ export default function ModalEntrenamiento({
     appointmentPolicies: '',
     appointmentReminders: true,
     hours: undefined,
-    // Nuevo: arrancamos con lo que venga de la config general
     appointmentServices: initialConfig?.servicios || '',
   }))
 
-  /** ===== Exclusividad en el estado local =====
-   * - Si el usuario habilita Citas -> forzamos aiMode='ecommerce'
-   * - Si el usuario pone aiMode='agente' -> forzamos appointmentEnabled=false
-   */
+  /** ===== Bloqueo: quién “posee” el entrenamiento guardado en backend ===== */
+  const [lockedBy, setLockedBy] = useState<LockedBy>(() =>
+    (initialConfig?.aiMode as AiMode) === 'agente' ? 'agente' : null
+  )
+
+  /** ===== Exclusividad en el estado local (solo UX mientras editan) ===== */
   function handleAgentChange(patch: Partial<FormState>) {
     setForm((prev) => {
       const next: FormState = { ...prev, ...patch }
@@ -195,8 +198,10 @@ export default function ModalEntrenamiento({
         appointmentPolicies: cfg.appointmentPolicies ?? '',
         appointmentReminders: cfg.appointmentReminders ?? true,
         hours: hoursFromDb(data?.hours as AppointmentDay[] | null | undefined),
-        // 👇 NO tocamos appointmentServices para no pisar lo escrito manualmente
       }))
+
+      // 💡 Si en backend quedó habilitada la agenda, bloqueamos Agente
+      if (cfg?.appointmentEnabled) setLockedBy('citas')
     } catch (e: any) {
       console.error('[settings] fetchAppointmentConfig error:', e)
       setErrorMsg(e?.response?.data?.error || e?.message || 'No se pudo cargar la agenda')
@@ -206,6 +211,16 @@ export default function ModalEntrenamiento({
   }
 
   async function handleChangeTab(nextTab: EditorTab) {
+    // ⛔️ Bloquea navegar a la pestaña contraria si ya hay bloqueo
+    if (lockedBy === 'agente' && nextTab === 'citas') {
+      setErrorMsg('Esta empresa ya está configurada en modo Agente. Reinicia el entrenamiento para cambiar a Citas.')
+      return
+    }
+    if (lockedBy === 'citas' && nextTab === 'agente') {
+      setErrorMsg('Esta empresa ya está configurada para Citas. Reinicia el entrenamiento para cambiar a Agente.')
+      return
+    }
+
     setTab(nextTab)
     setErrorMsg(null)
     if (nextTab === 'citas') {
@@ -213,22 +228,83 @@ export default function ModalEntrenamiento({
     }
   }
 
-  // Cargar Citas la primera vez que se abre el modal en la pestaña 'citas'
+  // En cuanto detectamos bloqueo, llevamos la pestaña a la única permitida
   useEffect(() => {
-    if (open && tab === 'citas' && !form.hours) {
-      loadAppointmentConfigIntoForm()
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, tab])
+    if (lockedBy === 'agente' && tab !== 'agente') setTab('agente')
+    if (lockedBy === 'citas' && tab !== 'citas') setTab('citas')
+  }, [lockedBy, tab])
 
-  async function guardarAgente() {
+  // Reiniciar TODO (config + agenda) para poder cambiar de camino
+  async function reiniciarEntrenamiento() {
     try {
+      if (typeof window !== 'undefined') {
+        const ok = window.confirm(
+          '¿Reiniciar entrenamiento?\n\nSe eliminará la configuración del negocio y se limpiará la agenda (no se borrará el catálogo).'
+        )
+        if (!ok) return
+      }
+
       setSaving(true)
       setErrorMsg(null)
 
-      // 🔒 En este punto, por la exclusividad local, appointmentEnabled ya debe ser false
+      // 1) Reset config negocio (sin catálogo)
+      await axios.post(
+        `${API_URL}/api/config/reset`,
+        null,
+        { params: { withCatalog: false }, headers: getAuthHeaders() }
+      )
+
+      // 2) Reset agenda: apagar + 7 días cerrados
+      await axios.post(
+        `${API_URL}/api/appointments/config`,
+        {
+          appointment: {
+            enabled: false,
+            vertical: 'none',
+            timezone: 'America/Bogota',
+            bufferMin: 10,
+            policies: '',
+            reminders: true,
+          },
+          hours: emptyHours(),
+        },
+        { headers: getAuthHeaders() }
+      )
+
+      // 3) Estado local default + desbloqueo
+      setLockedBy(null)
+      setForm((f) => ({
+        ...f,
+        aiMode: 'agente',
+        appointmentEnabled: false,
+        appointmentVertical: 'none',
+        appointmentTimezone: 'America/Bogota',
+        appointmentBufferMin: 10,
+        appointmentPolicies: '',
+        appointmentReminders: true,
+        hours: emptyHours(),
+        appointmentServices: '',
+      }))
+      setTab('citas')
+    } catch (e: any) {
+      setErrorMsg(e?.response?.data?.error || e?.message || 'No se pudo reiniciar.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function guardarAgente() {
+    try {
+      if (lockedBy === 'citas') {
+        setErrorMsg('Bloqueado por Citas. Reinicia el entrenamiento para cambiar a Agente.')
+        return
+      }
+
+      setSaving(true)
+      setErrorMsg(null)
+
       const payload = {
-        aiMode: form.aiMode as AiMode,
+        aiMode: 'agente' as AiMode, // forzado
         agentSpecialty: form.agentSpecialty,
         agentPrompt: form.agentPrompt ?? '',
         agentScope: form.agentScope ?? '',
@@ -236,7 +312,7 @@ export default function ModalEntrenamiento({
       }
       await axios.put(`${API_URL}/api/config/agent`, payload, { headers: getAuthHeaders() })
 
-      // Extra robustez: asegurar agenda apagada en backend (conserva horas)
+      // Asegurar agenda apagada en backend (conserva horas)
       const currentHours = hoursFromDb(form.hours)
       await axios.post(
         `${API_URL}/api/appointments/config`,
@@ -261,6 +337,8 @@ export default function ModalEntrenamiento({
         { headers: getAuthHeaders() }
       )
 
+      // Al guardar, este camino queda como “dueño”
+      setLockedBy('agente')
       close()
     } catch (e: any) {
       setErrorMsg(e?.response?.data?.error || e?.message || 'Error guardando el agente.')
@@ -271,37 +349,37 @@ export default function ModalEntrenamiento({
 
   async function guardarCitas() {
     try {
+      if (lockedBy === 'agente') {
+        setErrorMsg('Bloqueado por Agente. Reinicia el entrenamiento para cambiar a Citas.')
+        return
+      }
+
       setSaving(true)
       setErrorMsg(null)
 
-      // Por exclusividad local, si appointmentEnabled=true, aiMode ya es 'ecommerce'
+      // Forzamos aiMode='ecommerce' cuando se guardan citas habilitadas
       const appointmentPayload = buildAppointmentPayloadFromForm(form)
 
-      // 1) Guardar config de agenda + horas
+      // 1) Guardar agenda + horas
       await axios.post(`${API_URL}/api/appointments/config`, appointmentPayload as any, {
         headers: getAuthHeaders(),
       })
 
-      // 2) Guardar servicios (texto) en BusinessConfig.servicios sin romper nada
+      // 2) Guardar servicios (texto) en BusinessConfig.servicios
       const serviciosText = (form.appointmentServices || '').trim()
       await axios.put(
         `${API_URL}/api/config/agent`,
         {
-          aiMode: form.aiMode, // ya es 'ecommerce' si habilitaste citas
+          aiMode: appointmentPayload.appointment.enabled ? ('ecommerce' as AiMode) : form.aiMode,
           servicios: serviciosText,
         },
         { headers: getAuthHeaders() }
       )
 
-      // Extra robustez: si quedaron citas habilitadas, asegurar aiMode='ecommerce'
+      // Si citas quedaron habilitadas, el dueño pasa a ser “citas”
       if (appointmentPayload.appointment.enabled) {
-        await axios.put(
-          `${API_URL}/api/config/agent`,
-          { aiMode: 'ecommerce' as AiMode },
-          { headers: getAuthHeaders() }
-        )
+        setLockedBy('citas')
       }
-
       close()
     } catch (e: any) {
       setErrorMsg(e?.response?.data?.error || e?.message || 'Error guardando la agenda.')
@@ -310,42 +388,27 @@ export default function ModalEntrenamiento({
     }
   }
 
-  // Reiniciar SOLO la agenda (apagar + 7 días cerrados)
-  async function reiniciarAgenda() {
-    try {
-      setSaving(true)
-      setErrorMsg(null)
-
-      await axios.post(
-        `${API_URL}/api/appointments/config`,
-        {
-          appointment: {
-            enabled: false,
-            vertical: form.appointmentVertical || 'none',
-            timezone: form.appointmentTimezone || 'America/Bogota',
-            bufferMin: Number.isFinite(form.appointmentBufferMin) ? form.appointmentBufferMin : 10,
-            policies: '',
-            reminders: true,
-          },
-          hours: emptyHours(),
-        },
-        { headers: getAuthHeaders() }
-      )
-
-      setForm((f) => ({
-        ...f,
-        appointmentEnabled: false,
-        appointmentPolicies: '',
-        appointmentReminders: true,
-        hours: emptyHours(),
-        // no tocamos appointmentServices aquí
-      }))
-    } catch (e: any) {
-      setErrorMsg(e?.response?.data?.error || e?.message || 'No se pudo reiniciar la agenda.')
-    } finally {
-      setSaving(false)
-    }
-  }
+  // Banner de bloqueo y CTA para reiniciar
+  const lockBanner = useMemo(() => {
+    if (!lockedBy) return null
+    const msg =
+      lockedBy === 'agente'
+        ? 'Este entrenamiento está bloqueado por el modo Agente.'
+        : 'Este entrenamiento está bloqueado por la configuración de Citas.'
+    return (
+      <div className="mb-3 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 rounded-xl border border-amber-600/40 bg-amber-900/20 px-3 py-2 text-amber-200">
+        <span className="text-sm">{msg} Para cambiar, reinicia el entrenamiento.</span>
+        <button
+          type="button"
+          onClick={reiniciarEntrenamiento}
+          className="px-3 py-1.5 rounded-lg text-sm bg-amber-600 hover:bg-amber-700 text-white"
+          disabled={saving}
+        >
+          {saving ? 'Reiniciando…' : 'Reiniciar entrenamiento'}
+        </button>
+      </div>
+    )
+  }, [lockedBy, saving])
 
   return (
     <AnimatePresence>
@@ -377,36 +440,43 @@ export default function ModalEntrenamiento({
                 </button>
               </div>
 
+              {/* banner de bloqueo */}
+              {lockBanner}
+
               <div className="mb-4">
                 <TypeTabs value={tab} onChange={handleChangeTab} loading={reloading} />
               </div>
 
               {/* contenido */}
               {tab === 'agente' ? (
-                <AgentForm
-                  value={{
-                    aiMode: form.aiMode,
-                    agentSpecialty: form.agentSpecialty,
-                    agentPrompt: form.agentPrompt,
-                    agentScope: form.agentScope,
-                    agentDisclaimers: form.agentDisclaimers,
-                  }}
-                  onChange={handleAgentChange}
-                />
+                <div className={lockedBy === 'citas' ? 'pointer-events-none opacity-50' : ''}>
+                  <AgentForm
+                    value={{
+                      aiMode: form.aiMode,
+                      agentSpecialty: form.agentSpecialty,
+                      agentPrompt: form.agentPrompt,
+                      agentScope: form.agentScope,
+                      agentDisclaimers: form.agentDisclaimers,
+                    }}
+                    onChange={handleAgentChange}
+                  />
+                </div>
               ) : (
-                <AppointmentForm
-                  value={{
-                    appointmentEnabled: form.appointmentEnabled,
-                    appointmentVertical: form.appointmentVertical,
-                    appointmentTimezone: form.appointmentTimezone,
-                    appointmentBufferMin: form.appointmentBufferMin,
-                    appointmentPolicies: form.appointmentPolicies,
-                    appointmentReminders: form.appointmentReminders,
-                    hours: form.hours,
-                    appointmentServices: form.appointmentServices,
-                  } as AppointmentConfigValue}
-                  onChange={(patch) => handleAppointmentChange(patch as Partial<FormState>)}
-                />
+                <div className={lockedBy === 'agente' ? 'pointer-events-none opacity-50' : ''}>
+                  <AppointmentForm
+                    value={{
+                      appointmentEnabled: form.appointmentEnabled,
+                      appointmentVertical: form.appointmentVertical,
+                      appointmentTimezone: form.appointmentTimezone,
+                      appointmentBufferMin: form.appointmentBufferMin,
+                      appointmentPolicies: form.appointmentPolicies,
+                      appointmentReminders: form.appointmentReminders,
+                      hours: form.hours,
+                      appointmentServices: form.appointmentServices,
+                    } as AppointmentConfigValue}
+                    onChange={(patch) => handleAppointmentChange(patch as Partial<FormState>)}
+                  />
+                </div>
               )}
 
               {errorMsg && (
@@ -426,32 +496,34 @@ export default function ModalEntrenamiento({
                 <div className="flex items-center gap-2">
                   {tab === 'citas' && (
                     <button
-                      onClick={reiniciarAgenda}
+                      onClick={reiniciarEntrenamiento}
                       disabled={saving}
                       className="px-4 py-2 rounded-xl border border-slate-700 bg-slate-800 hover:bg-slate-700 text-sm"
                       type="button"
                     >
-                      {saving ? 'Reiniciando…' : 'Reiniciar agenda'}
+                      {saving ? 'Reiniciando…' : 'Reiniciar entrenamiento'}
                     </button>
                   )}
 
                   {tab === 'agente' ? (
                     <button
                       onClick={guardarAgente}
-                      disabled={saving}
+                      disabled={saving || lockedBy === 'citas'}
                       className="px-4 py-2 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-sm disabled:opacity-60"
                       type="button"
+                      title={lockedBy === 'citas' ? 'Bloqueado por Citas' : undefined}
                     >
-                      {saving ? 'Guardando…' : 'Guardar agente'}
+                      {saving ? 'Guardando…' : lockedBy === 'citas' ? 'Bloqueado' : 'Guardar agente'}
                     </button>
                   ) : (
                     <button
                       onClick={guardarCitas}
-                      disabled={saving}
+                      disabled={saving || lockedBy === 'agente'}
                       className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm disabled:opacity-60"
                       type="button"
+                      title={lockedBy === 'agente' ? 'Bloqueado por Agente' : undefined}
                     >
-                      {saving ? 'Guardando…' : 'Guardar citas'}
+                      {saving ? 'Guardando…' : lockedBy === 'agente' ? 'Bloqueado' : 'Guardar citas'}
                     </button>
                   )}
                 </div>
