@@ -32,10 +32,12 @@ function getAuthHeaders(): Record<string, string> {
   return token ? { Authorization: `Bearer ${token}` } : {}
 }
 
+/** 👉 Estado local del formulario (solo campos usados por Agente + Citas) */
 type FormState = Pick<
   ConfigForm,
   'aiMode' | 'agentSpecialty' | 'agentPrompt' | 'agentScope' | 'agentDisclaimers'
 > & {
+  // citas
   appointmentEnabled: boolean
   appointmentVertical: Vertical
   appointmentTimezone: string
@@ -43,6 +45,7 @@ type FormState = Pick<
   appointmentPolicies?: string
   appointmentReminders: boolean
   hours?: AppointmentDay[]
+  /** Servicios agendables (se guarda en BusinessConfig.servicios) */
   appointmentServices?: string
 }
 
@@ -83,6 +86,7 @@ function emptyHours(): AppointmentDay[] {
   }))
 }
 
+/** Construye el payload para POST /api/appointments/config */
 function buildAppointmentPayloadFromForm(form: FormState) {
   const hours = hoursFromDb(form.hours)
   return {
@@ -105,6 +109,23 @@ function buildAppointmentPayloadFromForm(form: FormState) {
   }
 }
 
+/** 🔎 Solo bloquear Citas si realmente hay configuración en DB */
+function isCitasConfigured(
+  cfg: {
+    appointmentEnabled?: boolean
+    appointmentPolicies?: string | null
+  } | null | undefined,
+  hours: AppointmentDay[] | null | undefined
+): boolean {
+  const hasConfigRow = !!cfg // si no hay fila de BusinessConfig, no bloquear
+  if (!hasConfigRow) return false
+  const enabled = !!cfg?.appointmentEnabled
+  const hasPolicies = !!cfg?.appointmentPolicies && cfg!.appointmentPolicies!.trim().length > 0
+  const anyOpen = !!hours?.some((h) => h?.isOpen)
+  const anyTimes = !!hours?.some((h) => h?.start1 || h?.end1 || h?.start2 || h?.end2)
+  return enabled || hasPolicies || anyOpen || anyTimes
+}
+
 export default function ModalEntrenamiento({
   trainingActive,
   onClose,
@@ -118,12 +139,14 @@ export default function ModalEntrenamiento({
   const [reloading, setReloading] = useState(false)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
 
+  // Estado inicial
   const [form, setForm] = useState<FormState>(() => ({
     aiMode: (initialConfig?.aiMode as AiMode) || 'agente',
     agentSpecialty: (initialConfig?.agentSpecialty as AgentSpecialty) || 'generico',
     agentPrompt: initialConfig?.agentPrompt || '',
     agentScope: initialConfig?.agentScope || '',
     agentDisclaimers: initialConfig?.agentDisclaimers || '',
+    // citas
     appointmentEnabled: false,
     appointmentVertical: 'none',
     appointmentTimezone: 'America/Bogota',
@@ -134,6 +157,7 @@ export default function ModalEntrenamiento({
     appointmentServices: initialConfig?.servicios || '',
   }))
 
+  // Bloqueo inicial por aiMode (si vino 'agente')
   const [lockedBy, setLockedBy] = useState<LockedBy>(() =>
     (initialConfig?.aiMode as AiMode) === 'agente' ? 'agente' : null
   )
@@ -159,6 +183,7 @@ export default function ModalEntrenamiento({
     onClose?.()
   }
 
+  /** Carga config de Citas y ajusta lock según DB */
   async function loadAppointmentConfigIntoForm() {
     try {
       setReloading(true)
@@ -169,32 +194,29 @@ export default function ModalEntrenamiento({
         appointmentVertical?: Vertical
         appointmentTimezone?: string
         appointmentBufferMin?: number
-        appointmentPolicies?: string
+        appointmentPolicies?: string | null
         appointmentReminders?: boolean
       }
 
-      const cfg = (data?.config ?? {}) as BackendAppointmentConfig
+      const cfg = ((data?.config ?? null) as BackendAppointmentConfig | null)
+      const hrs = (data?.hours as AppointmentDay[] | null | undefined) ?? []
 
       setForm((f) => ({
         ...f,
-        appointmentEnabled: !!cfg.appointmentEnabled,
-        appointmentVertical: (cfg.appointmentVertical as Vertical) ?? 'none',
-        appointmentTimezone: cfg.appointmentTimezone ?? 'America/Bogota',
-        appointmentBufferMin: Number.isFinite(cfg.appointmentBufferMin!)
-          ? (cfg.appointmentBufferMin as number)
+        appointmentEnabled: !!cfg?.appointmentEnabled,
+        appointmentVertical: (cfg?.appointmentVertical as Vertical) ?? 'none',
+        appointmentTimezone: cfg?.appointmentTimezone ?? 'America/Bogota',
+        appointmentBufferMin: Number.isFinite(cfg?.appointmentBufferMin as number)
+          ? ((cfg?.appointmentBufferMin as number) ?? 10)
           : 10,
-        appointmentPolicies: cfg.appointmentPolicies ?? '',
-        appointmentReminders: cfg.appointmentReminders ?? true,
-        hours: hoursFromDb(data?.hours as AppointmentDay[] | null | undefined),
+        appointmentPolicies: cfg?.appointmentPolicies ?? '',
+        appointmentReminders: (cfg?.appointmentReminders ?? true) as boolean,
+        hours: hoursFromDb(hrs),
       }))
 
-      // 🔒 bloquear por Citas si detectamos configuración diligenciada
-      const hours = (data?.hours as AppointmentDay[] | undefined) || []
-      const anyOpen = hours.some((h) => h?.isOpen)
-      const anyTimes = hours.some((h) => h?.start1 || h?.end1 || h?.start2 || h?.end2)
-      const hasPolicies = !!(cfg?.appointmentPolicies && cfg.appointmentPolicies.trim().length > 0)
-      const citasConfigured = !!cfg?.appointmentEnabled || anyOpen || anyTimes || hasPolicies
-      if (citasConfigured) setLockedBy('citas')
+      // 🔒 Solo si hay algo en DB
+      const lockCitas = isCitasConfigured(cfg, hrs)
+      setLockedBy((prev) => (prev === 'agente' ? 'agente' : lockCitas ? 'citas' : null))
     } catch (e: any) {
       console.error('[settings] fetchAppointmentConfig error:', e)
       setErrorMsg(e?.response?.data?.error || e?.message || 'No se pudo cargar la agenda')
@@ -212,19 +234,25 @@ export default function ModalEntrenamiento({
       setErrorMsg('Esta empresa ya está configurada para Citas. Reinicia el entrenamiento para cambiar a Agente.')
       return
     }
-
     setTab(nextTab)
     setErrorMsg(null)
     if (nextTab === 'citas') await loadAppointmentConfigIntoForm()
   }
+
+  // Cargar Citas la primera vez
+  useEffect(() => {
+    if (open && tab === 'citas' && !form.hours) {
+      loadAppointmentConfigIntoForm()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, tab])
 
   useEffect(() => {
     if (lockedBy === 'agente' && tab !== 'agente') setTab('agente')
     if (lockedBy === 'citas' && tab !== 'citas') setTab('citas')
   }, [lockedBy, tab])
 
-  // ⛔️ RESETEO TOTAL: ahora **solo** llamamos /api/config/reset (ya borra appointmentHour)
-  //    No re-sembramos horas después: así la tabla queda vacía en DB.
+  /** ⛔️ Reset total: borra BusinessConfig + AppointmentHour. No re-siembra horas. */
   async function reiniciarEntrenamiento() {
     try {
       if (typeof window !== 'undefined') {
@@ -233,7 +261,6 @@ export default function ModalEntrenamiento({
         )
         if (!ok) return
       }
-
       setSaving(true)
       setErrorMsg(null)
 
@@ -243,7 +270,7 @@ export default function ModalEntrenamiento({
         { params: { withCatalog: false }, headers: getAuthHeaders() }
       )
 
-      // Estado local limpio (mostramos 7 días cerrados en UI, pero la DB quedó vacía)
+      // Limpiar UI y desbloquear
       setLockedBy(null)
       setForm((f) => ({
         ...f,
@@ -254,10 +281,13 @@ export default function ModalEntrenamiento({
         appointmentBufferMin: 10,
         appointmentPolicies: '',
         appointmentReminders: true,
-        hours: emptyHours(),
+        hours: undefined,          // <- forzamos recarga desde backend
         appointmentServices: '',
       }))
       setTab('citas')
+
+      // Releer para confirmar (DB vacía => no lock)
+      await loadAppointmentConfigIntoForm()
     } catch (e: any) {
       setErrorMsg(e?.response?.data?.error || e?.message || 'No se pudo reiniciar.')
     } finally {
@@ -271,7 +301,6 @@ export default function ModalEntrenamiento({
         setErrorMsg('Bloqueado por Citas. Reinicia el entrenamiento para cambiar a Agente.')
         return
       }
-
       setSaving(true)
       setErrorMsg(null)
 
@@ -324,7 +353,6 @@ export default function ModalEntrenamiento({
         setErrorMsg('Bloqueado por Agente. Reinicia el entrenamiento para cambiar a Citas.')
         return
       }
-
       setSaving(true)
       setErrorMsg(null)
 
@@ -358,10 +386,10 @@ export default function ModalEntrenamiento({
     const msg =
       lockedBy === 'agente'
         ? 'Este entrenamiento está bloqueado por el modo Agente.'
-        : 'Este entrenamiento está bloqueado por la configuración de Citas.'
+        : 'Este entrenamiento está bloqueado por la configuración de Citas. Para cambiar, reinicia el entrenamiento.'
     return (
       <div className="mb-3 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 rounded-xl border border-amber-600/40 bg-amber-900/20 px-3 py-2 text-amber-200">
-        <span className="text-sm">{msg} Para cambiar, reinicia el entrenamiento.</span>
+        <span className="text-sm">{msg}</span>
         <button
           type="button"
           onClick={reiniciarEntrenamiento}
@@ -387,6 +415,7 @@ export default function ModalEntrenamiento({
               exit={{ opacity: 0, scale: 0.98, y: 8 }}
               className="w-full max-w-3xl bg-slate-900 text-white rounded-2xl p-4 sm:p-6 border border-slate-800 shadow-2xl overflow-y-auto max-h-[92vh]"
             >
+              {/* header */}
               <div className="flex items-center justify-between gap-3 mb-4">
                 <div className="flex items-center gap-3">
                   <div className="px-2 py-1 rounded-lg bg-slate-800 text-xs font-medium border border-slate-700">
@@ -409,6 +438,7 @@ export default function ModalEntrenamiento({
                 <TypeTabs value={tab} onChange={handleChangeTab} loading={reloading} />
               </div>
 
+              {/* contenido */}
               {tab === 'agente' ? (
                 <div className={lockedBy === 'citas' ? 'pointer-events-none opacity-50' : ''}>
                   <AgentForm
@@ -446,6 +476,7 @@ export default function ModalEntrenamiento({
                 </div>
               )}
 
+              {/* footer */}
               <div className="mt-6 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
                 <div className="text-xs text-slate-400">
                   {tab === 'agente'
@@ -454,17 +485,6 @@ export default function ModalEntrenamiento({
                 </div>
 
                 <div className="flex items-center gap-2">
-                  {tab === 'citas' && (
-                    <button
-                      onClick={reiniciarEntrenamiento}
-                      disabled={saving}
-                      className="px-4 py-2 rounded-xl border border-slate-700 bg-slate-800 hover:bg-slate-700 text-sm"
-                      type="button"
-                    >
-                      {saving ? 'Reiniciando…' : 'Reiniciar entrenamiento'}
-                    </button>
-                  )}
-
                   {tab === 'agente' ? (
                     <button
                       onClick={guardarAgente}
