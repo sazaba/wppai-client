@@ -4,9 +4,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { Dialog } from '@headlessui/react'
 import { AnimatePresence, motion } from 'framer-motion'
 import axios, { AxiosError } from 'axios'
-import { X, Lock } from 'lucide-react'
+import { X, Lock, Calendar, Bot } from 'lucide-react'
 
-import TypeTabs, { type EditorTab } from './TypeTabs'
 import AgentForm from './AgentForm'
 import AppointmentForm, {
   type AppointmentDay,
@@ -15,8 +14,6 @@ import AppointmentForm, {
   type Vertical,
 } from './AppointmentForm'
 
-// quitamos la dependencia del helper con posible caché
-// import { fetchAppointmentConfig, normalizeDays } from '@/lib/appointments'
 import { normalizeDays } from '@/lib/appointments'
 
 import type {
@@ -26,7 +23,9 @@ import type {
   AgentSpecialty,
 } from './types'
 
+/* ============ Helpers básicos ============ */
 const API_URL = (process.env.NEXT_PUBLIC_API_URL || '') as string
+const RESET_MARKER_KEY = 'trainingResetAt' // 👈 marcador local para forzar el picker tras reset
 
 function getAuthHeaders(): Record<string, string> {
   if (typeof window === 'undefined') return {}
@@ -52,7 +51,7 @@ async function fetchAppointmentsNoCache() {
   return { config, hours }
 }
 
-/** Estado del form que usamos acá (agente + citas) */
+/* ============ Tipos locales ============ */
 type FormState = Pick<
   ConfigForm,
   'aiMode' | 'agentSpecialty' | 'agentPrompt' | 'agentScope' | 'agentDisclaimers'
@@ -68,6 +67,7 @@ type FormState = Pick<
 }
 
 type LockedBy = 'agente' | 'citas' | null
+type Step = 'pick' | 'agente' | 'citas'
 
 const ORDER: Weekday[] = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']
 
@@ -125,6 +125,7 @@ function prettyAxiosError(e: unknown, fallback = 'Ocurrió un error') {
   return ax?.response?.data?.error || fallback
 }
 
+/* ============ Componente principal ============ */
 export default function ModalEntrenamiento({
   trainingActive,
   onClose,
@@ -133,7 +134,6 @@ export default function ModalEntrenamiento({
   const [open, setOpen] = useState<boolean>(trainingActive)
   useEffect(() => setOpen(trainingActive), [trainingActive])
 
-  const [tab, setTab] = useState<EditorTab>('citas')
   const [saving, setSaving] = useState(false)
   const [reloading, setReloading] = useState(false)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
@@ -141,12 +141,10 @@ export default function ModalEntrenamiento({
   // Forzamos remount de los formularios (para limpiar inputs al reiniciar)
   const [uiEpoch, setUiEpoch] = useState(0)
 
-  // Detector de edición por pestaña
-  const [agentDirty, setAgentDirty] = useState(false)
-  const [citasDirty, setCitasDirty] = useState(false)
-
-  // Lock opcional por BD
+  // Lock persistente (derivado de BD)
   const [lockedBy, setLockedBy] = useState<LockedBy>(null)
+  // Paso del wizard
+  const [step, setStep] = useState<Step>('pick')
 
   const [form, setForm] = useState<FormState>(() => ({
     aiMode: (initialConfig?.aiMode as AiMode) || 'agente',
@@ -164,34 +162,26 @@ export default function ModalEntrenamiento({
     appointmentServices: initialConfig?.servicios || '',
   }))
 
-  /** Cambios locales que marcan “dirty” */
-  function handleAgentChange(patch: Partial<FormState>) {
-    setAgentDirty(true)
-    setForm((prev) => {
-      const next: FormState = { ...prev, ...patch }
-      if (patch.aiMode === 'agente') next.appointmentEnabled = false
-      return next
-    })
-  }
-  function handleAppointmentChange(patch: Partial<FormState>) {
-    setCitasDirty(true)
-    setForm((prev) => {
-      const next: FormState = { ...prev, ...patch }
-      if (patch.appointmentEnabled === true) next.aiMode = 'ecommerce' as AiMode
-      return next
-    })
-  }
-
   const close = () => {
     setOpen(false)
     onClose?.()
   }
 
-  /** Carga inicial: agenda + servicios (BusinessConfig) */
+  /** Carga inicial: determina el paso según BD (aiMode) y agenda */
   async function loadAllConfig() {
     setReloading(true)
     setErrorMsg(null)
     try {
+      // 👇 si hay marcador de reset, forzamos picker
+      let forcePick = false
+      if (typeof window !== 'undefined') {
+        const mk = localStorage.getItem(RESET_MARKER_KEY)
+        if (mk) {
+          forcePick = true
+          localStorage.removeItem(RESET_MARKER_KEY)
+        }
+      }
+
       const appt = await fetchAppointmentsNoCache()
       type BackendAppointmentConfig = {
         appointmentEnabled?: boolean
@@ -212,12 +202,13 @@ export default function ModalEntrenamiento({
         })
         .catch(() => null)
 
-      const aiModeDb = ((r?.data?.aiMode as AiMode) ?? 'ecommerce') as AiMode
+      // ❗️NO default a 'ecommerce'; si no viene, dejamos undefined y vamos a picker
+      const aiModeDb = r?.data?.aiMode as AiMode | undefined
       const serviciosDb = (r?.data?.servicios ?? '') as string
 
       setForm((f) => ({
         ...f,
-        aiMode: aiModeDb,
+        aiMode: (aiModeDb as any) ?? f.aiMode, // solo si vino, lo aplico; si no, mantengo local
         appointmentEnabled: !!cfg?.appointmentEnabled,
         appointmentVertical: (cfg?.appointmentVertical as Vertical) ?? 'none',
         appointmentTimezone: cfg?.appointmentTimezone ?? 'America/Bogota',
@@ -230,18 +221,27 @@ export default function ModalEntrenamiento({
         appointmentServices: serviciosDb,
       }))
 
-      if (cfg?.appointmentEnabled) setLockedBy('citas')
-      else if (aiModeDb === 'agente') setLockedBy('agente')
-      else setLockedBy(null)
-
-      setAgentDirty(false)
-      setCitasDirty(false)
+      // 🔐 Criterio de bloqueo/step (con override por reset)
+      if (forcePick) {
+        setLockedBy(null)
+        setStep('pick')
+      } else if (aiModeDb === 'agente') {
+        setLockedBy('agente')
+        setStep('agente')
+      } else if (aiModeDb === 'ecommerce') {
+        setLockedBy('citas')
+        setStep('citas')
+      } else {
+        setLockedBy(null)
+        setStep('pick')
+      }
 
       setUiEpoch((n) => n + 1)
     } catch (e: any) {
       console.error('[settings] loadAllConfig error:', e)
       setErrorMsg(prettyAxiosError(e, 'No se pudo cargar la configuración.'))
       setLockedBy(null)
+      setStep('pick')
     } finally {
       setReloading(false)
     }
@@ -252,91 +252,40 @@ export default function ModalEntrenamiento({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open])
 
-  const isAgenteTabBlocked = useMemo(
-    () => citasDirty || lockedBy === 'citas',
-    [citasDirty, lockedBy]
-  )
-  const isCitasTabBlocked = useMemo(
-    () => agentDirty || lockedBy === 'agente',
-    [agentDirty, lockedBy]
-  )
-
-  /** Cambiar de tab respetando bloqueos y refrescando datos de Citas */
-  async function handleChangeTab(nextTab: EditorTab) {
-    if (nextTab === tab) return
-    setErrorMsg(null)
-    if (nextTab === 'agente' && isAgenteTabBlocked) {
-      setErrorMsg('No puedes cambiar a “Agente” mientras estás editando Citas.')
-      return
-    }
-    if (nextTab === 'citas' && isCitasTabBlocked) {
-      setErrorMsg('No puedes cambiar a “Citas” mientras estás editando Agente.')
-      return
-    }
-
-    setTab(nextTab)
-
-    if (nextTab === 'citas') {
-      try {
-        setReloading(true)
-        const appt = await fetchAppointmentsNoCache()
-        const cfg = appt?.config ?? {}
-        const hrs = (appt?.hours as AppointmentDay[] | null | undefined) ?? []
-        const r2 = await axios
-          .get(`${API_URL}/api/config`, { headers: noCacheHeaders(), params: { t: Date.now() } })
-          .catch(() => null)
-        const serviciosDb = (r2?.data?.servicios ?? '') as string
-
-        setForm((f) => ({
-          ...f,
-          appointmentEnabled: !!(cfg as any)?.appointmentEnabled,
-          appointmentVertical: ((cfg as any)?.appointmentVertical as Vertical) ?? 'none',
-          appointmentTimezone: (cfg as any)?.appointmentTimezone ?? 'America/Bogota',
-          appointmentBufferMin: Number.isFinite((cfg as any)?.appointmentBufferMin)
-            ? ((cfg as any)?.appointmentBufferMin ?? 10)
-            : 10,
-          appointmentPolicies: (cfg as any)?.appointmentPolicies ?? '',
-          appointmentReminders: ((cfg as any)?.appointmentReminders ?? true) as boolean,
-          hours: hoursFromDb(hrs),
-          appointmentServices: serviciosDb,
-        }))
-        setUiEpoch((n) => n + 1)
-      } finally {
-        setReloading(false)
-      }
-    }
-  }
-
-  /** Reiniciar: limpia todo y quita bloqueos locales */
+  /** Reiniciar: limpia BD, limpia UI y vuelve a 'pick' (sin abrir nada) */
   async function reiniciarEntrenamiento() {
     try {
       if (typeof window !== 'undefined') {
         const ok = window.confirm(
-          '¿Reiniciar entrenamiento?\n\nSe eliminará la configuración del negocio y se limpiará la agenda.'
+          '¿Reiniciar entrenamiento?\n\nSe eliminará la configuración y deberás elegir una opción nuevamente.'
         )
         if (!ok) return
       }
       setSaving(true)
       setErrorMsg(null)
 
-      // 1) Reset de configuración de negocio
+      // Reset de negocio
       await axios.post(
         `${API_URL}/api/config/reset`,
         null,
         { params: { withCatalog: false, t: Date.now() }, headers: getAuthHeaders() }
       )
 
-      // 2) Limpieza explícita de agenda en BD (si el endpoint existe)
+      // Limpieza de agenda (si existe endpoint)
       try {
-        await axios.post(`${API_URL}/api/appointments/reset`, null, { headers: getAuthHeaders(), params: { t: Date.now() } })
-      } catch {
-        /* ignore si no existe */
+        await axios.post(`${API_URL}/api/appointments/reset`, null, {
+          headers: getAuthHeaders(),
+          params: { t: Date.now() },
+        })
+      } catch { /* ignore */ }
+
+      // 👇 Guardamos marcador local para que la próxima apertura vaya a 'pick'
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(RESET_MARKER_KEY, String(Date.now()))
       }
 
-      // 3) Limpieza total de UI + remount
+      // Limpieza UI total
       setLockedBy(null)
-      setAgentDirty(false)
-      setCitasDirty(false)
       setForm({
         aiMode: 'agente',
         agentSpecialty: 'generico',
@@ -352,7 +301,7 @@ export default function ModalEntrenamiento({
         hours: [],
         appointmentServices: '',
       })
-      setTab('citas')
+      setStep('pick')
       setUiEpoch((n) => n + 1)
     } catch (e: any) {
       setErrorMsg(prettyAxiosError(e, 'No se pudo reiniciar.'))
@@ -361,7 +310,83 @@ export default function ModalEntrenamiento({
     }
   }
 
-  /** Guardar Agente: mantiene modal abierto y bloquea Citas */
+  /** Elegir “Agente”: bloquea inmediatamente y persiste */
+  async function pickAgente() {
+    try {
+      setSaving(true)
+      setErrorMsg(null)
+      await axios.put(
+        `${API_URL}/api/config/agent`,
+        { aiMode: 'agente' as AiMode },
+        { headers: getAuthHeaders(), params: { t: Date.now() } }
+      )
+
+      // apaga agenda (conserva horas si hubieran)
+      const currentHours = normalizeDays(form.hours)
+      await axios.post(
+        `${API_URL}/api/appointments/config`,
+        {
+          appointment: {
+            enabled: false,
+            vertical: form.appointmentVertical || 'none',
+            timezone: form.appointmentTimezone || 'America/Bogota',
+            bufferMin: Number.isFinite(form.appointmentBufferMin) ? form.appointmentBufferMin : 10,
+            policies: form.appointmentPolicies || '',
+            reminders: !!form.appointmentReminders,
+          },
+          hours: currentHours,
+        },
+        { headers: getAuthHeaders(), params: { t: Date.now() } }
+      )
+
+      setLockedBy('agente')
+      setStep('agente')
+      setUiEpoch((n) => n + 1)
+    } catch (e: any) {
+      setErrorMsg(prettyAxiosError(e, 'No se pudo seleccionar Agente.'))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  /** Elegir “Citas”: bloquea inmediatamente y persiste */
+  async function pickCitas() {
+    try {
+      setSaving(true)
+      setErrorMsg(null)
+      await axios.put(
+        `${API_URL}/api/config/agent`,
+        { aiMode: 'ecommerce' as AiMode },
+        { headers: getAuthHeaders(), params: { t: Date.now() } }
+      )
+      const currentHours = normalizeDays(form.hours)
+      await axios.post(
+        `${API_URL}/api/appointments/config`,
+        {
+          appointment: {
+            enabled: !!form.appointmentEnabled, // normalmente false al empezar
+            vertical: form.appointmentVertical || 'none',
+            timezone: form.appointmentTimezone || 'America/Bogota',
+            bufferMin: Number.isFinite(form.appointmentBufferMin) ? form.appointmentBufferMin : 10,
+            policies: form.appointmentPolicies || '',
+            reminders: !!form.appointmentReminders,
+          },
+          hours: currentHours,
+        },
+        { headers: getAuthHeaders(), params: { t: Date.now() } }
+      )
+
+      setLockedBy('citas')
+      setStep('citas')
+      setUiEpoch((n) => n + 1)
+    } catch (e: any) {
+      setErrorMsg(prettyAxiosError(e, 'No se pudo seleccionar Citas.'))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  /** Guardar Agente: mantiene paso y bloqueo */
   async function guardarAgente() {
     try {
       if (lockedBy === 'citas') {
@@ -398,8 +423,7 @@ export default function ModalEntrenamiento({
         { headers: getAuthHeaders() }
       )
 
-      setAgentDirty(false)
-      setLockedBy('agente') // 🔒 bloqueo persistente tras actualizar
+      setLockedBy('agente')
       setUiEpoch((n) => n + 1) // mantiene inputs
     } catch (e: any) {
       setErrorMsg(prettyAxiosError(e, 'Error guardando el agente.'))
@@ -408,7 +432,7 @@ export default function ModalEntrenamiento({
     }
   }
 
-  /** Guardar Citas: mantiene modal abierto y bloquea Agente si agenda habilitada */
+  /** Guardar Citas: mantiene paso y bloqueo */
   async function guardarCitas() {
     try {
       if (lockedBy === 'agente') {
@@ -436,14 +460,13 @@ export default function ModalEntrenamiento({
       await axios.put(
         `${API_URL}/api/config/agent`,
         {
-          aiMode: appointmentPayload.appointment.enabled ? ('ecommerce' as AiMode) : form.aiMode,
+          aiMode: 'ecommerce' as AiMode, // modo citas
           servicios: serviciosText,
         },
         { headers: getAuthHeaders(), params: { t: Date.now() } }
       )
 
-      setCitasDirty(false)
-      setLockedBy(appointmentPayload.appointment.enabled ? 'citas' : null) // 🔒 si activas agenda
+      setLockedBy('citas')
       setUiEpoch((n) => n + 1) // mantiene inputs
     } catch (e: any) {
       setErrorMsg(prettyAxiosError(e, 'Error guardando la agenda.'))
@@ -452,23 +475,18 @@ export default function ModalEntrenamiento({
     }
   }
 
+  /* ================== UI ================== */
+
   const lockBanner = useMemo(() => {
-    const localLock =
-      agentDirty ? 'Estás editando Agente: “Citas” está bloqueado temporalmente.' :
-      citasDirty ? 'Estás editando Citas: “Agente” está bloqueado temporalmente.' :
-      null
-
     const dbLock =
-      !localLock && lockedBy === 'agente' ? 'Bloqueado por configuración de Agente en BD.' :
-      !localLock && lockedBy === 'citas' ? 'Bloqueado por configuración de Citas en BD.' :
+      lockedBy === 'agente' ? 'Entrenamiento bloqueado por configuración de Agente.' :
+      lockedBy === 'citas' ? 'Entrenamiento bloqueado por configuración de Citas.' :
       null
 
-    const msg = localLock ?? dbLock
-    if (!msg) return null
-
+    if (!dbLock) return null
     return (
       <div className="mb-3 flex items-center justify-between gap-3 rounded-xl border border-amber-600/40 bg-amber-900/20 px-3 py-2 text-amber-200">
-        <span className="text-sm flex items-center gap-2"><Lock className="w-4 h-4" /> {msg}</span>
+        <span className="text-sm flex items-center gap-2"><Lock className="w-4 h-4" /> {dbLock}</span>
         <button
           type="button"
           onClick={reiniciarEntrenamiento}
@@ -479,7 +497,7 @@ export default function ModalEntrenamiento({
         </button>
       </div>
     )
-  }, [agentDirty, citasDirty, lockedBy, saving])
+  }, [lockedBy, saving])
 
   return (
     <AnimatePresence>
@@ -513,22 +531,48 @@ export default function ModalEntrenamiento({
 
               {lockBanner}
 
-              <div className="mb-4">
-                <TypeTabs
-                  value={tab}
-                  onChange={handleChangeTab}
-                  loading={reloading}
-                  // ✅ mapeo corregido
-                  disabled={{ agente: isAgenteTabBlocked, citas: isCitasTabBlocked }}
-                />
-              </div>
+              {/* Paso 0: Picker */}
+              {step === 'pick' && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <button
+                    type="button"
+                    onClick={pickCitas}
+                    className="group rounded-2xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800/70 p-5 text-left transition"
+                    disabled={saving}
+                  >
+                    <div className="flex items-center gap-3 mb-2">
+                      <div className="p-2 rounded-xl bg-emerald-600/20 border border-emerald-600/40">
+                        <Calendar className="w-5 h-5 text-emerald-300" />
+                      </div>
+                      <div className="text-lg font-medium">Configurar Citas</div>
+                    </div>
+                    <p className="text-sm text-slate-300">
+                      Define horarios, políticas, recordatorios y servicios. Esta opción bloqueará la configuración del Agente hasta reiniciar.
+                    </p>
+                  </button>
 
-              {/* contenido */}
-              {tab === 'agente' ? (
-                <div
-                  onFocusCapture={() => setAgentDirty(true)}
-                  className={lockedBy === 'citas' ? 'pointer-events-none opacity-50' : ''}
-                >
+                  <button
+                    type="button"
+                    onClick={pickAgente}
+                    className="group rounded-2xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800/70 p-5 text-left transition"
+                    disabled={saving}
+                  >
+                    <div className="flex items-center gap-3 mb-2">
+                      <div className="p-2 rounded-xl bg-violet-600/20 border border-violet-600/40">
+                        <Bot className="w-5 h-5 text-violet-300" />
+                      </div>
+                      <div className="text-lg font-medium">Configurar Agente</div>
+                    </div>
+                    <p className="text-sm text-slate-300">
+                      Define el modo, especialidad y prompts del agente. Esta opción bloqueará la configuración de Citas hasta reiniciar.
+                    </p>
+                  </button>
+                </div>
+              )}
+
+              {/* Paso Agente */}
+              {step === 'agente' && (
+                <div className={lockedBy === 'citas' ? 'pointer-events-none opacity-50' : ''}>
                   <AgentForm
                     key={`agent-${uiEpoch}`}
                     value={{
@@ -538,14 +582,46 @@ export default function ModalEntrenamiento({
                       agentScope: form.agentScope,
                       agentDisclaimers: form.agentDisclaimers,
                     }}
-                    onChange={handleAgentChange}
+                    onChange={(patch) =>
+                      setForm((prev) => ({ ...prev, ...patch }))
+                    }
                   />
+
+                  {errorMsg && (
+                    <div className="mt-4 text-sm text-red-300 bg-red-900/20 border border-red-800 rounded-xl px-3 py-2">
+                      {errorMsg}
+                    </div>
+                  )}
+
+                  <div className="mt-6 flex items-center justify-between">
+                    <div className="text-xs text-slate-400">
+                      Configura el modo y el perfil del agente.
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={reiniciarEntrenamiento}
+                        disabled={saving}
+                        className="px-4 py-2 rounded-xl bg-slate-700 hover:bg-slate-600 text-white text-sm disabled:opacity-60"
+                        type="button"
+                      >
+                        Reiniciar
+                      </button>
+                      <button
+                        onClick={guardarAgente}
+                        disabled={saving || lockedBy === 'citas'}
+                        className="px-4 py-2 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-sm disabled:opacity-60"
+                        type="button"
+                      >
+                        {saving ? 'Guardando…' : lockedBy === 'citas' ? 'Bloqueado' : 'Actualizar agente'}
+                      </button>
+                    </div>
+                  </div>
                 </div>
-              ) : (
-                <div
-                  onFocusCapture={() => setCitasDirty(true)}
-                  className={lockedBy === 'agente' ? 'pointer-events-none opacity-50' : ''}
-                >
+              )}
+
+              {/* Paso Citas */}
+              {step === 'citas' && (
+                <div className={lockedBy === 'agente' ? 'pointer-events-none opacity-50' : ''}>
                   <AppointmentForm
                     key={`citas-${uiEpoch}`}
                     value={{
@@ -558,49 +634,42 @@ export default function ModalEntrenamiento({
                       hours: form.hours,
                       appointmentServices: form.appointmentServices,
                     } as AppointmentConfigValue}
-                    onChange={(patch) => handleAppointmentChange(patch as Partial<FormState>)}
+                    onChange={(patch) =>
+                      setForm((prev) => ({ ...prev, ...(patch as Partial<FormState>) }))
+                    }
                   />
-                </div>
-              )}
 
-              {errorMsg && (
-                <div className="mt-4 text-sm text-red-300 bg-red-900/20 border border-red-800 rounded-xl px-3 py-2">
-                  {errorMsg}
-                </div>
-              )}
-
-              {/* footer */}
-              <div className="mt-6 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-                <div className="text-xs text-slate-400">
-                  {tab === 'agente'
-                    ? 'Configura el modo y el perfil del agente.'
-                    : 'Configura tu agenda, servicios y políticas.'}
-                </div>
-
-                <div className="flex items-center gap-2">
-                  {tab === 'agente' ? (
-                    <button
-                      onClick={guardarAgente}
-                      disabled={saving || lockedBy === 'citas'}
-                      className="px-4 py-2 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-sm disabled:opacity-60"
-                      type="button"
-                      title={lockedBy === 'citas' ? 'Bloqueado por Citas' : undefined}
-                    >
-                      {saving ? 'Guardando…' : lockedBy === 'citas' ? 'Bloqueado' : 'Actualizar agente'}
-                    </button>
-                  ) : (
-                    <button
-                      onClick={guardarCitas}
-                      disabled={saving || lockedBy === 'agente'}
-                      className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm disabled:opacity-60"
-                      type="button"
-                      title={lockedBy === 'agente' ? 'Bloqueado por Agente' : undefined}
-                    >
-                      {saving ? 'Guardando…' : lockedBy === 'agente' ? 'Bloqueado' : 'Actualizar citas'}
-                    </button>
+                  {errorMsg && (
+                    <div className="mt-4 text-sm text-red-300 bg-red-900/20 border border-red-800 rounded-xl px-3 py-2">
+                      {errorMsg}
+                    </div>
                   )}
+
+                  <div className="mt-6 flex items-center justify-between">
+                    <div className="text-xs text-slate-400">
+                      Configura tu agenda, servicios y políticas.
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={reiniciarEntrenamiento}
+                        disabled={saving}
+                        className="px-4 py-2 rounded-xl bg-slate-700 hover:bg-slate-600 text-white text-sm disabled:opacity-60"
+                        type="button"
+                      >
+                        Reiniciar
+                      </button>
+                      <button
+                        onClick={guardarCitas}
+                        disabled={saving || lockedBy === 'agente'}
+                        className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm disabled:opacity-60"
+                        type="button"
+                      >
+                        {saving ? 'Guardando…' : lockedBy === 'agente' ? 'Bloqueado' : 'Actualizar citas'}
+                      </button>
+                    </div>
+                  </div>
                 </div>
-              </div>
+              )}
             </Dialog.Panel>
           </div>
         </Dialog>
