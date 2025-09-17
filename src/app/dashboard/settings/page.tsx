@@ -158,21 +158,22 @@ export default function SettingsPage() {
         if (!ok) return
       }
 
-      // ⚠️ Volvemos a la lógica original del proyecto: un único reset principal
+      // Reset principal en backend
       await axios.post(`${API_URL}/api/config/reset`, null, {
         params: { withCatalog: true },
         headers: getAuthHeaders(),
       })
 
-      // Estado local limpio
+      // Estado local limpio (y SIN abrir el modal)
       setConfigGuardada(null)
       setForm(DEFAULTS)
       setAgentConfigured(false)
       setAppointmentsConfigured(false)
-
-      // Después de reset, abrimos el modal con las cards internas para volver a configurar
       setInitialTrainingPanel(null)
-      setTrainingActive(true)
+      setTrainingActive(false) // 👈 evita que se abra el ModalEntrenamiento
+
+      // (opcional) refrescar desde backend por si hay side effects
+      // await refreshAll()
     } catch (e: any) {
       console.error('[reiniciarEntrenamiento] error:', e?.response?.data || e?.message || e)
       alert('Error al reiniciar configuración')
@@ -312,10 +313,10 @@ export default function SettingsPage() {
           key={`modal-${initialTrainingPanel ?? 'cards'}`}
           trainingActive={trainingActive}
           initialConfig={form}
-          initialPanel={initialTrainingPanel} // abre directo en 'citas'/'agente' y no muestra cards internas
+          initialPanel={initialTrainingPanel}
           onClose={async () => {
             setTrainingActive(false)
-            await refreshAll() // recalcula flags para ocultar/mostrar cards y acciones
+            await refreshAll()
           }}
         />
 
