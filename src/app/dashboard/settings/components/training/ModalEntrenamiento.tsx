@@ -1,3 +1,4 @@
+// frontend/components/ModalEntrenamiento.tsx
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
@@ -12,6 +13,7 @@ import AppointmentForm, {
   type Weekday,
   type AppointmentConfigValue,
   type Vertical,
+  toAppointmentConfigPayload, // 👈 usamos el helper del form
 } from './AppointmentForm'
 
 import { normalizeDays } from '@/lib/appointments'
@@ -90,28 +92,6 @@ function hoursFromDb(rows: AppointmentDay[] | undefined | null): AppointmentDay[
   return ORDER.map((d) => base.get(d)!)
 }
 
-function buildAppointmentPayloadFromForm(form: FormState) {
-  const normalized = normalizeDays(form.hours)
-  return {
-    appointment: {
-      enabled: !!form.appointmentEnabled,
-      vertical: form.appointmentVertical,
-      timezone: form.appointmentTimezone || 'America/Bogota',
-      bufferMin: Number.isFinite(form.appointmentBufferMin) ? form.appointmentBufferMin : 10,
-      policies: form.appointmentPolicies || '',
-      reminders: !!form.appointmentReminders,
-    },
-    hours: normalized.map((h) => ({
-      day: h.day,
-      isOpen: !!h.isOpen,
-      start1: h.isOpen ? h.start1 ?? null : null,
-      end1: h.isOpen ? h.end1 ?? null : null,
-      start2: h.isOpen ? h.start2 ?? null : null,
-      end2: h.isOpen ? h.end2 ?? null : null,
-    })),
-  }
-}
-
 /* =================== Componente principal =================== */
 export default function ModalEntrenamiento({
   trainingActive,
@@ -161,8 +141,7 @@ export default function ModalEntrenamiento({
   // Si cambia `panel` desde afuera, sincronizamos (evita cualquier "flash")
   useEffect(() => {
     if (panel !== undefined) {
-      // cuando está controlado, forzamos el panel efectivo
-      // (sin tocar internalPanel si no es necesario)
+      // controlado desde afuera
     }
   }, [panel])
 
@@ -261,7 +240,6 @@ export default function ModalEntrenamiento({
       }
 
       setLockedBy(null)
-      // si está controlado por `panel`, respetamos; si no, volvemos a null (cards)
       if (panel === undefined) setInternalPanel(initialPanel ?? null)
 
       setForm({
@@ -289,6 +267,7 @@ export default function ModalEntrenamiento({
     try {
       setSaving(true)
 
+      // 1) Guardar perfil de agente (sin tocar agenda del backend)
       await axios
         .put(
           `${API_URL}/api/config/agent`,
@@ -303,23 +282,24 @@ export default function ModalEntrenamiento({
         )
         .catch(() => {})
 
-      const currentHours = normalizeDays(form.hours)
+      // 2) Enviar agenda deshabilitada + aiMode = 'agente' (👇 clave)
+      const valueForHelper: AppointmentConfigValue = {
+        appointmentEnabled: false,
+        appointmentVertical: form.appointmentVertical || 'none',
+        appointmentTimezone: form.appointmentTimezone || 'America/Bogota',
+        appointmentBufferMin: Number.isFinite(form.appointmentBufferMin) ? form.appointmentBufferMin : 10,
+        appointmentPolicies: form.appointmentPolicies || '',
+        appointmentReminders: !!form.appointmentReminders,
+        hours: form.hours ?? [],
+        appointmentServices: form.appointmentServices || '',
+      }
+      const payload = toAppointmentConfigPayload(valueForHelper)
+
       await axios
-        .post(
-          `${API_URL}/api/appointments/config`,
-          {
-            appointment: {
-              enabled: false,
-              vertical: form.appointmentVertical || 'none',
-              timezone: form.appointmentTimezone || 'America/Bogota',
-              bufferMin: Number.isFinite(form.appointmentBufferMin) ? form.appointmentBufferMin : 10,
-              policies: form.appointmentPolicies || '',
-              reminders: !!form.appointmentReminders,
-            },
-            hours: currentHours,
-          },
-          { headers: getAuthHeaders(), params: { t: Date.now() } }
-        )
+        .post(`${API_URL}/api/appointments/config`, payload as any, {
+          headers: getAuthHeaders(),
+          params: { t: Date.now() },
+        })
         .catch(() => {})
 
       if (typeof window !== 'undefined') localStorage.setItem(FRONTEND_LOCK_KEY, 'agente')
@@ -344,22 +324,26 @@ export default function ModalEntrenamiento({
         return
       }
 
-      const appointmentPayload = buildAppointmentPayloadFromForm(form)
-      await axios
-        .post(`${API_URL}/api/appointments/config`, appointmentPayload as any, {
-          headers: getAuthHeaders(),
-          params: { t: Date.now() },
-        })
-        .catch(() => {})
+      // 👇 Guardar agenda con aiMode correcto (appointments/agente) usando el helper
+      const valueForHelper: AppointmentConfigValue = {
+        appointmentEnabled: !!form.appointmentEnabled,
+        appointmentVertical: form.appointmentVertical || 'none',
+        appointmentTimezone: form.appointmentTimezone || 'America/Bogota',
+        appointmentBufferMin: Number.isFinite(form.appointmentBufferMin) ? form.appointmentBufferMin : 10,
+        appointmentPolicies: form.appointmentPolicies || '',
+        appointmentReminders: !!form.appointmentReminders,
+        hours: form.hours ?? [],
+        appointmentServices: form.appointmentServices || '',
+      }
+      const payload = toAppointmentConfigPayload(valueForHelper)
 
-      const serviciosText = (form.appointmentServices || '').trim()
-      await axios
-        .put(
-          `${API_URL}/api/config/agent`,
-          { aiMode: 'ecommerce' as AiMode, servicios: serviciosText },
-          { headers: getAuthHeaders(), params: { t: Date.now() } }
-        )
-        .catch(() => {})
+      await axios.post(`${API_URL}/api/appointments/config`, payload as any, {
+        headers: getAuthHeaders(),
+        params: { t: Date.now() },
+      })
+
+      // ❌ Ya NO forzamos aiMode a "ecommerce" (esto era lo que lo movía)
+      // Si quieres actualizar SOLO servicios en otra parte, hazlo en tu flujo propio.
 
       if (typeof window !== 'undefined') localStorage.setItem(FRONTEND_LOCK_KEY, 'citas')
       setLockedBy('citas')

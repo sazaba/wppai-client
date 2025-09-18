@@ -1,4 +1,3 @@
-// frontend/components/AppointmentForm.tsx
 'use client'
 
 import { useMemo } from 'react'
@@ -50,7 +49,7 @@ export function toAppointmentConfigPayload(value: AppointmentConfigValue) {
       bufferMin: value.appointmentBufferMin,
       policies: value.appointmentPolicies ?? null,
       reminders: value.appointmentReminders,
-      // 👇 clave: replicamos la lógica de AgentForm
+      // 👇 clave: igual que AgentForm
       aiMode: value.appointmentEnabled ? 'appointments' : 'agente',
     },
     hours: hours.map(h => ({
