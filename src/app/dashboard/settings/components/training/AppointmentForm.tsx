@@ -1,3 +1,4 @@
+// frontend/components/AppointmentForm.tsx
 'use client'
 
 import { useMemo } from 'react'
@@ -36,6 +37,31 @@ export type AppointmentConfigValue = {
 type Props = {
   value: AppointmentConfigValue
   onChange: (patch: Partial<AppointmentConfigValue>) => void
+}
+
+/* ===== Helper para enviar al backend (incluye aiMode) ===== */
+export function toAppointmentConfigPayload(value: AppointmentConfigValue) {
+  const hours = normalizeHours(value.hours)
+  return {
+    appointment: {
+      enabled: value.appointmentEnabled,
+      vertical: value.appointmentVertical,
+      timezone: value.appointmentTimezone,
+      bufferMin: value.appointmentBufferMin,
+      policies: value.appointmentPolicies ?? null,
+      reminders: value.appointmentReminders,
+      // 👇 clave: replicamos la lógica de AgentForm
+      aiMode: value.appointmentEnabled ? 'appointments' : 'agente',
+    },
+    hours: hours.map(h => ({
+      day: h.day,
+      isOpen: h.isOpen,
+      start1: h.start1,
+      end1: h.end1,
+      start2: h.start2,
+      end2: h.end2,
+    })),
+  }
 }
 
 /* ================= Helpers locales ================= */
