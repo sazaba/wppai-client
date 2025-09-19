@@ -12,8 +12,7 @@ import AppointmentForm, {
   type AppointmentDay,
   type Weekday,
   type AppointmentConfigValue,
-  type Vertical,
-  toAppointmentConfigPayload, // 👈 usamos el helper del form
+  toAppointmentConfigPayload, // ✅ seguimos usando el helper del form
 } from './AppointmentForm'
 
 import { normalizeDays } from '@/lib/appointments'
@@ -40,15 +39,14 @@ function noCacheHeaders() {
   return { ...getAuthHeaders(), 'Cache-Control': 'no-cache', Pragma: 'no-cache' }
 }
 
+/** ✅ Lee la config de appointments tal cual la devuelve el nuevo endpoint */
 async function fetchAppointmentsNoCache() {
   const r = await axios.get(`${API_URL}/api/appointments/config`, {
     headers: noCacheHeaders(),
     params: { t: Date.now() },
   })
-  const data = r?.data ?? {}
-  const config = data.config ?? data.appointment ?? {}
-  const hours = data.hours ?? []
-  return { config, hours }
+  // El controller ya retorna { appointment, servicesText, location, rules, reminders, kb, hours }
+  return r?.data ?? {}
 }
 
 type FormState = Pick<
@@ -56,13 +54,20 @@ type FormState = Pick<
   'aiMode' | 'agentSpecialty' | 'agentPrompt' | 'agentScope' | 'agentDisclaimers'
 > & {
   appointmentEnabled: boolean
-  appointmentVertical: Vertical
+  // Nota: mantenemos el tipo del form de citas como lo tenías (no tocamos AppointmentHour)
+  appointmentVertical: any // string (podrá venir 'odontologica'|'estetica'|'spa'|'custom')
+  appointmentVerticalCustom?: string | null
   appointmentTimezone: string
   appointmentBufferMin: number
   appointmentPolicies?: string
   appointmentReminders: boolean
   hours?: AppointmentDay[]
   appointmentServices?: string
+  // Extras (opcional) por si luego quieres mostrar más campos:
+  location?: any
+  rules?: any
+  reminders?: any
+  kb?: any
 }
 
 type LockedBy = 'agente' | 'citas' | null
@@ -97,9 +102,7 @@ export default function ModalEntrenamiento({
   trainingActive,
   onClose,
   initialConfig,
-  /** Si pasas `panel`, el modal abre DIRECTO ese formulario y jamás muestra las cards internas */
-  panel, // 'agente' | 'citas' | undefined (controlado desde afuera)
-  /** Compatibilidad: si no usas `panel`, aún puedes pasar `initialPanel` una vez */
+  panel,
   initialPanel = null,
 }: ModalEntrenamientoProps & { panel?: ActivePanel; initialPanel?: ActivePanel }) {
   const [open, setOpen] = useState<boolean>(trainingActive)
@@ -111,10 +114,7 @@ export default function ModalEntrenamiento({
   const [uiEpoch, setUiEpoch] = useState(0)
   const [lockedBy, setLockedBy] = useState<LockedBy>(null)
 
-  // Estado interno solo si NO hay `panel` controlado
   const [internalPanel, setInternalPanel] = useState<ActivePanel>(panel ?? initialPanel ?? null)
-
-  // Si recibimos `panel` (controlado), lo usamos siempre
   const effectivePanel: ActivePanel = panel ?? internalPanel
 
   const [form, setForm] = useState<FormState>(() => ({
@@ -124,13 +124,18 @@ export default function ModalEntrenamiento({
     agentScope: initialConfig?.agentScope || '',
     agentDisclaimers: initialConfig?.agentDisclaimers || '',
     appointmentEnabled: false,
-    appointmentVertical: 'none',
+    appointmentVertical: 'custom', // ✅ por defecto compatible con nuevo enum
+    appointmentVerticalCustom: '',
     appointmentTimezone: 'America/Bogota',
     appointmentBufferMin: 10,
     appointmentPolicies: '',
     appointmentReminders: true,
     hours: [],
-    appointmentServices: initialConfig?.servicios || '',
+    appointmentServices: '',
+    location: {},
+    rules: {},
+    reminders: {},
+    kb: {},
   }))
 
   const close = () => {
@@ -138,21 +143,13 @@ export default function ModalEntrenamiento({
     onClose?.()
   }
 
-  // Si cambia `panel` desde afuera, sincronizamos (evita cualquier "flash")
-  useEffect(() => {
-    if (panel !== undefined) {
-      // controlado desde afuera
-    }
-  }, [panel])
-
-  // Si se abre el modal y hay initialPanel pero no `panel`, lo fijamos una sola vez
   useEffect(() => {
     if (trainingActive && panel === undefined && initialPanel) {
       setInternalPanel(initialPanel)
     }
   }, [trainingActive, panel, initialPanel])
 
-  /* ============ Carga inicial ============ */
+  /* ============ Carga inicial (HIDRATAR) ============ */
   async function loadAllConfig() {
     setReloading(true)
     try {
@@ -161,36 +158,36 @@ export default function ModalEntrenamiento({
         if (mk) localStorage.removeItem(RESET_MARKER_KEY)
       }
 
+      // ✅ Leemos la config de appointments desde el nuevo endpoint
       const appt = await fetchAppointmentsNoCache()
-      const cfg = (appt?.config ?? null) as any
-      const hrs = (appt?.hours as AppointmentDay[] | null | undefined) ?? []
 
-      const r = await axios
-        .get(`${API_URL}/api/config`, { headers: noCacheHeaders(), params: { t: Date.now() } })
-        .catch(() => null)
-
-      const serviciosDb = (r?.data?.servicios ?? '') as string
-      const agentPromptDb = (r?.data?.agentPrompt ?? '') as string
-      const agentScopeDb = (r?.data?.agentScope ?? '') as string
-      const agentDiscDb = (r?.data?.agentDisclaimers ?? '') as string
-      const agentSpecDb = (r?.data?.agentSpecialty ?? 'generico') as AgentSpecialty
-
+      // ✅ Hidratar el formulario con la forma que espera AppointmentForm
       setForm((f) => ({
         ...f,
-        agentSpecialty: agentSpecDb,
-        agentPrompt: agentPromptDb,
-        agentScope: agentScopeDb,
-        agentDisclaimers: agentDiscDb,
-        appointmentEnabled: !!cfg?.appointmentEnabled,
-        appointmentVertical: (cfg?.appointmentVertical as Vertical) ?? 'none',
-        appointmentTimezone: cfg?.appointmentTimezone ?? 'America/Bogota',
-        appointmentBufferMin: Number.isFinite(cfg?.appointmentBufferMin as number)
-          ? ((cfg?.appointmentBufferMin as number) ?? 10)
+        // Perfil del agente (desde config general si la usas)
+        agentSpecialty: (initialConfig?.agentSpecialty as AgentSpecialty) || f.agentSpecialty,
+        agentPrompt: initialConfig?.agentPrompt ?? f.agentPrompt,
+        agentScope: initialConfig?.agentScope ?? f.agentScope,
+        agentDisclaimers: initialConfig?.agentDisclaimers ?? f.agentDisclaimers,
+
+        // Appointments
+        appointmentEnabled: !!appt?.appointment?.enabled,
+        appointmentVertical: appt?.appointment?.vertical ?? 'custom',
+        appointmentVerticalCustom: appt?.appointment?.verticalCustom ?? '',
+        appointmentTimezone: appt?.appointment?.timezone ?? 'America/Bogota',
+        appointmentBufferMin: Number.isFinite(appt?.appointment?.bufferMin)
+          ? appt?.appointment?.bufferMin
           : 10,
-        appointmentPolicies: cfg?.appointmentPolicies ?? '',
-        appointmentReminders: (cfg?.appointmentReminders ?? true) as boolean,
-        hours: hoursFromDb(hrs),
-        appointmentServices: serviciosDb,
+        appointmentPolicies: appt?.appointment?.policies ?? '',
+        appointmentReminders: (appt?.appointment?.reminders ?? true) as boolean,
+        hours: hoursFromDb(appt?.hours ?? []),
+        appointmentServices: appt?.servicesText ?? '',
+
+        // Guardamos por si luego ampliamos UI
+        location: appt?.location ?? {},
+        rules: appt?.rules ?? {},
+        reminders: appt?.reminders ?? {},
+        kb: appt?.kb ?? {},
       }))
 
       if (typeof window !== 'undefined') {
@@ -212,14 +209,19 @@ export default function ModalEntrenamiento({
 
   /* ================= Acciones ================= */
 
+  /** ✅ Reinicia config de appointments y también horarios (AppointmentHour),
+   * usando el DELETE /api/appointments/config?purgeHours=1.
+   * Además resetea la config general /api/config/reset como ya tenías.
+   */
   async function reiniciarEntrenamiento() {
     try {
       if (typeof window !== 'undefined') {
-        const ok = window.confirm('¿Reiniciar entrenamiento? Esto borrará tu configuración.')
+        const ok = window.confirm('¿Reiniciar entrenamiento? Esto borrará tu configuración y horarios.')
         if (!ok) return
       }
       setSaving(true)
 
+      // Resetea config general del agente (igual que antes)
       await axios
         .post(`${API_URL}/api/config/reset`, null, {
           params: { withCatalog: false, t: Date.now() },
@@ -227,10 +229,11 @@ export default function ModalEntrenamiento({
         })
         .catch(() => {})
 
+      // ✅ NUEVO: borra config de appointments + horarios (AppointmentHour)
       await axios
-        .post(`${API_URL}/api/appointments/reset`, null, {
+        .delete(`${API_URL}/api/appointments/config`, {
           headers: getAuthHeaders(),
-          params: { t: Date.now() },
+          params: { purgeHours: 1, t: Date.now() },
         })
         .catch(() => {})
 
@@ -242,6 +245,7 @@ export default function ModalEntrenamiento({
       setLockedBy(null)
       if (panel === undefined) setInternalPanel(initialPanel ?? null)
 
+      // Estado limpio
       setForm({
         aiMode: 'agente',
         agentSpecialty: 'generico',
@@ -249,13 +253,18 @@ export default function ModalEntrenamiento({
         agentScope: '',
         agentDisclaimers: '',
         appointmentEnabled: false,
-        appointmentVertical: 'none',
+        appointmentVertical: 'custom',
+        appointmentVerticalCustom: '',
         appointmentTimezone: 'America/Bogota',
         appointmentBufferMin: 10,
         appointmentPolicies: '',
         appointmentReminders: true,
         hours: [],
         appointmentServices: '',
+        location: {},
+        rules: {},
+        reminders: {},
+        kb: {},
       })
       setUiEpoch((n) => n + 1)
     } finally {
@@ -267,7 +276,7 @@ export default function ModalEntrenamiento({
     try {
       setSaving(true)
 
-      // 1) Guardar perfil de agente (sin tocar agenda del backend)
+      // 1) Guardar perfil de agente (sin tocar agenda)
       await axios
         .put(
           `${API_URL}/api/config/agent`,
@@ -282,10 +291,10 @@ export default function ModalEntrenamiento({
         )
         .catch(() => {})
 
-      // 2) Enviar agenda deshabilitada + aiMode = 'agente' (👇 clave)
+      // 2) Enviar agenda deshabilitada; AI queda en 'agente'
       const valueForHelper: AppointmentConfigValue = {
         appointmentEnabled: false,
-        appointmentVertical: form.appointmentVertical || 'none',
+        appointmentVertical: form.appointmentVertical,
         appointmentTimezone: form.appointmentTimezone || 'America/Bogota',
         appointmentBufferMin: Number.isFinite(form.appointmentBufferMin) ? form.appointmentBufferMin : 10,
         appointmentPolicies: form.appointmentPolicies || '',
@@ -294,6 +303,7 @@ export default function ModalEntrenamiento({
         appointmentServices: form.appointmentServices || '',
       }
       const payload = toAppointmentConfigPayload(valueForHelper)
+      // (tu helper ya pone aiMode='agente' si está deshabilitado)
 
       await axios
         .post(`${API_URL}/api/appointments/config`, payload as any, {
@@ -324,10 +334,10 @@ export default function ModalEntrenamiento({
         return
       }
 
-      // 👇 Guardar agenda con aiMode correcto (appointments/agente) usando el helper
+      // ✅ Guardar agenda y forzar aiMode='appointments'
       const valueForHelper: AppointmentConfigValue = {
         appointmentEnabled: !!form.appointmentEnabled,
-        appointmentVertical: form.appointmentVertical || 'none',
+        appointmentVertical: form.appointmentVertical,
         appointmentTimezone: form.appointmentTimezone || 'America/Bogota',
         appointmentBufferMin: Number.isFinite(form.appointmentBufferMin) ? form.appointmentBufferMin : 10,
         appointmentPolicies: form.appointmentPolicies || '',
@@ -335,15 +345,14 @@ export default function ModalEntrenamiento({
         hours: form.hours ?? [],
         appointmentServices: form.appointmentServices || '',
       }
-      const payload = toAppointmentConfigPayload(valueForHelper)
+      const payload: any = toAppointmentConfigPayload(valueForHelper)
+      // 🔐 Fuerza aiMode='appointments' para que tu IA lo detecte
+      if (payload?.appointment) payload.appointment.aiMode = 'appointments'
 
-      await axios.post(`${API_URL}/api/appointments/config`, payload as any, {
+      await axios.post(`${API_URL}/api/appointments/config`, payload, {
         headers: getAuthHeaders(),
         params: { t: Date.now() },
       })
-
-      // ❌ Ya NO forzamos aiMode a "ecommerce" (esto era lo que lo movía)
-      // Si quieres actualizar SOLO servicios en otra parte, hazlo en tu flujo propio.
 
       if (typeof window !== 'undefined') localStorage.setItem(FRONTEND_LOCK_KEY, 'citas')
       setLockedBy('citas')
@@ -381,7 +390,6 @@ export default function ModalEntrenamiento({
     )
   }, [lockedBy, saving])
 
-  // Mostrar cards internas solo si NO hay `panel` controlado y no hay panel interno activo
   const shouldShowCards = !effectivePanel && panel === undefined
 
   const Card = ({
