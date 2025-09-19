@@ -207,43 +207,82 @@ export default function ModalEntrenamiento({
   /* ================= Acciones ================= */
 
 // 🔁 Reemplaza COMPLETO el handler reiniciarEntrenamiento por este:
+// 🔁 Reemplaza COMPLETO el handler reiniciarEntrenamiento por este:
 async function reiniciarEntrenamiento() {
   try {
     if (typeof window !== 'undefined') {
-      const ok = window.confirm('¿Reiniciar entrenamiento? Esto borrará tu configuración y horarios.')
+      const ok = window.confirm('¿Reiniciar entrenamiento? Esto borrará tu configuración, citas y horarios.')
       if (!ok) return
     }
     setSaving(true)
 
-    // 1) Reset de la config general (como antes)
+    // 1) Reset de la config general del AGENTE (ruta vieja)
     try {
       await axios.post(
         `${API_URL}/api/config/reset`,
         null,
         { params: { withCatalog: false, t: Date.now() }, headers: getAuthHeaders() }
       )
-    } catch (_) { /* noop */ }
+    } catch (err) {
+      console.warn('[reset] /api/config/reset falló (se ignora):', err)
+    }
 
-    // 2) Reset de appointments (nuevo endpoint) + purgar horarios
-    let apptResetOk = false
+    // 2) Reset de la config de CITAS (ruta nueva)
+    let apptConfigWiped = false
     try {
       await axios.delete(
         `${API_URL}/api/appointments/config`,
         { headers: getAuthHeaders(), params: { purgeHours: 1, t: Date.now() } }
       )
-      apptResetOk = true
-    } catch (err: any) {
-      // 3) Fallback: endpoint antiguo
+      apptConfigWiped = true
+    } catch (err) {
+      console.warn('[reset] DELETE /api/appointments/config falló (probaré fallback):', err)
+    }
+
+    // 2b) Fallback “viejo” para CITAS (algunas versiones lo limpiaban junto con hours)
+    if (!apptConfigWiped) {
       try {
         await axios.post(
           `${API_URL}/api/appointments/reset`,
           null,
           { headers: getAuthHeaders(), params: { t: Date.now() } }
         )
-        apptResetOk = true
-      } catch (_) {
-        console.warn('[reset] No se pudo resetear appointments con ninguno de los endpoints')
+        apptConfigWiped = true
+      } catch (err) {
+        console.warn('[reset] POST /api/appointments/reset también falló:', err)
       }
+    }
+
+    // 3) Limpieza explícita de AppointmentHours (por si tu DELETE anterior no los borra)
+    // Intentamos varias firmas comunes; si una existe, listo.
+    const hourResetTries: Array<() => Promise<any>> = [
+      // Nuevo estilo RESTful
+      () => axios.delete(`${API_URL}/api/appointment-hours`, {
+        headers: getAuthHeaders(),
+        params: { all: 1, t: Date.now() },
+      }),
+      // Ruta “reset” dedicada
+      () => axios.post(`${API_URL}/api/appointment-hours/reset`, null, {
+        headers: getAuthHeaders(),
+        params: { t: Date.now() },
+      }),
+      // Fallback heredado (algunas implementaciones borraban hours aquí)
+      () => axios.post(`${API_URL}/api/appointments/reset`, null, {
+        headers: getAuthHeaders(),
+        params: { t: Date.now() },
+      }),
+    ]
+
+    let hoursWiped = false
+    for (const tryFn of hourResetTries) {
+      if (hoursWiped) break
+      try {
+        await tryFn()
+        hoursWiped = true
+      } catch { /* seguimos probando */ }
+    }
+    if (!hoursWiped) {
+      console.warn('[reset] No se logró borrar AppointmentHours con las rutas probadas')
     }
 
     // 4) Limpieza local
@@ -278,12 +317,13 @@ async function reiniciarEntrenamiento() {
     })
     setUiEpoch((n) => n + 1)
 
-    // 6) Opcional: recargar desde backend para verificar
+    // Si quieres re-hidratar desde backend para comprobar:
     // await loadAllConfig()
   } finally {
     setSaving(false)
   }
 }
+
 
 
   async function guardarAgente() {
