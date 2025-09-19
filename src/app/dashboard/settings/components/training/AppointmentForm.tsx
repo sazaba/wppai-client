@@ -203,7 +203,8 @@ export default function AppointmentForm({ value, onChange }: Props) {
     onChange({ [key]: v } as Partial<AppointmentConfigValue>)
   }
   function patchNested<T extends object>(key: keyof AppointmentConfigValue, partial: Partial<T>) {
-    onChange({ [key]: { ...(value as any)[key], ...partial } } as any)
+    const current = ((value as any)[key] ?? {}) as T; // ✅ default {}
+    onChange({ [key]: { ...current, ...partial } } as any);
   }
   function patchDay(day: Weekday, partial: Partial<AppointmentDay>) {
     const next = hours.map((h) => (h.day === day ? { ...h, ...partial } : h))
