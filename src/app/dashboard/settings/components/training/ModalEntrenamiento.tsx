@@ -206,61 +206,85 @@ export default function ModalEntrenamiento({
 
   /* ================= Acciones ================= */
 
-  async function reiniciarEntrenamiento() {
-    try {
-      if (typeof window !== 'undefined') {
-        const ok = window.confirm('¿Reiniciar entrenamiento? Esto borrará tu configuración y horarios.')
-        if (!ok) return
-      }
-      setSaving(true)
-
-      await axios
-        .post(`${API_URL}/api/config/reset`, null, {
-          params: { withCatalog: false, t: Date.now() },
-          headers: getAuthHeaders(),
-        })
-        .catch(() => {})
-
-      await axios
-        .delete(`${API_URL}/api/appointments/config`, {
-          headers: getAuthHeaders(),
-          params: { purgeHours: 1, t: Date.now() },
-        })
-        .catch(() => {})
-
-      if (typeof window !== 'undefined') {
-        localStorage.removeItem(FRONTEND_LOCK_KEY)
-        localStorage.setItem(RESET_MARKER_KEY, String(Date.now()))
-      }
-
-      setLockedBy(null)
-      if (panel === undefined) setInternalPanel(initialPanel ?? null)
-
-      setForm({
-        aiMode: 'agente',
-        agentSpecialty: 'generico',
-        agentPrompt: '',
-        agentScope: '',
-        agentDisclaimers: '',
-        appointmentEnabled: false,
-        appointmentVertical: 'custom',
-        appointmentVerticalCustom: '',
-        appointmentTimezone: 'America/Bogota',
-        appointmentBufferMin: 10,
-        appointmentPolicies: '',
-        appointmentReminders: true,
-        hours: [],
-        appointmentServices: '',
-        location: {},
-        rules: {},
-        reminders: {},
-        kb: {},
-      })
-      setUiEpoch((n) => n + 1)
-    } finally {
-      setSaving(false)
+// 🔁 Reemplaza COMPLETO el handler reiniciarEntrenamiento por este:
+async function reiniciarEntrenamiento() {
+  try {
+    if (typeof window !== 'undefined') {
+      const ok = window.confirm('¿Reiniciar entrenamiento? Esto borrará tu configuración y horarios.')
+      if (!ok) return
     }
+    setSaving(true)
+
+    // 1) Reset de la config general (como antes)
+    try {
+      await axios.post(
+        `${API_URL}/api/config/reset`,
+        null,
+        { params: { withCatalog: false, t: Date.now() }, headers: getAuthHeaders() }
+      )
+    } catch (_) { /* noop */ }
+
+    // 2) Reset de appointments (nuevo endpoint) + purgar horarios
+    let apptResetOk = false
+    try {
+      await axios.delete(
+        `${API_URL}/api/appointments/config`,
+        { headers: getAuthHeaders(), params: { purgeHours: 1, t: Date.now() } }
+      )
+      apptResetOk = true
+    } catch (err: any) {
+      // 3) Fallback: endpoint antiguo
+      try {
+        await axios.post(
+          `${API_URL}/api/appointments/reset`,
+          null,
+          { headers: getAuthHeaders(), params: { t: Date.now() } }
+        )
+        apptResetOk = true
+      } catch (_) {
+        console.warn('[reset] No se pudo resetear appointments con ninguno de los endpoints')
+      }
+    }
+
+    // 4) Limpieza local
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem(FRONTEND_LOCK_KEY)
+      localStorage.setItem(RESET_MARKER_KEY, String(Date.now()))
+    }
+
+    setLockedBy(null)
+    if (panel === undefined) setInternalPanel(initialPanel ?? null)
+
+    // 5) Estado limpio en UI
+    setForm({
+      aiMode: 'agente',
+      agentSpecialty: 'generico',
+      agentPrompt: '',
+      agentScope: '',
+      agentDisclaimers: '',
+      appointmentEnabled: false,
+      appointmentVertical: 'custom',
+      appointmentVerticalCustom: '',
+      appointmentTimezone: 'America/Bogota',
+      appointmentBufferMin: 10,
+      appointmentPolicies: '',
+      appointmentReminders: true,
+      hours: [],
+      appointmentServices: '',
+      location: {},
+      rules: {},
+      reminders: {},
+      kb: {},
+    })
+    setUiEpoch((n) => n + 1)
+
+    // 6) Opcional: recargar desde backend para verificar
+    // await loadAllConfig()
+  } finally {
+    setSaving(false)
   }
+}
+
 
   async function guardarAgente() {
     try {
