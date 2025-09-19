@@ -83,9 +83,10 @@ export function toAppointmentConfigPayload(value: AppointmentConfigValue) {
     appointment: {
       enabled: value.appointmentEnabled,
       vertical: value.appointmentVertical,
-      verticalCustom: value.appointmentVertical === 'custom'
-        ? (value.appointmentVerticalCustom?.trim() || null)
-        : null,
+      verticalCustom:
+        value.appointmentVertical === 'custom'
+          ? (value.appointmentVerticalCustom?.trim() || null)
+          : null,
       timezone: value.appointmentTimezone,
       bufferMin: value.appointmentBufferMin,
       policies: value.appointmentPolicies ?? null,
@@ -131,7 +132,7 @@ export function toAppointmentConfigPayload(value: AppointmentConfigValue) {
     },
 
     // horas (AppointmentHour se mantiene igual)
-    hours: hours.map(h => ({
+    hours: hours.map((h) => ({
       day: h.day,
       isOpen: h.isOpen,
       start1: h.start1,
@@ -202,14 +203,18 @@ export default function AppointmentForm({ value, onChange }: Props) {
   function patch<K extends keyof AppointmentConfigValue>(key: K, v: AppointmentConfigValue[K]) {
     onChange({ [key]: v } as Partial<AppointmentConfigValue>)
   }
+
+  // ✅ FIX: si value[key] es undefined, usa {} para poder hacer spread
   function patchNested<T extends object>(key: keyof AppointmentConfigValue, partial: Partial<T>) {
-    const current = ((value as any)[key] ?? {}) as T; // ✅ default {}
-    onChange({ [key]: { ...current, ...partial } } as any);
+    const current = ((value as any)[key] ?? {}) as T
+    onChange({ [key]: { ...current, ...partial } } as any)
   }
+
   function patchDay(day: Weekday, partial: Partial<AppointmentDay>) {
     const next = hours.map((h) => (h.day === day ? { ...h, ...partial } : h))
     onChange({ hours: next })
   }
+
   function toggleDay(d: Weekday) {
     const current = hours.find((h) => h.day === d)!
     const nextOpen = !current.isOpen
@@ -221,6 +226,7 @@ export default function AppointmentForm({ value, onChange }: Props) {
       end2: nextOpen ? current.end2 : null,
     })
   }
+
   function updateTime(d: Weekday, field: keyof AppointmentDay, val: string) {
     const safe = val || ''
     if (safe && !isHHMM(safe)) return
@@ -395,7 +401,9 @@ export default function AppointmentForm({ value, onChange }: Props) {
               type="number"
               min={0}
               value={value.rules?.bookingWindowDays ?? 30}
-              onChange={(e) => patchNested('rules', { bookingWindowDays: parseInt(e.target.value || '0', 10) })}
+              onChange={(e) =>
+                patchNested('rules', { bookingWindowDays: parseInt(e.target.value || '0', 10) })
+              }
               className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm"
             />
           </label>
@@ -406,7 +414,9 @@ export default function AppointmentForm({ value, onChange }: Props) {
               type="number"
               min={0}
               value={value.rules?.maxDailyAppointments ?? 0}
-              onChange={(e) => patchNested('rules', { maxDailyAppointments: parseInt(e.target.value || '0', 10) })}
+              onChange={(e) =>
+                patchNested('rules', { maxDailyAppointments: parseInt(e.target.value || '0', 10) })
+              }
               className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm"
             />
           </label>
@@ -417,7 +427,11 @@ export default function AppointmentForm({ value, onChange }: Props) {
               type="number"
               min={0}
               value={value.rules?.cancellationWindowHours ?? 12}
-              onChange={(e) => patchNested('rules', { cancellationWindowHours: parseInt(e.target.value || '0', 10) })}
+              onChange={(e) =>
+                patchNested('rules', {
+                  cancellationWindowHours: parseInt(e.target.value || '0', 10),
+                })
+              }
               className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm"
             />
           </label>
@@ -451,7 +465,9 @@ export default function AppointmentForm({ value, onChange }: Props) {
               min={0}
               step={1}
               value={value.rules?.depositAmount ?? 0}
-              onChange={(e) => patchNested('rules', { depositAmount: parseFloat(e.target.value || '0') })}
+              onChange={(e) =>
+                patchNested('rules', { depositAmount: parseFloat(e.target.value || '0') })
+              }
               className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm"
             />
           </label>

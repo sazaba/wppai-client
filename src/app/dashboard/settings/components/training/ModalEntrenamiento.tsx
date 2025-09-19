@@ -54,8 +54,7 @@ type FormState = Pick<
   'aiMode' | 'agentSpecialty' | 'agentPrompt' | 'agentScope' | 'agentDisclaimers'
 > & {
   appointmentEnabled: boolean
-  // Nota: mantenemos el tipo del form de citas como lo tenías (no tocamos AppointmentHour)
-  appointmentVertical: any // string (podrá venir 'odontologica'|'estetica'|'spa'|'custom')
+  appointmentVertical: any // 'odontologica'|'estetica'|'spa'|'custom'
   appointmentVerticalCustom?: string | null
   appointmentTimezone: string
   appointmentBufferMin: number
@@ -63,7 +62,7 @@ type FormState = Pick<
   appointmentReminders: boolean
   hours?: AppointmentDay[]
   appointmentServices?: string
-  // Extras (opcional) por si luego quieres mostrar más campos:
+  // Extras (para los campos nuevos)
   location?: any
   rules?: any
   reminders?: any
@@ -124,7 +123,7 @@ export default function ModalEntrenamiento({
     agentScope: initialConfig?.agentScope || '',
     agentDisclaimers: initialConfig?.agentDisclaimers || '',
     appointmentEnabled: false,
-    appointmentVertical: 'custom', // ✅ por defecto compatible con nuevo enum
+    appointmentVertical: 'custom',
     appointmentVerticalCustom: '',
     appointmentTimezone: 'America/Bogota',
     appointmentBufferMin: 10,
@@ -158,13 +157,11 @@ export default function ModalEntrenamiento({
         if (mk) localStorage.removeItem(RESET_MARKER_KEY)
       }
 
-      // ✅ Leemos la config de appointments desde el nuevo endpoint
       const appt = await fetchAppointmentsNoCache()
 
-      // ✅ Hidratar el formulario con la forma que espera AppointmentForm
       setForm((f) => ({
         ...f,
-        // Perfil del agente (desde config general si la usas)
+        // Perfil del agente (si aplica)
         agentSpecialty: (initialConfig?.agentSpecialty as AgentSpecialty) || f.agentSpecialty,
         agentPrompt: initialConfig?.agentPrompt ?? f.agentPrompt,
         agentScope: initialConfig?.agentScope ?? f.agentScope,
@@ -183,7 +180,7 @@ export default function ModalEntrenamiento({
         hours: hoursFromDb(appt?.hours ?? []),
         appointmentServices: appt?.servicesText ?? '',
 
-        // Guardamos por si luego ampliamos UI
+        // Campos nuevos (aseguramos objetos, no undefined)
         location: appt?.location ?? {},
         rules: appt?.rules ?? {},
         reminders: appt?.reminders ?? {},
@@ -209,10 +206,6 @@ export default function ModalEntrenamiento({
 
   /* ================= Acciones ================= */
 
-  /** ✅ Reinicia config de appointments y también horarios (AppointmentHour),
-   * usando el DELETE /api/appointments/config?purgeHours=1.
-   * Además resetea la config general /api/config/reset como ya tenías.
-   */
   async function reiniciarEntrenamiento() {
     try {
       if (typeof window !== 'undefined') {
@@ -221,7 +214,6 @@ export default function ModalEntrenamiento({
       }
       setSaving(true)
 
-      // Resetea config general del agente (igual que antes)
       await axios
         .post(`${API_URL}/api/config/reset`, null, {
           params: { withCatalog: false, t: Date.now() },
@@ -229,7 +221,6 @@ export default function ModalEntrenamiento({
         })
         .catch(() => {})
 
-      // ✅ NUEVO: borra config de appointments + horarios (AppointmentHour)
       await axios
         .delete(`${API_URL}/api/appointments/config`, {
           headers: getAuthHeaders(),
@@ -245,7 +236,6 @@ export default function ModalEntrenamiento({
       setLockedBy(null)
       if (panel === undefined) setInternalPanel(initialPanel ?? null)
 
-      // Estado limpio
       setForm({
         aiMode: 'agente',
         agentSpecialty: 'generico',
@@ -276,7 +266,6 @@ export default function ModalEntrenamiento({
     try {
       setSaving(true)
 
-      // 1) Guardar perfil de agente (sin tocar agenda)
       await axios
         .put(
           `${API_URL}/api/config/agent`,
@@ -291,7 +280,6 @@ export default function ModalEntrenamiento({
         )
         .catch(() => {})
 
-      // 2) Enviar agenda deshabilitada; AI queda en 'agente'
       const valueForHelper: AppointmentConfigValue = {
         appointmentEnabled: false,
         appointmentVertical: form.appointmentVertical,
@@ -301,9 +289,9 @@ export default function ModalEntrenamiento({
         appointmentReminders: !!form.appointmentReminders,
         hours: form.hours ?? [],
         appointmentServices: form.appointmentServices || '',
+        // no mandamos los campos nuevos aquí, los puedes enviar si quieres
       }
       const payload = toAppointmentConfigPayload(valueForHelper)
-      // (tu helper ya pone aiMode='agente' si está deshabilitado)
 
       await axios
         .post(`${API_URL}/api/appointments/config`, payload as any, {
@@ -334,7 +322,6 @@ export default function ModalEntrenamiento({
         return
       }
 
-      // ✅ Guardar agenda y forzar aiMode='appointments'
       const valueForHelper: AppointmentConfigValue = {
         appointmentEnabled: !!form.appointmentEnabled,
         appointmentVertical: form.appointmentVertical,
@@ -344,9 +331,13 @@ export default function ModalEntrenamiento({
         appointmentReminders: !!form.appointmentReminders,
         hours: form.hours ?? [],
         appointmentServices: form.appointmentServices || '',
+        // también puedes enviar aquí los nuevos si quieres que persistan ya:
+        location: form.location ?? {},
+        rules: form.rules ?? {},
+        reminders: form.reminders ?? {},
+        kb: form.kb ?? {},
       }
       const payload: any = toAppointmentConfigPayload(valueForHelper)
-      // 🔐 Fuerza aiMode='appointments' para que tu IA lo detecte
       if (payload?.appointment) payload.appointment.aiMode = 'appointments'
 
       await axios.post(`${API_URL}/api/appointments/config`, payload, {
@@ -518,6 +509,11 @@ export default function ModalEntrenamiento({
                       appointmentReminders: form.appointmentReminders,
                       hours: form.hours,
                       appointmentServices: form.appointmentServices,
+                      // 👇 defaults para evitar undefined y permitir edición
+                      location: form.location ?? {},
+                      rules: form.rules ?? {},
+                      reminders: form.reminders ?? {},
+                      kb: form.kb ?? {},
                     } as AppointmentConfigValue}
                     onChange={(patch) =>
                       setForm((prev) => ({ ...prev, ...(patch as Partial<FormState>) }))
