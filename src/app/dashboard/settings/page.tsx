@@ -89,29 +89,32 @@ function isAgentConfigured(cfg: ConfigForm | null): boolean {
 }
 
 // 🔁 Ahora usa /api/estetica/config
+// 🔁 Ahora usa /api/estetica/config
 async function fetchAppointmentsConfigured(): Promise<boolean> {
   try {
     const { data } = await axios.get(`${API_URL}/api/estetica/config`, {
       headers: getAuthHeaders(),
       params: { t: Date.now() },
-    })
+    });
 
-    // El controller devuelve siempre un objeto con defaults cuando no hay fila.
-    // Por eso, solo consideramos "configurado" si hay señales FUERTES:
-    const appt = data?.config ?? data?.appointment ?? {}
-    const hours = Array.isArray(data?.hours) ? data.hours : []
+    // ✅ si el backend dice que existe, lo damos por configurado
+    if (data && typeof data.exists === 'boolean') {
+      return data.exists;
+    }
 
-    const enabled = !!appt?.enabled
-    const anyOpen = hours.some((h: any) => !!h?.isOpen)
+    // Fallback heurístico (por compat)
+    const appt = data?.config ?? data?.appointment ?? {};
+    const hours = Array.isArray(data?.hours) ? data.hours : [];
 
-    // Señales de campos realmente tocados por el usuario
-    const hasServices = typeof data?.servicesText === 'string' && data.servicesText.trim().length > 0
-    const hasPolicies = typeof appt?.policies === 'string' && appt.policies.trim().length > 0
-    const nonDefaultVertical = appt?.vertical && appt.vertical !== 'custom' && appt.vertical !== 'none'
+    const enabled = !!appt?.enabled;
+    const anyOpen = hours.some((h: any) => !!h?.isOpen);
+    const hasServices = typeof data?.servicesText === 'string' && data.servicesText.trim().length > 0;
+    const hasPolicies = typeof appt?.policies === 'string' && appt.policies.trim().length > 0;
+    const nonDefaultVertical = appt?.vertical && appt.vertical !== 'custom' && appt.vertical !== 'none';
 
-    return Boolean(enabled || anyOpen || hasServices || hasPolicies || nonDefaultVertical)
+    return Boolean(enabled || anyOpen || hasServices || hasPolicies || nonDefaultVertical);
   } catch {
-    return false
+    return false;
   }
 }
 
@@ -217,7 +220,7 @@ export default function SettingsPage() {
   }
 
   // Helper: abrir modal directo en panel
-  const openTraining = (panel: 'citas' | 'agente' | null) => {
+  const openTraining = (panel: 'estetica' | 'agente' | null) => {
     setInitialTrainingPanel(panel) // null => cards internas; 'citas'/'agente' => formulario directo
     setTrainingActive(true)
   }
@@ -266,9 +269,9 @@ export default function SettingsPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Card
               icon={<Calendar className="w-5 h-5 text-emerald-300" />}
-              title="Configurar Citas"
+              title="Configurar Estetica"
               desc="Define horarios, políticas, recordatorios y servicios."
-              onClick={() => openTraining('citas')}
+              onClick={() => openTraining('estetica')}
             />
             <Card
               icon={<Bot className="w-5 h-5 text-violet-300" />}
@@ -303,7 +306,7 @@ export default function SettingsPage() {
                       : 'bg-slate-700/40 border-slate-600 text-slate-300',
                   ].join(' ')}
                 >
-                  Citas: {appointmentsConfigured ? 'Configuradas' : 'No configuradas'}
+                  Estetica: {appointmentsConfigured ? 'Configuradas' : 'No configuradas'}
                 </span>
               </div>
             </div>
@@ -315,11 +318,11 @@ export default function SettingsPage() {
             <div className="flex flex-wrap gap-3">
               {appointmentsConfigured && (
                 <button
-                  onClick={() => openTraining('citas')}
+                  onClick={() => openTraining('estetica')}
                   className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg shadow"
                 >
                   <Calendar className="w-4 h-4" />
-                  Editar Citas
+                  Editar Estetica
                 </button>
               )}
 
