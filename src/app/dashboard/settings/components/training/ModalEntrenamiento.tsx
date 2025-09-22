@@ -207,10 +207,10 @@ export default function ModalEntrenamiento({
   async function reiniciarEntrenamiento() {
     try {
       if (typeof window !== 'undefined') {
-        const ok = window.confirm('¿Reiniciar entrenamiento? Esto borrará tu configuración de agente, configuración de citas y horarios.');
-        if (!ok) return;
+        const ok = window.confirm('¿Reiniciar entrenamiento? Esto borrará tu configuración de agente, configuración de citas y horarios.')
+        if (!ok) return
       }
-      setSaving(true);
+      setSaving(true)
 
       // 1) Reset del AGENTE
       try {
@@ -218,21 +218,21 @@ export default function ModalEntrenamiento({
           `${API_URL}/api/config/reset`,
           null,
           { params: { withCatalog: false, t: Date.now() }, headers: getAuthHeaders() }
-        );
+        )
       } catch (err) {
-        console.warn('[reset] /api/config/reset falló (se ignora):', err);
+        console.warn('[reset] /api/config/reset falló (se ignora):', err)
       }
 
       // 2) Borrar citas + hours
-      let apptWiped = false;
+      let apptWiped = false
       try {
         await axios.delete(`${API_URL}/api/appointments/config`, {
           headers: getAuthHeaders(),
           params: { purgeHours: 1, t: Date.now() },
-        });
-        apptWiped = true;
+        })
+        apptWiped = true
       } catch (err) {
-        console.warn('[reset] DELETE /api/appointments/config?purgeHours=1 falló, probando /reset:', err);
+        console.warn('[reset] DELETE /api/appointments/config?purgeHours=1 falló, probando /reset:', err)
       }
 
       // 3) Fallback: /reset
@@ -241,15 +241,15 @@ export default function ModalEntrenamiento({
           `${API_URL}/api/appointments/config/reset`,
           null,
           { headers: getAuthHeaders(), params: { t: Date.now() } }
-        );
+        )
       }
 
       // 4) Limpieza local UI
       if (typeof window !== 'undefined') {
-        localStorage.removeItem(FRONTEND_LOCK_KEY);
-        localStorage.setItem(RESET_MARKER_KEY, String(Date.now()));
+        localStorage.removeItem(FRONTEND_LOCK_KEY)
+        localStorage.setItem(RESET_MARKER_KEY, String(Date.now()))
       }
-      setLockedBy(null);
+      setLockedBy(null)
 
       // 5) Estado limpio
       setForm({
@@ -271,11 +271,11 @@ export default function ModalEntrenamiento({
         rules: {},
         reminders: {},
         kb: {},
-      });
-      setUiEpoch(n => n + 1);
+      })
+      setUiEpoch(n => n + 1)
       // await loadAllConfig()
     } finally {
-      setSaving(false);
+      setSaving(false)
     }
   }
 
