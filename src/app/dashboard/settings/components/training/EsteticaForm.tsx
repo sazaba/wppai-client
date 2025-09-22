@@ -1,13 +1,11 @@
 'use client'
+
 import { useMemo } from 'react'
 
 /* ================= Tipos exportados ================= */
 export type Weekday = 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat' | 'sun'
-
-// Nuevo enum según Prisma (BusinessConfigAppt)
 export type ApptVertical = 'odontologica' | 'estetica' | 'spa' | 'custom'
 
-// Horario (se mantiene igual)
 export type AppointmentDay = {
   day: Weekday
   isOpen: boolean
@@ -19,7 +17,6 @@ export type AppointmentDay = {
 
 /** Valor del formulario (ampliado) */
 export type AppointmentConfigValue = {
-  // Base
   appointmentEnabled: boolean
   appointmentVertical: ApptVertical
   appointmentVerticalCustom?: string | null
@@ -28,10 +25,8 @@ export type AppointmentConfigValue = {
   appointmentPolicies?: string
   appointmentReminders: boolean
 
-  // Servicios
-  appointmentServices?: string // textarea (servicesText)
+  appointmentServices?: string
 
-  // Logística
   location?: {
     name?: string | null
     address?: string | null
@@ -41,7 +36,6 @@ export type AppointmentConfigValue = {
     instructionsArrival?: string | null
   }
 
-  // Reglas
   rules?: {
     bookingWindowDays?: number | null
     maxDailyAppointments?: number | null
@@ -49,25 +43,22 @@ export type AppointmentConfigValue = {
     noShowPolicy?: string | null
     depositRequired?: boolean | null
     depositAmount?: number | null
-    blackoutDates?: string[] | null // opcional, no UI aquí
-    overlapStrategy?: string | null // opcional
+    blackoutDates?: string[] | null
+    overlapStrategy?: string | null
   }
 
-  // Recordatorios
   reminders?: {
-    schedule?: Array<{ offsetHours: number; channel: string }> | null // opcional (no UI aquí)
+    schedule?: Array<{ offsetHours: number; channel: string }> | null
     templateId?: string | null
     postBookingMessage?: string | null
   }
 
-  // Knowledge base
   kb?: {
     businessOverview?: string | null
-    faqsText?: string | null // para pegar JSON o bullets; el backend puede parsear
+    faqsText?: string | null
     freeText?: string | null
   }
 
-  // Horas (se mantiene)
   hours?: AppointmentDay[]
 }
 
@@ -76,7 +67,7 @@ type Props = {
   onChange: (patch: Partial<AppointmentConfigValue>) => void
 }
 
-/* ===== Helper para enviar al backend (siempre aiMode='appointments') ===== */
+/* ===== Helper para enviar al backend (siempre aiMode='estetica') ===== */
 export function toAppointmentConfigPayload(value: AppointmentConfigValue) {
   const hours = normalizeHours(value.hours)
   return {
@@ -91,12 +82,9 @@ export function toAppointmentConfigPayload(value: AppointmentConfigValue) {
       bufferMin: value.appointmentBufferMin,
       policies: value.appointmentPolicies ?? null,
       reminders: value.appointmentReminders,
-      aiMode: 'appointments', // 👈 siempre para que la IA lo detecte
+      aiMode: 'estetica', // 👈 AHORA estetica
     },
-    // servicios
     servicesText: (value.appointmentServices ?? '').trim() || null,
-
-    // logística
     location: {
       name: value.location?.name ?? null,
       address: value.location?.address ?? null,
@@ -105,8 +93,6 @@ export function toAppointmentConfigPayload(value: AppointmentConfigValue) {
       virtualLink: value.location?.virtualLink ?? null,
       instructionsArrival: value.location?.instructionsArrival ?? null,
     },
-
-    // reglas
     rules: {
       bookingWindowDays: value.rules?.bookingWindowDays ?? null,
       maxDailyAppointments: value.rules?.maxDailyAppointments ?? null,
@@ -115,23 +101,15 @@ export function toAppointmentConfigPayload(value: AppointmentConfigValue) {
       depositRequired: value.rules?.depositRequired ?? null,
       depositAmount: value.rules?.depositAmount ?? null,
     },
-
-    // recordatorios
     reminders: {
       templateId: value.reminders?.templateId ?? null,
       postBookingMessage: value.reminders?.postBookingMessage ?? null,
-      // schedule puedes manejarlo en otro subform si quieres
     },
-
-    // KB (el backend puede mapear faqsText -> kbFAQs si es JSON válido)
     kb: {
       businessOverview: value.kb?.businessOverview ?? null,
       freeText: value.kb?.freeText ?? null,
-      // opcional: si quieres, manda faqs como texto crudo y lo parseas en el controller
       faqs: safeParseJSON(value.kb?.faqsText),
     },
-
-    // horas (AppointmentHour se mantiene igual)
     hours: hours.map((h) => ({
       day: h.day,
       isOpen: h.isOpen,
@@ -197,14 +175,13 @@ function safeParseJSON(maybe?: string | null) {
 }
 
 /* ================= Componente ================= */
-export default function AppointmentForm({ value, onChange }: Props) {
+export default function EsteticaForm({ value, onChange }: Props) {
   const hours = useMemo(() => normalizeHours(value.hours), [value.hours])
 
   function patch<K extends keyof AppointmentConfigValue>(key: K, v: AppointmentConfigValue[K]) {
     onChange({ [key]: v } as Partial<AppointmentConfigValue>)
   }
 
-  // ✅ FIX: si value[key] es undefined, usa {} para poder hacer spread
   function patchNested<T extends object>(key: keyof AppointmentConfigValue, partial: Partial<T>) {
     const current = ((value as any)[key] ?? {}) as T
     onChange({ [key]: { ...current, ...partial } } as any)
@@ -235,9 +212,9 @@ export default function AppointmentForm({ value, onChange }: Props) {
 
   return (
     <div className="space-y-8">
-      {/* ====== 1) Activar agenda (IA) ====== */}
+      {/* ====== 1) Activar agenda (IA Estética) ====== */}
       <section className="rounded-2xl border border-slate-800 bg-slate-900/70">
-        <div className="px-4 py-3 border-b border-slate-800 text-sm font-semibold">Activar agenda con IA</div>
+        <div className="px-4 py-3 border-b border-slate-800 text-sm font-semibold">Activar agenda con IA (Estética)</div>
         <div className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
           <label className="flex items-center justify-between gap-3 p-3 rounded-xl bg-slate-800/60 border border-slate-700">
             <div>
@@ -314,13 +291,13 @@ export default function AppointmentForm({ value, onChange }: Props) {
         </div>
       </section>
 
-      {/* ====== 2) Servicios que la IA puede agendar ====== */}
+      {/* ====== 2) Servicios ====== */}
       <section className="space-y-2">
         <label className="block">
           <div className="text-sm font-semibold mb-1">Servicios agendables (uno por línea o separados por coma)</div>
           <textarea
             rows={5}
-            placeholder={`Ejemplos:\n- Limpieza dental\n- Blanqueamiento\n- Consulta de valoración\n\nTambién puedes separar por comas.`}
+            placeholder={`Ejemplos:\n- Limpieza facial\n- Rinomodelación\n- Consulta de valoración\n\nTambién puedes separar por comas.`}
             value={value.appointmentServices || ''}
             onChange={(e) => patch('appointmentServices', e.target.value)}
             className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-600"
@@ -342,7 +319,7 @@ export default function AppointmentForm({ value, onChange }: Props) {
         </label>
       </section>
 
-      {/* ====== 3) Dónde nos vemos (ubicación y logística) ====== */}
+      {/* ====== 3) Ubicación / logística ====== */}
       <section className="rounded-2xl border border-slate-800 bg-slate-900/70">
         <div className="px-4 py-3 border-b border-slate-800 text-sm font-semibold">Ubicación y logística</div>
         <div className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -391,7 +368,7 @@ export default function AppointmentForm({ value, onChange }: Props) {
         </div>
       </section>
 
-      {/* ====== 4) Reglas de agenda ====== */}
+      {/* ====== 4) Reglas ====== */}
       <section className="rounded-2xl border border-slate-800 bg-slate-900/70">
         <div className="px-4 py-3 border-b border-slate-800 text-sm font-semibold">Reglas de agenda</div>
         <div className="p-4 grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -474,7 +451,7 @@ export default function AppointmentForm({ value, onChange }: Props) {
         </div>
       </section>
 
-      {/* ====== 5) Mensajes y recordatorios ====== */}
+      {/* ====== 5) Mensajes ====== */}
       <section className="rounded-2xl border border-slate-800 bg-slate-900/70">
         <div className="px-4 py-3 border-b border-slate-800 text-sm font-semibold">Mensajes al cliente</div>
         <div className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -495,7 +472,7 @@ export default function AppointmentForm({ value, onChange }: Props) {
         </div>
       </section>
 
-      {/* ====== 6) Knowledge base (para que la IA no tenga vacíos) ====== */}
+      {/* ====== 6) Knowledge base ====== */}
       <section className="rounded-2xl border border-slate-800 bg-slate-900/70">
         <div className="px-4 py-3 border-b border-slate-800 text-sm font-semibold">Knowledge base del negocio</div>
         <div className="p-4 grid grid-cols-1 gap-4">
@@ -523,7 +500,7 @@ export default function AppointmentForm({ value, onChange }: Props) {
         </div>
       </section>
 
-      {/* ====== 7) Horario semanal (sin cambios de lógica) ====== */}
+      {/* ====== 7) Horario semanal ====== */}
       <section className="rounded-2xl border border-slate-800 bg-slate-900/70">
         <div className="px-4 py-3 border-b border-slate-800 text-sm font-semibold">Horario semanal</div>
         <div className="divide-y divide-slate-800">

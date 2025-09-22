@@ -7,12 +7,12 @@ import axios from 'axios'
 import { X, Lock, Calendar, Bot } from 'lucide-react'
 
 import AgentForm from './AgentForm'
-import AppointmentForm, {
+import EsteticaForm, {
   type AppointmentDay,
   type Weekday,
   type AppointmentConfigValue,
   toAppointmentConfigPayload,
-} from './AppointmentForm'
+} from './EsteticaForm'
 
 import { normalizeDays } from '@/lib/appointments'
 
@@ -38,9 +38,9 @@ function noCacheHeaders() {
   return { ...getAuthHeaders(), 'Cache-Control': 'no-cache', Pragma: 'no-cache' }
 }
 
-/** ✅ Lee la config de appointments tal cual la devuelve el nuevo endpoint */
-async function fetchAppointmentsNoCache() {
-  const r = await axios.get(`${API_URL}/api/appointments/config`, {
+/** ✅ Lee la config (ahora desde /api/estetica/config) */
+async function fetchEsteticaConfigNoCache() {
+  const r = await axios.get(`${API_URL}/api/estetica/config`, {
     headers: noCacheHeaders(),
     params: { t: Date.now() },
   })
@@ -145,7 +145,7 @@ export default function ModalEntrenamiento({
     }
   }, [trainingActive, panel, initialPanel])
 
-  /* ============ Carga inicial (HIDRATAR) ============ */
+  /* ============ Carga inicial ============ */
   async function loadAllConfig() {
     setReloading(true)
     try {
@@ -154,34 +154,33 @@ export default function ModalEntrenamiento({
         if (mk) localStorage.removeItem(RESET_MARKER_KEY)
       }
 
-      const appt = await fetchAppointmentsNoCache()
+      const estetica = await fetchEsteticaConfigNoCache()
 
       setForm((f) => ({
         ...f,
-        // Perfil del agente (si aplica)
+        // Perfil del agente
         agentSpecialty: (initialConfig?.agentSpecialty as AgentSpecialty) || f.agentSpecialty,
         agentPrompt: initialConfig?.agentPrompt ?? f.agentPrompt,
         agentScope: initialConfig?.agentScope ?? f.agentScope,
         agentDisclaimers: initialConfig?.agentDisclaimers ?? f.agentDisclaimers,
 
-        // Appointments
-        appointmentEnabled: !!appt?.appointment?.enabled,
-        appointmentVertical: appt?.appointment?.vertical ?? 'custom',
-        appointmentVerticalCustom: appt?.appointment?.verticalCustom ?? '',
-        appointmentTimezone: appt?.appointment?.timezone ?? 'America/Bogota',
-        appointmentBufferMin: Number.isFinite(appt?.appointment?.bufferMin)
-          ? appt?.appointment?.bufferMin
+        // Estética (antes "citas")
+        appointmentEnabled: !!estetica?.appointment?.enabled,
+        appointmentVertical: estetica?.appointment?.vertical ?? 'custom',
+        appointmentVerticalCustom: estetica?.appointment?.verticalCustom ?? '',
+        appointmentTimezone: estetica?.appointment?.timezone ?? 'America/Bogota',
+        appointmentBufferMin: Number.isFinite(estetica?.appointment?.bufferMin)
+          ? estetica?.appointment?.bufferMin
           : 10,
-        appointmentPolicies: appt?.appointment?.policies ?? '',
-        appointmentReminders: (appt?.appointment?.reminders ?? true) as boolean,
-        hours: hoursFromDb(appt?.hours ?? []),
-        appointmentServices: appt?.servicesText ?? '',
+        appointmentPolicies: estetica?.appointment?.policies ?? '',
+        appointmentReminders: (estetica?.appointment?.reminders ?? true) as boolean,
+        hours: hoursFromDb(estetica?.hours ?? []),
+        appointmentServices: estetica?.servicesText ?? '',
 
-        // Campos nuevos
-        location: appt?.location ?? {},
-        rules: appt?.rules ?? {},
-        reminders: appt?.reminders ?? {},
-        kb: appt?.kb ?? {},
+        location: estetica?.location ?? {},
+        rules: estetica?.rules ?? {},
+        reminders: estetica?.reminders ?? {},
+        kb: estetica?.kb ?? {},
       }))
 
       if (typeof window !== 'undefined') {
@@ -203,11 +202,11 @@ export default function ModalEntrenamiento({
 
   /* ================= Acciones ================= */
 
-  // Reiniciar entrenamiento (agente + citas + hours)
+  // Reiniciar: agente + estética + hours
   async function reiniciarEntrenamiento() {
     try {
       if (typeof window !== 'undefined') {
-        const ok = window.confirm('¿Reiniciar entrenamiento? Esto borrará tu configuración de agente, configuración de citas y horarios.')
+        const ok = window.confirm('¿Reiniciar entrenamiento? Esto borrará tu configuración de agente, configuración de estética y horarios.')
         if (!ok) return
       }
       setSaving(true)
@@ -223,22 +222,22 @@ export default function ModalEntrenamiento({
         console.warn('[reset] /api/config/reset falló (se ignora):', err)
       }
 
-      // 2) Borrar citas + hours
-      let apptWiped = false
+      // 2) Borrar estetica + hours
+      let wiped = false
       try {
-        await axios.delete(`${API_URL}/api/appointments/config`, {
+        await axios.delete(`${API_URL}/api/estetica/config`, {
           headers: getAuthHeaders(),
           params: { purgeHours: 1, t: Date.now() },
         })
-        apptWiped = true
+        wiped = true
       } catch (err) {
-        console.warn('[reset] DELETE /api/appointments/config?purgeHours=1 falló, probando /reset:', err)
+        console.warn('[reset] DELETE /api/estetica/config?purgeHours=1 falló, probando /reset:', err)
       }
 
       // 3) Fallback: /reset
-      if (!apptWiped) {
+      if (!wiped) {
         await axios.post(
-          `${API_URL}/api/appointments/config/reset`,
+          `${API_URL}/api/estetica/config/reset`,
           null,
           { headers: getAuthHeaders(), params: { t: Date.now() } }
         )
@@ -273,7 +272,6 @@ export default function ModalEntrenamiento({
         kb: {},
       })
       setUiEpoch(n => n + 1)
-      // await loadAllConfig()
     } finally {
       setSaving(false)
     }
@@ -304,7 +302,7 @@ export default function ModalEntrenamiento({
     }
   }
 
-  async function guardarCitas() {
+  async function guardarEstetica() {
     try {
       setSaving(true)
 
@@ -332,10 +330,10 @@ export default function ModalEntrenamiento({
         kb: form.kb ?? {},
       }
       const payload: any = toAppointmentConfigPayload(valueForHelper)
-      if (payload?.appointment) payload.appointment.aiMode = 'appointments'
+      if (payload?.appointment) payload.appointment.aiMode = 'estetica' // 👈 aseguramos
 
-      await axios.post(`${API_URL}/api/appointments/config`, payload, {
-        headers: { ...getAuthHeaders(), 'x-appt-intent': 'citas' }, // 👈 header requerido por backend
+      await axios.post(`${API_URL}/api/estetica/config`, payload, {
+        headers: { ...getAuthHeaders(), 'x-estetica-intent': 'estetica' }, // 👈 header requerido
         params: { t: Date.now() },
       })
 
@@ -355,7 +353,7 @@ export default function ModalEntrenamiento({
       lockedBy === 'agente'
         ? 'Entrenamiento bloqueado por configuración de Agente (bloqueo frontend).'
         : lockedBy === 'citas'
-        ? 'Entrenamiento bloqueado por configuración de Citas (bloqueo frontend).'
+        ? 'Entrenamiento bloqueado por configuración de Estética (bloqueo frontend).'
         : null
     if (!text) return null
     return (
@@ -439,12 +437,12 @@ export default function ModalEntrenamiento({
 
               {lockBanner}
 
-              {/* Cards internas SOLO si el modal no está dirigido desde fuera */}
+              {/* Cards internas solo si no se fuerza panel */}
               {shouldShowCards && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                   <Card
                     icon={<Calendar className="w-5 h-5 text-emerald-300" />}
-                    title="Configurar Citas"
+                    title="Configurar Estética"
                     desc="Define horarios, políticas, recordatorios y servicios."
                     disabled={lockedBy === 'agente' || saving}
                     onOpen={() => setInternalPanel('citas')}
@@ -492,8 +490,8 @@ export default function ModalEntrenamiento({
 
               {effectivePanel === 'citas' && (
                 <div className={lockedBy === 'agente' ? 'pointer-events-none opacity-50' : ''}>
-                  <AppointmentForm
-                    key={`citas-${uiEpoch}`}
+                  <EsteticaForm
+                    key={`estetica-${uiEpoch}`}
                     value={{
                       appointmentEnabled: form.appointmentEnabled,
                       appointmentVertical: form.appointmentVertical,
@@ -516,7 +514,7 @@ export default function ModalEntrenamiento({
                   <div className="mt-6 flex items-center justify-end">
                     <button
                       onClick={async () => {
-                        await guardarCitas()
+                        await guardarEstetica()
                         close()
                       }}
                       disabled={saving || lockedBy === 'agente'}

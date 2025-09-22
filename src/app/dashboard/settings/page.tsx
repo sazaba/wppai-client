@@ -88,9 +88,10 @@ function isAgentConfigured(cfg: ConfigForm | null): boolean {
   return Boolean(hasText || specialtySet)
 }
 
+// 🔁 Ahora usa /api/estetica/config
 async function fetchAppointmentsConfigured(): Promise<boolean> {
   try {
-    const { data } = await axios.get(`${API_URL}/api/appointments/config`, {
+    const { data } = await axios.get(`${API_URL}/api/estetica/config`, {
       headers: getAuthHeaders(),
       params: { t: Date.now() },
     })
@@ -167,25 +168,25 @@ export default function SettingsPage() {
       // 1) BORRAR citas + hours primero (para evitar rehidratados raros)
       let apptWiped = false
       try {
-        await axios.delete(`${API_URL}/api/appointments/config`, {
+        await axios.delete(`${API_URL}/api/estetica/config`, {
           headers: getAuthHeaders(),
           params: { purgeHours: 1, t: Date.now() },
         })
         apptWiped = true
       } catch (err) {
-        console.warn('[reiniciar] DELETE /api/appointments/config?purgeHours=1 falló, probaré /reset:', err)
+        console.warn('[reiniciar] DELETE /api/estetica/config?purgeHours=1 falló, probaré /reset:', err)
       }
 
       // Fallback si el delete falló
       if (!apptWiped) {
         try {
           await axios.post(
-            `${API_URL}/api/appointments/config/reset`,
+            `${API_URL}/api/estetica/config/reset`,
             null,
             { headers: getAuthHeaders(), params: { t: Date.now() } }
           )
         } catch (err) {
-          console.warn('[reiniciar] POST /api/appointments/config/reset también falló:', err)
+          console.warn('[reiniciar] POST /api/estetica/config/reset también falló:', err)
         }
       }
 
