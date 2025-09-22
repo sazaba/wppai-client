@@ -126,7 +126,7 @@ export default function SettingsPage() {
   // Modal control
   const [trainingActive, setTrainingActive] = useState(false)
   /** Panel que se abrirá DIRECTO dentro del modal: 'citas' | 'agente' | null (cards internas) */
-  const [initialTrainingPanel, setInitialTrainingPanel] = useState<'agente' | 'citas' | null>(null)
+  const [initialTrainingPanel, setInitialTrainingPanel] = useState<'agente' | 'estetica' | null>(null)
 
   const [loading, setLoading] = useState(true)
 

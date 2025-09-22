@@ -25,7 +25,7 @@ import type {
 
 /* ================= Constantes / helpers ================= */
 const API_URL = (process.env.NEXT_PUBLIC_API_URL || '') as string
-const FRONTEND_LOCK_KEY = 'trainingLockedBy' as const // 'agente' | 'citas'
+const FRONTEND_LOCK_KEY = 'trainingLockedBy' as const // 'agente' | 'estetica'
 const RESET_MARKER_KEY = 'trainingResetAt'
 
 function getAuthHeaders(): Record<string, string> {
@@ -66,8 +66,8 @@ type FormState = Pick<
   kb?: any
 }
 
-type LockedBy = 'agente' | 'citas' | null
-export type ActivePanel = 'agente' | 'citas' | null
+type LockedBy = 'agente' | 'estetica' | null
+export type ActivePanel = 'agente' | 'estetica' | null
 
 const ORDER: Weekday[] = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']
 
@@ -185,7 +185,7 @@ export default function ModalEntrenamiento({
 
       if (typeof window !== 'undefined') {
         const stored = localStorage.getItem(FRONTEND_LOCK_KEY) as LockedBy | null
-        setLockedBy(stored === 'agente' || stored === 'citas' ? stored : null)
+        setLockedBy(stored === 'agente' || stored === 'estetica' ? stored : null)
       }
 
       setUiEpoch((n) => n + 1)
@@ -337,8 +337,8 @@ export default function ModalEntrenamiento({
         params: { t: Date.now() },
       })
 
-      if (typeof window !== 'undefined') localStorage.setItem(FRONTEND_LOCK_KEY, 'citas')
-      setLockedBy('citas')
+      if (typeof window !== 'undefined') localStorage.setItem(FRONTEND_LOCK_KEY, 'estetica')
+      setLockedBy('estetica')
 
       close()
     } finally {
@@ -352,7 +352,7 @@ export default function ModalEntrenamiento({
     const text =
       lockedBy === 'agente'
         ? 'Entrenamiento bloqueado por configuración de Agente (bloqueo frontend).'
-        : lockedBy === 'citas'
+        : lockedBy === 'estetica'
         ? 'Entrenamiento bloqueado por configuración de Estética (bloqueo frontend).'
         : null
     if (!text) return null
@@ -445,13 +445,13 @@ export default function ModalEntrenamiento({
                     title="Configurar Estética"
                     desc="Define horarios, políticas, recordatorios y servicios."
                     disabled={lockedBy === 'agente' || saving}
-                    onOpen={() => setInternalPanel('citas')}
+                    onOpen={() => setInternalPanel('estetica')}
                   />
                   <Card
                     icon={<Bot className="w-5 h-5 text-violet-300" />}
                     title="Configurar Agente"
                     desc="Define el modo, especialidad y prompts del agente."
-                    disabled={lockedBy === 'citas' || saving}
+                    disabled={lockedBy === 'estetica' || saving}
                     onOpen={() => setInternalPanel('agente')}
                   />
                 </div>
@@ -459,7 +459,7 @@ export default function ModalEntrenamiento({
 
               {/* Formularios */}
               {effectivePanel === 'agente' && (
-                <div className={lockedBy === 'citas' ? 'pointer-events-none opacity-50' : ''}>
+                <div className={lockedBy === 'estetica' ? 'pointer-events-none opacity-50' : ''}>
                   <AgentForm
                     key={`agent-${uiEpoch}`}
                     value={{
@@ -478,17 +478,17 @@ export default function ModalEntrenamiento({
                         await guardarAgente()
                         close()
                       }}
-                      disabled={saving || lockedBy === 'citas'}
+                      disabled={saving || lockedBy === 'estetica'}
                       className="px-4 py-2 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-sm disabled:opacity-60"
                       type="button"
                     >
-                      {saving ? 'Guardando…' : lockedBy === 'citas' ? 'Bloqueado' : 'Guardar'}
+                      {saving ? 'Guardando…' : lockedBy === 'estetica' ? 'Bloqueado' : 'Guardar'}
                     </button>
                   </div>
                 </div>
               )}
 
-              {effectivePanel === 'citas' && (
+              {effectivePanel === 'estetica' && (
                 <div className={lockedBy === 'agente' ? 'pointer-events-none opacity-50' : ''}>
                   <EsteticaForm
                     key={`estetica-${uiEpoch}`}
