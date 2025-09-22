@@ -207,94 +207,55 @@ export default function ModalEntrenamiento({
   /* ================= Acciones ================= */
 
 // 🔁 Reemplaza COMPLETO el handler reiniciarEntrenamiento por este:
-// 🔁 Reemplaza COMPLETO el handler reiniciarEntrenamiento por este:
+
 async function reiniciarEntrenamiento() {
   try {
     if (typeof window !== 'undefined') {
-      const ok = window.confirm('¿Reiniciar entrenamiento? Esto borrará tu configuración, citas y horarios.')
-      if (!ok) return
+      const ok = window.confirm('¿Reiniciar entrenamiento? Esto borrará tu configuración de agente, configuración de citas y horarios.');
+      if (!ok) return;
     }
-    setSaving(true)
+    setSaving(true);
 
-    // 1) Reset de la config general del AGENTE (ruta vieja)
+    // 1) Reset del AGENTE (ruta antigua que ya usas)
     try {
       await axios.post(
         `${API_URL}/api/config/reset`,
         null,
         { params: { withCatalog: false, t: Date.now() }, headers: getAuthHeaders() }
-      )
+      );
     } catch (err) {
-      console.warn('[reset] /api/config/reset falló (se ignora):', err)
+      console.warn('[reset] /api/config/reset falló (se ignora):', err);
     }
 
-    // 2) Reset de la config de CITAS (ruta nueva)
-    let apptConfigWiped = false
+    // 2) Intento principal: BORRAR citas + horas en un solo paso
+    let apptWiped = false;
     try {
-      await axios.delete(
-        `${API_URL}/api/appointments/config`,
-        { headers: getAuthHeaders(), params: { purgeHours: 1, t: Date.now() } }
-      )
-      apptConfigWiped = true
+      await axios.delete(`${API_URL}/api/appointments/config`, {
+        headers: getAuthHeaders(),
+        params: { purgeHours: 1, t: Date.now() },
+      });
+      apptWiped = true;
     } catch (err) {
-      console.warn('[reset] DELETE /api/appointments/config falló (probaré fallback):', err)
+      console.warn('[reset] DELETE /api/appointments/config?purgeHours=1 falló, probando /reset:', err);
     }
 
-    // 2b) Fallback “viejo” para CITAS (algunas versiones lo limpiaban junto con hours)
-    if (!apptConfigWiped) {
-      try {
-        await axios.post(
-          `${API_URL}/api/appointments/reset`,
-          null,
-          { headers: getAuthHeaders(), params: { t: Date.now() } }
-        )
-        apptConfigWiped = true
-      } catch (err) {
-        console.warn('[reset] POST /api/appointments/reset también falló:', err)
-      }
+    // 3) Fallback: /reset ahora TAMBIÉN borra horas
+    if (!apptWiped) {
+      await axios.post(
+        `${API_URL}/api/appointments/config/reset`,
+        null,
+        { headers: getAuthHeaders(), params: { t: Date.now() } }
+      );
     }
 
-    // 3) Limpieza explícita de AppointmentHours (por si tu DELETE anterior no los borra)
-    // Intentamos varias firmas comunes; si una existe, listo.
-    const hourResetTries: Array<() => Promise<any>> = [
-      // Nuevo estilo RESTful
-      () => axios.delete(`${API_URL}/api/appointment-hours`, {
-        headers: getAuthHeaders(),
-        params: { all: 1, t: Date.now() },
-      }),
-      // Ruta “reset” dedicada
-      () => axios.post(`${API_URL}/api/appointment-hours/reset`, null, {
-        headers: getAuthHeaders(),
-        params: { t: Date.now() },
-      }),
-      // Fallback heredado (algunas implementaciones borraban hours aquí)
-      () => axios.post(`${API_URL}/api/appointments/reset`, null, {
-        headers: getAuthHeaders(),
-        params: { t: Date.now() },
-      }),
-    ]
-
-    let hoursWiped = false
-    for (const tryFn of hourResetTries) {
-      if (hoursWiped) break
-      try {
-        await tryFn()
-        hoursWiped = true
-      } catch { /* seguimos probando */ }
-    }
-    if (!hoursWiped) {
-      console.warn('[reset] No se logró borrar AppointmentHours con las rutas probadas')
-    }
-
-    // 4) Limpieza local
+    // 4) Limpieza local UI
     if (typeof window !== 'undefined') {
-      localStorage.removeItem(FRONTEND_LOCK_KEY)
-      localStorage.setItem(RESET_MARKER_KEY, String(Date.now()))
+      localStorage.removeItem('trainingLockedBy'); // FRONTEND_LOCK_KEY
+      localStorage.setItem('trainingResetAt', String(Date.now())); // RESET_MARKER_KEY
     }
+    setLockedBy(null);
 
-    setLockedBy(null)
-    if (panel === undefined) setInternalPanel(initialPanel ?? null)
-
-    // 5) Estado limpio en UI
+    // 5) Estado limpio en memoria (mismos defaults que ya traías)
     setForm({
       aiMode: 'agente',
       agentSpecialty: 'generico',
@@ -314,15 +275,16 @@ async function reiniciarEntrenamiento() {
       rules: {},
       reminders: {},
       kb: {},
-    })
-    setUiEpoch((n) => n + 1)
+    });
+    setUiEpoch(n => n + 1);
 
-    // Si quieres re-hidratar desde backend para comprobar:
-    // await loadAllConfig()
+    // Si quieres, podrías rehidratar desde backend:
+    // await loadAllConfig();
   } finally {
-    setSaving(false)
+    setSaving(false);
   }
 }
+
 
 
 
