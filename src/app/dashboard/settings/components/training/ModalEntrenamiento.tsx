@@ -1,4 +1,3 @@
-// frontend/components/ModalEntrenamiento.tsx
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
@@ -12,7 +11,7 @@ import AppointmentForm, {
   type AppointmentDay,
   type Weekday,
   type AppointmentConfigValue,
-  toAppointmentConfigPayload, // ✅ seguimos usando el helper del form
+  toAppointmentConfigPayload,
 } from './AppointmentForm'
 
 import { normalizeDays } from '@/lib/appointments'
@@ -45,7 +44,6 @@ async function fetchAppointmentsNoCache() {
     headers: noCacheHeaders(),
     params: { t: Date.now() },
   })
-  // El controller ya retorna { appointment, servicesText, location, rules, reminders, kb, hours }
   return r?.data ?? {}
 }
 
@@ -54,7 +52,7 @@ type FormState = Pick<
   'aiMode' | 'agentSpecialty' | 'agentPrompt' | 'agentScope' | 'agentDisclaimers'
 > & {
   appointmentEnabled: boolean
-  appointmentVertical: any // 'odontologica'|'estetica'|'spa'|'custom'
+  appointmentVertical: any
   appointmentVerticalCustom?: string | null
   appointmentTimezone: string
   appointmentBufferMin: number
@@ -62,7 +60,6 @@ type FormState = Pick<
   appointmentReminders: boolean
   hours?: AppointmentDay[]
   appointmentServices?: string
-  // Extras (para los campos nuevos)
   location?: any
   rules?: any
   reminders?: any
@@ -180,7 +177,7 @@ export default function ModalEntrenamiento({
         hours: hoursFromDb(appt?.hours ?? []),
         appointmentServices: appt?.servicesText ?? '',
 
-        // Campos nuevos (aseguramos objetos, no undefined)
+        // Campos nuevos
         location: appt?.location ?? {},
         rules: appt?.rules ?? {},
         reminders: appt?.reminders ?? {},
@@ -206,125 +203,97 @@ export default function ModalEntrenamiento({
 
   /* ================= Acciones ================= */
 
-// 🔁 Reemplaza COMPLETO el handler reiniciarEntrenamiento por este:
-
-async function reiniciarEntrenamiento() {
-  try {
-    if (typeof window !== 'undefined') {
-      const ok = window.confirm('¿Reiniciar entrenamiento? Esto borrará tu configuración de agente, configuración de citas y horarios.');
-      if (!ok) return;
-    }
-    setSaving(true);
-
-    // 1) Reset del AGENTE (ruta antigua que ya usas)
+  // Reiniciar entrenamiento (agente + citas + hours)
+  async function reiniciarEntrenamiento() {
     try {
-      await axios.post(
-        `${API_URL}/api/config/reset`,
-        null,
-        { params: { withCatalog: false, t: Date.now() }, headers: getAuthHeaders() }
-      );
-    } catch (err) {
-      console.warn('[reset] /api/config/reset falló (se ignora):', err);
-    }
+      if (typeof window !== 'undefined') {
+        const ok = window.confirm('¿Reiniciar entrenamiento? Esto borrará tu configuración de agente, configuración de citas y horarios.');
+        if (!ok) return;
+      }
+      setSaving(true);
 
-    // 2) Intento principal: BORRAR citas + horas en un solo paso
-    let apptWiped = false;
-    try {
-      await axios.delete(`${API_URL}/api/appointments/config`, {
-        headers: getAuthHeaders(),
-        params: { purgeHours: 1, t: Date.now() },
+      // 1) Reset del AGENTE
+      try {
+        await axios.post(
+          `${API_URL}/api/config/reset`,
+          null,
+          { params: { withCatalog: false, t: Date.now() }, headers: getAuthHeaders() }
+        );
+      } catch (err) {
+        console.warn('[reset] /api/config/reset falló (se ignora):', err);
+      }
+
+      // 2) Borrar citas + hours
+      let apptWiped = false;
+      try {
+        await axios.delete(`${API_URL}/api/appointments/config`, {
+          headers: getAuthHeaders(),
+          params: { purgeHours: 1, t: Date.now() },
+        });
+        apptWiped = true;
+      } catch (err) {
+        console.warn('[reset] DELETE /api/appointments/config?purgeHours=1 falló, probando /reset:', err);
+      }
+
+      // 3) Fallback: /reset
+      if (!apptWiped) {
+        await axios.post(
+          `${API_URL}/api/appointments/config/reset`,
+          null,
+          { headers: getAuthHeaders(), params: { t: Date.now() } }
+        );
+      }
+
+      // 4) Limpieza local UI
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem(FRONTEND_LOCK_KEY);
+        localStorage.setItem(RESET_MARKER_KEY, String(Date.now()));
+      }
+      setLockedBy(null);
+
+      // 5) Estado limpio
+      setForm({
+        aiMode: 'agente',
+        agentSpecialty: 'generico',
+        agentPrompt: '',
+        agentScope: '',
+        agentDisclaimers: '',
+        appointmentEnabled: false,
+        appointmentVertical: 'custom',
+        appointmentVerticalCustom: '',
+        appointmentTimezone: 'America/Bogota',
+        appointmentBufferMin: 10,
+        appointmentPolicies: '',
+        appointmentReminders: true,
+        hours: [],
+        appointmentServices: '',
+        location: {},
+        rules: {},
+        reminders: {},
+        kb: {},
       });
-      apptWiped = true;
-    } catch (err) {
-      console.warn('[reset] DELETE /api/appointments/config?purgeHours=1 falló, probando /reset:', err);
+      setUiEpoch(n => n + 1);
+      // await loadAllConfig()
+    } finally {
+      setSaving(false);
     }
-
-    // 3) Fallback: /reset ahora TAMBIÉN borra horas
-    if (!apptWiped) {
-      await axios.post(
-        `${API_URL}/api/appointments/config/reset`,
-        null,
-        { headers: getAuthHeaders(), params: { t: Date.now() } }
-      );
-    }
-
-    // 4) Limpieza local UI
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('trainingLockedBy'); // FRONTEND_LOCK_KEY
-      localStorage.setItem('trainingResetAt', String(Date.now())); // RESET_MARKER_KEY
-    }
-    setLockedBy(null);
-
-    // 5) Estado limpio en memoria (mismos defaults que ya traías)
-    setForm({
-      aiMode: 'agente',
-      agentSpecialty: 'generico',
-      agentPrompt: '',
-      agentScope: '',
-      agentDisclaimers: '',
-      appointmentEnabled: false,
-      appointmentVertical: 'custom',
-      appointmentVerticalCustom: '',
-      appointmentTimezone: 'America/Bogota',
-      appointmentBufferMin: 10,
-      appointmentPolicies: '',
-      appointmentReminders: true,
-      hours: [],
-      appointmentServices: '',
-      location: {},
-      rules: {},
-      reminders: {},
-      kb: {},
-    });
-    setUiEpoch(n => n + 1);
-
-    // Si quieres, podrías rehidratar desde backend:
-    // await loadAllConfig();
-  } finally {
-    setSaving(false);
   }
-}
-
-
-
 
   async function guardarAgente() {
     try {
       setSaving(true)
 
-      await axios
-        .put(
-          `${API_URL}/api/config/agent`,
-          {
-            aiMode: 'agente' as AiMode,
-            agentSpecialty: form.agentSpecialty,
-            agentPrompt: form.agentPrompt ?? '',
-            agentScope: form.agentScope ?? '',
-            agentDisclaimers: form.agentDisclaimers ?? '',
-          },
-          { headers: getAuthHeaders(), params: { t: Date.now() } }
-        )
-        .catch(() => {})
-
-      const valueForHelper: AppointmentConfigValue = {
-        appointmentEnabled: false,
-        appointmentVertical: form.appointmentVertical,
-        appointmentTimezone: form.appointmentTimezone || 'America/Bogota',
-        appointmentBufferMin: Number.isFinite(form.appointmentBufferMin) ? form.appointmentBufferMin : 10,
-        appointmentPolicies: form.appointmentPolicies || '',
-        appointmentReminders: !!form.appointmentReminders,
-        hours: form.hours ?? [],
-        appointmentServices: form.appointmentServices || '',
-        // no mandamos los campos nuevos aquí, los puedes enviar si quieres
-      }
-      const payload = toAppointmentConfigPayload(valueForHelper)
-
-      await axios
-        .post(`${API_URL}/api/appointments/config`, payload as any, {
-          headers: getAuthHeaders(),
-          params: { t: Date.now() },
-        })
-        .catch(() => {})
+      await axios.put(
+        `${API_URL}/api/config/agent`,
+        {
+          aiMode: 'agente' as AiMode,
+          agentSpecialty: form.agentSpecialty,
+          agentPrompt: form.agentPrompt ?? '',
+          agentScope: form.agentScope ?? '',
+          agentDisclaimers: form.agentDisclaimers ?? '',
+        },
+        { headers: getAuthHeaders(), params: { t: Date.now() } }
+      )
 
       if (typeof window !== 'undefined') localStorage.setItem(FRONTEND_LOCK_KEY, 'agente')
       setLockedBy('agente')
@@ -357,7 +326,6 @@ async function reiniciarEntrenamiento() {
         appointmentReminders: !!form.appointmentReminders,
         hours: form.hours ?? [],
         appointmentServices: form.appointmentServices || '',
-        // también puedes enviar aquí los nuevos si quieres que persistan ya:
         location: form.location ?? {},
         rules: form.rules ?? {},
         reminders: form.reminders ?? {},
@@ -367,7 +335,7 @@ async function reiniciarEntrenamiento() {
       if (payload?.appointment) payload.appointment.aiMode = 'appointments'
 
       await axios.post(`${API_URL}/api/appointments/config`, payload, {
-        headers: getAuthHeaders(),
+        headers: { ...getAuthHeaders(), 'x-appt-intent': 'citas' }, // 👈 header requerido por backend
         params: { t: Date.now() },
       })
 
@@ -535,7 +503,6 @@ async function reiniciarEntrenamiento() {
                       appointmentReminders: form.appointmentReminders,
                       hours: form.hours,
                       appointmentServices: form.appointmentServices,
-                      // 👇 defaults para evitar undefined y permitir edición
                       location: form.location ?? {},
                       rules: form.rules ?? {},
                       reminders: form.reminders ?? {},
