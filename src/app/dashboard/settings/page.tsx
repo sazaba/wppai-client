@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Sparkles, RotateCw, Calendar, Bot } from 'lucide-react'
+import { RotateCw, Calendar, Bot } from 'lucide-react'
 import axios from 'axios'
 import ModalEntrenamiento from './components/training/ModalEntrenamiento'
 import WhatsappConfig from './components/WhatsappConfig'
@@ -9,7 +9,7 @@ import WhatsappConfig from './components/WhatsappConfig'
 import type {
   ConfigForm,
   BusinessType,
-  BackendBusinessConfig, // Partial<ConfigForm>
+  BackendBusinessConfig,
 } from './components/training/types'
 import ActivatePhoneCard from './ActivatePhoneCard'
 
@@ -88,33 +88,28 @@ function isAgentConfigured(cfg: ConfigForm | null): boolean {
   return Boolean(hasText || specialtySet)
 }
 
-// 🔁 Ahora usa /api/estetica/config
-// 🔁 Ahora usa /api/estetica/config
+// 🔁 Revisa si estética está configurado contra /api/estetica/config
 async function fetchAppointmentsConfigured(): Promise<boolean> {
   try {
     const { data } = await axios.get(`${API_URL}/api/estetica/config`, {
       headers: getAuthHeaders(),
       params: { t: Date.now() },
-    });
+    })
 
-    // ✅ si el backend dice que existe, lo damos por configurado
-    if (data && typeof data.exists === 'boolean') {
-      return data.exists;
-    }
+    // ✅ si el backend indica existencia explícita, úsalo
+    if (typeof data?.exists === 'boolean') return data.exists
 
-    // Fallback heurístico (por compat)
-    const appt = data?.config ?? data?.appointment ?? {};
-    const hours = Array.isArray(data?.hours) ? data.hours : [];
-
-    const enabled = !!appt?.enabled;
-    const anyOpen = hours.some((h: any) => !!h?.isOpen);
-    const hasServices = typeof data?.servicesText === 'string' && data.servicesText.trim().length > 0;
-    const hasPolicies = typeof appt?.policies === 'string' && appt.policies.trim().length > 0;
-    const nonDefaultVertical = appt?.vertical && appt.vertical !== 'custom' && appt.vertical !== 'none';
-
-    return Boolean(enabled || anyOpen || hasServices || hasPolicies || nonDefaultVertical);
+    // Fallback heurístico (compat)
+    const appt = data?.appointment ?? {}
+    const hours = Array.isArray(data?.hours) ? data.hours : []
+    const enabled = !!appt?.enabled
+    const anyOpen = hours.some((h: any) => !!h?.isOpen)
+    const hasServices = typeof data?.servicesText === 'string' && data.servicesText.trim().length > 0
+    const hasPolicies = typeof appt?.policies === 'string' && appt.policies.trim().length > 0
+    const nonDefaultVertical = appt?.vertical && appt.vertical !== 'custom' && appt.vertical !== 'none'
+    return Boolean(enabled || anyOpen || hasServices || hasPolicies || nonDefaultVertical)
   } catch {
-    return false;
+    return false
   }
 }
 
@@ -128,7 +123,7 @@ export default function SettingsPage() {
 
   // Modal control
   const [trainingActive, setTrainingActive] = useState(false)
-  /** Panel que se abrirá DIRECTO dentro del modal: 'citas' | 'agente' | null (cards internas) */
+  /** Panel que se abrirá directo dentro del modal: 'estetica' | 'agente' | null */
   const [initialTrainingPanel, setInitialTrainingPanel] = useState<'agente' | 'estetica' | null>(null)
 
   const [loading, setLoading] = useState(true)
@@ -163,12 +158,12 @@ export default function SettingsPage() {
     try {
       if (typeof window !== 'undefined') {
         const ok = window.confirm(
-          '¿Reiniciar todo?\n\nSe eliminará la configuración actual del negocio y se limpiará la agenda (config de citas y horarios).'
+          '¿Reiniciar todo?\n\nSe eliminará la configuración actual del negocio y se limpiará la agenda (config de estética y horarios).'
         )
         if (!ok) return
       }
 
-      // 1) BORRAR citas + hours primero (para evitar rehidratados raros)
+      // 1) BORRAR estética + hours primero (para evitar rehidratados raros)
       let apptWiped = false
       try {
         await axios.delete(`${API_URL}/api/estetica/config`, {
@@ -209,10 +204,7 @@ export default function SettingsPage() {
       setAgentConfigured(false)
       setAppointmentsConfigured(false)
       setInitialTrainingPanel(null)
-      setTrainingActive(false) // 👈 evita que se abra el ModalEntrenamiento
-
-      // 4) (Opcional) refrescar desde backend por si hay side effects
-      // await refreshAll()
+      setTrainingActive(false)
     } catch (e: any) {
       console.error('[reiniciarEntrenamiento] error:', e?.response?.data || e?.message || e)
       alert('Error al reiniciar configuración')
@@ -221,7 +213,7 @@ export default function SettingsPage() {
 
   // Helper: abrir modal directo en panel
   const openTraining = (panel: 'estetica' | 'agente' | null) => {
-    setInitialTrainingPanel(panel) // null => cards internas; 'citas'/'agente' => formulario directo
+    setInitialTrainingPanel(panel) // null => cards internas; 'estetica'/'agente' => formulario directo
     setTrainingActive(true)
   }
 
@@ -269,7 +261,7 @@ export default function SettingsPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Card
               icon={<Calendar className="w-5 h-5 text-emerald-300" />}
-              title="Configurar Estetica"
+              title="Configurar Estética"
               desc="Define horarios, políticas, recordatorios y servicios."
               onClick={() => openTraining('estetica')}
             />
@@ -306,7 +298,7 @@ export default function SettingsPage() {
                       : 'bg-slate-700/40 border-slate-600 text-slate-300',
                   ].join(' ')}
                 >
-                  Estetica: {appointmentsConfigured ? 'Configuradas' : 'No configuradas'}
+                  Estética: {appointmentsConfigured ? 'Configuradas' : 'No configuradas'}
                 </span>
               </div>
             </div>
@@ -322,7 +314,7 @@ export default function SettingsPage() {
                   className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg shadow"
                 >
                   <Calendar className="w-4 h-4" />
-                  Editar Estetica
+                  Editar Estética
                 </button>
               )}
 
