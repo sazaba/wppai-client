@@ -94,15 +94,21 @@ async function fetchAppointmentsConfigured(): Promise<boolean> {
       headers: getAuthHeaders(),
       params: { t: Date.now() },
     })
+
+    // El controller devuelve siempre un objeto con defaults cuando no hay fila.
+    // Por eso, solo consideramos "configurado" si hay señales FUERTES:
     const appt = data?.config ?? data?.appointment ?? {}
     const hours = Array.isArray(data?.hours) ? data.hours : []
+
     const enabled = !!appt?.enabled
     const anyOpen = hours.some((h: any) => !!h?.isOpen)
-    const hasFields =
-      (appt?.vertical && appt.vertical !== 'none') ||
-      !!appt?.policies ||
-      !!appt?.timezone
-    return Boolean(enabled || anyOpen || hasFields)
+
+    // Señales de campos realmente tocados por el usuario
+    const hasServices = typeof data?.servicesText === 'string' && data.servicesText.trim().length > 0
+    const hasPolicies = typeof appt?.policies === 'string' && appt.policies.trim().length > 0
+    const nonDefaultVertical = appt?.vertical && appt.vertical !== 'custom' && appt.vertical !== 'none'
+
+    return Boolean(enabled || anyOpen || hasServices || hasPolicies || nonDefaultVertical)
   } catch {
     return false
   }
@@ -153,18 +159,47 @@ export default function SettingsPage() {
     try {
       if (typeof window !== 'undefined') {
         const ok = window.confirm(
-          '¿Reiniciar todo?\n\nSe eliminará la configuración actual del negocio y se limpiará la agenda.'
+          '¿Reiniciar todo?\n\nSe eliminará la configuración actual del negocio y se limpiará la agenda (config de citas y horarios).'
         )
         if (!ok) return
       }
 
-      // Reset principal en backend
-      await axios.post(`${API_URL}/api/config/reset`, null, {
-        params: { withCatalog: true },
-        headers: getAuthHeaders(),
-      })
+      // 1) BORRAR citas + hours primero (para evitar rehidratados raros)
+      let apptWiped = false
+      try {
+        await axios.delete(`${API_URL}/api/appointments/config`, {
+          headers: getAuthHeaders(),
+          params: { purgeHours: 1, t: Date.now() },
+        })
+        apptWiped = true
+      } catch (err) {
+        console.warn('[reiniciar] DELETE /api/appointments/config?purgeHours=1 falló, probaré /reset:', err)
+      }
 
-      // Estado local limpio (y SIN abrir el modal)
+      // Fallback si el delete falló
+      if (!apptWiped) {
+        try {
+          await axios.post(
+            `${API_URL}/api/appointments/config/reset`,
+            null,
+            { headers: getAuthHeaders(), params: { t: Date.now() } }
+          )
+        } catch (err) {
+          console.warn('[reiniciar] POST /api/appointments/config/reset también falló:', err)
+        }
+      }
+
+      // 2) Reset principal del AGENTE
+      try {
+        await axios.post(`${API_URL}/api/config/reset`, null, {
+          params: { withCatalog: true, t: Date.now() },
+          headers: getAuthHeaders(),
+        })
+      } catch (e) {
+        console.warn('[reiniciar] /api/config/reset falló (se ignora):', e)
+      }
+
+      // 3) Estado local limpio (y SIN abrir el modal)
       setConfigGuardada(null)
       setForm(DEFAULTS)
       setAgentConfigured(false)
@@ -172,7 +207,7 @@ export default function SettingsPage() {
       setInitialTrainingPanel(null)
       setTrainingActive(false) // 👈 evita que se abra el ModalEntrenamiento
 
-      // (opcional) refrescar desde backend por si hay side effects
+      // 4) (Opcional) refrescar desde backend por si hay side effects
       // await refreshAll()
     } catch (e: any) {
       console.error('[reiniciarEntrenamiento] error:', e?.response?.data || e?.message || e)
@@ -243,7 +278,7 @@ export default function SettingsPage() {
           </div>
         )}
 
-        {/* Acciones de configuración (sin 'Explorar') y solo los botones que apliquen */}
+        {/* Acciones de configuración */}
         {showActions && (
           <div className="bg-slate-800 border border-slate-700 p-6 rounded-2xl shadow-xl text-white space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
