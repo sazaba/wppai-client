@@ -1,6 +1,8 @@
+// client/src/app/dashboard/settings/page.tsx
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { RotateCw, Calendar, Bot } from 'lucide-react'
 import axios from 'axios'
 import ModalEntrenamiento from './components/training/ModalEntrenamiento'
@@ -96,7 +98,6 @@ async function fetchAppointmentsConfigured(): Promise<boolean> {
       params: { t: Date.now() },
     })
 
-    // ✅ si el backend indica existencia explícita, úsalo
     if (typeof data?.exists === 'boolean') return data.exists
 
     // Fallback heurístico (compat)
@@ -114,6 +115,8 @@ async function fetchAppointmentsConfigured(): Promise<boolean> {
 }
 
 export default function SettingsPage() {
+  const router = useRouter()
+
   const [form, setForm] = useState<ConfigForm>(DEFAULTS)
   const [configGuardada, setConfigGuardada] = useState<ConfigForm | null>(null)
 
@@ -121,10 +124,9 @@ export default function SettingsPage() {
   const [agentConfigured, setAgentConfigured] = useState(false)
   const [appointmentsConfigured, setAppointmentsConfigured] = useState(false)
 
-  // Modal control
+  // Modal (solo para Agente)
   const [trainingActive, setTrainingActive] = useState(false)
-  /** Panel que se abrirá directo dentro del modal: 'estetica' | 'agente' | null */
-  const [initialTrainingPanel, setInitialTrainingPanel] = useState<'agente' | 'estetica' | null>(null)
+  const [initialTrainingPanel, setInitialTrainingPanel] = useState<'agente' | null>(null)
 
   const [loading, setLoading] = useState(true)
 
@@ -135,7 +137,6 @@ export default function SettingsPage() {
       setConfigGuardada(Object.keys(data || {}).length ? safe : null)
       setForm(safe)
 
-      // Flags
       setAgentConfigured(isAgentConfigured(safe))
       const apptOk = await fetchAppointmentsConfigured()
       setAppointmentsConfigured(apptOk)
@@ -163,7 +164,7 @@ export default function SettingsPage() {
         if (!ok) return
       }
 
-      // 1) BORRAR estética + hours primero (para evitar rehidratados raros)
+      // 1) BORRAR estética + hours
       let apptWiped = false
       try {
         await axios.delete(`${API_URL}/api/estetica/config`, {
@@ -175,7 +176,6 @@ export default function SettingsPage() {
         console.warn('[reiniciar] DELETE /api/estetica/config?purgeHours=1 falló, probaré /reset:', err)
       }
 
-      // Fallback si el delete falló
       if (!apptWiped) {
         try {
           await axios.post(
@@ -198,7 +198,7 @@ export default function SettingsPage() {
         console.warn('[reiniciar] /api/config/reset falló (se ignora):', e)
       }
 
-      // 3) Estado local limpio (y SIN abrir el modal)
+      // 3) Estado local limpio
       setConfigGuardada(null)
       setForm(DEFAULTS)
       setAgentConfigured(false)
@@ -211,9 +211,15 @@ export default function SettingsPage() {
     }
   }
 
-  // Helper: abrir modal directo en panel
+  // Abrir entrenamiento:
+  // - 'estetica' => navega a la página dedicada (sin modal)
+  // - 'agente'   => abre el modal y muestra ese panel
   const openTraining = (panel: 'estetica' | 'agente' | null) => {
-    setInitialTrainingPanel(panel) // null => cards internas; 'estetica'/'agente' => formulario directo
+    if (panel === 'estetica') {
+      router.push('/dashboard/settings/estetica')
+      return
+    }
+    setInitialTrainingPanel(panel === 'agente' ? 'agente' : null)
     setTrainingActive(true)
   }
 
@@ -245,7 +251,6 @@ export default function SettingsPage() {
     </button>
   )
 
-  // Ocultar cards superiores si ya hay al menos uno configurado
   const hideTopCards = agentConfigured || appointmentsConfigured
   const showActions = agentConfigured || appointmentsConfigured
 
@@ -256,7 +261,7 @@ export default function SettingsPage() {
           <h1 className="text-2xl font-bold text-white">Entrenamiento de tu IA</h1>
         </div>
 
-        {/* Cards (trigger del modal) — se ocultan si ya está configurado al menos uno */}
+        {/* Cards (trigger) */}
         {!hideTopCards && (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Card
@@ -274,7 +279,7 @@ export default function SettingsPage() {
           </div>
         )}
 
-        {/* Acciones de configuración */}
+        {/* Acciones */}
         {showActions && (
           <div className="bg-slate-800 border border-slate-700 p-6 rounded-2xl shadow-xl text-white space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
@@ -339,7 +344,7 @@ export default function SettingsPage() {
           </div>
         )}
 
-        {/* Modal de entrenamiento */}
+        {/* Modal (solo AGENTE) */}
         <ModalEntrenamiento
           key={`modal-${initialTrainingPanel ?? 'cards'}`}
           trainingActive={trainingActive}
