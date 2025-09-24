@@ -1,14 +1,24 @@
+// client/src/services/estetica.service.ts
 import http from "@/lib/axios";
 
 const API_PREFIX = ((process.env.NEXT_PUBLIC_API_URL || "").replace(/\/$/, "")).endsWith("/api")
-    ? "" : "/api";
+    ? ""
+    : "/api";
 
-// helpers para desanidar {ok,data}
+// helpers para desanidar { ok, data }
 const unwrap = <T>(r: any): T => (Array.isArray(r.data) ? r.data : (r.data?.data ?? r.data));
 
 /* ===== Tipos mínimos (alineados a Prisma/Controllers) ===== */
 export type Weekday = "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
-export type AppointmentHour = { day: Weekday; isOpen: boolean; start1?: string | null; end1?: string | null; start2?: string | null; end2?: string | null; };
+
+export type AppointmentHour = {
+    day: Weekday;
+    isOpen: boolean;
+    start1?: string | null;
+    end1?: string | null;
+    start2?: string | null;
+    end2?: string | null;
+};
 
 export type BusinessConfigAppt = {
     aiMode?: "ecommerce" | "agente" | "estetica" | "appts";
@@ -71,6 +81,46 @@ export type BusinessConfigAppt = {
     kbFreeText?: string | null;
 };
 
+/* ====== EsteticaProcedure ====== */
+export type Procedure = {
+    id: number;
+    empresaId: number;
+    // configApptId?: number; // opcional si lo expone el backend
+    name: string;
+    enabled: boolean;
+    aliases: any | null;
+    durationMin: number | null;
+    requiresAssessment: boolean;
+    priceMin: string | null;   // Prisma.Decimal serializa como string
+    priceMax: string | null;
+    depositRequired: boolean;
+    depositAmount: string | null;
+    prepInstructions?: string | null;
+    postCare?: string | null;
+    contraindications?: string | null;
+    notes?: string | null;
+    pageUrl?: string | null;
+    requiredStaffIds?: number[] | null;
+};
+
+/* ====== Staff ====== */
+export type StaffRow = {
+    id: number;
+    empresaId: number;
+    name: string;
+    role: "profesional" | "esteticista" | "medico";
+    active: boolean;
+    availability?: any | null;
+};
+
+/* ====== AppointmentException ====== */
+export type AppointmentExceptionRow = {
+    id: number;
+    empresaId: number;
+    date: string; // ISO
+    reason?: string | null;
+};
+
 /* ===== Config ===== */
 export const getApptConfig = async (empresaId?: number) => {
     const url = `${API_PREFIX}/estetica/config${empresaId ? `?empresaId=${empresaId}` : ""}`;
@@ -94,4 +144,47 @@ export const saveAppointmentHoursBulk = async (days: AppointmentHour[], empresaI
     const body = empresaId ? { empresaId, days } : { days };
     const r = await http.put(`${API_PREFIX}/appointment-hours`, body);
     return unwrap<AppointmentHour[]>(r);
+};
+
+/* ===== Procedimientos ===== */
+export const listProcedures = async (empresaId?: number) => {
+    const r = await http.get(`${API_PREFIX}/estetica/procedures`, {
+        params: empresaId ? { empresaId } : undefined,
+    });
+    return unwrap<Procedure[]>(r);
+};
+
+export const upsertProcedure = async (
+    payload: Partial<Procedure> & { name: string }
+) => {
+    const r = await http.post(`${API_PREFIX}/estetica/procedure`, payload);
+    return unwrap<Procedure>(r);
+};
+
+/* ===== Staff ===== */
+export const listStaff = async (empresaId?: number) => {
+    const r = await http.get(`${API_PREFIX}/estetica/staff`, {
+        params: empresaId ? { empresaId } : undefined,
+    });
+    return unwrap<StaffRow[]>(r);
+};
+
+export const upsertStaff = async (payload: Partial<StaffRow> & { name: string }) => {
+    const r = await http.post(`${API_PREFIX}/estetica/staff`, payload);
+    return unwrap<StaffRow>(r);
+};
+
+/* ===== Excepciones ===== */
+export const listAppointmentExceptions = async (empresaId?: number) => {
+    const r = await http.get(`${API_PREFIX}/estetica/exceptions`, {
+        params: empresaId ? { empresaId } : undefined,
+    });
+    return unwrap<AppointmentExceptionRow[]>(r);
+};
+
+export const upsertAppointmentException = async (
+    payload: Partial<AppointmentExceptionRow> & { date: string }
+) => {
+    const r = await http.post(`${API_PREFIX}/estetica/exception`, payload);
+    return unwrap<AppointmentExceptionRow>(r);
 };
