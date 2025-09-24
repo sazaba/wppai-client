@@ -141,7 +141,7 @@ export const getAppointmentHours = async (empresaId?: number) => {
 };
 
 export const saveAppointmentHoursBulk = async (days: AppointmentHour[], empresaId?: number) => {
-    const body = empresaId ? { empresaId, days } : { days };
+    const body = empresaId ? { empresaId, hours: days } : { hours: days };
     const r = await http.put(`${API_PREFIX}/appointment-hours`, body);
     return unwrap<AppointmentHour[]>(r);
 };
