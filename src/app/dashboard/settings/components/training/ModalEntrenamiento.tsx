@@ -1,20 +1,14 @@
+// client/src/app/dashboard/settings/components/training/ModalEntrenamiento.tsx
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
 import { Dialog } from '@headlessui/react'
 import { AnimatePresence, motion } from 'framer-motion'
 import axios from 'axios'
+import { useRouter } from 'next/navigation'
 import { X, Lock, Calendar, Bot } from 'lucide-react'
 
 import AgentForm from './AgentForm'
-import EsteticaForm, {
-  type AppointmentDay,
-  type Weekday,
-  type AppointmentConfigValue,
-  toAppointmentConfigPayload,
-} from './EsteticaForm'
-
-import { normalizeDays } from '@/lib/appointments'
 
 import type {
   ModalEntrenamientoProps,
@@ -34,64 +28,14 @@ function getAuthHeaders(): Record<string, string> {
   return token ? { Authorization: `Bearer ${token}` } : {}
 }
 
-function noCacheHeaders() {
-  return { ...getAuthHeaders(), 'Cache-Control': 'no-cache', Pragma: 'no-cache' }
-}
-
-/** ✅ Lee la config (ahora desde /api/estetica/config) */
-async function fetchEsteticaConfigNoCache() {
-  const r = await axios.get(`${API_URL}/api/estetica/config`, {
-    headers: noCacheHeaders(),
-    params: { t: Date.now() },
-  })
-  return r?.data ?? {}
-}
-
+/* =============== Estado local (solo AGENTE en el modal) =============== */
 type FormState = Pick<
   ConfigForm,
   'aiMode' | 'agentSpecialty' | 'agentPrompt' | 'agentScope' | 'agentDisclaimers'
-> & {
-  appointmentEnabled: boolean
-  appointmentVertical: any
-  appointmentVerticalCustom?: string | null
-  appointmentTimezone: string
-  appointmentBufferMin: number
-  appointmentPolicies?: string
-  appointmentReminders: boolean
-  hours?: AppointmentDay[]
-  appointmentServices?: string
-  location?: any
-  rules?: any
-  reminders?: any
-  kb?: any
-}
+>
 
 type LockedBy = 'agente' | 'estetica' | null
-export type ActivePanel = 'agente' | 'estetica' | null
-
-const ORDER: Weekday[] = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']
-
-function hoursFromDb(rows: AppointmentDay[] | undefined | null): AppointmentDay[] {
-  const base = new Map<Weekday, AppointmentDay>()
-  for (const d of ORDER) {
-    base.set(d, { day: d, isOpen: false, start1: null, end1: null, start2: null, end2: null })
-  }
-  if (Array.isArray(rows)) {
-    for (const r of rows) {
-      const k = r.day as Weekday
-      if (!ORDER.includes(k)) continue
-      base.set(k, {
-        day: k,
-        isOpen: !!r.isOpen,
-        start1: r.start1 ?? null,
-        end1: r.end1 ?? null,
-        start2: r.start2 ?? null,
-        end2: r.end2 ?? null,
-      })
-    }
-  }
-  return ORDER.map((d) => base.get(d)!)
-}
+export type ActivePanel = 'agente' | null
 
 /* =================== Componente principal =================== */
 export default function ModalEntrenamiento({
@@ -101,12 +45,12 @@ export default function ModalEntrenamiento({
   panel,
   initialPanel = null,
 }: ModalEntrenamientoProps & { panel?: ActivePanel; initialPanel?: ActivePanel }) {
+  const router = useRouter()
+
   const [open, setOpen] = useState<boolean>(trainingActive)
   useEffect(() => setOpen(trainingActive), [trainingActive])
 
   const [saving, setSaving] = useState(false)
-  const [reloading, setReloading] = useState(false)
-
   const [uiEpoch, setUiEpoch] = useState(0)
   const [lockedBy, setLockedBy] = useState<LockedBy>(null)
 
@@ -119,19 +63,6 @@ export default function ModalEntrenamiento({
     agentPrompt: initialConfig?.agentPrompt || '',
     agentScope: initialConfig?.agentScope || '',
     agentDisclaimers: initialConfig?.agentDisclaimers || '',
-    appointmentEnabled: false,
-    appointmentVertical: 'custom',
-    appointmentVerticalCustom: '',
-    appointmentTimezone: 'America/Bogota',
-    appointmentBufferMin: 10,
-    appointmentPolicies: '',
-    appointmentReminders: true,
-    hours: [],
-    appointmentServices: '',
-    location: {},
-    rules: {},
-    reminders: {},
-    kb: {},
   }))
 
   const close = () => {
@@ -145,44 +76,25 @@ export default function ModalEntrenamiento({
     }
   }, [trainingActive, panel, initialPanel])
 
-  /* ============ Carga inicial ============ */
+  /* ============ Carga inicial (solo agente + lock) ============ */
   async function loadAllConfig() {
-    setReloading(true)
     try {
       if (typeof window !== 'undefined') {
         const mk = localStorage.getItem(RESET_MARKER_KEY)
         if (mk) localStorage.removeItem(RESET_MARKER_KEY)
       }
 
-      const estetica = await fetchEsteticaConfigNoCache()
-
+      // Perfil del agente desde initialConfig
       setForm((f) => ({
         ...f,
-        // Perfil del agente
+        aiMode: (initialConfig?.aiMode as AiMode) || f.aiMode,
         agentSpecialty: (initialConfig?.agentSpecialty as AgentSpecialty) || f.agentSpecialty,
         agentPrompt: initialConfig?.agentPrompt ?? f.agentPrompt,
         agentScope: initialConfig?.agentScope ?? f.agentScope,
         agentDisclaimers: initialConfig?.agentDisclaimers ?? f.agentDisclaimers,
-
-        // Estética (antes "citas")
-        appointmentEnabled: !!estetica?.appointment?.enabled,
-        appointmentVertical: estetica?.appointment?.vertical ?? 'custom',
-        appointmentVerticalCustom: estetica?.appointment?.verticalCustom ?? '',
-        appointmentTimezone: estetica?.appointment?.timezone ?? 'America/Bogota',
-        appointmentBufferMin: Number.isFinite(estetica?.appointment?.bufferMin)
-          ? estetica?.appointment?.bufferMin
-          : 10,
-        appointmentPolicies: estetica?.appointment?.policies ?? '',
-        appointmentReminders: (estetica?.appointment?.reminders ?? true) as boolean,
-        hours: hoursFromDb(estetica?.hours ?? []),
-        appointmentServices: estetica?.servicesText ?? '',
-
-        location: estetica?.location ?? {},
-        rules: estetica?.rules ?? {},
-        reminders: estetica?.reminders ?? {},
-        kb: estetica?.kb ?? {},
       }))
 
+      // Leer bloqueo del frontend (lo setea la página de Estética al guardar)
       if (typeof window !== 'undefined') {
         const stored = localStorage.getItem(FRONTEND_LOCK_KEY) as LockedBy | null
         setLockedBy(stored === 'agente' || stored === 'estetica' ? stored : null)
@@ -191,22 +103,23 @@ export default function ModalEntrenamiento({
       setUiEpoch((n) => n + 1)
     } catch (e) {
       console.error('[settings] loadAllConfig error:', e)
-    } finally {
-      setReloading(false)
     }
   }
 
   useEffect(() => {
     if (open) loadAllConfig()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open])
 
   /* ================= Acciones ================= */
 
-  // Reiniciar: agente + estética + hours
+  // Reiniciar: agente + estética (útil aunque estética esté en su página)
   async function reiniciarEntrenamiento() {
     try {
       if (typeof window !== 'undefined') {
-        const ok = window.confirm('¿Reiniciar entrenamiento? Esto borrará tu configuración de agente, configuración de estética y horarios.')
+        const ok = window.confirm(
+          '¿Reiniciar entrenamiento? Esto borrará tu configuración de agente, configuración de estética y horarios.'
+        )
         if (!ok) return
       }
       setSaving(true)
@@ -250,26 +163,13 @@ export default function ModalEntrenamiento({
       }
       setLockedBy(null)
 
-      // 5) Estado limpio
+      // 5) Estado limpio (solo agente en el modal)
       setForm({
         aiMode: 'agente',
         agentSpecialty: 'generico',
         agentPrompt: '',
         agentScope: '',
         agentDisclaimers: '',
-        appointmentEnabled: false,
-        appointmentVertical: 'custom',
-        appointmentVerticalCustom: '',
-        appointmentTimezone: 'America/Bogota',
-        appointmentBufferMin: 10,
-        appointmentPolicies: '',
-        appointmentReminders: true,
-        hours: [],
-        appointmentServices: '',
-        location: {},
-        rules: {},
-        reminders: {},
-        kb: {},
       })
       setUiEpoch(n => n + 1)
     } finally {
@@ -295,50 +195,6 @@ export default function ModalEntrenamiento({
 
       if (typeof window !== 'undefined') localStorage.setItem(FRONTEND_LOCK_KEY, 'agente')
       setLockedBy('agente')
-
-      close()
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  async function guardarEstetica() {
-    try {
-      setSaving(true)
-
-      const normalized = normalizeDays(form.hours)
-      const hasOpenDay = normalized.some((d) => d.isOpen)
-      if (form.appointmentEnabled && !hasOpenDay) {
-        if (typeof window !== 'undefined')
-          alert('Abre al menos un día en el horario para habilitar la agenda.')
-        setSaving(false)
-        return
-      }
-
-      const valueForHelper: AppointmentConfigValue = {
-        appointmentEnabled: !!form.appointmentEnabled,
-        appointmentVertical: form.appointmentVertical,
-        appointmentTimezone: form.appointmentTimezone || 'America/Bogota',
-        appointmentBufferMin: Number.isFinite(form.appointmentBufferMin) ? form.appointmentBufferMin : 10,
-        appointmentPolicies: form.appointmentPolicies || '',
-        appointmentReminders: !!form.appointmentReminders,
-        hours: form.hours ?? [],
-        appointmentServices: form.appointmentServices || '',
-        location: form.location ?? {},
-        rules: form.rules ?? {},
-        reminders: form.reminders ?? {},
-        kb: form.kb ?? {},
-      }
-      const payload: any = toAppointmentConfigPayload(valueForHelper)
-      if (payload?.appointment) payload.appointment.aiMode = 'estetica' // 👈 aseguramos
-
-      await axios.post(`${API_URL}/api/estetica/config`, payload, {
-        headers: { ...getAuthHeaders(), 'x-estetica-intent': 'estetica' }, // 👈 header requerido
-        params: { t: Date.now() },
-      })
-
-      if (typeof window !== 'undefined') localStorage.setItem(FRONTEND_LOCK_KEY, 'estetica')
-      setLockedBy('estetica')
 
       close()
     } finally {
@@ -445,7 +301,10 @@ export default function ModalEntrenamiento({
                     title="Configurar Estética"
                     desc="Define horarios, políticas, recordatorios y servicios."
                     disabled={lockedBy === 'agente' || saving}
-                    onOpen={() => setInternalPanel('estetica')}
+                    onOpen={() => {
+                      router.push('/dashboard/settings/estetica')
+                      close()
+                    }}
                   />
                   <Card
                     icon={<Bot className="w-5 h-5 text-violet-300" />}
@@ -457,7 +316,7 @@ export default function ModalEntrenamiento({
                 </div>
               )}
 
-              {/* Formularios */}
+              {/* Formulario AGENTE */}
               {effectivePanel === 'agente' && (
                 <div className={lockedBy === 'estetica' ? 'pointer-events-none opacity-50' : ''}>
                   <AgentForm
@@ -483,45 +342,6 @@ export default function ModalEntrenamiento({
                       type="button"
                     >
                       {saving ? 'Guardando…' : lockedBy === 'estetica' ? 'Bloqueado' : 'Guardar'}
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {effectivePanel === 'estetica' && (
-                <div className={lockedBy === 'agente' ? 'pointer-events-none opacity-50' : ''}>
-                  <EsteticaForm
-                    key={`estetica-${uiEpoch}`}
-                    value={{
-                      appointmentEnabled: form.appointmentEnabled,
-                      appointmentVertical: form.appointmentVertical,
-                      appointmentTimezone: form.appointmentTimezone,
-                      appointmentBufferMin: form.appointmentBufferMin,
-                      appointmentPolicies: form.appointmentPolicies,
-                      appointmentReminders: form.appointmentReminders,
-                      hours: form.hours,
-                      appointmentServices: form.appointmentServices,
-                      location: form.location ?? {},
-                      rules: form.rules ?? {},
-                      reminders: form.reminders ?? {},
-                      kb: form.kb ?? {},
-                    } as AppointmentConfigValue}
-                    onChange={(patch) =>
-                      setForm((prev) => ({ ...prev, ...(patch as Partial<FormState>) }))
-                    }
-                  />
-
-                  <div className="mt-6 flex items-center justify-end">
-                    <button
-                      onClick={async () => {
-                        await guardarEstetica()
-                        close()
-                      }}
-                      disabled={saving || lockedBy === 'agente'}
-                      className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm disabled:opacity-60"
-                      type="button"
-                    >
-                      {saving ? 'Guardando…' : lockedBy === 'agente' ? 'Bloqueado' : 'Guardar'}
                     </button>
                   </div>
                 </div>
