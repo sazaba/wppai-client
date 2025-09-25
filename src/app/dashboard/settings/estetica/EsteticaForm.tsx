@@ -362,9 +362,13 @@ export function EsteticaForm({ value, onChange }: Props) {
             <input
               type="number"
               min={0}
-              step={1}
-              value={value.rules?.depositAmount ?? 0}
-              onChange={(e) => patchNested("rules", { depositAmount: parseFloat(e.target.value || "0") })}
+              step="0.01"
+              value={value.rules?.depositAmount ?? ""}
+              onChange={(e) =>
+                patchNested("rules", {
+                  depositAmount: e.target.value === "" ? null : parseFloat(e.target.value),
+                })
+              }
               className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm"
             />
           </label>
