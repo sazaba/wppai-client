@@ -1,78 +1,78 @@
-"use client"
+"use client";
 
-import { useCallback, useEffect, useState } from "react"
-import axios from "axios"
+import { useCallback, useEffect, useState } from "react";
+import axios from "axios";
 
-export type Weekday = "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun"
+export type Weekday = "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
 export type AppointmentDay = {
-    day: Weekday
-    isOpen: boolean
-    start1: string | null
-    end1: string | null
-    start2: string | null
-    end2: string | null
-}
+    day: Weekday;
+    isOpen: boolean;
+    start1: string | null;
+    end1: string | null;
+    start2: string | null;
+    end2: string | null;
+};
 
 export type AppointmentConfigValue = {
-    appointmentEnabled: boolean
-    appointmentVertical: "odontologica" | "estetica" | "spa" | "custom"
-    appointmentVerticalCustom?: string | null
-    appointmentTimezone: string
-    appointmentBufferMin: number
-    appointmentPolicies?: string
-    appointmentReminders: boolean
+    appointmentEnabled: boolean;
+    appointmentVertical: "odontologica" | "estetica" | "spa" | "custom";
+    appointmentVerticalCustom?: string | null;
+    appointmentTimezone: string;
+    appointmentBufferMin: number;
+    appointmentPolicies?: string;
+    appointmentReminders: boolean;
     location?: {
-        name?: string | null
-        address?: string | null
-        mapsUrl?: string | null
-        parkingInfo?: string | null
-        virtualLink?: string | null
-        instructionsArrival?: string | null
-    }
+        name?: string | null;
+        address?: string | null;
+        mapsUrl?: string | null;
+        parkingInfo?: string | null;
+        virtualLink?: string | null;
+        instructionsArrival?: string | null;
+    };
     rules?: {
-        bookingWindowDays?: number | null
-        maxDailyAppointments?: number | null
-        cancellationWindowHours?: number | null
-        noShowPolicy?: string | null
-        depositRequired?: boolean | null
-        depositAmount?: number | null
-        blackoutDates?: string[] | null
-        overlapStrategy?: string | null
-    }
+        bookingWindowDays?: number | null;
+        maxDailyAppointments?: number | null;
+        cancellationWindowHours?: number | null;
+        noShowPolicy?: string | null;
+        depositRequired?: boolean | null;
+        depositAmount?: number | null;
+        blackoutDates?: string[] | null;
+        overlapStrategy?: string | null;
+    };
     reminders?: {
-        schedule?: Array<{ offsetHours: number; channel: string }> | null
-        templateId?: string | null
-        postBookingMessage?: string | null
-    }
+        schedule?: Array<{ offsetHours: number; channel: string }> | null;
+        templateId?: string | null;
+        postBookingMessage?: string | null;
+    };
     kb?: {
-        businessOverview?: string | null
-        faqsText?: string | null
-        freeText?: string | null
-    }
-    hours?: AppointmentDay[]
-}
+        businessOverview?: string | null;
+        faqsText?: string | null;
+        freeText?: string | null;
+    };
+    hours?: AppointmentDay[];
+};
 
-const API_URL = (process.env.NEXT_PUBLIC_API_URL || "") as string
+const API_URL = (process.env.NEXT_PUBLIC_API_URL || "") as string;
 
 function getAuthHeaders(): Record<string, string> {
-    if (typeof window === "undefined") return {}
-    const t = localStorage.getItem("token")
-    return t ? { Authorization: `Bearer ${t}` } : {}
+    if (typeof window === "undefined") return {};
+    const t = localStorage.getItem("token");
+    return t ? { Authorization: `Bearer ${t}` } : {};
 }
 
-const ORDER: Weekday[] = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
+const ORDER: Weekday[] = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
 export function normalizeDays(rows?: AppointmentDay[] | null): AppointmentDay[] {
-    const base = new Map<Weekday, AppointmentDay>()
-    for (const d of ORDER) base.set(d, { day: d, isOpen: false, start1: null, end1: null, start2: null, end2: null })
+    const base = new Map<Weekday, AppointmentDay>();
+    for (const d of ORDER) base.set(d, { day: d, isOpen: false, start1: null, end1: null, start2: null, end2: null });
     if (Array.isArray(rows)) {
-        for (const r of rows) if (ORDER.includes(r.day)) base.set(r.day, { ...base.get(r.day)!, ...r })
+        for (const r of rows) if (ORDER.includes(r.day)) base.set(r.day, { ...base.get(r.day)!, ...r });
     }
-    return ORDER.map(d => base.get(d)!)
+    return ORDER.map(d => base.get(d)!);
 }
 
 function clampBuffer(n: number) {
-    if (!Number.isFinite(n)) return 10
-    return Math.max(0, Math.min(240, Math.round(n)))
+    if (!Number.isFinite(n)) return 10;
+    return Math.max(0, Math.min(240, Math.round(n)));
 }
 
 export function useEsteticaConfig(empresaId?: number) {
@@ -89,13 +89,13 @@ export function useEsteticaConfig(empresaId?: number) {
         rules: {},
         reminders: {},
         kb: {},
-    })
-    const [loading, setLoading] = useState(true)
-    const [saving, setSaving] = useState(false)
+    });
+    const [loading, setLoading] = useState(true);
+    const [saving, setSaving] = useState(false);
 
     // ===== LOAD =====
     const reload = useCallback(async () => {
-        setLoading(true)
+        setLoading(true);
         try {
             const [cfgR, hrsR] = await Promise.all([
                 axios.get(`${API_URL}/api/estetica/config`, {
@@ -106,18 +106,16 @@ export function useEsteticaConfig(empresaId?: number) {
                     headers: getAuthHeaders(),
                     params: { t: Date.now(), ...(empresaId ? { empresaId } : {}) },
                 }),
-            ])
+            ]);
 
-            const cfg = cfgR?.data?.data ?? cfgR?.data ?? {}
+            const cfg = cfgR?.data?.data ?? cfgR?.data ?? {};
 
             setValue({
                 appointmentEnabled: !!cfg?.appointmentEnabled,
                 appointmentVertical: cfg?.appointmentVertical ?? "custom",
                 appointmentVerticalCustom: cfg?.appointmentVerticalCustom ?? "",
                 appointmentTimezone: cfg?.appointmentTimezone ?? "America/Bogota",
-                appointmentBufferMin: Number.isFinite(cfg?.appointmentBufferMin)
-                    ? cfg.appointmentBufferMin
-                    : 10,
+                appointmentBufferMin: Number.isFinite(cfg?.appointmentBufferMin) ? cfg.appointmentBufferMin : 10,
                 appointmentPolicies: cfg?.appointmentPolicies ?? "",
                 appointmentReminders: (cfg?.appointmentReminders ?? true) as boolean,
                 location: {
@@ -149,21 +147,21 @@ export function useEsteticaConfig(empresaId?: number) {
                     freeText: cfg?.kbFreeText ?? "",
                 },
                 hours: normalizeDays(Array.isArray(hrsR?.data) ? hrsR.data : hrsR?.data?.data ?? []),
-            })
+            });
         } finally {
-            setLoading(false)
+            setLoading(false);
         }
-    }, [empresaId])
+    }, [empresaId]);
 
     useEffect(() => {
-        reload()
-    }, [reload])
+        reload();
+    }, [reload]);
 
     // ===== SAVE =====
     const save = useCallback(async () => {
-        setSaving(true)
+        setSaving(true);
         try {
-            const v = value
+            const v = value;
 
             // 1) Guardar config (upsert)
             const cfgPayload = {
@@ -200,35 +198,38 @@ export function useEsteticaConfig(empresaId?: number) {
                 kbFAQs: v.kb?.faqsText ?? null,
                 kbFreeText: v.kb?.freeText ?? null,
                 ...(empresaId ? { empresaId } : {}),
-            }
+            };
 
-            await axios.post(
-                `${API_URL}/api/estetica/config`,
-                cfgPayload,
-                { headers: getAuthHeaders() },
-            )
+            await axios.post(`${API_URL}/api/estetica/config`, cfgPayload, { headers: getAuthHeaders() });
 
-            // 2) Guardar horarios (bulk PUT)
+            // 2) Guardar horarios (bulk PUT) — normalizar HH:MM
+            const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/;
+            const asHHMM = (val?: string | null) => {
+                if (!val) return null;
+                const s = String(val).trim().slice(0, 5);
+                return HHMM.test(s) ? s : null;
+            };
+
             const hours = normalizeDays(v.hours).map(d => ({
                 day: d.day,
                 isOpen: !!d.isOpen,
-                start1: d.isOpen ? (d.start1 || null) : null,
-                end1: d.isOpen ? (d.end1 || null) : null,
-                start2: d.isOpen ? (d.start2 || null) : null,
-                end2: d.isOpen ? (d.end2 || null) : null,
-            }))
+                start1: d.isOpen ? asHHMM(d.start1) : null,
+                end1: d.isOpen ? asHHMM(d.end1) : null,
+                start2: d.isOpen ? asHHMM(d.start2) : null,
+                end2: d.isOpen ? asHHMM(d.end2) : null,
+            }));
 
             await axios.put(
                 `${API_URL}/api/appointment-hours`,
                 { hours, ...(empresaId ? { empresaId } : {}) },
                 { headers: getAuthHeaders() },
-            )
+            );
 
-            return true
+            return true;
         } finally {
-            setSaving(false)
+            setSaving(false);
         }
-    }, [value, empresaId])
+    }, [value, empresaId]);
 
-    return { value, setValue, loading, saving, save, reload }
+    return { value, setValue, loading, saving, save, reload };
 }
