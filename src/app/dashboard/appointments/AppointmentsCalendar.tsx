@@ -15,6 +15,36 @@ const fmtKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth()+1).padStar
 const hhmm = (d: Date) => new Intl.DateTimeFormat("es-CO",{hour:"2-digit",minute:"2-digit",hour12:false}).format(d);
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
 
+/** Convierte un string `YYYY-MM-DDTHH:mm` (de <input type="datetime-local" />)
+ * a un ISO con offset fijo, ej: -05:00 (America/Bogota no tiene DST).
+ * También retorna el Date “local” equivalente por si necesitas sumar duración.
+ */
+function localToISOWithOffset(local: string, offsetMinutes = -300): { iso: string; dateLocal: Date } {
+  // local: "2025-09-30T10:10"
+  // construimos un Date como “local puro”
+  const [y, m, rest] = local.split("-");
+  const [d, hm] = (rest || "").split("T");
+  const [H, M] = (hm || "").split(":");
+  const dateLocal = new Date(
+    Number(y), Number(m) - 1, Number(d),
+    Number(H || 0), Number(M || 0), 0, 0
+  );
+  // offset
+  const sign = offsetMinutes <= 0 ? "-" : "+";
+  const abs = Math.abs(offsetMinutes);
+  const oh = String(Math.floor(abs / 60)).padStart(2, "0");
+  const om = String(abs % 60).padStart(2, "0");
+  const tz = `${sign}${oh}:${om}`;
+  // componemos ISO manual usando los componentes “locales”
+  const yyyy = dateLocal.getFullYear();
+  const MM = String(dateLocal.getMonth() + 1).padStart(2, "0");
+  const dd = String(dateLocal.getDate()).padStart(2, "0");
+  const HH = String(dateLocal.getHours()).padStart(2, "0");
+  const mm = String(dateLocal.getMinutes()).padStart(2, "0");
+  const ss = "00";
+  return { iso: `${yyyy}-${MM}-${dd}T${HH}:${mm}:${ss}${tz}`, dateLocal };
+}
+
 /* ---------- UI Primitives ---------- */
 function Button(
   { className, variant="primary", ...props }:
@@ -43,7 +73,7 @@ function Dialog({ open, onClose, children }: { open: boolean; onClose: () => voi
   );
 }
 
-/* ---------- Inputs (placeholders visibles en dark) ---------- */
+/* ---------- Inputs ---------- */
 function Input(
   { label, type="text", value, onChange, placeholder }:
   { label:string; type?:string; value:string; onChange:(v:string)=>void; placeholder?:string }
@@ -91,8 +121,8 @@ export type Appointment = {
   serviceName: string;
   sedeName?: string | null;
   providerName?: string | null;
-  startAt: string; // ISO
-  endAt: string;   // ISO
+  startAt: string; // ISO con offset
+  endAt: string;   // ISO con offset
   notas?: string | null;
   status?: "pending" | "confirmed" | "rescheduled" | "cancelled" | "completed" | "no_show";
 };
@@ -188,8 +218,15 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId?: number
     startISO: string; durationMin?: number; notes?: string;
   }) {
     if (!effEmpresaId || !token) return;
-    const start = new Date(data.startISO);
-    const end = new Date(start.getTime() + (data.durationMin ?? 30) * 60_000);
+
+    // El input datetime-local da "YYYY-MM-DDTHH:mm" sin TZ → lo serializamos con -05:00
+    const { iso: startAtISO, dateLocal } = localToISOWithOffset(data.startISO, -300);
+    const durationMin = Number.isFinite(data.durationMin as number) ? (data.durationMin as number) : 30;
+    const endLocal = new Date(dateLocal.getTime() + durationMin * 60_000);
+    const { iso: endAtISO } = localToISOWithOffset(
+      `${endLocal.getFullYear()}-${String(endLocal.getMonth()+1).padStart(2,"0")}-${String(endLocal.getDate()).padStart(2,"0")}T${String(endLocal.getHours()).padStart(2,"0")}:${String(endLocal.getMinutes()).padStart(2,"0")}`,
+      -300
+    );
 
     const body = {
       empresaId: effEmpresaId,
@@ -197,8 +234,8 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId?: number
       customerPhone: data.phone,
       serviceName: data.service,
       notas: data.notes || null,
-      startAt: start.toISOString(),
-      endAt: end.toISOString(),
+      startAt: startAtISO, // << con offset -05:00
+      endAt: endAtISO,     // << con offset -05:00
       timezone: "America/Bogota",
       // sedeId, serviceId, providerId → cuando tengas catálogos reales
     };
@@ -256,7 +293,7 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId?: number
 
         {/* Weekdays */}
         <div className="mb-2 grid grid-cols-7 gap-3 text-xs font-medium text-white/80">
-          {week.map((w)=> <div key={w} className="px-1">{w}</div>)}
+          {["Lun","Mar","Mié","Jue","Vie","Sáb","Dom"].map((w)=> <div key={w} className="px-1">{w}</div>)}
         </div>
 
         {/* Grid */}
@@ -326,10 +363,14 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId?: number
             onCancel={()=>setEditing(null)}
             onSave={async (patch)=>{
               // Mantener duración original
+              const startLocalStr = (patch.startAt ? patch.startAt : editing.startAt).slice(0,16); // "YYYY-MM-DDTHH:mm"
+              const { dateLocal, iso: startAtISO } = localToISOWithOffset(startLocalStr, -300);
               const durMs = new Date(editing.endAt).getTime() - new Date(editing.startAt).getTime();
-              const newStart = patch.startAt ? new Date(patch.startAt) : new Date(editing.startAt);
-              const newEnd = new Date(newStart.getTime() + durMs);
-              await updateAppointment(editing.id, { ...patch, endAt: newEnd.toISOString() });
+              const endLocal = new Date(dateLocal.getTime() + durMs);
+              const endLocalStr = `${endLocal.getFullYear()}-${String(endLocal.getMonth()+1).padStart(2,"0")}-${String(endLocal.getDate()).padStart(2,"0")}T${String(endLocal.getHours()).padStart(2,"0")}:${String(endLocal.getMinutes()).padStart(2,"0")}`;
+              const { iso: endAtISO } = localToISOWithOffset(endLocalStr, -300);
+
+              await updateAppointment(editing.id, { ...patch, startAt: startAtISO, endAt: endAtISO });
               setEditing(null);
             }}
           />
@@ -340,12 +381,6 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId?: number
 }
 
 /* ---------- Formularios (universales) ---------- */
-/** Campos universales:
- * - name, phone
- * - sede (texto libre u opción), service (texto), provider (opcional)
- * - startISO (datetime-local), durationMin, notes
- * Sirve para odontología, spa, taller, veterinaria, gimnasio, etc.
- */
 function CreateForm({
   onSave, onCancel
 }:{
@@ -401,14 +436,16 @@ function EditForm({
   const [name,setName] = useState(appt.customerName);
   const [phone,setPhone] = useState(appt.customerPhone);
   const [service,setService] = useState(appt.serviceName);
-  const [start,setStart] = useState(appt.startAt.slice(0,16));
+  const [start,setStart] = useState(appt.startAt.slice(0,16)); // "YYYY-MM-DDTHH:mm"
   const [notes,setNotes] = useState(appt.notas ?? "");
 
   return (
     <form
       onSubmit={async (e)=>{ e.preventDefault(); await onSave({
         customerName:name, customerPhone:phone, serviceName:service,
-        startAt:new Date(start).toISOString(), notas:notes
+        // OJO: el wrapper Smart rehace startAt/endAt con offset antes de enviar al backend
+        startAt:start,
+        notas:notes
       }); }}
       className="space-y-4 text-white"
     >

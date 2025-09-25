@@ -1,4 +1,3 @@
-// client/src/app/dashboard/settings/estetica/useEsteticaConfig.ts
 "use client"
 
 import { useCallback, useEffect, useState } from "react"
@@ -22,10 +21,6 @@ export type AppointmentConfigValue = {
     appointmentBufferMin: number
     appointmentPolicies?: string
     appointmentReminders: boolean
-
-    // 👇 ya NO usamos servicesText aquí
-    // appointmentServices?: string
-
     location?: {
         name?: string | null
         address?: string | null
@@ -34,7 +29,6 @@ export type AppointmentConfigValue = {
         virtualLink?: string | null
         instructionsArrival?: string | null
     }
-
     rules?: {
         bookingWindowDays?: number | null
         maxDailyAppointments?: number | null
@@ -45,19 +39,16 @@ export type AppointmentConfigValue = {
         blackoutDates?: string[] | null
         overlapStrategy?: string | null
     }
-
     reminders?: {
         schedule?: Array<{ offsetHours: number; channel: string }> | null
         templateId?: string | null
         postBookingMessage?: string | null
     }
-
     kb?: {
         businessOverview?: string | null
         faqsText?: string | null
         freeText?: string | null
     }
-
     hours?: AppointmentDay[]
 }
 
@@ -120,7 +111,6 @@ export function useEsteticaConfig(empresaId?: number) {
             const cfg = cfgR?.data?.data ?? cfgR?.data ?? {}
 
             setValue({
-                // 👇 OJO: leemos los campos *planos* que devuelve tu backend
                 appointmentEnabled: !!cfg?.appointmentEnabled,
                 appointmentVertical: cfg?.appointmentVertical ?? "custom",
                 appointmentVerticalCustom: cfg?.appointmentVerticalCustom ?? "",
@@ -130,7 +120,6 @@ export function useEsteticaConfig(empresaId?: number) {
                     : 10,
                 appointmentPolicies: cfg?.appointmentPolicies ?? "",
                 appointmentReminders: (cfg?.appointmentReminders ?? true) as boolean,
-
                 location: {
                     name: cfg?.locationName ?? "",
                     address: cfg?.locationAddress ?? "",
@@ -156,13 +145,7 @@ export function useEsteticaConfig(empresaId?: number) {
                 },
                 kb: {
                     businessOverview: cfg?.kbBusinessOverview ?? "",
-                    // si viene objeto, lo convertimos a string legible
-                    faqsText:
-                        typeof cfg?.kbFAQs === "string"
-                            ? cfg.kbFAQs
-                            : cfg?.kbFAQs
-                                ? JSON.stringify(cfg.kbFAQs)
-                                : "",
+                    faqsText: typeof cfg?.kbFAQs === "string" ? cfg.kbFAQs : cfg?.kbFAQs ? JSON.stringify(cfg.kbFAQs) : "",
                     freeText: cfg?.kbFreeText ?? "",
                 },
                 hours: normalizeDays(Array.isArray(hrsR?.data) ? hrsR.data : hrsR?.data?.data ?? []),
@@ -182,10 +165,9 @@ export function useEsteticaConfig(empresaId?: number) {
         try {
             const v = value
 
-            // 1) Guardar config
-            // 1) Guardar config
+            // 1) Guardar config (upsert)
             const cfgPayload = {
-                aiMode: 'estetica', // <-- necesario para handleAiReply
+                aiMode: "estetica",
                 appointmentEnabled: !!v.appointmentEnabled,
                 appointmentVertical: v.appointmentVertical,
                 appointmentVerticalCustom: v.appointmentVertical === "custom" ? (v.appointmentVerticalCustom ?? "") : null,
@@ -193,7 +175,6 @@ export function useEsteticaConfig(empresaId?: number) {
                 appointmentBufferMin: clampBuffer(v.appointmentBufferMin),
                 appointmentPolicies: v.appointmentPolicies ?? "",
                 appointmentReminders: !!v.appointmentReminders,
-
                 // ubicación
                 locationName: v.location?.name ?? null,
                 locationAddress: v.location?.address ?? null,
@@ -201,7 +182,6 @@ export function useEsteticaConfig(empresaId?: number) {
                 parkingInfo: v.location?.parkingInfo ?? null,
                 virtualMeetingLink: v.location?.virtualLink ?? null,
                 instructionsArrival: v.location?.instructionsArrival ?? null,
-
                 // reglas
                 bookingWindowDays: v.rules?.bookingWindowDays ?? null,
                 maxDailyAppointments: v.rules?.maxDailyAppointments ?? null,
@@ -211,17 +191,22 @@ export function useEsteticaConfig(empresaId?: number) {
                 depositAmount: v.rules?.depositAmount ?? null,
                 blackoutDates: v.rules?.blackoutDates ?? null,
                 overlapStrategy: v.rules?.overlapStrategy ?? null,
-
                 // recordatorios
                 reminderSchedule: v.reminders?.schedule ?? null,
                 reminderTemplateId: v.reminders?.templateId ?? null,
                 postBookingMessage: v.reminders?.postBookingMessage ?? null,
-
                 // KB
                 kbBusinessOverview: v.kb?.businessOverview ?? null,
                 kbFAQs: v.kb?.faqsText ?? null,
                 kbFreeText: v.kb?.freeText ?? null,
-            };
+                ...(empresaId ? { empresaId } : {}),
+            }
+
+            await axios.post(
+                `${API_URL}/api/estetica/config`,
+                cfgPayload,
+                { headers: getAuthHeaders() },
+            )
 
             // 2) Guardar horarios (bulk PUT)
             const hours = normalizeDays(v.hours).map(d => ({
@@ -231,14 +216,13 @@ export function useEsteticaConfig(empresaId?: number) {
                 end1: d.isOpen ? (d.end1 || null) : null,
                 start2: d.isOpen ? (d.start2 || null) : null,
                 end2: d.isOpen ? (d.end2 || null) : null,
-            }));
+            }))
 
             await axios.put(
                 `${API_URL}/api/appointment-hours`,
-                { hours, ...(empresaId ? { empresaId } : {}) }, // <<-- 'hours', no 'days'
+                { hours, ...(empresaId ? { empresaId } : {}) },
                 { headers: getAuthHeaders() },
-            );
-
+            )
 
             return true
         } finally {
