@@ -183,12 +183,12 @@ export function useEsteticaConfig(empresaId?: number) {
             const v = value
 
             // 1) Guardar config
+            // 1) Guardar config
             const cfgPayload = {
-                // aiMode: 'estetica', // opcional
+                aiMode: 'estetica', // <-- necesario para handleAiReply
                 appointmentEnabled: !!v.appointmentEnabled,
                 appointmentVertical: v.appointmentVertical,
-                appointmentVerticalCustom:
-                    v.appointmentVertical === "custom" ? v.appointmentVerticalCustom ?? "" : null,
+                appointmentVerticalCustom: v.appointmentVertical === "custom" ? (v.appointmentVerticalCustom ?? "") : null,
                 appointmentTimezone: v.appointmentTimezone,
                 appointmentBufferMin: clampBuffer(v.appointmentBufferMin),
                 appointmentPolicies: v.appointmentPolicies ?? "",
@@ -221,28 +221,24 @@ export function useEsteticaConfig(empresaId?: number) {
                 kbBusinessOverview: v.kb?.businessOverview ?? null,
                 kbFAQs: v.kb?.faqsText ?? null,
                 kbFreeText: v.kb?.freeText ?? null,
-            }
-
-            await axios.post(`${API_URL}/api/estetica/config`, cfgPayload, {
-                headers: { ...getAuthHeaders(), "x-estetica-intent": "estetica" },
-                params: empresaId ? { empresaId } : undefined,
-            })
+            };
 
             // 2) Guardar horarios (bulk PUT)
-            const days = normalizeDays(v.hours).map(d => ({
+            const hours = normalizeDays(v.hours).map(d => ({
                 day: d.day,
                 isOpen: !!d.isOpen,
-                start1: d.isOpen ? d.start1 || null : null,
-                end1: d.isOpen ? d.end1 || null : null,
-                start2: d.isOpen ? d.start2 || null : null,
-                end2: d.isOpen ? d.end2 || null : null,
-            }))
+                start1: d.isOpen ? (d.start1 || null) : null,
+                end1: d.isOpen ? (d.end1 || null) : null,
+                start2: d.isOpen ? (d.start2 || null) : null,
+                end2: d.isOpen ? (d.end2 || null) : null,
+            }));
 
             await axios.put(
                 `${API_URL}/api/appointment-hours`,
-                { days, ...(empresaId ? { empresaId } : {}) },
-                { headers: getAuthHeaders() }
-            )
+                { hours, ...(empresaId ? { empresaId } : {}) }, // <<-- 'hours', no 'days'
+                { headers: getAuthHeaders() },
+            );
+
 
             return true
         } finally {

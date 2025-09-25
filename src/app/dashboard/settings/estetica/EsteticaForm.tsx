@@ -148,18 +148,18 @@ export function EsteticaForm({ value, onChange }: Props) {
     patchDay(d, { [field]: safe ? safe : null } as any);
   }
 
-  // ⬇️ Inicializa valores por defecto para que realmente se guarden si el usuario no toca los inputs.
+  // Inicializa reglas con valores por defecto para que se guarden incluso si el usuario no toca los inputs.
   useEffect(() => {
     const r = value.rules ?? {};
     const toSet: Partial<NonNullable<typeof value.rules>> = {};
     let changed = false;
 
     if (r.bookingWindowDays == null) {
-      toSet.bookingWindowDays = 30; // coincide con el placeholder del UI
+      toSet.bookingWindowDays = 30;
       changed = true;
     }
     if (r.cancellationWindowHours == null) {
-      toSet.cancellationWindowHours = 12; // coincide con el placeholder del UI
+      toSet.cancellationWindowHours = 12;
       changed = true;
     }
     if (r.maxDailyAppointments == null) {
