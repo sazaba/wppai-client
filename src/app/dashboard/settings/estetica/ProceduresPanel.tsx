@@ -8,22 +8,59 @@ import {
   type StaffRow,
 } from '@/services/estetica.service'
 
+/** Estado del editor: números o null para montos/duración */
+type Editing = {
+  id?: number
+  name: string
+  enabled: boolean
+  aliases: string | string[] | null
+  durationMin: number | null
+  requiresAssessment: boolean
+  priceMin: number | null
+  priceMax: number | null
+  depositRequired: boolean
+  depositAmount: number | null
+  prepInstructions: string
+  postCare: string
+  contraindications: string
+  notes: string
+  pageUrl: string
+  requiredStaffIds: number[]
+}
+
+const EMPTY: Editing = {
+  id: undefined,
+  name: '',
+  enabled: true,
+  aliases: null,
+  durationMin: null,
+  requiresAssessment: false,
+  priceMin: null,
+  priceMax: null,
+  depositRequired: false,
+  depositAmount: null,
+  prepInstructions: '',
+  postCare: '',
+  contraindications: '',
+  notes: '',
+  pageUrl: '',
+  requiredStaffIds: [],
+}
+
 export default function ProceduresPanel() {
   const [rows, setRows] = useState<Procedure[]>([])
   const [staff, setStaff] = useState<StaffRow[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [editing, setEditing] = useState<Partial<Procedure>>({
-    name: '',
-    enabled: true,
-    requiresAssessment: false,
-    depositRequired: false,
-  })
+  const [editing, setEditing] = useState<Editing>(EMPTY)
 
   async function reload() {
     setLoading(true)
     try {
-      const [p, s] = await Promise.all([listProcedures().catch(() => []), listStaff().catch(() => [])])
+      const [p, s] = await Promise.all([
+        listProcedures().catch(() => []),
+        listStaff().catch(() => []),
+      ])
       setRows(p)
       setStaff(s)
     } finally {
@@ -38,31 +75,32 @@ export default function ProceduresPanel() {
   const staffById = useMemo(() => new Map(staff.map(s => [s.id, s])), [staff])
 
   function startNew() {
-    setEditing({
-      id: undefined,
-      name: '',
-      enabled: true,
-      aliases: null,
-      durationMin: null,
-      requiresAssessment: false,
-      priceMin: '',
-      priceMax: '',
-      depositRequired: false,
-      depositAmount: '',
-      prepInstructions: '',
-      postCare: '',
-      contraindications: '',
-      notes: '',
-      pageUrl: '',
-      requiredStaffIds: [],
-    })
+    setEditing(EMPTY)
+  }
+
+  function numOrNull(v: unknown): number | null {
+    if (v === '' || v === null || v === undefined) return null
+    const n = typeof v === 'number' ? v : Number(v)
+    return Number.isFinite(n) ? n : null
   }
 
   function editRow(r: Procedure) {
     setEditing({
-      ...r,
-      // normaliza JSON raros
+      id: r.id,
+      name: r.name,
+      enabled: !!r.enabled,
       aliases: Array.isArray(r.aliases) ? r.aliases : (r.aliases ?? null),
+      durationMin: numOrNull(r.durationMin),
+      requiresAssessment: !!r.requiresAssessment,
+      priceMin: numOrNull(r.priceMin as any),
+      priceMax: numOrNull(r.priceMax as any),
+      depositRequired: !!r.depositRequired,
+      depositAmount: numOrNull(r.depositAmount as any),
+      prepInstructions: r.prepInstructions ?? '',
+      postCare: r.postCare ?? '',
+      contraindications: r.contraindications ?? '',
+      notes: r.notes ?? '',
+      pageUrl: r.pageUrl ?? '',
       requiredStaffIds: (r.requiredStaffIds ?? []) as number[],
     })
   }
@@ -76,13 +114,13 @@ export default function ProceduresPanel() {
     try {
       const payload = {
         ...editing,
-        durationMin: editing.durationMin == null || editing.durationMin === ('' as any) ? null : Number(editing.durationMin),
-        priceMin: editing.priceMin === '' ? null : String(editing.priceMin),
-        priceMax: editing.priceMax === '' ? null : String(editing.priceMax),
-        depositAmount: editing.depositAmount === '' ? null : String(editing.depositAmount),
+        // normaliza aliases a string[] | null
         aliases:
           typeof editing.aliases === 'string'
-            ? editing.aliases.split(',').map(s => s.trim()).filter(Boolean)
+            ? editing.aliases
+                .split(',')
+                .map(s => s.trim())
+                .filter(Boolean)
             : editing.aliases ?? null,
       }
       await upsertProcedure(payload as any)
@@ -128,12 +166,17 @@ export default function ProceduresPanel() {
                 >
                   <div className="flex items-center justify-between">
                     <div className="font-medium">{r.name}</div>
-                    <span className={`text-xs rounded-full px-2 py-0.5 border ${r.enabled ? 'border-emerald-600 text-emerald-300' : 'border-slate-600 text-slate-300'}`}>
+                    <span
+                      className={`text-xs rounded-full px-2 py-0.5 border ${
+                        r.enabled ? 'border-emerald-600 text-emerald-300' : 'border-slate-600 text-slate-300'
+                      }`}
+                    >
                       {r.enabled ? 'Activo' : 'Inactivo'}
                     </span>
                   </div>
                   <div className="text-xs text-slate-400">
-                    {r.durationMin ? `${r.durationMin} min · ` : ''}{r.priceMin ? `Desde ${r.priceMin}` : 'Sin precio'}
+                    {r.durationMin ? `${r.durationMin} min · ` : ''}
+                    {r.priceMin ? `Desde ${r.priceMin}` : 'Sin precio'}
                   </div>
                 </button>
               ))
@@ -149,106 +192,134 @@ export default function ProceduresPanel() {
           <div className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
             <input
               placeholder="Nombre *"
-              value={editing?.name ?? ''}
-              onChange={(e) => setEditing((p) => ({ ...p!, name: e.target.value }))}
+              value={editing.name}
+              onChange={(e) => setEditing((p) => ({ ...p, name: e.target.value }))}
               className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm"
             />
             <label className="flex items-center gap-2 text-sm">
               <input
                 type="checkbox"
-                checked={!!editing?.enabled}
-                onChange={(e) => setEditing((p) => ({ ...p!, enabled: e.target.checked }))}
+                checked={editing.enabled}
+                onChange={(e) => setEditing((p) => ({ ...p, enabled: e.target.checked }))}
               />
               Activo
             </label>
 
             <input
               placeholder="Alias (coma separada)  ej: Botox, Toxina bótulinica"
-              value={Array.isArray(editing?.aliases) ? editing?.aliases.join(', ') : (editing?.aliases ?? '')}
-              onChange={(e) => setEditing((p) => ({ ...p!, aliases: e.target.value }))}
+              value={Array.isArray(editing.aliases) ? editing.aliases.join(', ') : (editing.aliases ?? '')}
+              onChange={(e) => setEditing((p) => ({ ...p, aliases: e.target.value }))}
               className="sm:col-span-2 w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm"
             />
 
             <input
               type="number"
+              min={0}
+              step={1}
               placeholder="Duración (min)"
-              value={editing?.durationMin ?? ''}
-              onChange={(e) => setEditing((p) => ({ ...p!, durationMin: e.target.value === '' ? null : Number(e.target.value) }))}
+              value={editing.durationMin ?? ''}
+              onChange={(e) =>
+                setEditing((p) => ({
+                  ...p,
+                  durationMin: e.target.value === '' ? null : Number(e.target.value),
+                }))
+              }
               className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm"
             />
             <label className="flex items-center gap-2 text-sm">
               <input
                 type="checkbox"
-                checked={!!editing?.requiresAssessment}
-                onChange={(e) => setEditing((p) => ({ ...p!, requiresAssessment: e.target.checked }))}
+                checked={editing.requiresAssessment}
+                onChange={(e) => setEditing((p) => ({ ...p, requiresAssessment: e.target.checked }))}
               />
               Requiere valoración previa
             </label>
 
             <input
-              type="text"
-              placeholder="Precio mínimo (texto o número)"
-              value={editing?.priceMin ?? ''}
-              onChange={(e) => setEditing((p) => ({ ...p!, priceMin: e.target.value }))}
+              type="number"
+              min={0}
+              step="0.01"
+              placeholder="Precio mínimo"
+              value={editing.priceMin ?? ''}
+              onChange={(e) =>
+                setEditing((p) => ({
+                  ...p,
+                  priceMin: e.target.value === '' ? null : Number(e.target.value),
+                }))
+              }
               className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm"
             />
             <input
-              type="text"
+              type="number"
+              min={0}
+              step="0.01"
               placeholder="Precio máximo (opcional)"
-              value={editing?.priceMax ?? ''}
-              onChange={(e) => setEditing((p) => ({ ...p!, priceMax: e.target.value }))}
+              value={editing.priceMax ?? ''}
+              onChange={(e) =>
+                setEditing((p) => ({
+                  ...p,
+                  priceMax: e.target.value === '' ? null : Number(e.target.value),
+                }))
+              }
               className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm"
             />
 
             <label className="flex items-center gap-2 text-sm">
               <input
                 type="checkbox"
-                checked={!!editing?.depositRequired}
-                onChange={(e) => setEditing((p) => ({ ...p!, depositRequired: e.target.checked }))}
+                checked={editing.depositRequired}
+                onChange={(e) => setEditing((p) => ({ ...p, depositRequired: e.target.checked }))}
               />
               Requiere depósito
             </label>
             <input
-              type="text"
-              placeholder="Monto del depósito (texto o número)"
-              value={editing?.depositAmount ?? ''}
-              onChange={(e) => setEditing((p) => ({ ...p!, depositAmount: e.target.value }))}
+              type="number"
+              min={0}
+              step="0.01"
+              placeholder="Monto del depósito"
+              value={editing.depositAmount ?? ''}
+              onChange={(e) =>
+                setEditing((p) => ({
+                  ...p,
+                  depositAmount: e.target.value === '' ? null : Number(e.target.value),
+                }))
+              }
               className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm"
             />
 
             <textarea
               placeholder="Instrucciones de preparación (opcional)"
-              value={editing?.prepInstructions ?? ''}
-              onChange={(e) => setEditing((p) => ({ ...p!, prepInstructions: e.target.value }))}
+              value={editing.prepInstructions}
+              onChange={(e) => setEditing((p) => ({ ...p, prepInstructions: e.target.value }))}
               className="sm:col-span-2 w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm"
               rows={2}
             />
             <textarea
               placeholder="Cuidados posteriores (opcional)"
-              value={editing?.postCare ?? ''}
-              onChange={(e) => setEditing((p) => ({ ...p!, postCare: e.target.value }))}
+              value={editing.postCare}
+              onChange={(e) => setEditing((p) => ({ ...p, postCare: e.target.value }))}
               className="sm:col-span-2 w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm"
               rows={2}
             />
             <textarea
               placeholder="Contraindicaciones (opcional)"
-              value={editing?.contraindications ?? ''}
-              onChange={(e) => setEditing((p) => ({ ...p!, contraindications: e.target.value }))}
+              value={editing.contraindications}
+              onChange={(e) => setEditing((p) => ({ ...p, contraindications: e.target.value }))}
               className="sm:col-span-2 w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm"
               rows={2}
             />
             <textarea
               placeholder="Notas internas (opcional)"
-              value={editing?.notes ?? ''}
-              onChange={(e) => setEditing((p) => ({ ...p!, notes: e.target.value }))}
+              value={editing.notes}
+              onChange={(e) => setEditing((p) => ({ ...p, notes: e.target.value }))}
               className="sm:col-span-2 w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm"
               rows={2}
             />
 
             <input
               placeholder="URL pública (landing del servicio, opcional)"
-              value={editing?.pageUrl ?? ''}
-              onChange={(e) => setEditing((p) => ({ ...p!, pageUrl: e.target.value }))}
+              value={editing.pageUrl}
+              onChange={(e) => setEditing((p) => ({ ...p, pageUrl: e.target.value }))}
               className="sm:col-span-2 w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm"
             />
 
@@ -260,12 +331,12 @@ export default function ProceduresPanel() {
                   <label key={s.id} className="text-sm flex items-center gap-2 rounded-lg border border-slate-700 px-2 py-1">
                     <input
                       type="checkbox"
-                      checked={!!(editing?.requiredStaffIds ?? []).includes(s.id)}
+                      checked={!!editing.requiredStaffIds.includes(s.id)}
                       onChange={(e) => {
-                        const set = new Set<number>(editing?.requiredStaffIds ?? [])
+                        const set = new Set<number>(editing.requiredStaffIds)
                         if (e.target.checked) set.add(s.id)
                         else set.delete(s.id)
-                        setEditing(p => ({ ...p!, requiredStaffIds: Array.from(set) }))
+                        setEditing(p => ({ ...p, requiredStaffIds: Array.from(set) }))
                       }}
                     />
                     {s.name} <span className="text-xs text-slate-400">({s.role})</span>
