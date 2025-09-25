@@ -1,7 +1,7 @@
 // client/src/app/dashboard/settings/estetica/EsteticaForm.tsx
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { useEsteticaConfig } from "./useEsteticaConfig";
 
 /* ================= Tipos exportados (UI) ================= */
@@ -27,7 +27,7 @@ export type AppointmentConfigValue = {
   appointmentPolicies?: string;
   appointmentReminders: boolean;
 
-  // 👋 Se elimina appointmentServices: ahora los servicios viven en la pestaña "Servicios"
+  // Servicios se gestionan en la pestaña “Servicios”
 
   location?: {
     name?: string | null;
@@ -122,7 +122,7 @@ export function EsteticaForm({ value, onChange }: Props) {
 
   function patchNested<T extends object>(key: keyof AppointmentConfigValue, partial: Partial<T>) {
     const current = ((value as any)[key] ?? {}) as T;
-    onChange({ [key]: { ...current, ...partial } } as any);
+    onChange({ [key]: { ...(current as any), ...partial } } as any);
   }
 
   function patchDay(day: Weekday, partial: Partial<AppointmentDay>) {
@@ -147,6 +147,33 @@ export function EsteticaForm({ value, onChange }: Props) {
     if (safe && !isHHMM(safe)) return;
     patchDay(d, { [field]: safe ? safe : null } as any);
   }
+
+  // ⬇️ Inicializa valores por defecto para que realmente se guarden si el usuario no toca los inputs.
+  useEffect(() => {
+    const r = value.rules ?? {};
+    const toSet: Partial<NonNullable<typeof value.rules>> = {};
+    let changed = false;
+
+    if (r.bookingWindowDays == null) {
+      toSet.bookingWindowDays = 30; // coincide con el placeholder del UI
+      changed = true;
+    }
+    if (r.cancellationWindowHours == null) {
+      toSet.cancellationWindowHours = 12; // coincide con el placeholder del UI
+      changed = true;
+    }
+    if (r.maxDailyAppointments == null) {
+      toSet.maxDailyAppointments = 0;
+      changed = true;
+    }
+    if (r.depositRequired == null) {
+      toSet.depositRequired = false;
+      changed = true;
+    }
+
+    if (changed) patchNested("rules", toSet);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div className="space-y-8">
@@ -229,7 +256,7 @@ export function EsteticaForm({ value, onChange }: Props) {
         </div>
       </section>
 
-      {/* ====== 2) Políticas (sin textarea de servicios) ====== */}
+      {/* ====== 2) Políticas ====== */}
       <section className="space-y-2">
         <label className="block">
           <div className="text-sm font-semibold mb-1">Políticas visibles para el cliente</div>
@@ -302,7 +329,9 @@ export function EsteticaForm({ value, onChange }: Props) {
               type="number"
               min={0}
               value={value.rules?.bookingWindowDays ?? 30}
-              onChange={(e) => patchNested("rules", { bookingWindowDays: parseInt(e.target.value || "0", 10) })}
+              onChange={(e) =>
+                patchNested("rules", { bookingWindowDays: parseInt(e.target.value || "0", 10) })
+              }
               className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm"
             />
           </label>
@@ -313,7 +342,9 @@ export function EsteticaForm({ value, onChange }: Props) {
               type="number"
               min={0}
               value={value.rules?.maxDailyAppointments ?? 0}
-              onChange={(e) => patchNested("rules", { maxDailyAppointments: parseInt(e.target.value || "0", 10) })}
+              onChange={(e) =>
+                patchNested("rules", { maxDailyAppointments: parseInt(e.target.value || "0", 10) })
+              }
               className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm"
             />
           </label>
