@@ -1,3 +1,4 @@
+// client/src/app/dashboard/settings/estetica/EsteticaForm.tsx
 "use client";
 
 import { useMemo } from "react";
@@ -26,7 +27,7 @@ export type AppointmentConfigValue = {
   appointmentPolicies?: string;
   appointmentReminders: boolean;
 
-  appointmentServices?: string;
+  // 👋 Se elimina appointmentServices: ahora los servicios viven en la pestaña "Servicios"
 
   location?: {
     name?: string | null;
@@ -228,20 +229,8 @@ export function EsteticaForm({ value, onChange }: Props) {
         </div>
       </section>
 
-      {/* ====== 2) Servicios ====== */}
+      {/* ====== 2) Políticas (sin textarea de servicios) ====== */}
       <section className="space-y-2">
-        <label className="block">
-          <div className="text-sm font-semibold mb-1">Servicios agendables (uno por línea o separados por coma)</div>
-          <textarea
-            rows={5}
-            placeholder={`Ejemplos:\n- Limpieza facial\n- Rinomodelación\n- Consulta de valoración\n\nTambién puedes separar por comas.`}
-            value={value.appointmentServices || ""}
-            onChange={(e) => patch("appointmentServices", e.target.value)}
-            className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-600"
-          />
-          <p className="mt-1 text-xs text-slate-400">La IA solo ofrecerá/agendará los servicios listados aquí.</p>
-        </label>
-
         <label className="block">
           <div className="text-sm font-semibold mb-1">Políticas visibles para el cliente</div>
           <textarea
@@ -435,7 +424,7 @@ export function EsteticaForm({ value, onChange }: Props) {
       <section className="rounded-2xl border border-slate-800 bg-slate-900/70">
         <div className="px-4 py-3 border-b border-slate-800 text-sm font-semibold">Horario semanal</div>
         <div className="divide-y divide-slate-800">
-          {useMemo(() => normalizeHours(value.hours), [value.hours]).map((h) => (
+          {hours.map((h) => (
             <div key={h.day} className="px-4 py-3 grid grid-cols-1 sm:grid-cols-12 gap-3 items-center">
               <div className="sm:col-span-3 flex items-center gap-3">
                 <button
