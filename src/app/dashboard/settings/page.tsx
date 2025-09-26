@@ -1,4 +1,3 @@
-// client/src/app/dashboard/settings/page.tsx
 'use client'
 
 import { useState, useEffect } from 'react'
@@ -14,6 +13,9 @@ import type {
   BackendBusinessConfig,
 } from './components/training/types'
 import ActivatePhoneCard from './ActivatePhoneCard'
+
+// 👇 NUEVO: usa tus servicios (con unwrap)
+import { getApptConfig, getAppointmentHours } from '@/services/estetica.service'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL as string
 
@@ -90,25 +92,18 @@ function isAgentConfigured(cfg: ConfigForm | null): boolean {
   return Boolean(hasText || specialtySet)
 }
 
-// 🔁 Revisa si estética está configurado contra /api/estetica/config
+// 🔁 NUEVO: detección usando servicios (unwrap) + horarios
 async function fetchAppointmentsConfigured(): Promise<boolean> {
   try {
-    const { data } = await axios.get(`${API_URL}/api/estetica/config`, {
-      headers: getAuthHeaders(),
-      params: { t: Date.now() },
-    })
+    const [cfg, hours] = await Promise.all([getApptConfig(), getAppointmentHours()])
 
-    if (typeof data?.exists === 'boolean') return data.exists
+    const enabled = !!cfg?.appointmentEnabled
+    const hasTz = typeof cfg?.appointmentTimezone === 'string' && cfg.appointmentTimezone.trim() !== ''
+    const hasVert = typeof cfg?.appointmentVertical === 'string' && cfg.appointmentVertical.trim() !== ''
+    const hasServ = typeof (cfg as any)?.servicesText === 'string' && (cfg as any).servicesText.trim() !== ''
+    const anyOpen = Array.isArray(hours) && hours.some((h: any) => !!h?.isOpen)
 
-    // Fallback heurístico (compat)
-    const appt = data?.appointment ?? {}
-    const hours = Array.isArray(data?.hours) ? data.hours : []
-    const enabled = !!appt?.enabled
-    const anyOpen = hours.some((h: any) => !!h?.isOpen)
-    const hasServices = typeof data?.servicesText === 'string' && data.servicesText.trim().length > 0
-    const hasPolicies = typeof appt?.policies === 'string' && appt.policies.trim().length > 0
-    const nonDefaultVertical = appt?.vertical && appt.vertical !== 'custom' && appt.vertical !== 'none'
-    return Boolean(enabled || anyOpen || hasServices || hasPolicies || nonDefaultVertical)
+    return Boolean(enabled || hasTz || hasVert || hasServ || anyOpen)
   } catch {
     return false
   }

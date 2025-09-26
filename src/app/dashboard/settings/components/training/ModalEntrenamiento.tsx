@@ -1,4 +1,3 @@
-// client/src/app/dashboard/settings/components/training/ModalEntrenamiento.tsx
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
@@ -16,6 +15,9 @@ import type {
   AiMode,
   AgentSpecialty,
 } from './types'
+
+// 👇 NUEVO: servicios de Estética (unwrap)
+import { getApptConfig, getAppointmentHours } from '@/services/estetica.service'
 
 /* ================= Constantes / helpers ================= */
 const API_URL = (process.env.NEXT_PUBLIC_API_URL || '') as string
@@ -37,24 +39,16 @@ type FormState = Pick<
 type LockedBy = 'agente' | 'estetica' | null
 export type ActivePanel = 'agente' | null
 
-/* ===== Helpers de detección (mismo criterio que SettingsPage) ===== */
-async function fetchAppointmentsConfigured(): Promise<boolean> {
+// 🔁 NUEVO: detección usando servicios (unwrap) + horarios
+async function detectEsteticaConfigured(): Promise<boolean> {
   try {
-    const { data } = await axios.get(`${API_URL}/api/estetica/config`, {
-      headers: getAuthHeaders(),
-      params: { t: Date.now() },
-    })
-
-    if (typeof data?.exists === 'boolean') return data.exists
-
-    const appt = data?.appointment ?? {}
-    const hours = Array.isArray(data?.hours) ? data.hours : []
-    const enabled = !!appt?.enabled
-    const anyOpen = hours.some((h: any) => !!h?.isOpen)
-    const hasServices = typeof data?.servicesText === 'string' && data.servicesText.trim().length > 0
-    const hasPolicies = typeof appt?.policies === 'string' && appt.policies.trim().length > 0
-    const nonDefaultVertical = appt?.vertical && appt.vertical !== 'custom' && appt.vertical !== 'none'
-    return Boolean(enabled || anyOpen || hasServices || hasPolicies || nonDefaultVertical)
+    const [cfg, hours] = await Promise.all([getApptConfig(), getAppointmentHours()])
+    const enabled = !!cfg?.appointmentEnabled
+    const hasTz   = typeof cfg?.appointmentTimezone === 'string' && cfg.appointmentTimezone.trim() !== ''
+    const hasVert = typeof cfg?.appointmentVertical === 'string' && cfg.appointmentVertical.trim() !== ''
+    const hasServ = typeof (cfg as any)?.servicesText === 'string' && (cfg as any).servicesText.trim() !== ''
+    const anyOpen = Array.isArray(hours) && hours.some((h: any) => !!h?.isOpen)
+    return Boolean(enabled || hasTz || hasVert || hasServ || anyOpen)
   } catch {
     return false
   }
@@ -80,7 +74,6 @@ export default function ModalEntrenamiento({
   const [internalPanel, setInternalPanel] = useState<ActivePanel>(panel ?? initialPanel ?? null)
   const effectivePanel: ActivePanel = panel ?? internalPanel
 
-  // Estado del formulario (agente)
   const [form, setForm] = useState<FormState>(() => ({
     aiMode: (initialConfig?.aiMode as AiMode) || 'agente',
     agentSpecialty: (initialConfig?.agentSpecialty as AgentSpecialty) || 'generico',
@@ -89,7 +82,7 @@ export default function ModalEntrenamiento({
     agentDisclaimers: initialConfig?.agentDisclaimers || '',
   }))
 
-  // Nuevo: flag de Estética ya configurado (como en SettingsPage)
+  // NUEVO: flag de estética
   const [esteticaConfigured, setEsteticaConfigured] = useState(false)
 
   const close = () => {
@@ -127,8 +120,8 @@ export default function ModalEntrenamiento({
         setLockedBy(stored === 'agente' || stored === 'estetica' ? stored : null)
       }
 
-      // Consultar si estética está configurado (misma heurística de SettingsPage)
-      const apptOk = await fetchAppointmentsConfigured()
+      // NUEVO: consultar si estética está configurado
+      const apptOk = await detectEsteticaConfigured()
       setEsteticaConfigured(apptOk)
 
       setUiEpoch((n) => n + 1)
@@ -203,8 +196,8 @@ export default function ModalEntrenamiento({
         agentDisclaimers: '',
       })
 
-      // 6) Re-consultar estado de estética
-      setEsteticaConfigured(await fetchAppointmentsConfigured())
+      // 6) NUEVO: Re-consultar estado de estética
+      setEsteticaConfigured(await detectEsteticaConfigured())
       setUiEpoch(n => n + 1)
     } finally {
       setSaving(false)
@@ -244,12 +237,14 @@ export default function ModalEntrenamiento({
       // Si el lock provenía de estética, libéralo
       if (typeof window !== 'undefined') {
         const stored = localStorage.getItem(FRONTEND_LOCK_KEY)
-        if (stored === 'estetica') localStorage.removeItem(FRONTEND_LOCK_KEY)
+        if (stored === 'estetica') {
+          localStorage.removeItem(FRONTEND_LOCK_KEY)
+        }
       }
       if (lockedBy === 'estetica') setLockedBy(null)
 
-      // Re-consultar para refrescar la barra de acciones
-      setEsteticaConfigured(await fetchAppointmentsConfigured())
+      // NUEVO: Re-consultar para refrescar la barra de acciones
+      setEsteticaConfigured(await detectEsteticaConfigured())
       setUiEpoch(n => n + 1)
     } finally {
       setSaving(false)

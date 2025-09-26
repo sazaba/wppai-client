@@ -1,4 +1,3 @@
-// client/src/app/dashboard/settings/estetica/page.tsx
 'use client'
 
 import { useState } from 'react'
