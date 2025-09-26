@@ -37,6 +37,29 @@ type FormState = Pick<
 type LockedBy = 'agente' | 'estetica' | null
 export type ActivePanel = 'agente' | null
 
+/* ===== Helpers de detección (mismo criterio que SettingsPage) ===== */
+async function fetchAppointmentsConfigured(): Promise<boolean> {
+  try {
+    const { data } = await axios.get(`${API_URL}/api/estetica/config`, {
+      headers: getAuthHeaders(),
+      params: { t: Date.now() },
+    })
+
+    if (typeof data?.exists === 'boolean') return data.exists
+
+    const appt = data?.appointment ?? {}
+    const hours = Array.isArray(data?.hours) ? data.hours : []
+    const enabled = !!appt?.enabled
+    const anyOpen = hours.some((h: any) => !!h?.isOpen)
+    const hasServices = typeof data?.servicesText === 'string' && data.servicesText.trim().length > 0
+    const hasPolicies = typeof appt?.policies === 'string' && appt.policies.trim().length > 0
+    const nonDefaultVertical = appt?.vertical && appt.vertical !== 'custom' && appt.vertical !== 'none'
+    return Boolean(enabled || anyOpen || hasServices || hasPolicies || nonDefaultVertical)
+  } catch {
+    return false
+  }
+}
+
 /* =================== Componente principal =================== */
 export default function ModalEntrenamiento({
   trainingActive,
@@ -57,6 +80,7 @@ export default function ModalEntrenamiento({
   const [internalPanel, setInternalPanel] = useState<ActivePanel>(panel ?? initialPanel ?? null)
   const effectivePanel: ActivePanel = panel ?? internalPanel
 
+  // Estado del formulario (agente)
   const [form, setForm] = useState<FormState>(() => ({
     aiMode: (initialConfig?.aiMode as AiMode) || 'agente',
     agentSpecialty: (initialConfig?.agentSpecialty as AgentSpecialty) || 'generico',
@@ -64,6 +88,9 @@ export default function ModalEntrenamiento({
     agentScope: initialConfig?.agentScope || '',
     agentDisclaimers: initialConfig?.agentDisclaimers || '',
   }))
+
+  // Nuevo: flag de Estética ya configurado (como en SettingsPage)
+  const [esteticaConfigured, setEsteticaConfigured] = useState(false)
 
   const close = () => {
     setOpen(false)
@@ -76,21 +103,7 @@ export default function ModalEntrenamiento({
     }
   }, [trainingActive, panel, initialPanel])
 
-  /* ====== Detectar si Estética ya tiene configuración ====== */
-  const esteticaConfigured = useMemo(() => {
-    const c = initialConfig ?? {}
-    // Marcadores típicos de que se diligenció Estética (ajusta si tienes otros campos clave)
-    return Boolean(
-      c.appointmentEnabled ||
-      c.appointmentVertical ||
-      c.appointmentTimezone ||
-      c.appointmentPolicies ||
-      c.appointmentReminders ||
-      (Array.isArray((c as any).appointmentServices) && (c as any).appointmentServices.length > 0)
-    )
-  }, [initialConfig])
-
-  /* ============ Carga inicial (solo agente + lock) ============ */
+  /* ============ Carga inicial (solo agente + lock + estética cfg) ============ */
   async function loadAllConfig() {
     try {
       if (typeof window !== 'undefined') {
@@ -114,6 +127,10 @@ export default function ModalEntrenamiento({
         setLockedBy(stored === 'agente' || stored === 'estetica' ? stored : null)
       }
 
+      // Consultar si estética está configurado (misma heurística de SettingsPage)
+      const apptOk = await fetchAppointmentsConfigured()
+      setEsteticaConfigured(apptOk)
+
       setUiEpoch((n) => n + 1)
     } catch (e) {
       console.error('[settings] loadAllConfig error:', e)
@@ -127,7 +144,7 @@ export default function ModalEntrenamiento({
 
   /* ================= Acciones ================= */
 
-  // Reiniciar TODO: agente + estética (ya existente)
+  // Reiniciar: agente + estética
   async function reiniciarEntrenamiento() {
     try {
       if (typeof window !== 'undefined') {
@@ -185,6 +202,9 @@ export default function ModalEntrenamiento({
         agentScope: '',
         agentDisclaimers: '',
       })
+
+      // 6) Re-consultar estado de estética
+      setEsteticaConfigured(await fetchAppointmentsConfigured())
       setUiEpoch(n => n + 1)
     } finally {
       setSaving(false)
@@ -224,13 +244,12 @@ export default function ModalEntrenamiento({
       // Si el lock provenía de estética, libéralo
       if (typeof window !== 'undefined') {
         const stored = localStorage.getItem(FRONTEND_LOCK_KEY)
-        if (stored === 'estetica') {
-          localStorage.removeItem(FRONTEND_LOCK_KEY)
-        }
+        if (stored === 'estetica') localStorage.removeItem(FRONTEND_LOCK_KEY)
       }
       if (lockedBy === 'estetica') setLockedBy(null)
 
-      // Actualiza UI
+      // Re-consultar para refrescar la barra de acciones
+      setEsteticaConfigured(await fetchAppointmentsConfigured())
       setUiEpoch(n => n + 1)
     } finally {
       setSaving(false)
