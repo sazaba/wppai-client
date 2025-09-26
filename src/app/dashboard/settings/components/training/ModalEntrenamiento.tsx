@@ -6,7 +6,7 @@ import { Dialog } from '@headlessui/react'
 import { AnimatePresence, motion } from 'framer-motion'
 import axios from 'axios'
 import { useRouter } from 'next/navigation'
-import { X, Lock, Calendar, Bot } from 'lucide-react'
+import { X, Lock, Calendar, Bot, RotateCcw, Pencil } from 'lucide-react'
 
 import AgentForm from './AgentForm'
 
@@ -76,6 +76,20 @@ export default function ModalEntrenamiento({
     }
   }, [trainingActive, panel, initialPanel])
 
+  /* ====== Detectar si Estética ya tiene configuración ====== */
+  const esteticaConfigured = useMemo(() => {
+    const c = initialConfig ?? {}
+    // Marcadores típicos de que se diligenció Estética (ajusta si tienes otros campos clave)
+    return Boolean(
+      c.appointmentEnabled ||
+      c.appointmentVertical ||
+      c.appointmentTimezone ||
+      c.appointmentPolicies ||
+      c.appointmentReminders ||
+      (Array.isArray((c as any).appointmentServices) && (c as any).appointmentServices.length > 0)
+    )
+  }, [initialConfig])
+
   /* ============ Carga inicial (solo agente + lock) ============ */
   async function loadAllConfig() {
     try {
@@ -113,12 +127,12 @@ export default function ModalEntrenamiento({
 
   /* ================= Acciones ================= */
 
-  // Reiniciar: agente + estética (útil aunque estética esté en su página)
+  // Reiniciar TODO: agente + estética (ya existente)
   async function reiniciarEntrenamiento() {
     try {
       if (typeof window !== 'undefined') {
         const ok = window.confirm(
-          '¿Reiniciar entrenamiento? Esto borrará tu configuración de agente, configuración de estética y horarios.'
+          '¿Reiniciar entrenamiento completo? Esto borrará tu configuración de agente, configuración de estética y horarios.'
         )
         if (!ok) return
       }
@@ -177,6 +191,52 @@ export default function ModalEntrenamiento({
     }
   }
 
+  // Reiniciar SOLO Estética (config + horarios)
+  async function resetEsteticaOnly() {
+    try {
+      if (typeof window !== 'undefined') {
+        const ok = window.confirm(
+          '¿Reiniciar Estética? Esto borrará SOLO la configuración de estética y sus horarios.'
+        )
+        if (!ok) return
+      }
+      setSaving(true)
+
+      let wiped = false
+      try {
+        await axios.delete(`${API_URL}/api/estetica/config`, {
+          headers: getAuthHeaders(),
+          params: { purgeHours: 1, t: Date.now() },
+        })
+        wiped = true
+      } catch (err) {
+        console.warn('[reset estética] DELETE /api/estetica/config falló, intentando /reset:', err)
+      }
+
+      if (!wiped) {
+        await axios.post(
+          `${API_URL}/api/estetica/config/reset`,
+          null,
+          { headers: getAuthHeaders(), params: { t: Date.now() } }
+        )
+      }
+
+      // Si el lock provenía de estética, libéralo
+      if (typeof window !== 'undefined') {
+        const stored = localStorage.getItem(FRONTEND_LOCK_KEY)
+        if (stored === 'estetica') {
+          localStorage.removeItem(FRONTEND_LOCK_KEY)
+        }
+      }
+      if (lockedBy === 'estetica') setLockedBy(null)
+
+      // Actualiza UI
+      setUiEpoch(n => n + 1)
+    } finally {
+      setSaving(false)
+    }
+  }
+
   async function guardarAgente() {
     try {
       setSaving(true)
@@ -228,6 +288,40 @@ export default function ModalEntrenamiento({
       </div>
     )
   }, [lockedBy, saving])
+
+  // Barra de acciones rápidas para Estética ya configurada
+  const esteticaActionBar = esteticaConfigured ? (
+    <div className="mb-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 rounded-xl border border-emerald-700/40 bg-emerald-900/15 px-3 py-3">
+      <div className="text-sm text-emerald-200">
+        Estética ya está configurado. Puedes editar o reiniciar esta configuración.
+      </div>
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => {
+            router.push('/dashboard/settings/estetica')
+            close()
+          }}
+          className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm bg-slate-700 hover:bg-slate-600 text-white border border-slate-600"
+          disabled={saving}
+          aria-label="Editar Estética"
+        >
+          <Pencil className="w-4 h-4" />
+          Editar
+        </button>
+        <button
+          type="button"
+          onClick={resetEsteticaOnly}
+          className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm bg-emerald-700 hover:bg-emerald-800 text-white"
+          disabled={saving}
+          aria-label="Reiniciar Estética"
+        >
+          <RotateCcw className="w-4 h-4" />
+          {saving ? 'Reiniciando…' : 'Reiniciar'}
+        </button>
+      </div>
+    </div>
+  ) : null
 
   const shouldShowCards = !effectivePanel && panel === undefined
 
@@ -292,16 +386,22 @@ export default function ModalEntrenamiento({
               </div>
 
               {lockBanner}
+              {esteticaActionBar}
 
               {/* Cards internas solo si no se fuerza panel */}
               {shouldShowCards && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                   <Card
                     icon={<Calendar className="w-5 h-5 text-emerald-300" />}
-                    title="Configurar Estética"
-                    desc="Define horarios, políticas, recordatorios y servicios."
-                    disabled={lockedBy === 'agente' || saving}
+                    title={esteticaConfigured ? 'Estética configurada' : 'Configurar Estética'}
+                    desc={
+                      esteticaConfigured
+                        ? 'Ya tienes Estética configurado. Usa los botones de arriba para editar o reiniciar.'
+                        : 'Define horarios, políticas, recordatorios y servicios.'
+                    }
+                    disabled={esteticaConfigured || lockedBy === 'agente' || saving}
                     onOpen={() => {
+                      if (esteticaConfigured) return
                       router.push('/dashboard/settings/estetica')
                       close()
                     }}
