@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { listStaff, upsertStaff, type StaffRow } from '@/services/estetica.service'
+import Swal from 'sweetalert2' // ⬅️ agregado
 
 const ROLES: StaffRow['role'][] = ['profesional', 'esteticista', 'medico']
 
@@ -25,7 +26,11 @@ export default function StaffPanel() {
     }
   }
 
-  useEffect(() => { reload() }, [])
+  useEffect(() => {
+    // ⬅️ al abrir la tab (montaje), hacer scroll al tope
+    try { window.scrollTo({ top: 0, behavior: 'smooth' }) } catch {}
+    reload()
+  }, [])
 
   function startNew() {
     setEditing({ id: undefined, name: '', role: 'esteticista', active: true, availability: '' })
@@ -36,7 +41,25 @@ export default function StaffPanel() {
   }
 
   async function save() {
-    if (!editing?.name || !editing.name.trim()) { alert('Nombre es obligatorio'); return }
+    if (!editing?.name || !editing.name.trim()) {
+      await Swal.fire({
+        title: 'Campo requerido',
+        text: 'Nombre es obligatorio',
+        icon: 'warning',
+        confirmButtonText: 'Entendido',
+        background: '#0f172a',
+        color: '#e2e8f0',
+        iconColor: '#f59e0b',
+        confirmButtonColor: '#7c3aed',
+        customClass: {
+          popup: 'rounded-2xl border border-white/10',
+          title: 'text-slate-100',
+          htmlContainer: 'text-slate-300',
+          confirmButton: 'rounded-xl',
+        },
+      })
+      return
+    }
     setSaving(true)
     try {
       const payload = {
@@ -49,9 +72,40 @@ export default function StaffPanel() {
       await upsertStaff(payload as any)
       await reload()
       startNew()
-      alert('Staff guardado')
+
+      await Swal.fire({
+        title: '¡Guardado!',
+        text: 'Staff guardado',
+        icon: 'success',
+        confirmButtonText: 'Listo',
+        background: '#0f172a',
+        color: '#e2e8f0',
+        iconColor: '#22c55e',
+        confirmButtonColor: '#7c3aed',
+        customClass: {
+          popup: 'rounded-2xl border border-white/10',
+          title: 'text-slate-100',
+          htmlContainer: 'text-slate-300',
+          confirmButton: 'rounded-xl',
+        },
+      })
     } catch (e: any) {
-      alert(e?.message || 'Error al guardar staff')
+      await Swal.fire({
+        title: 'Error al guardar',
+        text: e?.message || 'Error al guardar staff',
+        icon: 'error',
+        confirmButtonText: 'Entendido',
+        background: '#0f172a',
+        color: '#e2e8f0',
+        iconColor: '#ef4444',
+        confirmButtonColor: '#7c3aed',
+        customClass: {
+          popup: 'rounded-2xl border border-white/10',
+          title: 'text-slate-100',
+          htmlContainer: 'text-slate-300',
+          confirmButton: 'rounded-xl',
+        },
+      })
     } finally {
       setSaving(false)
     }
@@ -216,11 +270,11 @@ export default function StaffPanel() {
               </label>
             </div>
 
-            {/* Disponibilidad “humana” (misma lógica; sólo ayuda visual/plantillas) */}
+            {/* Disponibilidad */}
             <div className="sm:col-span-2">
               <label className="text-xs text-slate-400 mb-1 block">Disponibilidad del profesional (opcional)</label>
 
-              {/* Atajos que rellenan el textarea */}
+              {/* Atajos */}
               <div className="flex flex-wrap gap-2 mb-2">
                 <button
                   type="button"

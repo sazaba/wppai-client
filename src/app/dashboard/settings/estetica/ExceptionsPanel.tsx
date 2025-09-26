@@ -5,6 +5,7 @@ import {
   upsertAppointmentException,
   type AppointmentExceptionRow,
 } from '@/services/estetica.service'
+import Swal from 'sweetalert2' // ⬅️ agregado
 
 function toYMD(d: Date) {
   return d.toISOString().slice(0, 10)
@@ -37,7 +38,11 @@ export default function ExceptionsPanel() {
     }
   }
 
-  useEffect(() => { reload() }, [])
+  useEffect(() => {
+    // ⬅️ al abrir la tab, hacer scroll al tope
+    try { window.scrollTo({ top: 0, behavior: 'smooth' }) } catch {}
+    reload()
+  }, [])
 
   function editRow(r: AppointmentExceptionRow) {
     setEditing({ id: r.id, date: r.date.slice(0, 10), reason: r.reason ?? '' })
@@ -48,16 +53,71 @@ export default function ExceptionsPanel() {
   }
 
   async function save() {
-    if (!editing?.date) { alert('Fecha requerida'); return }
+    if (!editing?.date) {
+      await Swal.fire({
+        title: 'Campo requerido',
+        text: 'Fecha requerida',
+        icon: 'warning',
+        confirmButtonText: 'Entendido',
+        background: '#0f172a',
+        color: '#e2e8f0',
+        iconColor: '#f59e0b',        // amber
+        confirmButtonColor: '#7c3aed', // violet
+        customClass: {
+          popup: 'rounded-2xl border border-white/10',
+          title: 'text-slate-100',
+          htmlContainer: 'text-slate-300',
+          confirmButton: 'rounded-xl',
+        },
+      })
+      return
+    }
     setSaving(true)
     try {
-      const payload = { id: editing.id, date: new Date(editing.date!).toISOString(), reason: editing.reason ?? null }
+      const payload = {
+        id: editing.id,
+        date: new Date(editing.date!).toISOString(),
+        reason: editing.reason ?? null,
+      }
       await upsertAppointmentException(payload)
       await reload()
       startNew()
-      alert('Excepción guardada')
+
+      // ✅ Éxito
+      await Swal.fire({
+        title: '¡Guardado!',
+        text: 'Excepción guardada',
+        icon: 'success',
+        confirmButtonText: 'Listo',
+        background: '#0f172a',
+        color: '#e2e8f0',
+        iconColor: '#22c55e',         // emerald
+        confirmButtonColor: '#7c3aed',
+        customClass: {
+          popup: 'rounded-2xl border border-white/10',
+          title: 'text-slate-100',
+          htmlContainer: 'text-slate-300',
+          confirmButton: 'rounded-xl',
+        },
+      })
     } catch (e: any) {
-      alert(e?.message || 'Error al guardar excepción')
+      // ❌ Error
+      await Swal.fire({
+        title: 'Error al guardar',
+        text: e?.message || 'Error al guardar excepción',
+        icon: 'error',
+        confirmButtonText: 'Entendido',
+        background: '#0f172a',
+        color: '#e2e8f0',
+        iconColor: '#ef4444',         // red
+        confirmButtonColor: '#7c3aed',
+        customClass: {
+          popup: 'rounded-2xl border border-white/10',
+          title: 'text-slate-100',
+          htmlContainer: 'text-slate-300',
+          confirmButton: 'rounded-xl',
+        },
+      })
     } finally {
       setSaving(false)
     }
