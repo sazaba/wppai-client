@@ -7,6 +7,7 @@ import {
   type Procedure,
   type StaffRow,
 } from '@/services/estetica.service'
+import Swal from 'sweetalert2' // ⬅️ agregado
 
 /** Estado del editor: números o null para montos/duración */
 type Editing = {
@@ -69,6 +70,10 @@ export default function ProceduresPanel() {
   }
 
   useEffect(() => {
+    // ⬅️ al abrir la tab (montaje del componente), hacer scroll al top
+    try {
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    } catch {}
     reload()
   }, [])
 
@@ -107,7 +112,22 @@ export default function ProceduresPanel() {
 
   async function save() {
     if (!editing?.name || !editing.name.trim()) {
-      alert('Nombre es obligatorio')
+      await Swal.fire({
+        title: 'Campo requerido',
+        text: 'Nombre es obligatorio',
+        icon: 'warning',
+        confirmButtonText: 'Entendido',
+        background: '#0f172a',
+        color: '#e2e8f0',
+        iconColor: '#f59e0b',      // amber-500
+        confirmButtonColor: '#7c3aed', // violet-600
+        customClass: {
+          popup: 'rounded-2xl border border-white/10',
+          title: 'text-slate-100',
+          htmlContainer: 'text-slate-300',
+          confirmButton: 'rounded-xl',
+        },
+      })
       return
     }
     setSaving(true)
@@ -126,9 +146,42 @@ export default function ProceduresPanel() {
       await upsertProcedure(payload as any)
       await reload()
       startNew()
-      alert('Procedimiento guardado')
+
+      // ✅ Éxito (SweetAlert dark)
+      await Swal.fire({
+        title: '¡Guardado!',
+        text: 'Procedimiento guardado',
+        icon: 'success',
+        confirmButtonText: 'Listo',
+        background: '#0f172a',
+        color: '#e2e8f0',
+        iconColor: '#22c55e',        // emerald-500
+        confirmButtonColor: '#7c3aed',
+        customClass: {
+          popup: 'rounded-2xl border border-white/10',
+          title: 'text-slate-100',
+          htmlContainer: 'text-slate-300',
+          confirmButton: 'rounded-xl',
+        },
+      })
     } catch (e: any) {
-      alert(e?.message || 'Error al guardar procedimiento')
+      // ❌ Error (SweetAlert dark)
+      await Swal.fire({
+        title: 'Error al guardar',
+        text: e?.message || 'Error al guardar procedimiento',
+        icon: 'error',
+        confirmButtonText: 'Entendido',
+        background: '#0f172a',
+        color: '#e2e8f0',
+        iconColor: '#ef4444',        // red-500
+        confirmButtonColor: '#7c3aed',
+        customClass: {
+          popup: 'rounded-2xl border border-white/10',
+          title: 'text-slate-100',
+          htmlContainer: 'text-slate-300',
+          confirmButton: 'rounded-xl',
+        },
+      })
     } finally {
       setSaving(false)
     }
