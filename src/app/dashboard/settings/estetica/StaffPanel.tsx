@@ -8,7 +8,12 @@ export default function StaffPanel() {
   const [rows, setRows] = useState<StaffRow[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [editing, setEditing] = useState<Partial<StaffRow>>({ name: '', role: 'esteticista', active: true, availability: null })
+  const [editing, setEditing] = useState<Partial<StaffRow>>({
+    name: '',
+    role: 'esteticista',
+    active: true,
+    availability: null
+  })
 
   async function reload() {
     setLoading(true)
@@ -56,6 +61,35 @@ export default function StaffPanel() {
     if (!editing?.name && !loading && rows.length && editing?.id == null) startNew()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, rows.length])
+
+  // ==== Helpers UI (sólo para rellenar el textarea; no altera la lógica) ====
+  function fillAvailabilityPreset(kind: 'none' | 'split' | 'compact') {
+    if (kind === 'none') {
+      setEditing(p => ({ ...p!, availability: '' }))
+      return
+    }
+    if (kind === 'split') {
+      const tpl = [
+        { day: 'mon', blocks: [['09:00','13:00'],['14:00','18:00']] },
+        { day: 'tue', blocks: [['09:00','13:00'],['14:00','18:00']] },
+        { day: 'wed', blocks: [['09:00','13:00'],['14:00','18:00']] },
+        { day: 'thu', blocks: [['09:00','13:00'],['14:00','18:00']] },
+        { day: 'fri', blocks: [['09:00','13:00'],['14:00','18:00']] },
+      ]
+      setEditing(p => ({ ...p!, availability: JSON.stringify(tpl, null, 2) }))
+      return
+    }
+    if (kind === 'compact') {
+      const tpl = [
+        { day: 'mon', blocks: [['10:00','18:00']] },
+        { day: 'tue', blocks: [['10:00','18:00']] },
+        { day: 'wed', blocks: [['10:00','18:00']] },
+        { day: 'thu', blocks: [['10:00','18:00']] },
+        { day: 'fri', blocks: [['10:00','18:00']] },
+      ]
+      setEditing(p => ({ ...p!, availability: JSON.stringify(tpl, null, 2) }))
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -146,45 +180,94 @@ export default function StaffPanel() {
               <div className="mt-1 text-[11px] text-slate-500">Nombre como aparecerá en la agenda interna.</div>
             </div>
 
-            {/* Rol */}
-            <div>
+            {/* Rol - select premium */}
+            <div className="sm:col-span-1">
               <label className="text-xs text-slate-400 mb-1 block">Rol</label>
-              <select
-                value={editing?.role ?? 'esteticista'}
-                onChange={(e) => setEditing((p) => ({ ...p!, role: e.target.value as StaffRow['role'] }))}
-                className="w-full bg-slate-950/60 border border-white/10 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-violet-600"
-              >
-                {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
-              </select>
+              <div className="relative">
+                <select
+                  value={editing?.role ?? 'esteticista'}
+                  onChange={(e) => setEditing((p) => ({ ...p!, role: e.target.value as StaffRow['role'] }))}
+                  className="peer w-full appearance-none bg-slate-950/60 border border-white/10 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-violet-600 pr-10"
+                >
+                  {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
+                </select>
+                {/* Chevron */}
+                <svg
+                  className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 peer-focus:text-violet-300"
+                  viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"
+                >
+                  <path d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.08 1.04l-4.25 4.25a.75.75 0 01-1.06 0L5.21 8.27a.75.75 0 01.02-1.06z" />
+                </svg>
+              </div>
+              <div className="mt-1 text-[11px] text-slate-500">Define el tipo de profesional.</div>
             </div>
 
             {/* Estado */}
-            <label className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={!!editing?.active}
-                onChange={(e) => setEditing((p) => ({ ...p!, active: e.target.checked }))}
-                className="h-4 w-4"
-              />
-              Activo (disponible para agendar)
-            </label>
+            <div className="sm:col-span-1">
+              <label className="text-xs text-slate-400 mb-1 block">Estado</label>
+              <label className="flex items-center gap-2 text-sm bg-slate-950/60 border border-white/10 rounded-lg px-3 py-2">
+                <input
+                  type="checkbox"
+                  checked={!!editing?.active}
+                  onChange={(e) => setEditing((p) => ({ ...p!, active: e.target.checked }))}
+                  className="h-4 w-4"
+                />
+                Activo (disponible para agendar)
+              </label>
+            </div>
 
-            {/* Disponibilidad JSON */}
+            {/* Disponibilidad “humana” (misma lógica; sólo ayuda visual/plantillas) */}
             <div className="sm:col-span-2">
-              <label className="text-xs text-slate-400 mb-1 block">Disponibilidad (JSON opcional)</label>
+              <label className="text-xs text-slate-400 mb-1 block">Disponibilidad del profesional (opcional)</label>
+
+              {/* Atajos que rellenan el textarea */}
+              <div className="flex flex-wrap gap-2 mb-2">
+                <button
+                  type="button"
+                  onClick={() => fillAvailabilityPreset('none')}
+                  className="text-[11px] rounded-full px-3 py-1 border border-white/10 bg-white/[.02] hover:bg-white/[.06]"
+                >
+                  Sin disponibilidad (usar horario general)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => fillAvailabilityPreset('split')}
+                  className="text-[11px] rounded-full px-3 py-1 border border-white/10 bg-white/[.02] hover:bg-white/[.06]"
+                >
+                  L–V 9:00–13:00 & 14:00–18:00
+                </button>
+                <button
+                  type="button"
+                  onClick={() => fillAvailabilityPreset('compact')}
+                  className="text-[11px] rounded-full px-3 py-1 border border-white/10 bg-white/[.02] hover:bg-white/[.06]"
+                >
+                  L–V 10:00–18:00
+                </button>
+              </div>
+
               <textarea
-                placeholder='Ej: [{"day":"mon","blocks":[["09:00","13:00"],["14:00","18:00"]]}]'
+                placeholder={
+`Opcional. Si este profesional atiende en horarios distintos al general, escribe los días y rangos.
+Ejemplos válidos:
+• L–V en dos jornadas: 09:00–13:00 y 14:00–18:00
+• L–V jornada continua: 10:00–18:00
+(Avanzado) Formato técnico que entiende el sistema:
+[
+  {"day":"mon","blocks":[["09:00","13:00"],["14:00","18:00"]]},
+  {"day":"tue","blocks":[["09:00","13:00"],["14:00","18:00"]]}
+]`
+                }
                 value={(editing?.availability as any) ?? ''}
                 onChange={(e) => setEditing((p) => ({ ...p!, availability: e.target.value }))}
                 className="w-full bg-slate-950/60 border border-white/10 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-violet-600 font-mono"
-                rows={6}
+                rows={7}
               />
               <div className="mt-1 text-[11px] text-slate-500">
-                Si se deja vacío, se usará el horario general del negocio.
+                Déjalo vacío para heredar el horario semanal del negocio. Usa los atajos de arriba si no quieres escribirlo.
               </div>
             </div>
 
-            {/* Acciones sticky */}
+            {/* Acciones */}
             <div className="sm:col-span-2">
               <div className="sticky bottom-2 flex gap-2 bg-gradient-to-t from-slate-950/80 to-transparent pt-3">
                 <button
