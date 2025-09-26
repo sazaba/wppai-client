@@ -446,7 +446,7 @@ export function EsteticaForm({ value, onChange }: Props) {
             value={value.reminders?.templateId ?? ""}
             onChange={(e) => patchNested("reminders", { templateId: e.target.value })}
           />
-        <Textarea
+          <Textarea
             rows={3}
             placeholder="Mensaje posterior a la reserva (se envía tras confirmar)."
             value={value.reminders?.postBookingMessage ?? ""}
@@ -494,7 +494,7 @@ export function EsteticaForm({ value, onChange }: Props) {
               <div className="lg:col-span-3 flex items-center justify-between lg:justify-start gap-4">
                 <div className="flex items-center gap-3">
                   <div className="h-8 w-8 rounded-xl bg-violet-500/15 border border-violet-400/20 grid place-items-center text-[12px] text-violet-300">
-                    {DAY_LABEL[h.day].slice(0,2)}
+                    {DAY_LABEL[h.day].slice(0, 2)}
                   </div>
                   <div>
                     <div className="text-sm font-medium text-slate-200">{DAY_LABEL[h.day]}</div>
@@ -576,39 +576,39 @@ export default function EsteticaFormSmart({ empresaId }: { empresaId?: number })
 
   return (
     <div className="space-y-6">
-      {/* Top bar sticky para acciones en móviles */}
-      <div className="sticky top-0 z-10 -mx-4 px-4 py-3 bg-gradient-to-b from-slate-950/80 via-slate-950/50 to-transparent backdrop-blur supports-[backdrop-filter]:backdrop-blur">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div>
-            <h1 className="text-xl font-semibold tracking-tight">Estética — Configuración</h1>
-            <p className="text-[12px] text-slate-400">Ajusta tu agenda, políticas y mensajes.</p>
-          </div>
-          <div className="flex gap-2">
-            <button
-              onClick={reload}
-              className="px-4 py-2 rounded-xl border border-white/10 bg-white/[.04] hover:bg-white/[.07] text-sm transition"
-            >
-              Revertir
-            </button>
-            <button
-              onClick={async () => {
-                try {
-                  await save();
-                  alert("Configuración y horarios guardados");
-                } catch (e: any) {
-                  alert(e?.message || "Error al guardar");
-                }
-              }}
-              disabled={saving}
-              className="px-4 py-2 rounded-xl text-sm text-white bg-violet-600 hover:bg-violet-500 disabled:opacity-60 disabled:cursor-not-allowed shadow-lg shadow-violet-900/30"
-            >
-              {saving ? "Guardando…" : "Guardar cambios"}
-            </button>
-          </div>
-        </div>
+      {/* Título simple */}
+      <div>
+        <h1 className="text-xl font-semibold tracking-tight">Estética — Configuración</h1>
+        <p className="text-[12px] text-slate-400">Ajusta tu agenda, políticas y mensajes.</p>
       </div>
 
       <EsteticaForm value={value} onChange={(patch) => setValue((prev) => ({ ...prev, ...patch }))} />
+
+      {/* Barra inferior sticky con acciones */}
+      <div className="sticky bottom-0 z-10 -mx-4 px-4 py-4 bg-gradient-to-t from-slate-950/85 via-slate-950/50 to-transparent backdrop-blur supports-[backdrop-filter]:backdrop-blur">
+        <div className="flex flex-col sm:flex-row sm:justify-end gap-2">
+          <button
+            onClick={reload}
+            className="px-4 py-2 rounded-xl border border-white/10 bg-white/[.04] hover:bg-white/[.07] text-sm transition"
+          >
+            Revertir
+          </button>
+          <button
+            onClick={async () => {
+              try {
+                await save();
+                alert("Configuración y horarios guardados");
+              } catch (e: any) {
+                alert(e?.message || "Error al guardar");
+              }
+            }}
+            disabled={saving}
+            className="px-4 py-2 rounded-xl text-sm text-white bg-violet-600 hover:bg-violet-500 disabled:opacity-60 disabled:cursor-not-allowed shadow-lg shadow-violet-900/30"
+          >
+            {saving ? "Guardando…" : "Guardar cambios"}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
