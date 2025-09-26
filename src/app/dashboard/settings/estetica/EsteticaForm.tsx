@@ -112,6 +112,106 @@ function clampBuffer(n: number) {
   return Math.round(n);
 }
 
+/* =============== Pequeños helpers de UI (solo estilos) =============== */
+function Section({
+  title,
+  subtitle,
+  children,
+}: { title: string; subtitle?: string; children: React.ReactNode }) {
+  return (
+    <section className="rounded-2xl border border-slate-800/80 bg-slate-900/70 shadow-[0_0_0_1px_rgba(255,255,255,0.02)_inset] backdrop-blur-sm">
+      <div className="px-5 py-4 border-b border-slate-800/70">
+        <div className="text-sm font-semibold tracking-wide">{title}</div>
+        {subtitle && <p className="mt-1 text-xs text-slate-400">{subtitle}</p>}
+      </div>
+      <div className="p-5">{children}</div>
+    </section>
+  );
+}
+
+function Field({
+  label,
+  help,
+  children,
+}: { label: string; help?: string; children: React.ReactNode }) {
+  return (
+    <label className="block">
+      <div className="flex items-center justify-between mb-1.5">
+        <div className="text-sm font-medium">{label}</div>
+        {help && <div className="text-[11px] text-slate-400">{help}</div>}
+      </div>
+      {children}
+    </label>
+  );
+}
+
+function InputBase(props: React.InputHTMLAttributes<HTMLInputElement>) {
+  return (
+    <input
+      {...props}
+      className={[
+        "w-full rounded-xl bg-slate-950/60 border border-slate-800 px-3 py-2",
+        "text-sm outline-none focus:ring-2 focus:ring-violet-600/60 focus:border-violet-500/40",
+        "placeholder:text-slate-500",
+        props.className || "",
+      ].join(" ")}
+    />
+  );
+}
+function TextareaBase(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
+  return (
+    <textarea
+      {...props}
+      className={[
+        "w-full rounded-xl bg-slate-950/60 border border-slate-800 px-3 py-2",
+        "text-sm outline-none focus:ring-2 focus:ring-violet-600/60 focus:border-violet-500/40",
+        "placeholder:text-slate-500",
+        props.className || "",
+      ].join(" ")}
+    />
+  );
+}
+function SelectBase(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
+  return (
+    <select
+      {...props}
+      className={[
+        "w-full rounded-xl bg-slate-950/60 border border-slate-800 px-3 py-2",
+        "text-sm outline-none focus:ring-2 focus:ring-violet-600/60 focus:border-violet-500/40",
+        props.className || "",
+      ].join(" ")}
+    />
+  );
+}
+
+function Toggle({
+  checked,
+  onClick,
+  label,
+}: { checked: boolean; onClick: () => void; label?: string }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={checked}
+      className={[
+        "relative inline-flex h-7 w-14 items-center rounded-full border transition",
+        checked
+          ? "bg-emerald-500/90 border-emerald-400 shadow-[0_0_0_3px_rgba(16,185,129,0.15)]"
+          : "bg-slate-700 border-slate-600",
+      ].join(" ")}
+    >
+      <span
+        className={[
+          "inline-block h-6 w-6 transform rounded-full bg-white transition",
+          checked ? "translate-x-7" : "translate-x-1",
+        ].join(" ")}
+      />
+      {label && <span className="ml-3 text-sm">{label}</span>}
+    </button>
+  );
+}
+
 /* =================== FORM UI (presentacional) =================== */
 export function EsteticaForm({ value, onChange }: Props) {
   const hours = useMemo(() => normalizeHours(value.hours), [value.hours]);
@@ -148,14 +248,14 @@ export function EsteticaForm({ value, onChange }: Props) {
     patchDay(d, { [field]: safe ? safe : null } as any);
   }
 
-  // Inicializa reglas con valores por defecto para que se guarden incluso si el usuario no toca los inputs.
+  // Inicializa reglas por defecto (solo UI)
   useEffect(() => {
     const r = value.rules ?? {};
     const toSet: Partial<NonNullable<typeof value.rules>> = {};
     let changed = false;
 
     if (r.bookingWindowDays == null) {
-      toSet.bookingWindowDays = 30;
+      toSet.bookingWindowDays = 30; // días hacia adelante
       changed = true;
     }
     if (r.cancellationWindowHours == null) {
@@ -163,7 +263,7 @@ export function EsteticaForm({ value, onChange }: Props) {
       changed = true;
     }
     if (r.maxDailyAppointments == null) {
-      toSet.maxDailyAppointments = 0;
+      toSet.maxDailyAppointments = 0; // 0 = sin límite
       changed = true;
     }
     if (r.depositRequired == null) {
@@ -178,180 +278,165 @@ export function EsteticaForm({ value, onChange }: Props) {
   return (
     <div className="space-y-8">
       {/* ====== 1) Activar agenda (IA Estética) ====== */}
-      <section className="rounded-2xl border border-slate-800 bg-slate-900/70">
-        <div className="px-4 py-3 border-b border-slate-800 text-sm font-semibold">
-          Activar agenda con IA (Estética)
-        </div>
-        <div className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <label className="flex items-center justify-between gap-3 p-3 rounded-xl bg-slate-800/60 border border-slate-700">
+      <Section
+        title="Activar agenda con IA (Estética)"
+        subtitle="La IA responde a tus clientes, propone horarios disponibles y puede confirmar citas automáticamente."
+      >
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="flex items-center justify-between gap-3 p-3 rounded-xl bg-slate-900/60 border border-slate-800">
             <div>
-              <div className="text-sm font-medium">Habilitar agenda</div>
-              <div className="text-xs text-slate-400">La IA ofrece y confirma citas automáticamente</div>
+              <div className="text-sm font-medium">Habilitar agenda automática</div>
+              <div className="text-xs text-slate-400">Puedes desactivarla en cualquier momento.</div>
             </div>
-            <button
-              type="button"
+            <Toggle
+              checked={value.appointmentEnabled}
               onClick={() => patch("appointmentEnabled", !value.appointmentEnabled)}
-              className={`w-12 h-7 rounded-full border transition ${
-                value.appointmentEnabled ? "bg-emerald-500/90 border-emerald-400" : "bg-slate-700 border-slate-600"
-              } relative`}
-              aria-pressed={value.appointmentEnabled}
-            >
-              <span
-                className={`absolute top-0.5 h-6 w-6 rounded-full bg-white transition ${
-                  value.appointmentEnabled ? "right-0.5" : "left-0.5"
-                }`}
-              />
-            </button>
-          </label>
+            />
+          </div>
 
-          <div className="p-3 rounded-xl bg-slate-800/60 border border-slate-700">
-            <div className="text-sm font-medium mb-1">Tipo de negocio (vertical)</div>
-            <select
-              value={value.appointmentVertical}
-              onChange={(e) => patch("appointmentVertical", e.target.value as ApptVertical)}
-              className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-600"
+          <div className="p-3 rounded-xl bg-slate-900/60 border border-slate-800">
+            <Field
+              label="Tipo de negocio (vertical)"
+              help="Usamos esto para ajustar el tono y las respuestas."
             >
-              <option value="odontologica">Clínica Odontológica</option>
-              <option value="estetica">Clínica Estética</option>
-              <option value="spa">Spa</option>
-              <option value="custom">Otra (especifica abajo)</option>
-            </select>
+              <SelectBase
+                value={value.appointmentVertical}
+                onChange={(e) => patch("appointmentVertical", e.target.value as ApptVertical)}
+              >
+                <option value="odontologica">Clínica Odontológica</option>
+                <option value="estetica">Clínica Estética</option>
+                <option value="spa">Spa</option>
+                <option value="custom">Otra (especifica abajo)</option>
+              </SelectBase>
+            </Field>
 
             {value.appointmentVertical === "custom" && (
-              <input
+              <InputBase
                 type="text"
-                placeholder="Ej: Clínica Láser, Nutrición, Barbería..."
+                placeholder="Ej: Clínica Láser, Nutrición, Barbería…"
                 value={value.appointmentVerticalCustom ?? ""}
                 onChange={(e) => patch("appointmentVerticalCustom", e.target.value)}
-                className="mt-2 w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-600"
+                aria-label="Vertical personalizada"
+                className="mt-2"
               />
             )}
           </div>
 
-          <label className="p-3 rounded-xl bg-slate-800/60 border border-slate-700">
-            <div className="text-sm font-medium mb-1">Zona horaria (IANA)</div>
-            <input
-              type="text"
-              placeholder="America/Bogota"
-              value={value.appointmentTimezone}
-              onChange={(e) => patch("appointmentTimezone", e.target.value)}
-              className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-600"
-            />
-          </label>
+          <div className="p-3 rounded-xl bg-slate-900/60 border border-slate-800">
+            <Field label="Zona horaria (IANA)" help="Ejemplo: America/Bogota">
+              <InputBase
+                type="text"
+                placeholder="America/Bogota"
+                value={value.appointmentTimezone}
+                onChange={(e) => patch("appointmentTimezone", e.target.value)}
+              />
+            </Field>
+          </div>
 
-          <label className="p-3 rounded-xl bg-slate-800/60 border border-slate-700">
-            <div className="flex items-center justify-between">
-              <div className="text-sm font-medium mb-1">Tiempo entre citas (min)</div>
-              <div className="text-xs text-slate-400">0–240</div>
-            </div>
-            <input
-              type="number"
-              min={0}
-              max={240}
-              value={value.appointmentBufferMin}
-              onChange={(e) => patch("appointmentBufferMin", clampBuffer(parseInt(e.target.value, 10)))}
-              className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-600"
-            />
-          </label>
+          <div className="p-3 rounded-xl bg-slate-900/60 border border-slate-800">
+            <Field label="Tiempo entre citas (minutos)" help="Tiempo de limpieza o preparación. 0–240.">
+              <InputBase
+                type="number"
+                min={0}
+                max={240}
+                value={value.appointmentBufferMin}
+                onChange={(e) => patch("appointmentBufferMin", clampBuffer(parseInt(e.target.value, 10)))}
+              />
+            </Field>
+          </div>
         </div>
-      </section>
+      </Section>
 
       {/* ====== 2) Políticas ====== */}
-      <section className="space-y-2">
-        <label className="block">
-          <div className="text-sm font-semibold mb-1">Políticas visibles para el cliente</div>
-          <textarea
-            rows={4}
-            placeholder="Ej: Llegar 10 minutos antes. Reprogramaciones con 12h de antelación. ..."
-            value={value.appointmentPolicies || ""}
-            onChange={(e) => patch("appointmentPolicies", e.target.value)}
-            className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-600"
-          />
-        </label>
-      </section>
+      <Section
+        title="Políticas visibles para el cliente"
+        subtitle="Se muestran en el proceso de reserva y la IA las usa para responder con claridad."
+      >
+        <TextareaBase
+          rows={4}
+          placeholder="Ej: Llega 10 min antes. Reprogramaciones con 12 h de antelación. El depósito se descuenta del valor del servicio."
+          value={value.appointmentPolicies || ""}
+          onChange={(e) => patch("appointmentPolicies", e.target.value)}
+        />
+      </Section>
 
       {/* ====== 3) Ubicación / logística ====== */}
-      <section className="rounded-2xl border border-slate-800 bg-slate-900/70">
-        <div className="px-4 py-3 border-b border-slate-800 text-sm font-semibold">Ubicación y logística</div>
-        <div className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <input
+      <Section
+        title="Ubicación y logística"
+        subtitle="Información práctica que se envía al cliente junto a su cita."
+      >
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <InputBase
             type="text"
             placeholder="Nombre del lugar (ej: Clínica Centro)"
             value={value.location?.name ?? ""}
             onChange={(e) => patchNested("location", { name: e.target.value })}
-            className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm"
           />
-          <input
+          <InputBase
             type="text"
             placeholder="Dirección (ej: Cra 10 # 20-30, Piso 2)"
             value={value.location?.address ?? ""}
             onChange={(e) => patchNested("location", { address: e.target.value })}
-            className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm"
           />
-          <input
+          <InputBase
             type="text"
             placeholder="Link de Google Maps"
             value={value.location?.mapsUrl ?? ""}
             onChange={(e) => patchNested("location", { mapsUrl: e.target.value })}
-            className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm"
           />
-          <input
+          <InputBase
             type="text"
             placeholder="Link de videollamada (si aplica)"
             value={value.location?.virtualLink ?? ""}
             onChange={(e) => patchNested("location", { virtualLink: e.target.value })}
-            className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm"
           />
-          <textarea
+          <TextareaBase
             rows={3}
-            placeholder="¿Hay parqueadero? ¿Piden documento en recepción? Instrucciones de llegada…"
+            placeholder="¿Hay parqueadero? ¿Documentos en recepción? ¿Cómo llegar?"
             value={value.location?.parkingInfo ?? ""}
             onChange={(e) => patchNested("location", { parkingInfo: e.target.value })}
-            className="sm:col-span-2 w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm"
+            className="sm:col-span-2"
           />
-          <textarea
+          <TextareaBase
             rows={3}
             placeholder="Indicaciones de llegada para el cliente"
             value={value.location?.instructionsArrival ?? ""}
             onChange={(e) => patchNested("location", { instructionsArrival: e.target.value })}
-            className="sm:col-span-2 w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm"
+            className="sm:col-span-2"
           />
         </div>
-      </section>
+      </Section>
 
       {/* ====== 4) Reglas ====== */}
-      <section className="rounded-2xl border border-slate-800 bg-slate-900/70">
-        <div className="px-4 py-3 border-b border-slate-800 text-sm font-semibold">Reglas de agenda</div>
-        <div className="p-4 grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <label className="block">
-            <div className="text-xs text-slate-400">Reservar hasta (días adelante)</div>
-            <input
+      <Section
+        title="Reglas de agenda"
+        subtitle="La IA y el sistema respetarán estos límites al ofrecer o confirmar citas."
+      >
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <Field label="Reservar hasta (días adelante)" help="¿Con cuánta anticipación aceptas reservas?">
+            <InputBase
               type="number"
               min={0}
               value={value.rules?.bookingWindowDays ?? 30}
               onChange={(e) =>
                 patchNested("rules", { bookingWindowDays: parseInt(e.target.value || "0", 10) })
               }
-              className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm"
             />
-          </label>
+          </Field>
 
-          <label className="block">
-            <div className="text-xs text-slate-400">Citas máximas por día</div>
-            <input
+          <Field label="Citas máximas por día" help="0 = Sin límite">
+            <InputBase
               type="number"
               min={0}
               value={value.rules?.maxDailyAppointments ?? 0}
               onChange={(e) =>
                 patchNested("rules", { maxDailyAppointments: parseInt(e.target.value || "0", 10) })
               }
-              className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm"
             />
-          </label>
+          </Field>
 
-          <label className="block">
-            <div className="text-xs text-slate-400">Ventana para cancelar (horas)</div>
-            <input
+          <Field label="Ventana para cancelar (horas)" help="Tiempo mínimo antes de la cita para cancelar.">
+            <InputBase
               type="number"
               min={0}
               value={value.rules?.cancellationWindowHours ?? 12}
@@ -360,163 +445,173 @@ export function EsteticaForm({ value, onChange }: Props) {
                   cancellationWindowHours: parseInt(e.target.value || "0", 10),
                 })
               }
-              className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm"
             />
-          </label>
+          </Field>
 
-          <label className="block sm:col-span-3">
-            <div className="text-xs text-slate-400 mb-1">Política de inasistencia (No-show)</div>
-            <textarea
+          <Field label="Política de inasistencia (No-show)">
+            <TextareaBase
               rows={3}
               placeholder="Ej: Si no asistes sin avisar, se cobrará $X o se pierde el depósito."
               value={value.rules?.noShowPolicy ?? ""}
               onChange={(e) => patchNested("rules", { noShowPolicy: e.target.value })}
-              className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm"
+              className="sm:col-span-3"
             />
-          </label>
+          </Field>
 
-          <div className="flex items-center gap-3">
-            <input
-              id="depositRequired"
-              type="checkbox"
-              checked={!!value.rules?.depositRequired}
-              onChange={(e) => patchNested("rules", { depositRequired: e.target.checked })}
-              className="h-4 w-4"
-            />
-            <label htmlFor="depositRequired" className="text-sm">
-              Requerir depósito
+          <div className="sm:col-span-3 flex flex-wrap items-center gap-4">
+            <label className="inline-flex items-center gap-2">
+              <input
+                id="depositRequired"
+                type="checkbox"
+                checked={!!value.rules?.depositRequired}
+                onChange={(e) => patchNested("rules", { depositRequired: e.target.checked })}
+                className="h-4 w-4 rounded border-slate-600 bg-slate-900"
+              />
+              <span className="text-sm">Requerir depósito</span>
             </label>
-          </div>
 
-          <label className="block">
-            <div className="text-xs text-slate-400">Monto del depósito</div>
-            <input
-              type="number"
-              min={0}
-              step="0.01"
-              value={value.rules?.depositAmount ?? ""}
-              onChange={(e) =>
-                patchNested("rules", {
-                  depositAmount: e.target.value === "" ? null : parseFloat(e.target.value),
-                })
-              }
-              className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm"
-            />
-          </label>
+            <div className="min-w-[240px]">
+              <Field label="Monto del depósito" help="En la moneda del negocio. Opcional.">
+                <InputBase
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  value={value.rules?.depositAmount ?? ""}
+                  onChange={(e) =>
+                    patchNested("rules", {
+                      depositAmount: e.target.value === "" ? null : parseFloat(e.target.value),
+                    })
+                  }
+                />
+              </Field>
+            </div>
+          </div>
         </div>
-      </section>
+      </Section>
 
       {/* ====== 5) Mensajes ====== */}
-      <section className="rounded-2xl border border-slate-800 bg-slate-900/70">
-        <div className="px-4 py-3 border-b border-slate-800 text-sm font-semibold">Mensajes al cliente</div>
-        <div className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <input
+      <Section
+        title="Mensajes al cliente"
+        subtitle="Plantillas para recordatorios y texto que se envía tras la confirmación."
+      >
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <InputBase
             type="text"
             placeholder="ID de plantilla de recordatorio (WhatsApp)"
             value={value.reminders?.templateId ?? ""}
             onChange={(e) => patchNested("reminders", { templateId: e.target.value })}
-            className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm"
           />
-          <textarea
+          <TextareaBase
             rows={3}
-            placeholder="Mensaje posterior a la reserva (se envía tras confirmar)"
+            placeholder="Mensaje posterior a la reserva (se envía tras confirmar)."
             value={value.reminders?.postBookingMessage ?? ""}
             onChange={(e) => patchNested("reminders", { postBookingMessage: e.target.value })}
-            className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm"
           />
         </div>
-      </section>
+      </Section>
 
       {/* ====== 6) Knowledge base ====== */}
-      <section className="rounded-2xl border border-slate-800 bg-slate-900/70">
-        <div className="px-4 py-3 border-b border-slate-800 text-sm font-semibold">Knowledge base del negocio</div>
-        <div className="p-4 grid grid-cols-1 gap-4">
-          <textarea
+      <Section
+        title="Knowledge base del negocio"
+        subtitle="Información que la IA utiliza para comunicarse y resolver dudas."
+      >
+        <div className="grid grid-cols-1 gap-4">
+          <TextareaBase
             rows={3}
             placeholder="Resumen del negocio (qué hacen, a quién atienden, tono de comunicación...)"
             value={value.kb?.businessOverview ?? ""}
             onChange={(e) => patchNested("kb", { businessOverview: e.target.value })}
-            className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm"
           />
-          <textarea
+          <TextareaBase
             rows={3}
             placeholder={`FAQs (opcional). Puedes pegar JSON: [{"q":"¿Atienden niños?","a":"Sí, desde 6 años"}]`}
             value={value.kb?.faqsText ?? ""}
             onChange={(e) => patchNested("kb", { faqsText: e.target.value })}
-            className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm"
           />
-          <textarea
+          <TextareaBase
             rows={4}
             placeholder="Información libre adicional para la IA (casos especiales, excepciones, etc.)"
             value={value.kb?.freeText ?? ""}
             onChange={(e) => patchNested("kb", { freeText: e.target.value })}
-            className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm"
           />
         </div>
-      </section>
+      </Section>
 
       {/* ====== 7) Horario semanal ====== */}
-      <section className="rounded-2xl border border-slate-800 bg-slate-900/70">
-        <div className="px-4 py-3 border-b border-slate-800 text-sm font-semibold">Horario semanal</div>
+      <Section
+        title="Horario semanal"
+        subtitle="Indica los tramos en los que atiendes. El primer bloque es obligatorio; el segundo es opcional."
+      >
         <div className="divide-y divide-slate-800">
           {hours.map((h) => (
-            <div key={h.day} className="px-4 py-3 grid grid-cols-1 sm:grid-cols-12 gap-3 items-center">
-              <div className="sm:col-span-3 flex items-center gap-3">
-                <button
-                  type="button"
-                  onClick={() => toggleDay(h.day)}
-                  className={`w-10 h-6 rounded-full border transition ${
-                    h.isOpen ? "bg-emerald-500/90 border-emerald-400" : "bg-slate-700 border-slate-600"
-                  } relative`}
-                  aria-pressed={h.isOpen}
-                >
-                  <span
-                    className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition ${
-                      h.isOpen ? "right-0.5" : "left-0.5"
-                    }`}
-                  />
-                </button>
-                <div className="text-sm">{DAY_LABEL[h.day]}</div>
+            <div
+              key={h.day}
+              className="py-3 grid grid-cols-1 sm:grid-cols-12 gap-3 items-center"
+            >
+              {/* Col 1: Día + toggle */}
+              <div className="sm:col-span-3 flex items-center justify-between sm:justify-start gap-3">
+                <div className="text-sm font-medium">{DAY_LABEL[h.day]}</div>
+                <Toggle checked={h.isOpen} onClick={() => toggleDay(h.day)} />
               </div>
 
-              <div className="sm:col-span-9 grid grid-cols-2 sm:grid-cols-8 gap-2">
-                <input
-                  type="time"
-                  value={h.start1 || ""}
-                  disabled={!h.isOpen}
-                  onChange={(e) => updateTime(h.day, "start1", e.target.value)}
-                  className="bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5 text-sm disabled:opacity-50"
-                />
-                <input
-                  type="time"
-                  value={h.end1 || ""}
-                  disabled={!h.isOpen}
-                  onChange={(e) => updateTime(h.day, "end1", e.target.value)}
-                  className="bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5 text-sm disabled:opacity-50"
-                />
-                <input
-                  type="time"
-                  value={h.start2 || ""}
-                  disabled={!h.isOpen}
-                  onChange={(e) => updateTime(h.day, "start2", e.target.value)}
-                  className="bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5 text-sm disabled:opacity-50"
-                />
-                <input
-                  type="time"
-                  value={h.end2 || ""}
-                  disabled={!h.isOpen}
-                  onChange={(e) => updateTime(h.day, "end2", e.target.value)}
-                  className="bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5 text-sm disabled:opacity-50"
-                />
+              {/* Col 2: Rangos */}
+              <div
+                className={[
+                  "sm:col-span-9 grid grid-cols-2 sm:grid-cols-8 gap-2",
+                  !h.isOpen ? "opacity-60" : "",
+                ].join(" ")}
+              >
+                {/* Bloque 1 */}
+                <div className="col-span-2 sm:col-span-2 flex items-center gap-2">
+                  <div className="text-[11px] text-slate-400 w-10">Inicio</div>
+                  <InputBase
+                    type="time"
+                    value={h.start1 || ""}
+                    disabled={!h.isOpen}
+                    onChange={(e) => updateTime(h.day, "start1", e.target.value)}
+                  />
+                </div>
+                <div className="col-span-2 sm:col-span-2 flex items-center gap-2">
+                  <div className="text-[11px] text-slate-400 w-10">Fin</div>
+                  <InputBase
+                    type="time"
+                    value={h.end1 || ""}
+                    disabled={!h.isOpen}
+                    onChange={(e) => updateTime(h.day, "end1", e.target.value)}
+                  />
+                </div>
 
-                <div className="col-span-2 sm:col-span-4 text-xs text-slate-500 self-center">
-                  {h.isOpen ? "Bloques: 1 obligatorio, 2 opcional." : "Cerrado"}
+                {/* Bloque 2 (opcional) */}
+                <div className="col-span-2 sm:col-span-2 flex items-center gap-2">
+                  <div className="text-[11px] text-slate-400 w-10">Inicio</div>
+                  <InputBase
+                    type="time"
+                    value={h.start2 || ""}
+                    disabled={!h.isOpen}
+                    onChange={(e) => updateTime(h.day, "start2", e.target.value)}
+                    placeholder="--:--"
+                  />
+                </div>
+                <div className="col-span-2 sm:col-span-2 flex items-center gap-2">
+                  <div className="text:[11px] text-slate-400 w-10">Fin</div>
+                  <InputBase
+                    type="time"
+                    value={h.end2 || ""}
+                    disabled={!h.isOpen}
+                    onChange={(e) => updateTime(h.day, "end2", e.target.value)}
+                    placeholder="--:--"
+                  />
+                </div>
+
+                {/* Nota */}
+                <div className="col-span-2 sm:col-span-8 text-xs text-slate-500 self-center">
+                  {h.isOpen ? "Bloque 1 obligatorio · Bloque 2 opcional" : "Cerrado"}
                 </div>
               </div>
             </div>
           ))}
         </div>
-      </section>
+      </Section>
     </div>
   );
 }
@@ -525,13 +620,30 @@ export function EsteticaForm({ value, onChange }: Props) {
 export default function EsteticaFormSmart({ empresaId }: { empresaId?: number }) {
   const { value, setValue, loading, saving, save, reload } = useEsteticaConfig(empresaId);
 
-  if (loading) return <div className="p-6">Cargando…</div>;
+  if (loading) {
+    return (
+      <div className="p-6 text-slate-300">
+        Cargando…
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold">Estética — Configuración</h1>
+        <div>
+          <h1 className="text-xl font-semibold tracking-tight">Estética — Configuración</h1>
+          <p className="text-xs text-slate-400 mt-1">
+            Ajusta tu agenda, políticas y mensajes. Los cambios aplican inmediatamente.
+          </p>
+        </div>
         <div className="flex gap-2">
+          <button
+            onClick={reload}
+            className="px-4 py-2 rounded-xl border border-slate-700 bg-slate-900/60 hover:bg-slate-800/60 transition text-sm"
+          >
+            Revertir
+          </button>
           <button
             onClick={async () => {
               try {
@@ -542,12 +654,13 @@ export default function EsteticaFormSmart({ empresaId }: { empresaId?: number })
               }
             }}
             disabled={saving}
-            className="px-4 py-2 rounded-xl bg-black text-white"
+            className={[
+              "px-4 py-2 rounded-xl text-sm text-white",
+              "bg-violet-600 hover:bg-violet-500 disabled:opacity-60 disabled:cursor-not-allowed",
+              "shadow-lg shadow-violet-900/30",
+            ].join(" ")}
           >
-            {saving ? "Guardando…" : "Guardar"}
-          </button>
-          <button onClick={reload} className="px-4 py-2 rounded-xl border">
-            Revertir
+            {saving ? "Guardando…" : "Guardar cambios"}
           </button>
         </div>
       </div>
