@@ -3,6 +3,7 @@
 
 import { useEffect, useMemo } from "react";
 import { useEsteticaConfig } from "./useEsteticaConfig";
+import Swal from "sweetalert2"; // ⬅️ agregado
 
 /* ================= Tipos exportados (UI) ================= */
 export type Weekday = "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
@@ -597,9 +598,41 @@ export default function EsteticaFormSmart({ empresaId }: { empresaId?: number })
             onClick={async () => {
               try {
                 await save();
-                alert("Configuración y horarios guardados");
+                // ✅ Éxito (dark mode)
+                await Swal.fire({
+                  title: "¡Guardado!",
+                  text: "Configuración y horarios guardados",
+                  icon: "success",
+                  confirmButtonText: "Listo",
+                  background: "#0f172a",
+                  color: "#e2e8f0",
+                  iconColor: "#22c55e",
+                  confirmButtonColor: "#7c3aed",
+                  customClass: {
+                    popup: "rounded-2xl border border-white/10",
+                    title: "text-slate-100",
+                    htmlContainer: "text-slate-300",
+                    confirmButton: "rounded-xl",
+                  },
+                });
               } catch (e: any) {
-                alert(e?.message || "Error al guardar");
+                // ❌ Error (dark mode)
+                await Swal.fire({
+                  title: "Error al guardar",
+                  text: e?.message || "Ocurrió un problema guardando la configuración",
+                  icon: "error",
+                  confirmButtonText: "Entendido",
+                  background: "#0f172a",
+                  color: "#e2e8f0",
+                  iconColor: "#ef4444",        // rojo
+                  confirmButtonColor: "#7c3aed",
+                  customClass: {
+                    popup: "rounded-2xl border border-white/10",
+                    title: "text-slate-100",
+                    htmlContainer: "text-slate-300",
+                    confirmButton: "rounded-xl",
+                  },
+                });
               }
             }}
             disabled={saving}
