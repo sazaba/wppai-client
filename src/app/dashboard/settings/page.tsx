@@ -154,36 +154,50 @@ export default function SettingsPage() {
     try {
       if (typeof window !== 'undefined') {
         const ok = window.confirm(
-          '¿Reiniciar todo?\n\nSe eliminará la configuración actual del negocio y se limpiará la agenda (config de estética y horarios).'
+          '¿Reiniciar todo?\n\nSe eliminará la configuración actual del negocio y se limpiará la agenda (config de estética, horarios, staff, procedimientos y excepciones).'
         )
         if (!ok) return
       }
-
-      // 1) BORRAR estética + hours
-      let apptWiped = false
+  
+      // 1) PURGE total de Estética (nuevo endpoint)
+      let esteticaPurged = false
       try {
-        await axios.delete(`${API_URL}/api/estetica/config`, {
+        await axios.delete(`${API_URL}/api/estetica/purge`, {
           headers: getAuthHeaders(),
-          params: { purgeHours: 1, t: Date.now() },
+          params: { t: Date.now() },
         })
-        apptWiped = true
+        esteticaPurged = true
       } catch (err) {
-        console.warn('[reiniciar] DELETE /api/estetica/config?purgeHours=1 falló, probaré /reset:', err)
+        console.warn('[reiniciar] DELETE /api/estetica/purge falló, intentaré legacy:', err)
       }
-
-      if (!apptWiped) {
+  
+      // Fallback legacy si /purge no existe o falla: borrar config + hours
+      if (!esteticaPurged) {
+        let apptWiped = false
         try {
-          await axios.post(
-            `${API_URL}/api/estetica/config/reset`,
-            null,
-            { headers: getAuthHeaders(), params: { t: Date.now() } }
-          )
+          await axios.delete(`${API_URL}/api/estetica/config`, {
+            headers: getAuthHeaders(),
+            params: { purgeHours: 1, t: Date.now() },
+          })
+          apptWiped = true
         } catch (err) {
-          console.warn('[reiniciar] POST /api/estetica/config/reset también falló:', err)
+          console.warn('[reiniciar] DELETE /api/estetica/config?purgeHours=1 falló, probaré /reset:', err)
+        }
+  
+        if (!apptWiped) {
+          try {
+            await axios.post(
+              `${API_URL}/api/estetica/config/reset`,
+              null,
+              { headers: getAuthHeaders(), params: { t: Date.now() } }
+            )
+          } catch (err) {
+            console.warn('[reiniciar] POST /api/estetica/config/reset también falló:', err)
+          }
         }
       }
-
-      // 2) Reset principal del AGENTE
+  
+      // 2) Reset principal del AGENTE (se mantiene)
       try {
         await axios.post(`${API_URL}/api/config/reset`, null, {
           params: { withCatalog: true, t: Date.now() },
@@ -192,7 +206,7 @@ export default function SettingsPage() {
       } catch (e) {
         console.warn('[reiniciar] /api/config/reset falló (se ignora):', e)
       }
-
+  
       // 3) Estado local limpio
       setConfigGuardada(null)
       setForm(DEFAULTS)
@@ -205,6 +219,7 @@ export default function SettingsPage() {
       alert('Error al reiniciar configuración')
     }
   }
+  
 
   // Abrir entrenamiento:
   // - 'estetica' => navega a la página dedicada (sin modal)

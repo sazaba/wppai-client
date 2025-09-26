@@ -188,3 +188,10 @@ export const upsertAppointmentException = async (
     const r = await http.post(`${API_PREFIX}/estetica/exception`, payload);
     return unwrap<AppointmentExceptionRow>(r);
 };
+
+
+export const purgeEsteticaAll = async (empresaId?: number) => {
+    const url = `${API_PREFIX}/estetica/purge${empresaId ? `?empresaId=${empresaId}` : ""}`;
+    const r = await http.delete(url);
+    return unwrap<{ ok: boolean; deleted: Record<string, number> }>(r);
+};
