@@ -7,7 +7,7 @@ import {
   Clock, User, Check, X, Edit, Trash
 } from "lucide-react";
 import { motion } from "framer-motion";
-import { useAuth } from "../../context/AuthContext"; // ⬅️ ajusta la ruta si difiere
+import { useAuth } from "../../context/AuthContext";
 
 /* ---------- helpers ---------- */
 const cx = (...c: (string | false | undefined)[]) => c.filter(Boolean).join(" ");
@@ -20,8 +20,6 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
  * También retorna el Date “local” equivalente por si necesitas sumar duración.
  */
 function localToISOWithOffset(local: string, offsetMinutes = -300): { iso: string; dateLocal: Date } {
-  // local: "2025-09-30T10:10"
-  // construimos un Date como “local puro”
   const [y, m, rest] = local.split("-");
   const [d, hm] = (rest || "").split("T");
   const [H, M] = (hm || "").split(":");
@@ -29,13 +27,11 @@ function localToISOWithOffset(local: string, offsetMinutes = -300): { iso: strin
     Number(y), Number(m) - 1, Number(d),
     Number(H || 0), Number(M || 0), 0, 0
   );
-  // offset
   const sign = offsetMinutes <= 0 ? "-" : "+";
   const abs = Math.abs(offsetMinutes);
   const oh = String(Math.floor(abs / 60)).padStart(2, "0");
   const om = String(abs % 60).padStart(2, "0");
   const tz = `${sign}${oh}:${om}`;
-  // componemos ISO manual usando los componentes “locales”
   const yyyy = dateLocal.getFullYear();
   const MM = String(dateLocal.getMonth() + 1).padStart(2, "0");
   const dd = String(dateLocal.getDate()).padStart(2, "0");
@@ -151,6 +147,32 @@ function qs(params: Record<string, any>) {
   return u.toString();
 }
 
+/* ---------- Month/Day helpers ---------- */
+type ViewMode = "month" | "day";
+
+const START_HOUR = 6;   // 6:00
+const END_HOUR = 21;    // 21:00
+const TOTAL_MIN = (END_HOUR - START_HOUR) * 60;
+const PX_PER_MIN = 1;   // 1px por minuto -> altura ~900px
+
+const clamp = (n: number, a: number, b: number) => Math.max(a, Math.min(b, n));
+
+function isSameYMD(a: Date, b: Date) {
+  return a.getFullYear() === b.getFullYear() &&
+         a.getMonth() === b.getMonth() &&
+         a.getDate() === b.getDate();
+}
+
+function minutesFromStart(d: Date) {
+  const m = (d.getHours() - START_HOUR) * 60 + d.getMinutes();
+  return clamp(m, 0, TOTAL_MIN);
+}
+
+function spanLabel(a: Date, b: Date) {
+  const fmt = new Intl.DateTimeFormat("es-CO",{hour:"2-digit",minute:"2-digit",hour12:false});
+  return `${fmt.format(a)}–${fmt.format(b)}`;
+}
+
 /* ---------- Component ---------- */
 export default function AppointmentsCalendar({ empresaId }: { empresaId?: number }) {
   const { token, usuario } = useAuth();
@@ -161,6 +183,10 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId?: number
   const [loading, setLoading] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
   const [editing, setEditing] = useState<Appointment | null>(null);
+
+  // NUEVO: vista y día seleccionado
+  const [view, setView] = useState<ViewMode>("month");
+  const [selectedDay, setSelectedDay] = useState<Date>(() => new Date());
 
   // matrix 7x6 empezando en lunes
   const days = useMemo(() => {
@@ -187,7 +213,24 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId?: number
     return map;
   },[events]);
 
-  const week = ["Lun","Mar","Mié","Jue","Vie","Sáb","Dom"];
+  // Eventos del día seleccionado (vista diaria)
+  const eventsForSelectedDay = useMemo(() => {
+    return events
+      .filter(ev => isSameYMD(new Date(ev.startAt), selectedDay))
+      .sort((a,b) => +new Date(a.startAt) - +new Date(b.startAt));
+  }, [events, selectedDay]);
+
+  const hourTicks = useMemo(() => {
+    const arr: Date[] = [];
+    const base = new Date(selectedDay);
+    base.setHours(START_HOUR,0,0,0);
+    for (let i=0;i<=END_HOUR-START_HOUR;i++){
+      const d = new Date(base);
+      d.setHours(START_HOUR + i);
+      arr.push(d);
+    }
+    return arr;
+  }, [selectedDay]);
 
   /* ---------- Load appointments from backend ---------- */
   useEffect(() => {
@@ -219,7 +262,6 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId?: number
   }) {
     if (!effEmpresaId || !token) return;
 
-    // El input datetime-local da "YYYY-MM-DDTHH:mm" sin TZ → lo serializamos con -05:00
     const { iso: startAtISO, dateLocal } = localToISOWithOffset(data.startISO, -300);
     const durationMin = Number.isFinite(data.durationMin as number) ? (data.durationMin as number) : 30;
     const endLocal = new Date(dateLocal.getTime() + durationMin * 60_000);
@@ -234,10 +276,9 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId?: number
       customerPhone: data.phone,
       serviceName: data.service,
       notas: data.notes || null,
-      startAt: startAtISO, // << con offset -05:00
-      endAt: endAtISO,     // << con offset -05:00
+      startAt: startAtISO,
+      endAt: endAtISO,
       timezone: "America/Bogota",
-      // sedeId, serviceId, providerId → cuando tengas catálogos reales
     };
 
     const created = await api<Appointment>(`/api/appointments?${qs({ empresaId: effEmpresaId })}`, {
@@ -270,20 +311,47 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId?: number
         <div className="mb-5 rounded-2xl border border-white/10 bg-white/5 p-3 text-white backdrop-blur md:p-4">
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div className="flex items-center gap-2">
-              <Button variant="ghost" aria-label="Mes anterior"
-                onClick={()=>setCurrent(new Date(current.getFullYear(), current.getMonth()-1, 1))}>
-                <ChevronLeft className="h-4 w-4"/>
-              </Button>
-              <Button variant="ghost" aria-label="Mes siguiente"
-                onClick={()=>setCurrent(new Date(current.getFullYear(), current.getMonth()+1, 1))}>
-                <ChevronRight className="h-4 w-4"/>
-              </Button>
-              <div className="rounded-xl px-3 py-1.5 text-base font-semibold">
-                {current.toLocaleString("es-CO",{month:"long", year:"numeric"})}
-              </div>
-              <Button variant="outline" onClick={()=>setCurrent(new Date())}>Hoy</Button>
+              {view === 'month' ? (
+                <>
+                  <Button variant="ghost" aria-label="Mes anterior"
+                    onClick={()=>setCurrent(new Date(current.getFullYear(), current.getMonth()-1, 1))}>
+                    <ChevronLeft className="h-4 w-4"/>
+                  </Button>
+                  <Button variant="ghost" aria-label="Mes siguiente"
+                    onClick={()=>setCurrent(new Date(current.getFullYear(), current.getMonth()+1, 1))}>
+                    <ChevronRight className="h-4 w-4"/>
+                  </Button>
+                  <div className="rounded-xl px-3 py-1.5 text-base font-semibold">
+                    {current.toLocaleString("es-CO",{month:"long", year:"numeric"})}
+                  </div>
+                  <Button variant="outline" onClick={()=>{ setCurrent(new Date()); setSelectedDay(new Date()); }}>
+                    Hoy
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Button variant="ghost" aria-label="Día anterior"
+                    onClick={()=>{
+                      const d=new Date(selectedDay); d.setDate(d.getDate()-1); setSelectedDay(d);
+                    }}>
+                    <ChevronLeft className="h-4 w-4"/>
+                  </Button>
+                  <Button variant="ghost" aria-label="Día siguiente"
+                    onClick={()=>{
+                      const d=new Date(selectedDay); d.setDate(d.getDate()+1); setSelectedDay(d);
+                    }}>
+                    <ChevronRight className="h-4 w-4"/>
+                  </Button>
+                  <div className="rounded-xl px-3 py-1.5 text-base font-semibold capitalize">
+                    {selectedDay.toLocaleDateString('es-CO', { weekday:'long', day:'numeric', month:'long', year:'numeric' })}
+                  </div>
+                  <Button variant="outline" onClick={()=>setSelectedDay(new Date())}>Hoy</Button>
+                </>
+              )}
             </div>
-            <div>
+            <div className="flex items-center gap-2">
+              <Button variant={view==='month'?'primary':'outline'} onClick={()=>setView('month')}>Mes</Button>
+              <Button variant={view==='day'?'primary':'outline'} onClick={()=>setView('day')}>Día</Button>
               <Button onClick={()=>setShowCreate(true)}>
                 <Plus className="h-4 w-4"/> Nueva cita
               </Button>
@@ -291,51 +359,121 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId?: number
           </div>
         </div>
 
-        {/* Weekdays */}
-        <div className="mb-2 grid grid-cols-7 gap-3 text-xs font-medium text-white/80">
-          {["Lun","Mar","Mié","Jue","Vie","Sáb","Dom"].map((w)=> <div key={w} className="px-1">{w}</div>)}
-        </div>
+        {/* Weekdays (solo en vista mes) */}
+        {view === 'month' && (
+          <div className="mb-2 grid grid-cols-7 gap-3 text-xs font-medium text-white/80">
+            {["Lun","Mar","Mié","Jue","Vie","Sáb","Dom"].map((w)=> <div key={w} className="px-1">{w}</div>)}
+          </div>
+        )}
 
-        {/* Grid */}
-        <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 md:grid-cols-4 xl:grid-cols-7">
-          {days.map((day,i)=>{
-            const k = fmtKey(day);
-            const inMonth = day.getMonth() === current.getMonth();
-            const list = eventsByDay[k] || [];
-            return (
-              <div key={i}
-                   className={cx(
-                     "min-h-[120px] rounded-2xl border p-3 shadow-sm transition",
-                     "bg-white text-zinc-900 border-zinc-200",
-                     "dark:bg-zinc-900 dark:text-white dark:border-zinc-800",
-                     !inMonth && "opacity-80"
-                   )}>
-                <div className="mb-2 flex items-center justify-between">
-                  <div className={cx("text-sm font-semibold", inMonth ? "" : "text-white/60")}>
-                    {day.getDate()}
+        {/* Grid Mes */}
+        {view === 'month' && (
+          <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 md:grid-cols-4 xl:grid-cols-7">
+            {days.map((day,i)=>{
+              const k = fmtKey(day);
+              const inMonth = day.getMonth() === current.getMonth();
+              const list = eventsByDay[k] || [];
+              return (
+                <div
+                  key={i}
+                  onClick={() => { setSelectedDay(day); setView('day'); }}
+                  className={cx(
+                    "min-h-[120px] rounded-2xl border p-3 shadow-sm transition cursor-pointer",
+                    "bg-white text-zinc-900 border-zinc-200",
+                    "dark:bg-zinc-900 dark:text-white dark:border-zinc-800",
+                    !inMonth && "opacity-80"
+                  )}
+                >
+                  <div className="mb-2 flex items-center justify-between">
+                    <div className={cx("text-sm font-semibold", inMonth ? "" : "text-white/60")}>
+                      {day.getDate()}
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    {list.map(ev=>(
+                      <div key={ev.id}
+                           className="flex items-center justify-between rounded-xl border border-zinc-200 bg-zinc-50 px-2 py-1.5 text-xs
+                                      dark:border-zinc-700 dark:bg-zinc-800"
+                      >
+                        <div className="truncate">
+                          <span className="mr-1 inline-flex items-center gap-1"><Clock className="h-3 w-3"/> {hhmm(new Date(ev.startAt))}</span>
+                          · {ev.customerName}
+                        </div>
+                        <div className="ml-2 shrink-0 flex gap-1">
+                          <button title="Editar" onClick={(e)=>{ e.stopPropagation(); setEditing(ev); }}><Edit className="h-3.5 w-3.5 text-indigo-400"/></button>
+                          <button title="Eliminar" onClick={(e)=>{ e.stopPropagation(); deleteAppointment(ev.id); }}><Trash className="h-3.5 w-3.5 text-red-400"/></button>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
+              );
+            })}
+          </div>
+        )}
 
-                <div className="space-y-1.5">
-                  {list.map(ev=>(
-                    <div key={ev.id}
-                         className="flex items-center justify-between rounded-xl border border-zinc-200 bg-zinc-50 px-2 py-1.5 text-xs
-                                    dark:border-zinc-700 dark:bg-zinc-800">
-                      <div className="truncate">
-                        <span className="mr-1 inline-flex items-center gap-1"><Clock className="h-3 w-3"/> {hhmm(new Date(ev.startAt))}</span>
-                        · {ev.customerName}
-                      </div>
-                      <div className="ml-2 shrink-0 flex gap-1">
-                        <button title="Editar" onClick={()=>setEditing(ev)}><Edit className="h-3.5 w-3.5 text-indigo-400"/></button>
-                        <button title="Eliminar" onClick={()=>deleteAppointment(ev.id)}><Trash className="h-3.5 w-3.5 text-red-400"/></button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+        {/* Day View */}
+        {view === 'day' && (
+          <div className="grid grid-cols-12 gap-3">
+            {/* Columna horas */}
+            <div className="col-span-2 sm:col-span-1">
+              <div style={{ height: TOTAL_MIN * PX_PER_MIN }} className="relative border-l border-white/10">
+                {hourTicks.map((t,i)=>(
+                  <div key={i} className="absolute left-0 -translate-y-2 text-xs text-white/70"
+                    style={{ top: ((i*60) * PX_PER_MIN) }}>
+                    {new Intl.DateTimeFormat('es-CO',{hour:'2-digit',minute:'2-digit',hour12:false}).format(t)}
+                  </div>
+                ))}
               </div>
-            );
-          })}
-        </div>
+            </div>
+
+            {/* Columna eventos */}
+            <div className="col-span-10 sm:col-span-11">
+              <div className="relative rounded-2xl border border-white/10 bg-white/5 overflow-hidden"
+                style={{ height: TOTAL_MIN * PX_PER_MIN }}>
+                {/* líneas por hora */}
+                {hourTicks.map((_,i)=>(
+                  <div key={i}
+                    className={cx("absolute left-0 right-0 border-t", i===0 ? "border-white/20" : "border-white/10")}
+                    style={{ top: ((i*60) * PX_PER_MIN) }}
+                  />
+                ))}
+
+                {/* eventos posicionados */}
+                {eventsForSelectedDay.map(ev=>{
+                  const s = new Date(ev.startAt);
+                  const e = new Date(ev.endAt);
+                  const top = minutesFromStart(s) * PX_PER_MIN;
+                  const height = Math.max(24, ( (e.getTime()-s.getTime())/60000 ) * PX_PER_MIN ); // min 24px
+                  return (
+                    <div key={ev.id}
+                      className="absolute left-2 right-2 sm:left-4 sm:right-6 rounded-xl border text-xs shadow
+                                 bg-violet-600/20 border-violet-500/40 text-white backdrop-blur"
+                      style={{ top, height }}
+                      title={spanLabel(s,e)}
+                    >
+                      <div className="flex items-center justify-between px-2 py-1">
+                        <div className="truncate">
+                          <span className="mr-2 inline-flex items-center gap-1 text-[11px] opacity-90">
+                            <Clock className="h-3 w-3"/>{spanLabel(s,e)}
+                          </span>
+                          <strong>{ev.customerName}</strong>
+                          {ev.serviceName ? <> · <span className="opacity-90">{ev.serviceName}</span></> : null}
+                        </div>
+                        <div className="ml-2 shrink-0 flex gap-1">
+                          <button title="Editar" onClick={()=>setEditing(ev)}><Edit className="h-3.5 w-3.5 text-indigo-300"/></button>
+                          <button title="Eliminar" onClick={()=>deleteAppointment(ev.id)}><Trash className="h-3.5 w-3.5 text-red-300"/></button>
+                        </div>
+                      </div>
+                      {ev.notas && <div className="px-2 pb-1 pr-12 opacity-80 line-clamp-2">{ev.notas}</div>}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Loading overlay */}
@@ -443,7 +581,6 @@ function EditForm({
     <form
       onSubmit={async (e)=>{ e.preventDefault(); await onSave({
         customerName:name, customerPhone:phone, serviceName:service,
-        // OJO: el wrapper Smart rehace startAt/endAt con offset antes de enviar al backend
         startAt:start,
         notas:notes
       }); }}
