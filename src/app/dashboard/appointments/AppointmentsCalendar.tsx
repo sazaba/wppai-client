@@ -9,6 +9,10 @@ import {
 import { motion } from "framer-motion";
 import { useAuth } from "../../context/AuthContext";
 
+// 👉 SweetAlert2
+import Swal from "sweetalert2";
+import "sweetalert2/dist/sweetalert2.min.css";
+
 /* ---------- helpers ---------- */
 const cx = (...c: (string | false | undefined)[]) => c.filter(Boolean).join(" ");
 const fmtKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
@@ -39,6 +43,35 @@ function localToISOWithOffset(local: string, offsetMinutes = -300): { iso: strin
   const mm = String(dateLocal.getMinutes()).padStart(2, "0");
   const ss = "00";
   return { iso: `${yyyy}-${MM}-${dd}T${HH}:${mm}:${ss}${tz}`, dateLocal };
+}
+
+/* ---------- SweetAlert helpers ---------- */
+function extractErrorMessage(err: unknown): string {
+  const raw = err instanceof Error ? err.message : String(err);
+  try {
+    const j = JSON.parse(raw);
+    return j?.message || j?.error || j?.details || j?.msg || raw;
+  } catch {
+    return raw;
+  }
+}
+
+async function alertSuccess(title: string, text?: string) {
+  await Swal.fire({
+    icon: "success",
+    title,
+    text,
+    confirmButtonText: "Aceptar",
+  });
+}
+
+async function alertError(title: string, html?: string) {
+  await Swal.fire({
+    icon: "error",
+    title,
+    html,
+    confirmButtonText: "Entendido",
+  });
 }
 
 /* ---------- UI Primitives ---------- */
@@ -262,46 +295,79 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId?: number
   }) {
     if (!effEmpresaId || !token) return;
 
-    const { iso: startAtISO, dateLocal } = localToISOWithOffset(data.startISO, -300);
-    const durationMin = Number.isFinite(data.durationMin as number) ? (data.durationMin as number) : 30;
-    const endLocal = new Date(dateLocal.getTime() + durationMin * 60_000);
-    const { iso: endAtISO } = localToISOWithOffset(
-      `${endLocal.getFullYear()}-${String(endLocal.getMonth()+1).padStart(2,"0")}-${String(endLocal.getDate()).padStart(2,"0")}T${String(endLocal.getHours()).padStart(2,"0")}:${String(endLocal.getMinutes()).padStart(2,"0")}`,
-      -300
-    );
+    try {
+      const { iso: startAtISO, dateLocal } = localToISOWithOffset(data.startISO, -300);
+      const durationMin = Number.isFinite(data.durationMin as number) ? (data.durationMin as number) : 30;
+      const endLocal = new Date(dateLocal.getTime() + durationMin * 60_000);
+      const { iso: endAtISO } = localToISOWithOffset(
+        `${endLocal.getFullYear()}-${String(endLocal.getMonth()+1).padStart(2,"0")}-${String(endLocal.getDate()).padStart(2,"0")}T${String(endLocal.getHours()).padStart(2,"0")}:${String(endLocal.getMinutes()).padStart(2,"0")}`,
+        -300
+      );
 
-    const body = {
-      empresaId: effEmpresaId,
-      customerName: data.name,
-      customerPhone: data.phone,
-      serviceName: data.service,
-      notas: data.notes || null,
-      startAt: startAtISO,
-      endAt: endAtISO,
-      timezone: "America/Bogota",
-    };
+      const body = {
+        empresaId: effEmpresaId,
+        customerName: data.name,
+        customerPhone: data.phone,
+        serviceName: data.service,
+        notas: data.notes || null,
+        startAt: startAtISO,
+        endAt: endAtISO,
+        timezone: "America/Bogota",
+      };
 
-    const created = await api<Appointment>(`/api/appointments?${qs({ empresaId: effEmpresaId })}`, {
-      method: "POST",
-      body: JSON.stringify(body),
-    }, token);
+      const created = await api<Appointment>(`/api/appointments?${qs({ empresaId: effEmpresaId })}`, {
+        method: "POST",
+        body: JSON.stringify(body),
+      }, token);
 
-    setEvents((prev) => [...prev, created]);
+      setEvents((prev) => [...prev, created]);
+
+      await alertSuccess(
+        "Cita creada",
+        `${created.customerName} • ${new Date(created.startAt).toLocaleString("es-CO", { dateStyle: "medium", timeStyle: "short" })}`
+      );
+
+      return created;
+    } catch (err) {
+      const msg = extractErrorMessage(err);
+      await alertError("No se pudo agendar la cita", `<pre style="text-align:left;white-space:pre-wrap;">${msg}</pre>`);
+      throw err;
+    }
   }
 
   async function updateAppointment(id: number, patch: Partial<Appointment>) {
     if (!effEmpresaId || !token) return;
-    const updated = await api<Appointment>(`/api/appointments/${id}?${qs({ empresaId: effEmpresaId })}`, {
-      method: "PUT",
-      body: JSON.stringify(patch),
-    }, token);
-    setEvents(prev => prev.map(e => e.id === id ? updated : e));
+    try {
+      const updated = await api<Appointment>(`/api/appointments/${id}?${qs({ empresaId: effEmpresaId })}`, {
+        method: "PUT",
+        body: JSON.stringify(patch),
+      }, token);
+      setEvents(prev => prev.map(e => e.id === id ? updated : e));
+
+      await alertSuccess(
+        "Cita actualizada",
+        `${updated.customerName} • ${new Date(updated.startAt).toLocaleString("es-CO", { dateStyle: "medium", timeStyle: "short" })}`
+      );
+
+      return updated;
+    } catch (err) {
+      const msg = extractErrorMessage(err);
+      await alertError("No se pudo actualizar la cita", `<pre style="text-align:left;white-space:pre-wrap;">${msg}</pre>`);
+      throw err;
+    }
   }
 
   async function deleteAppointment(id: number) {
     if (!effEmpresaId || !token) return;
-    await api<{ok:true}>(`/api/appointments/${id}?${qs({ empresaId: effEmpresaId })}`, { method: "DELETE" }, token);
-    setEvents(prev => prev.filter(e => e.id !== id));
+    try {
+      await api<{ok:true}>(`/api/appointments/${id}?${qs({ empresaId: effEmpresaId })}`, { method: "DELETE" }, token);
+      setEvents(prev => prev.filter(e => e.id !== id));
+      await alertSuccess("Cita eliminada", "La cita fue eliminada correctamente.");
+    } catch (err) {
+      const msg = extractErrorMessage(err);
+      await alertError("No se pudo eliminar la cita", `<pre style="text-align:left;white-space:pre-wrap;">${msg}</pre>`);
+      throw err;
+    }
   }
 
   return (
