@@ -16,11 +16,13 @@ export default function Page() {
   if (!token || !usuario) return <div className="p-6">No autenticado.</div>;
 
   return (
-    <div className="min-h-screen overflow-y-auto px-4 sm:px-6 py-6
-                scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-transparent overscroll-contain">
-  <div className="max-w-[1600px] mx-auto">
-    <AppointmentsCalendar empresaId={usuario.empresaId} />
-  </div>
+    <div className="h-screen min-h-0 overflow-y-auto
+    px-4 sm:px-6 py-6
+    scrollbar-thin scrollbar-thumb-zinc-700 hover:scrollbar-thumb-zinc-600
+    scrollbar-track-zinc-900/40 overscroll-contain">
+<div className="max-w-[1600px] mx-auto">
+<AppointmentsCalendar empresaId={usuario.empresaId} />
+</div>
 </div>
 
   );
