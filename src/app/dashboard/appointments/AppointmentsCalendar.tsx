@@ -4,12 +4,12 @@ import React, { useEffect, useMemo, useState } from "react";
 import {
   Calendar as CalendarIcon,
   ChevronLeft, ChevronRight, Plus,
-  Clock, User, Check, X, Edit, Trash
+  Clock, Check, X, Edit, Trash
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useAuth } from "../../context/AuthContext";
 
-// 👉 SweetAlert2
+// SweetAlert2 dark premium
 import Swal from "sweetalert2";
 import "sweetalert2/dist/sweetalert2.min.css";
 
@@ -19,33 +19,60 @@ const fmtKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth()+1).padStar
 const hhmm = (d: Date) => new Intl.DateTimeFormat("es-CO",{hour:"2-digit",minute:"2-digit",hour12:false}).format(d);
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
 
-/** Convierte un string `YYYY-MM-DDTHH:mm` (de <input type="datetime-local" />)
- * a un ISO con offset fijo, ej: -05:00 (America/Bogota no tiene DST).
- * También retorna el Date “local” equivalente por si necesitas sumar duración.
- */
+/** "YYYY-MM-DDTHH:mm" -> ISO con offset fijo (ej: -05:00) */
 function localToISOWithOffset(local: string, offsetMinutes = -300): { iso: string; dateLocal: Date } {
   const [y, m, rest] = local.split("-");
   const [d, hm] = (rest || "").split("T");
   const [H, M] = (hm || "").split(":");
-  const dateLocal = new Date(
-    Number(y), Number(m) - 1, Number(d),
-    Number(H || 0), Number(M || 0), 0, 0
-  );
+  const dateLocal = new Date(Number(y), Number(m) - 1, Number(d), Number(H || 0), Number(M || 0), 0, 0);
+
   const sign = offsetMinutes <= 0 ? "-" : "+";
   const abs = Math.abs(offsetMinutes);
   const oh = String(Math.floor(abs / 60)).padStart(2, "0");
   const om = String(abs % 60).padStart(2, "0");
   const tz = `${sign}${oh}:${om}`;
+
   const yyyy = dateLocal.getFullYear();
   const MM = String(dateLocal.getMonth() + 1).padStart(2, "0");
   const dd = String(dateLocal.getDate()).padStart(2, "0");
   const HH = String(dateLocal.getHours()).padStart(2, "0");
   const mm = String(dateLocal.getMinutes()).padStart(2, "0");
-  const ss = "00";
-  return { iso: `${yyyy}-${MM}-${dd}T${HH}:${mm}:${ss}${tz}`, dateLocal };
+  return { iso: `${yyyy}-${MM}-${dd}T${HH}:${mm}:00${tz}`, dateLocal };
 }
 
-/* ---------- SweetAlert helpers ---------- */
+/** ISO (con Z u offset) -> "YYYY-MM-DDTHH:mm" en zona con offset dado (default Bogotá -05:00)
+ *  Evita el desfase típico del input datetime-local cuando el backend devuelve UTC.
+ */
+function isoToLocalYMDHM(iso: string, offsetMinutes = -300): string {
+  const t = new Date(iso).getTime();
+  const shifted = new Date(t + offsetMinutes * 60_000); // “mueve” a la pared horaria de la zona
+  const yyyy = shifted.getUTCFullYear();
+  const MM = String(shifted.getUTCMonth() + 1).padStart(2, "0");
+  const dd = String(shifted.getUTCDate()).padStart(2, "0");
+  const HH = String(shifted.getUTCHours()).padStart(2, "0");
+  const mm = String(shifted.getUTCMinutes()).padStart(2, "0");
+  return `${yyyy}-${MM}-${dd}T${HH}:${mm}`;
+}
+
+/* ---------- SweetAlert dark premium ---------- */
+const DarkSwal = Swal.mixin({
+  background: "#0B0C14",
+  color: "#E5E7EB",
+  iconColor: "#A78BFA",
+  showClass: { popup: "swal2-noanimation" }, // dejamos animación a framer y UI
+  hideClass: { popup: "" },
+  buttonsStyling: false,
+  customClass: {
+    popup: "rounded-2xl border border-white/10 shadow-2xl",
+    title: "text-lg font-semibold",
+    htmlContainer: "text-sm text-gray-200",
+    confirmButton:
+      "inline-flex items-center justify-center rounded-xl px-4 py-2 font-medium bg-gradient-to-r from-indigo-500 to-fuchsia-600 text-white hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-indigo-400",
+    cancelButton:
+      "inline-flex items-center justify-center rounded-xl px-4 py-2 font-medium border border-white/15 text-white/90 hover:bg-white/5 ml-2",
+  },
+});
+
 function extractErrorMessage(err: unknown): string {
   const raw = err instanceof Error ? err.message : String(err);
   try {
@@ -57,16 +84,10 @@ function extractErrorMessage(err: unknown): string {
 }
 
 async function alertSuccess(title: string, text?: string) {
-  await Swal.fire({
-    icon: "success",
-    title,
-    text,
-    confirmButtonText: "Aceptar",
-  });
+  await DarkSwal.fire({ icon: "success", title, text, confirmButtonText: "Aceptar" });
 }
-
 async function alertError(title: string, html?: string) {
-  await Swal.fire({
+  await DarkSwal.fire({
     icon: "error",
     title,
     html,
@@ -150,8 +171,8 @@ export type Appointment = {
   serviceName: string;
   sedeName?: string | null;
   providerName?: string | null;
-  startAt: string; // ISO con offset
-  endAt: string;   // ISO con offset
+  startAt: string; // ISO (puede venir con Z)
+  endAt: string;
   notas?: string | null;
   status?: "pending" | "confirmed" | "rescheduled" | "cancelled" | "completed" | "no_show";
 };
@@ -170,7 +191,6 @@ async function api<T>(path: string, init?: RequestInit, token?: string): Promise
   if (!res.ok) throw new Error(await res.text());
   return res.json();
 }
-
 function qs(params: Record<string, any>) {
   const u = new URLSearchParams();
   Object.entries(params).forEach(([k, v]) => {
@@ -182,25 +202,18 @@ function qs(params: Record<string, any>) {
 
 /* ---------- Month/Day helpers ---------- */
 type ViewMode = "month" | "day";
-
-const START_HOUR = 6;   // 6:00
-const END_HOUR = 21;    // 21:00
+const START_HOUR = 6;
+const END_HOUR = 21;
 const TOTAL_MIN = (END_HOUR - START_HOUR) * 60;
-const PX_PER_MIN = 1;   // 1px por minuto -> altura ~900px
-
+const PX_PER_MIN = 1;
 const clamp = (n: number, a: number, b: number) => Math.max(a, Math.min(b, n));
-
 function isSameYMD(a: Date, b: Date) {
-  return a.getFullYear() === b.getFullYear() &&
-         a.getMonth() === b.getMonth() &&
-         a.getDate() === b.getDate();
+  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
 }
-
 function minutesFromStart(d: Date) {
   const m = (d.getHours() - START_HOUR) * 60 + d.getMinutes();
   return clamp(m, 0, TOTAL_MIN);
 }
-
 function spanLabel(a: Date, b: Date) {
   const fmt = new Intl.DateTimeFormat("es-CO",{hour:"2-digit",minute:"2-digit",hour12:false});
   return `${fmt.format(a)}–${fmt.format(b)}`;
@@ -217,11 +230,11 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId?: number
   const [showCreate, setShowCreate] = useState(false);
   const [editing, setEditing] = useState<Appointment | null>(null);
 
-  // NUEVO: vista y día seleccionado
+  // vista y día seleccionado
   const [view, setView] = useState<ViewMode>("month");
   const [selectedDay, setSelectedDay] = useState<Date>(() => new Date());
 
-  // matrix 7x6 empezando en lunes
+  // matrix 7x6 Monday-first
   const days = useMemo(() => {
     const first = new Date(current.getFullYear(), current.getMonth(), 1);
     const mondayStart = new Date(first);
@@ -246,7 +259,6 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId?: number
     return map;
   },[events]);
 
-  // Eventos del día seleccionado (vista diaria)
   const eventsForSelectedDay = useMemo(() => {
     return events
       .filter(ev => isSameYMD(new Date(ev.startAt), selectedDay))
@@ -294,7 +306,6 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId?: number
     startISO: string; durationMin?: number; notes?: string;
   }) {
     if (!effEmpresaId || !token) return;
-
     try {
       const { iso: startAtISO, dateLocal } = localToISOWithOffset(data.startISO, -300);
       const durationMin = Number.isFinite(data.durationMin as number) ? (data.durationMin as number) : 30;
@@ -326,7 +337,6 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId?: number
         "Cita creada",
         `${created.customerName} • ${new Date(created.startAt).toLocaleString("es-CO", { dateStyle: "medium", timeStyle: "short" })}`
       );
-
       return created;
     } catch (err) {
       const msg = extractErrorMessage(err);
@@ -343,12 +353,10 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId?: number
         body: JSON.stringify(patch),
       }, token);
       setEvents(prev => prev.map(e => e.id === id ? updated : e));
-
       await alertSuccess(
         "Cita actualizada",
         `${updated.customerName} • ${new Date(updated.startAt).toLocaleString("es-CO", { dateStyle: "medium", timeStyle: "short" })}`
       );
-
       return updated;
     } catch (err) {
       const msg = extractErrorMessage(err);
@@ -359,6 +367,18 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId?: number
 
   async function deleteAppointment(id: number) {
     if (!effEmpresaId || !token) return;
+
+    // Confirm “dark premium”
+    const confirm = await DarkSwal.fire({
+      icon: "warning",
+      title: "Eliminar cita",
+      html: '<div class="text-left text-sm">Esta acción no se puede deshacer.</div>',
+      showCancelButton: true,
+      confirmButtonText: "Eliminar",
+      cancelButtonText: "Cancelar",
+    });
+    if (!confirm.isConfirmed) return;
+
     try {
       await api<{ok:true}>(`/api/appointments/${id}?${qs({ empresaId: effEmpresaId })}`, { method: "DELETE" }, token);
       setEvents(prev => prev.filter(e => e.id !== id));
@@ -373,7 +393,7 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId?: number
   return (
     <div className="w-full h-full">
       <div className="mx-auto max-w-[1600px] p-4 md:p-6 lg:p-8">
-        {/* Header surface */}
+        {/* Header */}
         <div className="mb-5 rounded-2xl border border-white/10 bg-white/5 p-3 text-white backdrop-blur md:p-4">
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div className="flex items-center gap-2">
@@ -425,7 +445,7 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId?: number
           </div>
         </div>
 
-        {/* Weekdays (solo en vista mes) */}
+        {/* Weekdays */}
         {view === 'month' && (
           <div className="mb-2 grid grid-cols-7 gap-3 text-xs font-medium text-white/80">
             {["Lun","Mar","Mié","Jue","Vie","Sáb","Dom"].map((w)=> <div key={w} className="px-1">{w}</div>)}
@@ -498,7 +518,6 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId?: number
             <div className="col-span-10 sm:col-span-11">
               <div className="relative rounded-2xl border border-white/10 bg-white/5 overflow-hidden"
                 style={{ height: TOTAL_MIN * PX_PER_MIN }}>
-                {/* líneas por hora */}
                 {hourTicks.map((_,i)=>(
                   <div key={i}
                     className={cx("absolute left-0 right-0 border-t", i===0 ? "border-white/20" : "border-white/10")}
@@ -506,12 +525,11 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId?: number
                   />
                 ))}
 
-                {/* eventos posicionados */}
                 {eventsForSelectedDay.map(ev=>{
                   const s = new Date(ev.startAt);
                   const e = new Date(ev.endAt);
                   const top = minutesFromStart(s) * PX_PER_MIN;
-                  const height = Math.max(24, ( (e.getTime()-s.getTime())/60000 ) * PX_PER_MIN ); // min 24px
+                  const height = Math.max(24, ( (e.getTime()-s.getTime())/60000 ) * PX_PER_MIN );
                   return (
                     <div key={ev.id}
                       className="absolute left-2 right-2 sm:left-4 sm:right-6 rounded-xl border text-xs shadow
@@ -567,8 +585,13 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId?: number
             onCancel={()=>setEditing(null)}
             onSave={async (patch)=>{
               // Mantener duración original
-              const startLocalStr = (patch.startAt ? patch.startAt : editing.startAt).slice(0,16); // "YYYY-MM-DDTHH:mm"
-              const { dateLocal, iso: startAtISO } = localToISOWithOffset(startLocalStr, -300);
+              const startLocalStr = (patch.startAt ? patch.startAt : editing.startAt);
+              // startLocalStr podría venir ISO/UTC; normalizamos a "YYYY-MM-DDTHH:mm" en -05:00
+              const normalizedLocal = startLocalStr.includes("T") && startLocalStr.length > 16
+                ? isoToLocalYMDHM(startLocalStr, -300)
+                : startLocalStr.slice(0,16);
+
+              const { dateLocal, iso: startAtISO } = localToISOWithOffset(normalizedLocal, -300);
               const durMs = new Date(editing.endAt).getTime() - new Date(editing.startAt).getTime();
               const endLocal = new Date(dateLocal.getTime() + durMs);
               const endLocalStr = `${endLocal.getFullYear()}-${String(endLocal.getMonth()+1).padStart(2,"0")}-${String(endLocal.getDate()).padStart(2,"0")}T${String(endLocal.getHours()).padStart(2,"0")}:${String(endLocal.getMinutes()).padStart(2,"0")}`;
@@ -584,7 +607,7 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId?: number
   );
 }
 
-/* ---------- Formularios (universales) ---------- */
+/* ---------- Formularios ---------- */
 function CreateForm({
   onSave, onCancel
 }:{
@@ -597,31 +620,18 @@ function CreateForm({
   });
 
   return (
-    <form
-      onSubmit={async (e)=>{ e.preventDefault(); await onSave(form); }}
-      className="space-y-4 text-white"
-    >
+    <form onSubmit={async (e)=>{ e.preventDefault(); await onSave(form); }} className="space-y-4 text-white">
       <h2 className="text-lg font-semibold flex items-center gap-2"><CalendarIcon className="h-5 w-5"/> Crear nueva cita</h2>
-
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <Input label="Nombre cliente" value={form.name}
-               onChange={(v)=>setForm({...form,name:v})} placeholder="Ej. Juan Pérez"/>
-        <Input label="Teléfono" value={form.phone}
-               onChange={(v)=>setForm({...form,phone:v})} placeholder="Ej. +57 300 000 0000"/>
-        <Input label="Sede (opcional)" value={form.sede}
-               onChange={(v)=>setForm({...form,sede:v})} placeholder="Ej. Sede Centro"/>
-        <Input label="Profesional (opcional)" value={form.provider}
-               onChange={(v)=>setForm({...form,provider:v})} placeholder="Ej. Dra. López"/>
-        <Input label="Servicio" value={form.service}
-               onChange={(v)=>setForm({...form,service:v})} placeholder="Ej. Blanqueamiento dental"/>
-        <Input label="Fecha y hora" type="datetime-local" value={form.startISO}
-               onChange={(v)=>setForm({...form,startISO:v})} />
-        <Input label="Duración (min)" type="number" value={String(form.durationMin)}
-               onChange={(v)=>setForm({...form,durationMin:Number(v||30)})} placeholder="30"/>
-        <TextArea label="Notas (opcional)" value={form.notes}
-                  onChange={(v)=>setForm({...form,notes:v})} placeholder="Observaciones, indicaciones..."/>
+        <Input label="Nombre cliente" value={form.name} onChange={(v)=>setForm({...form,name:v})} placeholder="Ej. Juan Pérez"/>
+        <Input label="Teléfono" value={form.phone} onChange={(v)=>setForm({...form,phone:v})} placeholder="Ej. +57 300 000 0000"/>
+        <Input label="Sede (opcional)" value={form.sede} onChange={(v)=>setForm({...form,sede:v})} placeholder="Ej. Sede Centro"/>
+        <Input label="Profesional (opcional)" value={form.provider} onChange={(v)=>setForm({...form,provider:v})} placeholder="Ej. Dra. López"/>
+        <Input label="Servicio" value={form.service} onChange={(v)=>setForm({...form,service:v})} placeholder="Ej. Blanqueamiento dental"/>
+        <Input label="Fecha y hora" type="datetime-local" value={form.startISO} onChange={(v)=>setForm({...form,startISO:v})} />
+        <Input label="Duración (min)" type="number" value={String(form.durationMin)} onChange={(v)=>setForm({...form,durationMin:Number(v||30)})} placeholder="30"/>
+        <TextArea label="Notas (opcional)" value={form.notes} onChange={(v)=>setForm({...form,notes:v})} placeholder="Observaciones, indicaciones..."/>
       </div>
-
       <div className="flex justify-end gap-2">
         <Button variant="outline" type="button" onClick={onCancel}><X className="h-4 w-4"/> Cancelar</Button>
         <Button type="submit"><Check className="h-4 w-4"/> Guardar</Button>
@@ -640,14 +650,15 @@ function EditForm({
   const [name,setName] = useState(appt.customerName);
   const [phone,setPhone] = useState(appt.customerPhone);
   const [service,setService] = useState(appt.serviceName);
-  const [start,setStart] = useState(appt.startAt.slice(0,16)); // "YYYY-MM-DDTHH:mm"
+  // ⚠️ FIX: normalizamos a “pared horaria” Bogotá para evitar desfaces cuando backend responde en UTC (“Z”)
+  const [start,setStart] = useState(() => isoToLocalYMDHM(appt.startAt, -300));
   const [notes,setNotes] = useState(appt.notas ?? "");
 
   return (
     <form
       onSubmit={async (e)=>{ e.preventDefault(); await onSave({
         customerName:name, customerPhone:phone, serviceName:service,
-        startAt:start,
+        startAt:start, // el caller convertirá a ISO con offset preservando duración
         notas:notes
       }); }}
       className="space-y-4 text-white"
