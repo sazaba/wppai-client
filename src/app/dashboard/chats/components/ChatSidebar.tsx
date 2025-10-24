@@ -27,15 +27,15 @@ interface ChatSidebarProps {
   onNuevaConversacion?: () => void
 }
 
-/** Ahora incluye los estados nuevos */
+
 const estados = [
   'todos',
   'pendiente',
   'en_proceso',
   'respondido',
   'requiere_agente',
-  'venta_en_proceso',   // ← nuevo
-  'venta_realizada',    // ← nuevo
+  'venta_en_proceso', 
+  'venta_realizada',    
   'cerrado',
 ] as const
 
@@ -70,9 +70,10 @@ export default function ChatSidebar({
       ? 'bg-emerald-900/30 text-emerald-200 border border-emerald-700'
       : 'bg-[#202C33] text-[#cbd5e1]')
 
-  const chatsFiltrados = (Array.isArray(chats) ? chats : []).filter(chat =>
+  const lista = Array.isArray(chats) ? chats : []
+  const chatsFiltrados = lista.filter(chat =>
     (estadoFiltro === 'todos' || chat.estado === estadoFiltro) &&
-    (chat.nombre ?? chat.phone).toLowerCase().includes(busqueda.toLowerCase())
+    (chat.nombre ?? chat.phone)?.toLowerCase?.().includes((busqueda || '').toLowerCase())
   )
 
   return (
@@ -109,8 +110,8 @@ export default function ChatSidebar({
                 : estado.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())
 
               const count = estado === 'todos'
-                ? chats.length
-                : chats.filter((c) => c.estado === estado).length
+                ? (lista?.length ?? 0)
+                : lista.filter((c) => c.estado === estado).length
 
               const selected = estadoFiltro === estado
 
