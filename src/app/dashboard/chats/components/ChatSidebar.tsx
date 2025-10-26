@@ -1,4 +1,7 @@
+
 'use client'
+
+import type { ReactNode } from 'react'
 
 import {
   FiSearch,
@@ -22,8 +25,8 @@ interface ChatSidebarProps {
   setEstadoFiltro: (value: string) => void
   onSelectChat: (id: number) => void
   activoId: number | null
-  estadoIconos: Record<string, React.ReactNode>
-  estadoEstilos: Record<string, string>
+  estadoIconos?: Record<string, ReactNode>
+  estadoEstilos?: Record<string, string>
   onNuevaConversacion?: () => void
 }
 
@@ -71,10 +74,13 @@ export default function ChatSidebar({
       : 'bg-[#202C33] text-[#cbd5e1]')
 
   const lista = Array.isArray(chats) ? chats : []
+  // En el filtro de la lista (fallback defensivo):
   const chatsFiltrados = lista.filter(chat =>
-    (estadoFiltro === 'todos' || chat.estado === estadoFiltro) &&
-    (chat.nombre ?? chat.phone)?.toLowerCase?.().includes((busqueda || '').toLowerCase())
+    (estadoFiltro === 'todos' || (chat.estado ?? 'pendiente') === estadoFiltro) &&
+    String(chat.nombre ?? chat.phone ?? '').toLowerCase().includes((busqueda || '').toLowerCase())
   )
+  
+
 
   return (
     <aside className="w-full md:w-[30%] max-w-[400px] flex-shrink-0 bg-[#111B21] text-white flex flex-col h-full overflow-hidden">
@@ -97,21 +103,25 @@ export default function ChatSidebar({
         <label className="mb-1 block">Filtrar por estado</label>
         <Menu as="div" className="relative w-full">
           <Menu.Button className="w-full inline-flex justify-between items-center px-4 py-2 bg-[#202C33] text-sm text-white rounded-md hover:bg-[#2a3942]">
-            {estadoFiltro === 'todos'
-              ? 'Todos'
-              : estadoFiltro.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+          {estadoFiltro === 'todos'
+  ? 'Todos'
+  : estadoFiltro.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
             <FiChevronDown className="w-4 h-4 ml-2" />
           </Menu.Button>
 
           <Menu.Items className="absolute z-10 mt-2 w-full bg-[#202C33] border border-[#2a3942] rounded-md shadow-lg max-h-60 overflow-auto text-sm text-white">
             {estados.map((estado) => {
-              const label = estado === 'todos'
-                ? 'Todos'
-                : estado.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())
+              // En el label dentro del map (reemplaza este bloque):
+const label = estado === 'todos'
+? 'Todos'
+: estado.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
 
-              const count = estado === 'todos'
-                ? (lista?.length ?? 0)
-                : lista.filter((c) => c.estado === estado).length
+
+              // En el conteo por estado (fallback defensivo):
+const count = estado === 'todos'
+? (lista?.length ?? 0)
+: lista.filter((c) => (c.estado ?? 'pendiente') === estado).length
+
 
               const selected = estadoFiltro === estado
 
@@ -170,16 +180,21 @@ export default function ChatSidebar({
                 <span className="text-sm font-semibold truncate max-w-[160px]">
                   {chat.nombre ?? chat.phone}
                 </span>
-                <span
-                  className={`text-[10px] px-2 py-0.5 rounded-full font-medium flex items-center gap-1 ${estilo(chat.estado)}`}
-                >
-                  {icono(chat.estado)} {chat.estado.replace('_', ' ')}
-                </span>
+                
+<span
+  className={`text-[10px] px-2 py-0.5 rounded-full font-medium flex items-center gap-1 ${estilo(chat.estado ?? 'pendiente')}`}
+>
+  {icono(chat.estado ?? 'pendiente')} {(chat.estado ?? 'pendiente').replace(/_/g, ' ')}
+</span>
+
+
               </div>
               <p className="text-xs text-[#8696a0] truncate">{chat.mensaje}</p>
               <p className="text-[10px] text-[#5b6b75] flex items-center gap-1">
                 <FiClock className="inline-block" />
-                {new Date(chat.fecha).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                {chat.fecha
+  ? new Date(chat.fecha).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  : '—'}
               </p>
             </li>
           ))
