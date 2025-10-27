@@ -3,7 +3,7 @@
 
 import { useEffect, useMemo } from "react";
 import { useEsteticaConfig } from "./useEsteticaConfig";
-import Swal from "sweetalert2"; // ⬅️ agregado
+import Swal from "sweetalert2";
 
 /* ================= Tipos exportados (UI) ================= */
 export type Weekday = "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
@@ -56,6 +56,9 @@ export type AppointmentConfigValue = {
 
   kb?: {
     businessOverview?: string | null;
+    /** 🔹 NUEVO: arreglo visual de FAQs que se guardará como JSON en DB (kbFAQs) */
+    faqs?: Array<{ q: string; a: string }> | null;
+    /** Compat: copia JSON string de faqs para backends antiguos */
     faqsText?: string | null;
     freeText?: string | null;
   };
@@ -185,6 +188,111 @@ function Toggle({
   );
 }
 
+/* =============== Editor visual de FAQs =============== */
+function FAQEditor({
+  items,
+  onChange,
+}: {
+  items: Array<{ q: string; a: string }> | null | undefined;
+  onChange: (next: Array<{ q: string; a: string }>) => void;
+}) {
+  const faqs = Array.isArray(items) ? items : [];
+
+  function addFAQ() {
+    onChange([...faqs, { q: "", a: "" }]);
+  }
+  function updateFAQ(idx: number, patch: Partial<{ q: string; a: string }>) {
+    const next = faqs.map((it, i) => (i === idx ? { ...it, ...patch } : it));
+    onChange(next);
+  }
+  function removeFAQ(idx: number) {
+    const next = faqs.filter((_, i) => i !== idx);
+    onChange(next);
+  }
+  function move(idx: number, dir: -1 | 1) {
+    const next = [...faqs];
+    const j = idx + dir;
+    if (j < 0 || j >= next.length) return;
+    [next[idx], next[j]] = [next[j], next[idx]];
+    onChange(next);
+  }
+
+  return (
+    <div className="space-y-3">
+      {faqs.length === 0 && (
+        <div className="text-[12px] text-slate-400">
+          Aún no has agregado FAQs. Usa el botón <b>+ Agregar FAQ</b>.
+        </div>
+      )}
+
+      {faqs.map((it, idx) => (
+        <div
+          key={idx}
+          className="rounded-xl border border-white/10 bg-white/[.03] p-4"
+        >
+          <div className="flex items-center justify-between mb-2">
+            <div className="text-[12px] text-slate-400">FAQ #{idx + 1}</div>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => move(idx, -1)}
+                className="px-2 py-1 rounded-lg text-[12px] border border-white/10 hover:bg-white/[.06]"
+              >
+                ↑
+              </button>
+              <button
+                type="button"
+                onClick={() => move(idx, 1)}
+                className="px-2 py-1 rounded-lg text-[12px] border border-white/10 hover:bg-white/[.06]"
+              >
+                ↓
+              </button>
+              <button
+                type="button"
+                onClick={() => removeFAQ(idx)}
+                className="px-2 py-1 rounded-lg text-[12px] border border-rose-500/40 text-rose-300 hover:bg-rose-500/10"
+              >
+                Eliminar
+              </button>
+            </div>
+          </div>
+
+          <Field label="Pregunta">
+            <Input
+              type="text"
+              placeholder="Ej: ¿Atienden menores de edad?"
+              value={it.q}
+              onChange={(e) => updateFAQ(idx, { q: e.target.value })}
+            />
+          </Field>
+
+          <div className="mt-2">
+            <Field label="Respuesta">
+              <Textarea
+                rows={3}
+                placeholder="Escribe una respuesta clara, breve y precisa."
+                value={it.a}
+                onChange={(e) => updateFAQ(idx, { a: e.target.value })}
+              />
+            </Field>
+          </div>
+        </div>
+      ))}
+
+      <div>
+        <button
+          type="button"
+          onClick={addFAQ}
+          className="inline-flex items-center gap-2 px-3 py-2 rounded-xl text-sm text-white bg-violet-600 hover:bg-violet-500 shadow-lg shadow-violet-900/30"
+        >
+          <span className="text-lg leading-none">＋</span>
+          Agregar FAQ
+        </button>
+      </div>
+    </div>
+  );
+}
+
 /* =================== FORM UI (presentacional) =================== */
 export function EsteticaForm({ value, onChange }: Props) {
   const hours = useMemo(() => normalizeHours(value.hours), [value.hours]);
@@ -219,6 +327,20 @@ export function EsteticaForm({ value, onChange }: Props) {
     patchDay(d, { [field]: safe ? safe : null } as any);
   }
 
+  // ——— Normaliza FAQs al cargar (si existe faqsText pero no kb.faqs)
+  useEffect(() => {
+    const kb = value.kb ?? {};
+    if ((!kb.faqs || kb.faqs.length === 0) && kb.faqsText) {
+      try {
+        const parsed = JSON.parse(kb.faqsText);
+        if (Array.isArray(parsed)) {
+          patchNested("kb", { faqs: parsed as any });
+        }
+      } catch {}
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Defaults UI
   useEffect(() => {
     const r = value.rules ?? {};
@@ -233,6 +355,14 @@ export function EsteticaForm({ value, onChange }: Props) {
     if (changed) patchNested("rules", toSet);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // ——— Mantiene sincronizado kb.faqs <-> kb.faqsText (compat)
+  function setFAQs(next: Array<{ q: string; a: string }>) {
+    patchNested("kb", {
+      faqs: next,
+      faqsText: JSON.stringify(next ?? []),
+    });
+  }
 
   return (
     <div className="space-y-10">
@@ -468,12 +598,34 @@ export function EsteticaForm({ value, onChange }: Props) {
             value={value.kb?.businessOverview ?? ""}
             onChange={(e) => patchNested("kb", { businessOverview: e.target.value })}
           />
-          <Textarea
-            rows={3}
-            placeholder={`FAQs (opcional). Puedes pegar JSON: [{"q":"¿Atienden niños?","a":"Sí, desde 6 años"}]`}
-            value={value.kb?.faqsText ?? ""}
-            onChange={(e) => patchNested("kb", { faqsText: e.target.value })}
-          />
+
+          {/* 🔹 Editor visual de FAQs (sin JSON) */}
+          <div>
+            <div className="mb-2 text-sm font-medium text-slate-200">FAQs</div>
+            <FAQEditor
+              items={value.kb?.faqs}
+              onChange={setFAQs}
+            />
+            <div className="mt-2 text-[11px] text-slate-400">
+              Se guardan como arreglo JSON interno compatible con el resumen y la BD.
+            </div>
+          </div>
+
+          {/* Campo oculto/compat (visible por si necesitan copiar JSON manualmente) */}
+          <div className="hidden">
+            <Textarea
+              rows={2}
+              value={value.kb?.faqsText ?? ""}
+              onChange={(e) => {
+                // Si alguien edita el JSON manualmente, intentamos sincronizar
+                const txt = e.target.value;
+                let parsed: Array<{ q: string; a: string }> = [];
+                try { parsed = JSON.parse(txt); } catch {}
+                patchNested("kb", { faqsText: txt, faqs: parsed });
+              }}
+            />
+          </div>
+
           <Textarea
             rows={4}
             placeholder="Información libre adicional para la IA (casos especiales, excepciones, etc.)."
@@ -583,7 +735,13 @@ export default function EsteticaFormSmart({ empresaId }: { empresaId?: number })
         <p className="text-[12px] text-slate-400">Ajusta tu agenda, políticas y mensajes.</p>
       </div>
 
-      <EsteticaForm value={value} onChange={(patch) => setValue((prev) => ({ ...prev, ...patch }))} />
+      <EsteticaForm
+        value={value}
+        onChange={(patch) => {
+          // Mantener estado maestro
+          setValue((prev) => ({ ...prev, ...patch }));
+        }}
+      />
 
       {/* Barra inferior sticky con acciones */}
       <div className="sticky bottom-0 z-10 -mx-4 px-4 py-4 bg-gradient-to-t from-slate-950/85 via-slate-950/50 to-transparent backdrop-blur supports-[backdrop-filter]:backdrop-blur">
@@ -598,7 +756,6 @@ export default function EsteticaFormSmart({ empresaId }: { empresaId?: number })
             onClick={async () => {
               try {
                 await save();
-                // ✅ Éxito (dark mode)
                 await Swal.fire({
                   title: "¡Guardado!",
                   text: "Configuración y horarios guardados",
@@ -616,7 +773,6 @@ export default function EsteticaFormSmart({ empresaId }: { empresaId?: number })
                   },
                 });
               } catch (e: any) {
-                // ❌ Error (dark mode)
                 await Swal.fire({
                   title: "Error al guardar",
                   text: e?.message || "Ocurrió un problema guardando la configuración",
@@ -624,7 +780,7 @@ export default function EsteticaFormSmart({ empresaId }: { empresaId?: number })
                   confirmButtonText: "Entendido",
                   background: "#0f172a",
                   color: "#e2e8f0",
-                  iconColor: "#ef4444",        // rojo
+                  iconColor: "#ef4444",
                   confirmButtonColor: "#7c3aed",
                   customClass: {
                     popup: "rounded-2xl border border-white/10",
