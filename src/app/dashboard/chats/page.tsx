@@ -202,19 +202,36 @@ export default function ChatsPage() {
     }))
   }, [])
 
+  // 🆕 escuchar eliminaciones desde backend
   useEffect(() => {
+    const onEliminado = ({ id }: { id: number }) => {
+      setChats(prev => prev.filter(c => c.id !== id))
+      if (activoId === id) {
+        setActivoId(null)
+        setMensajes([])
+      }
+      setPolicyErrors(prev => {
+        const { [id]: _omit, ...rest } = prev
+        return rest
+      })
+    }
+
     socket.off('nuevo_mensaje', handleNuevoMensaje)
     socket.on('nuevo_mensaje', handleNuevoMensaje)
     socket.off('chat_actualizado', handleChatActualizado)
     socket.on('chat_actualizado', handleChatActualizado)
     socket.off('wa_policy_error', handlePolicyError)
     socket.on('wa_policy_error', handlePolicyError)
+    socket.off('chat_eliminado', onEliminado)
+    socket.on('chat_eliminado', onEliminado)
+
     return () => {
       socket.off('nuevo_mensaje', handleNuevoMensaje)
       socket.off('chat_actualizado', handleChatActualizado)
       socket.off('wa_policy_error', handlePolicyError)
+      socket.off('chat_eliminado', onEliminado)
     }
-  }, [handleNuevoMensaje, handleChatActualizado, handlePolicyError])
+  }, [handleNuevoMensaje, handleChatActualizado, handlePolicyError, activoId])
 
   // ——————————————————————————————
   // Seleccionar chat / historial
@@ -476,6 +493,29 @@ export default function ChatsPage() {
     }
   }
 
+  // 🆕 Eliminar conversación (confirmación + actualización de estado)
+  const handleEliminarConversacion = async () => {
+    if (!activoId) return
+    const confirmar = window.confirm('¿Eliminar esta conversación y sus datos relacionados?')
+    if (!confirmar) return
+    try {
+      await axios.delete(`/api/chats/${activoId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      // Si el backend emite 'chat_eliminado', igual limpiará la UI; esto es reflejo optimista:
+      setChats(prev => prev.filter(c => c.id !== activoId))
+      setMensajes([])
+      setPolicyErrors(prev => {
+        const { [activoId]: _omit, ...rest } = prev
+        return rest
+      })
+      setActivoId(null)
+    } catch (err) {
+      console.error('Error al eliminar conversación:', err)
+      alert('No se pudo eliminar la conversación')
+    }
+  }
+
   return (
     <div className="flex h-full max-h-screen bg-[#111b21] text-white overflow-hidden">
       <ChatSidebar
@@ -500,6 +540,7 @@ export default function ChatsPage() {
               estado={chats.find((c) => c.id === activoId)?.estado || ''}
               onCerrar={() => setMostrarModalCerrar(true)}
               onReabrir={handleReabrirConversacion}
+              onEliminar={handleEliminarConversacion}   // 🆕 botón eliminar
               mostrarBotonCerrar={true}
             />
 
