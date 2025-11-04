@@ -9,10 +9,10 @@ import {
   FiClock,
   FiCheck,
   FiChevronDown,
-  FiPlus,
-  // FiShoppingCart,   // ← comentado (ventas no usadas)
-  // FiCheckCircle,    // ← comentado (ventas no usadas)
-  FiCalendar,          // ← para estado "agendado"
+  // FiPlus,                // ← eliminado
+  // FiShoppingCart,        // ← comentado (ventas no usadas)
+  // FiCheckCircle,         // ← comentado (ventas no usadas)
+  FiCalendar,              // ← para estado "agendado"
 } from 'react-icons/fi'
 import { Menu } from '@headlessui/react'
 
@@ -27,7 +27,7 @@ interface ChatSidebarProps {
   activoId: number | null
   estadoIconos?: Record<string, ReactNode>
   estadoEstilos?: Record<string, string>
-  onNuevaConversacion?: () => void
+  // onNuevaConversacion?: () => void   // ← eliminado
 }
 
 /** Estados visibles en el filtro */
@@ -54,7 +54,7 @@ export default function ChatSidebar({
   activoId,
   estadoIconos,
   estadoEstilos,
-  onNuevaConversacion
+  // onNuevaConversacion, // ← eliminado
 }: ChatSidebarProps) {
 
   // ——————————————————————————————
@@ -89,18 +89,12 @@ export default function ChatSidebar({
 
   return (
     <aside className="w-full md:w-[30%] max-w-[400px] flex-shrink-0 bg-[#111B21] text-white flex flex-col h-full overflow-hidden">
-      {/* Título + botón */}
+      {/* Título (sin botón) */}
       <div className="p-4 flex items-center justify-between">
         <h1 className="font-bold text-lg flex items-center gap-2">
           <FiInbox /> Chats
         </h1>
-        <button
-          onClick={onNuevaConversacion}
-          className="flex items-center gap-1 px-2 py-1 text-xs bg-green-600 hover:bg-green-700 rounded"
-          title="Crear nueva conversación"
-        >
-          <FiPlus /> Nueva
-        </button>
+        {/* Botón "Nueva" eliminado */}
       </div>
 
       {/* Filtro */}
