@@ -59,8 +59,10 @@ export default function ChatsPage() {
   // 🚨 Errores de política (24h)
   const [policyErrors, setPolicyErrors] = useState<Record<number, { code?: number; message: string }>>({})
 
-  const auth = useAuth() as any
-  const token: string | undefined = auth?.token
+  // ...
+  const { token }: { token?: string } = useAuth() as any
+// ...
+
 
   // —————————————————————————————— 
   // Dedupe / Orden
@@ -574,7 +576,7 @@ export default function ChatsPage() {
               <div className="mx-6 mt-3 mb-1 rounded-lg border border-yellow-500/40 bg-yellow-500/10 text-yellow-200 px-4 py-3 text-sm">
                 <div className="flex items-start gap-2">
                   <FiAlertTriangle className="mt-0.5 shrink-0" />
-                <div className="flex-1">
+                  <div className="flex-1">
                     <div className="font-medium">Sesión de 24 h vencida</div>
                     <div className="opacity-90">
                       {policyErrors[activoId].message}
