@@ -176,9 +176,18 @@ export default function ChatsPage() {
   )
 
   const handleChatActualizado = useCallback((data: any) => {
-    // backend puede emitir { id, estado } => incluye nuevos estados de venta
+    // backend puede emitir { id, estado }
     setChats((prev) => prev.map((chat) => (chat.id === data.id ? { ...chat, estado: data.estado } : chat)))
-  }, [])
+
+    // Si el chat activo cambia a NO cerrado, limpiar input y alerta 24h
+    if (data.id === activoId && data.estado !== 'cerrado') {
+      setRespuesta('')
+      setPolicyErrors(prev => {
+        const { [data.id]: _omit, ...rest } = prev
+        return rest
+      })
+    }
+  }, [activoId])
 
   const handlePolicyError = useCallback((payload: any) => {
     const { conversationId, code, message } = payload || {}
@@ -188,7 +197,7 @@ export default function ChatsPage() {
       [conversationId]: {
         code,
         message:
-          message || 'Ventana de 24h cerrada. Se requiere plantilla para iniciar la conversación.'
+          message || 'Ventana de 24 h cerrada. Se requiere plantilla para iniciar la conversación.'
       }
     }))
   }, [])
@@ -417,7 +426,7 @@ export default function ChatsPage() {
         `/api/chats/${activoId}/cerrar`,
         {},
         { headers: { Authorization: `Bearer ${token}` } }
-      )      
+      )
       setChats((prev) => prev.map((chat) => (chat.id === activoId ? { ...chat, estado: 'cerrado' } : chat)))
       if (estadoFiltro !== 'todos') {
         setActivoId(null)
@@ -449,13 +458,15 @@ export default function ChatsPage() {
     if (!activoId) return
     try {
       await axios.put(
-        `/api/chats/${activoId}/estado`,
-        { estado: 'en_proceso' },
+        `/api/chats/${activoId}/reabrir`,
+        {},
         { headers: { Authorization: `Bearer ${token}` } }
       )
-      setChats(prev => prev.map(c => c.id === activoId ? { ...c, estado: 'en_proceso' } : c))
-      setRespuesta('') // por si quedó algo escrito mientras estaba cerrado
-      // Limpia alertas 24h (si aplica)
+      // reflejo optimista (el backend ya emite chat_actualizado también)
+      setChats(prev => prev.map(c => c.id === activoId ? { ...c, estado: 'respondido' } : c))
+
+      setRespuesta('') // limpia input por si quedó algo
+      // Limpia alerta 24h si existía
       setPolicyErrors(prev => {
         const { [activoId]: _omit, ...rest } = prev
         return rest
@@ -464,7 +475,6 @@ export default function ChatsPage() {
       console.error('Error al reabrir conversación:', err)
     }
   }
-  
 
   return (
     <div className="flex h-full max-h-screen bg-[#111b21] text-white overflow-hidden">
@@ -504,7 +514,8 @@ export default function ChatsPage() {
                       {policyErrors[activoId].code ? ` (código ${policyErrors[activoId].code})` : null}
                     </div>
                     <div className="mt-1 text-xs opacity-80">
-                      Por ahora no se envían respuestas automáticas. Usa una plantilla aprobada para reabrir la conversación.
+                      La ventana de 24 h está cerrada para respuestas automáticas.
+                      Puedes <b>reabrir el chat</b> o usar una <b>plantilla aprobada</b>.
                     </div>
                   </div>
                   <button
