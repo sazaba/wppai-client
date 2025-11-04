@@ -445,6 +445,27 @@ export default function ChatsPage() {
     }
   }
 
+  const handleReabrirConversacion = async () => {
+    if (!activoId) return
+    try {
+      await axios.put(
+        `/api/chats/${activoId}/estado`,
+        { estado: 'en_proceso' },
+        { headers: { Authorization: `Bearer ${token}` } }
+      )
+      setChats(prev => prev.map(c => c.id === activoId ? { ...c, estado: 'en_proceso' } : c))
+      setRespuesta('') // por si quedó algo escrito mientras estaba cerrado
+      // Limpia alertas 24h (si aplica)
+      setPolicyErrors(prev => {
+        const { [activoId]: _omit, ...rest } = prev
+        return rest
+      })
+    } catch (err) {
+      console.error('Error al reabrir conversación:', err)
+    }
+  }
+  
+
   return (
     <div className="flex h-full max-h-screen bg-[#111b21] text-white overflow-hidden">
       <ChatSidebar
@@ -468,6 +489,7 @@ export default function ChatsPage() {
               nombre={chats.find((c) => c.id === activoId)?.nombre || ''}
               estado={chats.find((c) => c.id === activoId)?.estado || ''}
               onCerrar={() => setMostrarModalCerrar(true)}
+              onReabrir={handleReabrirConversacion}
               mostrarBotonCerrar={true}
             />
 
