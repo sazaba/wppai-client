@@ -414,10 +414,10 @@ export default function ChatsPage() {
     if (!activoId) return
     try {
       await axios.put(
-        `/api/chats/${activoId}/estado`,
-        { estado: 'cerrado' },
+        `/api/chats/${activoId}/cerrar`,
+        {},
         { headers: { Authorization: `Bearer ${token}` } }
-      )
+      )      
       setChats((prev) => prev.map((chat) => (chat.id === activoId ? { ...chat, estado: 'cerrado' } : chat)))
       if (estadoFiltro !== 'todos') {
         setActivoId(null)

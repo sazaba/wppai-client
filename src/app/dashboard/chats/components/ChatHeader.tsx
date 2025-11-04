@@ -1,6 +1,6 @@
 'use client'
 
-import { FiMessageSquare, FiX } from 'react-icons/fi'
+import { FiMessageSquare } from 'react-icons/fi'
 
 interface ChatHeaderProps {
   nombre: string
@@ -9,7 +9,12 @@ interface ChatHeaderProps {
   mostrarBotonCerrar?: boolean
 }
 
-export default function ChatHeader({ nombre, estado, onCerrar, mostrarBotonCerrar }: ChatHeaderProps) {
+export default function ChatHeader({
+  nombre,
+  estado,
+  onCerrar,
+  mostrarBotonCerrar = true,
+}: ChatHeaderProps) {
   return (
     <header className="flex-shrink-0 flex items-center justify-between px-4 py-3 bg-[#202C33] border-b border-[#2A3942]">
       <div className="flex items-center gap-2 text-white truncate">
@@ -20,7 +25,7 @@ export default function ChatHeader({ nombre, estado, onCerrar, mostrarBotonCerra
         </div>
       </div>
 
-      {mostrarBotonCerrar && (
+      {mostrarBotonCerrar && estado !== 'cerrado' && (
         <button
           onClick={onCerrar}
           className="text-xs bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded-full transition"
