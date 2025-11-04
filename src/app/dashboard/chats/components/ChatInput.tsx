@@ -15,8 +15,9 @@ interface Props {
   onChange: (v: string) => void
   onSend: () => void
   disabled?: boolean
-  onSendGif?: (url: string, isMp4: boolean) => void // compat
+  onSendGif?: (url: string, isMp4: boolean) => void
   onUploadFile?: (file: File, type: MediaKind) => void
+  onAppointmentCreated?: (created: { id: number; startAt: string }) => void // 🆕
 }
 
 /* ---------- Helpers UX ---------- */
@@ -196,6 +197,7 @@ export default function ChatInput({
   disabled,
   onSendGif, // compat
   onUploadFile,
+  onAppointmentCreated, // 🆕
 }: Props) {
   const [showEmoji, setShowEmoji] = useState(false)
   const [showAppt, setShowAppt] = useState(false)
@@ -235,7 +237,6 @@ export default function ChatInput({
 
   /* ---- Teclado ---- */
   const handleKeyDown: React.KeyboardEventHandler<HTMLInputElement> = (e) => {
-    // Enviar con Enter (y permitir Ctrl/Cmd+Enter como alternativa)
     const isSubmit =
       (e.key === 'Enter' && !e.shiftKey) || ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'enter')
     if (isSubmit) {
@@ -261,7 +262,6 @@ export default function ChatInput({
     e.currentTarget.value = ''
   }
 
-  // Pegar archivos/imágenes directamente en el input
   const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
     const items = e.clipboardData?.items
     if (!items || !onUploadFile) return
@@ -322,6 +322,28 @@ export default function ChatInput({
           timeStyle: 'short',
         })}`
       )
+
+      // 🆕 Notifica al padre para marcar conversación como "agendado"
+      onAppointmentCreated?.({ id: created.id, startAt: created.startAt })
+
+      // 🆕 Pregunta si desea programar confirmación 24h antes
+      const resp = await DarkSwal.fire({
+        title: '¿Programar confirmación 24h antes?',
+        text: 'Podemos enviar automáticamente un recordatorio 24 horas antes de la cita.',
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: 'Sí, programar',
+        cancelButtonText: 'No ahora',
+      })
+
+      if (resp.isConfirmed) {
+        try {
+          await api(`/api/appointments/${created.id}/schedule-confirm-24h`, { method: 'POST' }, token)
+          await alertSuccess('Confirmación programada', 'Se enviará 24 horas antes de la cita.')
+        } catch {
+          await alertSuccess('Agendado', 'Guardaremos esta preferencia cuando el flujo esté listo.')
+        }
+      }
     } catch (err) {
       const msg = extractErrorMessage(err)
       await alertError('No se pudo agendar la cita', `<pre style="text-align:left;white-space:pre-wrap;">${msg}</pre>`)
@@ -373,7 +395,7 @@ export default function ChatInput({
           <FiCalendar className="w-5 h-5 text-[#D1D7DB]" />
         </button>
 
-        {/* Multimedia (imagen / video / audio / doc) */}
+        {/* Multimedia */}
         <button
           type="button"
           onClick={() => fileRef.current?.click()}
@@ -418,7 +440,7 @@ export default function ChatInput({
         </button>
       </div>
 
-      {/* Dialogo para crear cita (mismo layout del calendario) */}
+      {/* Diálogo crear cita */}
       <Dialog open={showAppt} onClose={() => setShowAppt(false)}>
         <CreateApptForm
           onCancel={() => setShowAppt(false)}
@@ -432,7 +454,7 @@ export default function ChatInput({
   )
 }
 
-/* ---------- Formulario Crear Cita (par con appointmentsCalendar) ---------- */
+/* ---------- Formulario Crear Cita ---------- */
 function CreateApptForm({
   onSave,
   onCancel,

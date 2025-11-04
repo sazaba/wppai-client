@@ -25,8 +25,9 @@ const estadoIconos = {
   respondido: <span className="inline-block w-2 h-2 bg-green-400 rounded-full" />,
   en_proceso: <span className="inline-block w-2 h-2 bg-blue-400 rounded-full" />,
   requiere_agente: <span className="inline-block w-2 h-2 bg-red-400 rounded-full" />,
-  venta_en_proceso: <FiShoppingCart className="inline mr-1" />,   // 🆕
-  venta_realizada: <FiCheckCircle className="inline mr-1" />,      // 🆕
+  venta_en_proceso: <FiShoppingCart className="inline mr-1" />,
+  venta_realizada: <FiCheckCircle className="inline mr-1" />,
+  agendado: <span className="inline-block w-2 h-2 bg-indigo-400 rounded-full" />, // 🆕
   cerrado: <span className="inline-block w-2 h-2 bg-gray-400 rounded-full" />,
   todos: <span className="inline-block w-2 h-2 bg-slate-400 rounded-full" />,
 }
@@ -36,8 +37,9 @@ const estadoEstilos = {
   respondido: 'bg-green-100 text-green-700',
   en_proceso: 'bg-blue-100 text-blue-700',
   requiere_agente: 'bg-red-100 text-red-700',
-  venta_en_proceso: 'bg-amber-100 text-amber-700',   // 🆕
-  venta_realizada: 'bg-emerald-100 text-emerald-700',// 🆕
+  venta_en_proceso: 'bg-amber-100 text-amber-700',
+  venta_realizada: 'bg-emerald-100 text-emerald-700',
+  agendado: 'bg-indigo-100 text-indigo-700', // 🆕
   cerrado: 'bg-gray-100 text-gray-600',
   todos: 'bg-slate-100 text-slate-700',
 }
@@ -59,10 +61,7 @@ export default function ChatsPage() {
   // 🚨 Errores de política (24h)
   const [policyErrors, setPolicyErrors] = useState<Record<number, { code?: number; message: string }>>({})
 
-  // ...
   const { token }: { token?: string } = useAuth() as any
-// ...
-
 
   // —————————————————————————————— 
   // Dedupe / Orden
@@ -200,7 +199,6 @@ export default function ChatsPage() {
     }))
   }, [])
 
-  // 🆕 escuchar eliminaciones desde backend
   useEffect(() => {
     const onEliminado = ({ id }: { id: number }) => {
       setChats((prev) => prev.filter((c) => c.id !== id))
@@ -337,9 +335,7 @@ export default function ChatsPage() {
           ordenarMensajes(prev.map((m) => (m.id === tempId ? { ...m, ...real, id: real.id } : m)))
         )
 
-        setChats((prev) =>
-          prev.map((chat) => (chat.id === activoId ? { ...chat, estado: 'respondido' } : chat))
-        )
+        setChats((prev) => prev.map((chat) => (chat.id === activoId ? { ...chat, estado: 'respondido' } : chat)))
       } catch (err) {
         console.error('Error al responder manualmente:', err)
         setMensajes((prev) => prev.map((m) => (m.id === tempId ? { ...m, error: true } : m)))
@@ -355,9 +351,7 @@ export default function ChatsPage() {
         )
       }
       if (res.estado === 'requiere_agente') {
-        setChats((prev) =>
-          prev.map((chat) => (chat.id === activoId ? { ...chat, estado: 'requiere_agente' } : chat))
-        )
+        setChats((prev) => prev.map((chat) => (chat.id === activoId ? { ...chat, estado: 'requiere_agente' } : chat)))
         if (audioRef.current) audioRef.current.play()
         if (navigator.vibrate) navigator.vibrate(200)
         return
@@ -475,6 +469,21 @@ export default function ChatsPage() {
     }
   }
 
+  // 🆕 Marcar conversación como "agendado" cuando el ChatInput cree la cita
+  const handleAppointmentCreated = async (created: { id: number; startAt: string }) => {
+    if (!activoId || !token) return
+    try {
+      await axios.put(
+        `/api/chats/${activoId}/estado`,
+        { estado: 'agendado' },
+        { headers: { Authorization: `Bearer ${token}` } }
+      )
+      setChats((prev) => prev.map((c) => (c.id === activoId ? { ...c, estado: 'agendado' } : c)))
+    } catch (err) {
+      console.error('No se pudo marcar como agendado:', err)
+    }
+  }
+
   // 🆕 Eliminar conversación — SweetAlert modo oscuro y solo si está cerrada
   const handleEliminarConversacion = async () => {
     if (!activoId) return
@@ -500,10 +509,10 @@ export default function ChatsPage() {
       confirmButtonText: 'Eliminar',
       cancelButtonText: 'Cancelar',
       reverseButtons: true,
-      background: '#0B141A',   // 🌙 fondo oscuro
-      color: '#e5e7eb',        // texto gris claro
-      confirmButtonColor: '#ef4444', // rojo
-      cancelButtonColor: '#374151',  // gris oscuro
+      background: '#0B141A',
+      color: '#e5e7eb',
+      confirmButtonColor: '#ef4444',
+      cancelButtonColor: '#374151',
     })
 
     if (!resp.isConfirmed) return
@@ -512,7 +521,6 @@ export default function ChatsPage() {
       await axios.delete(`/api/chats/${activoId}`, {
         headers: { Authorization: `Bearer ${token}` },
       })
-      // reflejo optimista (además backend puede emitir 'chat_eliminado')
       setChats((prev) => prev.filter((c) => c.id !== activoId))
       setMensajes([])
       setPolicyErrors((prev) => {
@@ -568,7 +576,7 @@ export default function ChatsPage() {
               estado={chats.find((c) => c.id === activoId)?.estado || ''}
               onCerrar={() => setMostrarModalCerrar(true)}
               onReabrir={handleReabrirConversacion}
-              onEliminar={handleEliminarConversacion}   // aparece solo si está cerrado
+              onEliminar={handleEliminarConversacion}
               mostrarBotonCerrar={true}
             />
 
@@ -611,6 +619,7 @@ export default function ChatsPage() {
               onSendGif={(url, isMp4) => handleSendMedia({ url, type: isMp4 ? 'video' : 'image' })}
               onUploadFile={(file, type) => handleUploadFile(file, type)}
               disabled={chats.find((c) => c.id === activoId)?.estado === 'cerrado'}
+              onAppointmentCreated={handleAppointmentCreated} // 🆕
             />
           </>
         ) : (

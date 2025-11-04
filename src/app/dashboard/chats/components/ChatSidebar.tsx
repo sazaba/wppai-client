@@ -1,4 +1,3 @@
-
 'use client'
 
 import type { ReactNode } from 'react'
@@ -11,8 +10,9 @@ import {
   FiCheck,
   FiChevronDown,
   FiPlus,
-  FiShoppingCart,
-  FiCheckCircle
+  // FiShoppingCart,   // ← comentado (ventas no usadas)
+  // FiCheckCircle,    // ← comentado (ventas no usadas)
+  FiCalendar,          // ← para estado "agendado"
 } from 'react-icons/fi'
 import { Menu } from '@headlessui/react'
 
@@ -30,15 +30,16 @@ interface ChatSidebarProps {
   onNuevaConversacion?: () => void
 }
 
-
+/** Estados visibles en el filtro */
 const estados = [
   'todos',
   'pendiente',
   'en_proceso',
   'respondido',
   'requiere_agente',
-  'venta_en_proceso', 
-  'venta_realizada',    
+  // 'venta_en_proceso', // ← comentado (no se usa)
+  // 'venta_realizada',  // ← comentado (no se usa)
+  'agendado',           // ← NUEVO
   'cerrado',
 ] as const
 
@@ -56,31 +57,35 @@ export default function ChatSidebar({
   onNuevaConversacion
 }: ChatSidebarProps) {
 
-  // Fallbacks por si aún no agregaste los estilos/iconos nuevos en el padre
+  // ——————————————————————————————
+  // Fallbacks de iconos/estilos (si el padre no los provee)
+  // ——————————————————————————————
   const icono = (estado: string) =>
     estadoIconos?.[estado] ??
-    (estado === 'venta_en_proceso'
-      ? <FiShoppingCart className="inline-block" />
-      : estado === 'venta_realizada'
-      ? <FiCheckCircle className="inline-block" />
+    // estado === 'venta_en_proceso'
+    //   ? <FiShoppingCart className="inline-block" />
+    // : estado === 'venta_realizada'
+    //   ? <FiCheckCircle className="inline-block" />
+    (estado === 'agendado'
+      ? <FiCalendar className="inline-block" />
       : <FiInbox className="inline-block" />)
 
   const estilo = (estado: string) =>
     estadoEstilos?.[estado] ??
-    (estado === 'venta_en_proceso'
-      ? 'bg-amber-900/30 text-amber-200 border border-amber-700'
-      : estado === 'venta_realizada'
-      ? 'bg-emerald-900/30 text-emerald-200 border border-emerald-700'
+    // estado === 'venta_en_proceso'
+    //   ? 'bg-amber-900/30 text-amber-200 border border-amber-700'
+    // : estado === 'venta_realizada'
+    //   ? 'bg-emerald-900/30 text-emerald-200 border border-emerald-700'
+    (estado === 'agendado'
+      ? 'bg-indigo-900/30 text-indigo-200 border border-indigo-700'
       : 'bg-[#202C33] text-[#cbd5e1]')
 
   const lista = Array.isArray(chats) ? chats : []
-  // En el filtro de la lista (fallback defensivo):
+
   const chatsFiltrados = lista.filter(chat =>
     (estadoFiltro === 'todos' || (chat.estado ?? 'pendiente') === estadoFiltro) &&
     String(chat.nombre ?? chat.phone ?? '').toLowerCase().includes((busqueda || '').toLowerCase())
   )
-  
-
 
   return (
     <aside className="w-full md:w-[30%] max-w-[400px] flex-shrink-0 bg-[#111B21] text-white flex flex-col h-full overflow-hidden">
@@ -103,25 +108,21 @@ export default function ChatSidebar({
         <label className="mb-1 block">Filtrar por estado</label>
         <Menu as="div" className="relative w-full">
           <Menu.Button className="w-full inline-flex justify-between items-center px-4 py-2 bg-[#202C33] text-sm text-white rounded-md hover:bg-[#2a3942]">
-          {estadoFiltro === 'todos'
-  ? 'Todos'
-  : estadoFiltro.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+            {estadoFiltro === 'todos'
+              ? 'Todos'
+              : estadoFiltro.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase())}
             <FiChevronDown className="w-4 h-4 ml-2" />
           </Menu.Button>
 
           <Menu.Items className="absolute z-10 mt-2 w-full bg-[#202C33] border border-[#2a3942] rounded-md shadow-lg max-h-60 overflow-auto text-sm text-white">
             {estados.map((estado) => {
-              // En el label dentro del map (reemplaza este bloque):
-const label = estado === 'todos'
-? 'Todos'
-: estado.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
+              const label = estado === 'todos'
+                ? 'Todos'
+                : estado.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase())
 
-
-              // En el conteo por estado (fallback defensivo):
-const count = estado === 'todos'
-? (lista?.length ?? 0)
-: lista.filter((c) => (c.estado ?? 'pendiente') === estado).length
-
+              const count = estado === 'todos'
+                ? (lista?.length ?? 0)
+                : lista.filter((c) => (c.estado ?? 'pendiente') === estado).length
 
               const selected = estadoFiltro === estado
 
@@ -180,21 +181,22 @@ const count = estado === 'todos'
                 <span className="text-sm font-semibold truncate max-w-[160px]">
                   {chat.nombre ?? chat.phone}
                 </span>
-                
-<span
-  className={`text-[10px] px-2 py-0.5 rounded-full font-medium flex items-center gap-1 ${estilo(chat.estado ?? 'pendiente')}`}
->
-  {icono(chat.estado ?? 'pendiente')} {(chat.estado ?? 'pendiente').replace(/_/g, ' ')}
-</span>
 
-
+                <span
+                  className={`text-[10px] px-2 py-0.5 rounded-full font-medium flex items-center gap-1 ${estilo(
+                    chat.estado ?? 'pendiente'
+                  )}`}
+                >
+                  {icono(chat.estado ?? 'pendiente')}{' '}
+                  {(chat.estado ?? 'pendiente').replace(/_/g, ' ')}
+                </span>
               </div>
               <p className="text-xs text-[#8696a0] truncate">{chat.mensaje}</p>
               <p className="text-[10px] text-[#5b6b75] flex items-center gap-1">
                 <FiClock className="inline-block" />
                 {chat.fecha
-  ? new Date(chat.fecha).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-  : '—'}
+                  ? new Date(chat.fecha).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                  : '—'}
               </p>
             </li>
           ))
