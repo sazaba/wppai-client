@@ -33,17 +33,28 @@ export default function ChatHeader({
       </div>
 
       <div className="flex items-center gap-2">
-        {/* Si está cerrado, muestra Reabrir; si no, muestra Cerrar */}
+        {/* Si está cerrado, muestra Reabrir + Eliminar; si no, muestra Cerrar */}
         {estaCerrado ? (
-          onReabrir && (
-            <button
-              onClick={onReabrir}
-              className="text-xs bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1 rounded-full transition"
-              aria-label="Reabrir conversación"
-            >
-              Reabrir
-            </button>
-          )
+          <>
+            {onReabrir && (
+              <button
+                onClick={onReabrir}
+                className="text-xs bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1 rounded-full transition"
+                aria-label="Reabrir conversación"
+              >
+                Reabrir
+              </button>
+            )}
+            {onEliminar && (
+              <button
+                onClick={onEliminar}
+                className="text-xs bg-[#8b0000] hover:bg-[#a40000] text-white px-3 py-1 rounded-full transition"
+                aria-label="Eliminar conversación"
+              >
+                Eliminar
+              </button>
+            )}
+          </>
         ) : (
           mostrarBotonCerrar && (
             <button
@@ -54,17 +65,6 @@ export default function ChatHeader({
               Cerrar
             </button>
           )
-        )}
-
-        {/* Botón eliminar siempre visible */}
-        {onEliminar && (
-          <button
-            onClick={onEliminar}
-            className="text-xs bg-[#8b0000] hover:bg-[#a40000] text-white px-3 py-1 rounded-full transition"
-            aria-label="Eliminar conversación"
-          >
-            Eliminar
-          </button>
         )}
       </div>
     </header>

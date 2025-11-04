@@ -5,6 +5,7 @@ import { FiClock, FiAlertTriangle, FiShoppingCart, FiCheckCircle } from 'react-i
 import { responderConIA } from '@/lib/chatService'
 import socket from '@/lib/socket'
 import axios from '@/lib/axios'
+import Swal from 'sweetalert2'
 
 import ChatSidebar from './components/ChatSidebar'
 import ChatHeader from './components/ChatHeader'
@@ -74,9 +75,7 @@ export default function ChatsPage() {
 
   const ordenarMensajes = useCallback(
     (arr: any[]) =>
-      [...arr].sort(
-        (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
-      ),
+      [...arr].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()),
     []
   )
 
@@ -117,7 +116,6 @@ export default function ChatsPage() {
   // ——————————————————————————————
   const handleNuevoMensaje = useCallback(
     (msg: any) => {
-      // el backend emite: { conversationId, message: { ...campos... }, estado?, nombre? }
       const payload = msg.message ?? msg
 
       const nuevo = {
@@ -132,7 +130,7 @@ export default function ChatsPage() {
         mimeType: payload.mimeType,
         caption: payload.caption,
         transcription: payload.transcription,
-        isVoiceNote: payload.isVoiceNote
+        isVoiceNote: payload.isVoiceNote,
       }
 
       if (msg.conversationId === activoId) setMensajes((prev) => mergeUnique(prev, [nuevo]))
@@ -153,9 +151,8 @@ export default function ChatsPage() {
               ? {
                   ...chat,
                   mensaje: nuevo.contenido || '[media]',
-                  // si el backend manda estado (incluye venta_en_proceso/venta_realizada), lo respetamos
                   estado: msg.estado ?? chat.estado,
-                  fecha: nuevo.timestamp
+                  fecha: nuevo.timestamp,
                 }
               : chat
           )
@@ -166,28 +163,28 @@ export default function ChatsPage() {
             nombre: msg.nombre ?? msg.conversationId,
             estado: msg.estado ?? 'pendiente',
             mensaje: nuevo.contenido || '[media]',
-            fecha: nuevo.timestamp
+            fecha: nuevo.timestamp,
           },
-          ...prev
+          ...prev,
         ]
       })
     },
     [activoId, mergeUnique]
   )
 
-  const handleChatActualizado = useCallback((data: any) => {
-    // backend puede emitir { id, estado }
-    setChats((prev) => prev.map((chat) => (chat.id === data.id ? { ...chat, estado: data.estado } : chat)))
-
-    // Si el chat activo cambia a NO cerrado, limpiar input y alerta 24h
-    if (data.id === activoId && data.estado !== 'cerrado') {
-      setRespuesta('')
-      setPolicyErrors(prev => {
-        const { [data.id]: _omit, ...rest } = prev
-        return rest
-      })
-    }
-  }, [activoId])
+  const handleChatActualizado = useCallback(
+    (data: any) => {
+      setChats((prev) => prev.map((chat) => (chat.id === data.id ? { ...chat, estado: data.estado } : chat)))
+      if (data.id === activoId && data.estado !== 'cerrado') {
+        setRespuesta('')
+        setPolicyErrors((prev) => {
+          const { [data.id]: _omit, ...rest } = prev
+          return rest
+        })
+      }
+    },
+    [activoId]
+  )
 
   const handlePolicyError = useCallback((payload: any) => {
     const { conversationId, code, message } = payload || {}
@@ -196,21 +193,20 @@ export default function ChatsPage() {
       ...prev,
       [conversationId]: {
         code,
-        message:
-          message || 'Ventana de 24 h cerrada. Se requiere plantilla para iniciar la conversación.'
-      }
+        message: message || 'Ventana de 24 h cerrada. Se requiere plantilla para iniciar la conversación.',
+      },
     }))
   }, [])
 
   // 🆕 escuchar eliminaciones desde backend
   useEffect(() => {
     const onEliminado = ({ id }: { id: number }) => {
-      setChats(prev => prev.filter(c => c.id !== id))
+      setChats((prev) => prev.filter((c) => c.id !== id))
       if (activoId === id) {
         setActivoId(null)
         setMensajes([])
       }
-      setPolicyErrors(prev => {
+      setPolicyErrors((prev) => {
         const { [id]: _omit, ...rest } = prev
         return rest
       })
@@ -243,7 +239,6 @@ export default function ChatsPage() {
     try {
       const chatActual = chats.find((c) => c.id === chatId)
 
-      // regla actual: si estaba "pendiente" => pasa a "en_proceso"
       if (chatActual?.estado === 'pendiente') {
         await axios.put(
           `/api/chats/${chatId}/estado`,
@@ -253,7 +248,7 @@ export default function ChatsPage() {
       }
 
       const res = await axios.get(`/api/chats/${chatId}/messages?page=1&limit=20`, {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${token}` },
       })
 
       const mapped = res.data.messages.map((m: any) => ({
@@ -268,7 +263,7 @@ export default function ChatsPage() {
         mimeType: m.mimeType,
         caption: m.caption,
         transcription: m.transcription,
-        isVoiceNote: m.isVoiceNote
+        isVoiceNote: m.isVoiceNote,
       }))
 
       setMensajes(ordenarMensajes(mapped))
@@ -286,7 +281,7 @@ export default function ChatsPage() {
     const nextPage = page + 1
     try {
       const res = await axios.get(`/api/chats/${activoId}/messages?page=${nextPage}&limit=20`, {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${token}` },
       })
 
       const mapped = res.data.messages.map((m: any) => ({
@@ -301,10 +296,10 @@ export default function ChatsPage() {
         mimeType: m.mimeType,
         caption: m.caption,
         transcription: m.transcription,
-        isVoiceNote: m.isVoiceNote
+        isVoiceNote: m.isVoiceNote,
       }))
 
-      setMensajes((prev) => mergeUnique(mapped, prev)) // prepend históricos
+      setMensajes((prev) => mergeUnique(mapped, prev))
       setPage(nextPage)
       setHasMore(res.data.pagination.hasMore)
     } catch (err) {
@@ -322,15 +317,11 @@ export default function ChatsPage() {
     const chatActual = chats.find((c) => c.id === activoId)
     const tempId = `temp-${Date.now()}`
     const timestamp = new Date().toISOString()
-
-    // ✅ El mensaje manual lo envía un AGENTE
     const msgOptimista = { id: tempId, from: 'agent', contenido: body, timestamp }
 
-    // Limpia input y pinta optimista
     setRespuesta('')
     setMensajes((prev) => mergeUnique(prev, [msgOptimista]))
 
-    // Si la conversación no está cerrada, usamos el endpoint manual
     if (chatActual?.estado !== 'cerrado') {
       try {
         const { data } = await axios.post(
@@ -345,9 +336,7 @@ export default function ChatsPage() {
         )
 
         setChats((prev) =>
-          prev.map((chat) =>
-            chat.id === activoId ? { ...chat, estado: 'respondido' } : chat
-          )
+          prev.map((chat) => (chat.id === activoId ? { ...chat, estado: 'respondido' } : chat))
         )
       } catch (err) {
         console.error('Error al responder manualmente:', err)
@@ -356,7 +345,6 @@ export default function ChatsPage() {
       return
     }
 
-    // Si está cerrada, mantienes tu flujo de IA (si así lo deseas)
     try {
       const res = await responderConIA({ chatId: activoId, mensaje: body, intentosFallidos: 0 })
       if (res?.message) {
@@ -366,17 +354,13 @@ export default function ChatsPage() {
       }
       if (res.estado === 'requiere_agente') {
         setChats((prev) =>
-          prev.map((chat) =>
-            chat.id === activoId ? { ...chat, estado: 'requiere_agente' } : chat
-          )
+          prev.map((chat) => (chat.id === activoId ? { ...chat, estado: 'requiere_agente' } : chat))
         )
         if (audioRef.current) audioRef.current.play()
         if (navigator.vibrate) navigator.vibrate(200)
         return
       }
-      setChats((prev) =>
-        prev.map((chat) => (chat.id === activoId ? { ...chat, estado: 'respondido' } : chat))
-      )
+      setChats((prev) => prev.map((chat) => (chat.id === activoId ? { ...chat, estado: 'respondido' } : chat)))
     } catch (err) {
       console.error('Error al responder con IA:', err)
       setMensajes((prev) => prev.map((m) => (m.id === tempId ? { ...m, error: true } : m)))
@@ -394,7 +378,7 @@ export default function ChatsPage() {
         { url, type },
         { headers: { Authorization: `Bearer ${token}` } }
       )
-      setMensajes(prev => [
+      setMensajes((prev) => [
         ...prev,
         {
           id: Date.now(),
@@ -427,9 +411,8 @@ export default function ChatsPage() {
       if (caption) fd.append('caption', caption)
 
       await axios.post('/api/whatsapp/media-upload', fd, {
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' }
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' },
       })
-      // esperamos evento de socket
     } catch (err) {
       console.error('❌ Error subiendo/enviando archivo:', err)
       alert('No se pudo enviar el archivo')
@@ -479,12 +462,9 @@ export default function ChatsPage() {
         {},
         { headers: { Authorization: `Bearer ${token}` } }
       )
-      // reflejo optimista (el backend ya emite chat_actualizado también)
-      setChats(prev => prev.map(c => c.id === activoId ? { ...c, estado: 'respondido' } : c))
-
-      setRespuesta('') // limpia input por si quedó algo
-      // Limpia alerta 24h si existía
-      setPolicyErrors(prev => {
+      setChats((prev) => prev.map((c) => (c.id === activoId ? { ...c, estado: 'respondido' } : c)))
+      setRespuesta('')
+      setPolicyErrors((prev) => {
         const { [activoId]: _omit, ...rest } = prev
         return rest
       })
@@ -493,26 +473,72 @@ export default function ChatsPage() {
     }
   }
 
-  // 🆕 Eliminar conversación (confirmación + actualización de estado)
+  // 🆕 Eliminar conversación — SweetAlert modo oscuro y solo si está cerrada
   const handleEliminarConversacion = async () => {
     if (!activoId) return
-    const confirmar = window.confirm('¿Eliminar esta conversación y sus datos relacionados?')
-    if (!confirmar) return
+    const chatActual = chats.find((c) => c.id === activoId)
+    if (chatActual?.estado !== 'cerrado') {
+      await Swal.fire({
+        title: 'No disponible',
+        text: 'Solo puedes eliminar conversaciones que estén cerradas.',
+        icon: 'info',
+        background: '#0B141A',
+        color: '#e5e7eb',
+        confirmButtonText: 'Entendido',
+        confirmButtonColor: '#10b981',
+      })
+      return
+    }
+
+    const resp = await Swal.fire({
+      title: 'Eliminar conversación',
+      text: 'Se borrarán primero los mensajes y luego la conversación. Esta acción no se puede deshacer.',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Eliminar',
+      cancelButtonText: 'Cancelar',
+      reverseButtons: true,
+      background: '#0B141A',   // 🌙 fondo oscuro
+      color: '#e5e7eb',        // texto gris claro
+      confirmButtonColor: '#ef4444', // rojo
+      cancelButtonColor: '#374151',  // gris oscuro
+    })
+
+    if (!resp.isConfirmed) return
+
     try {
       await axios.delete(`/api/chats/${activoId}`, {
         headers: { Authorization: `Bearer ${token}` },
       })
-      // Si el backend emite 'chat_eliminado', igual limpiará la UI; esto es reflejo optimista:
-      setChats(prev => prev.filter(c => c.id !== activoId))
+      // reflejo optimista (además backend puede emitir 'chat_eliminado')
+      setChats((prev) => prev.filter((c) => c.id !== activoId))
       setMensajes([])
-      setPolicyErrors(prev => {
+      setPolicyErrors((prev) => {
         const { [activoId]: _omit, ...rest } = prev
         return rest
       })
       setActivoId(null)
+
+      await Swal.fire({
+        title: 'Eliminado',
+        text: 'La conversación fue eliminada correctamente.',
+        icon: 'success',
+        background: '#0B141A',
+        color: '#e5e7eb',
+        confirmButtonText: 'Ok',
+        confirmButtonColor: '#10b981',
+      })
     } catch (err) {
       console.error('Error al eliminar conversación:', err)
-      alert('No se pudo eliminar la conversación')
+      await Swal.fire({
+        title: 'Error',
+        text: 'No se pudo eliminar la conversación.',
+        icon: 'error',
+        background: '#0B141A',
+        color: '#e5e7eb',
+        confirmButtonText: 'Cerrar',
+        confirmButtonColor: '#ef4444',
+      })
     }
   }
 
@@ -540,7 +566,7 @@ export default function ChatsPage() {
               estado={chats.find((c) => c.id === activoId)?.estado || ''}
               onCerrar={() => setMostrarModalCerrar(true)}
               onReabrir={handleReabrirConversacion}
-              onEliminar={handleEliminarConversacion}   // 🆕 botón eliminar
+              onEliminar={handleEliminarConversacion}   // aparece solo si está cerrado
               mostrarBotonCerrar={true}
             />
 
@@ -548,7 +574,7 @@ export default function ChatsPage() {
               <div className="mx-6 mt-3 mb-1 rounded-lg border border-yellow-500/40 bg-yellow-500/10 text-yellow-200 px-4 py-3 text-sm">
                 <div className="flex items-start gap-2">
                   <FiAlertTriangle className="mt-0.5 shrink-0" />
-                  <div className="flex-1">
+                <div className="flex-1">
                     <div className="font-medium">Sesión de 24 h vencida</div>
                     <div className="opacity-90">
                       {policyErrors[activoId].message}
