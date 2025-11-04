@@ -310,58 +310,151 @@ export default function ChatsPage() {
   // ——————————————————————————————
   // Enviar TEXTO
   // ——————————————————————————————
-  const handleSendMessage = async () => {
-    const body = respuesta.trim()
-    if (!body || !activoId) return
+  // const handleSendMessage = async () => {
+  //   const body = respuesta.trim()
+  //   if (!body || !activoId) return
 
-    const chatActual = chats.find((c) => c.id === activoId)
-    const tempId = `temp-${Date.now()}`
-    const timestamp = new Date().toISOString()
-    const msgOptimista = { id: tempId, from: 'agent', contenido: body, timestamp }
+  //   const chatActual = chats.find((c) => c.id === activoId)
+  //   const tempId = `temp-${Date.now()}`
+  //   const timestamp = new Date().toISOString()
+  //   const msgOptimista = { id: tempId, from: 'agent', contenido: body, timestamp }
 
-    setRespuesta('')
-    setMensajes((prev) => mergeUnique(prev, [msgOptimista]))
+  //   setRespuesta('')
+  //   setMensajes((prev) => mergeUnique(prev, [msgOptimista]))
 
-    if (chatActual?.estado !== 'cerrado') {
-      try {
-        const { data } = await axios.post(
-          `/api/chats/${activoId}/responder-manual`,
-          { contenido: body },
-          { headers: { Authorization: `Bearer ${token}` } }
-        )
+  //   if (chatActual?.estado !== 'cerrado') {
+  //     try {
+  //       const { data } = await axios.post(
+  //         `/api/chats/${activoId}/responder-manual`,
+  //         { contenido: body },
+  //         { headers: { Authorization: `Bearer ${token}` } }
+  //       )
 
-        const real = data?.message ?? data
-        setMensajes((prev) =>
-          ordenarMensajes(prev.map((m) => (m.id === tempId ? { ...m, ...real, id: real.id } : m)))
-        )
+  //       const real = data?.message ?? data
+  //       setMensajes((prev) =>
+  //         ordenarMensajes(prev.map((m) => (m.id === tempId ? { ...m, ...real, id: real.id } : m)))
+  //       )
 
-        setChats((prev) => prev.map((chat) => (chat.id === activoId ? { ...chat, estado: 'respondido' } : chat)))
-      } catch (err) {
-        console.error('Error al responder manualmente:', err)
-        setMensajes((prev) => prev.map((m) => (m.id === tempId ? { ...m, error: true } : m)))
-      }
+  //       setChats((prev) => prev.map((chat) => (chat.id === activoId ? { ...chat, estado: 'respondido' } : chat)))
+  //     } catch (err) {
+  //       console.error('Error al responder manualmente:', err)
+  //       setMensajes((prev) => prev.map((m) => (m.id === tempId ? { ...m, error: true } : m)))
+  //     }
+  //     return
+  //   }
+
+  //   try {
+  //     const res = await responderConIA({ chatId: activoId, mensaje: body, intentosFallidos: 0 })
+  //     if (res?.message) {
+  //       setMensajes((prev) =>
+  //         ordenarMensajes(prev.map((m) => (m.id === tempId ? { ...m, ...res.message, id: res.message.id } : m)))
+  //       )
+  //     }
+  //     if (res.estado === 'requiere_agente') {
+  //       setChats((prev) => prev.map((chat) => (chat.id === activoId ? { ...chat, estado: 'requiere_agente' } : chat)))
+  //       if (audioRef.current) audioRef.current.play()
+  //       if (navigator.vibrate) navigator.vibrate(200)
+  //       return
+  //     }
+  //     setChats((prev) => prev.map((chat) => (chat.id === activoId ? { ...chat, estado: 'respondido' } : chat)))
+  //   } catch (err) {
+  //     console.error('Error al responder con IA:', err)
+  //     setMensajes((prev) => prev.map((m) => (m.id === tempId ? { ...m, error: true } : m)))
+  //   }
+  // }
+
+  // ——————————————————————————————
+// Enviar TEXTO (tolerante a ruta/payload)
+// ——————————————————————————————
+const handleSendMessage = async () => {
+  const body = respuesta.trim()
+  if (!body || !activoId) return
+
+  const chatActual = chats.find((c) => c.id === activoId)
+  const tempId = `temp-${Date.now()}`
+  const timestamp = new Date().toISOString()
+  const msgOptimista = { id: tempId, from: 'agent', contenido: body, timestamp }
+
+  setRespuesta('')
+  setMensajes((prev) => mergeUnique(prev, [msgOptimista]))
+
+  // Si está cerrado, no intentes enviar (tu UI ya deshabilita, pero por si acaso)
+  if (chatActual?.estado === 'cerrado') {
+    setMensajes((prev) => prev.map((m) => (m.id === tempId ? { ...m, error: true } : m)))
+    await Swal.fire({
+      icon: 'info',
+      title: 'Conversación cerrada',
+      text: 'Debes reabrir la conversación antes de enviar un mensaje.',
+      background: '#0B141A',
+      color: '#e5e7eb',
+      confirmButtonColor: '#10b981',
+    })
+    return
+  }
+
+  // Helper para reemplazar el temporal por el real
+  const aplicarOk = (created: any) => {
+    const real = created?.message ?? created
+    setMensajes((prev) =>
+      ordenarMensajes(prev.map((m) => (m.id === tempId ? { ...m, ...real, id: real.id } : m)))
+    )
+    setChats((prev) => prev.map((chat) => (chat.id === activoId ? { ...chat, estado: 'respondido' } : chat)))
+  }
+
+  // Helper de error
+  const aplicarError = async (err: any) => {
+    console.error('Error al responder manualmente:', err)
+    setMensajes((prev) => prev.map((m) => (m.id === tempId ? { ...m, error: true } : m)))
+
+    let msg = ''
+    try {
+      const raw = err?.response?.data || err?.message || err
+      msg = typeof raw === 'string' ? raw : JSON.stringify(raw)
+    } catch {
+      msg = String(err)
+    }
+    await Swal.fire({
+      icon: 'error',
+      title: 'No se pudo enviar',
+      html: `<pre style="text-align:left;white-space:pre-wrap;">${msg}</pre>`,
+      background: '#0B141A',
+      color: '#e5e7eb',
+      confirmButtonColor: '#ef4444',
+    })
+  }
+
+  try {
+    // 1) Primer intento: tu ruta actual
+    const { data } = await axios.post(
+      `/api/chats/${activoId}/responder-manual`,
+      // Enviamos las tres llaves por compatibilidad de backend
+      { text: body, body, contenido: body, from: 'agent' },
+      { headers: { Authorization: `Bearer ${token}` } }
+    )
+    aplicarOk(data)
+    return
+  } catch (err: any) {
+    // Si es 404/405, intenta la ruta estándar
+    const status = err?.response?.status
+    if (status !== 404 && status !== 405) {
+      await aplicarError(err)
       return
     }
-
-    try {
-      const res = await responderConIA({ chatId: activoId, mensaje: body, intentosFallidos: 0 })
-      if (res?.message) {
-        setMensajes((prev) =>
-          ordenarMensajes(prev.map((m) => (m.id === tempId ? { ...m, ...res.message, id: res.message.id } : m)))
-        )
-      }
-      if (res.estado === 'requiere_agente') {
-        setChats((prev) => prev.map((chat) => (chat.id === activoId ? { ...chat, estado: 'requiere_agente' } : chat)))
-        if (audioRef.current) audioRef.current.play()
-        if (navigator.vibrate) navigator.vibrate(200)
-        return
-      }
-      setChats((prev) => prev.map((chat) => (chat.id === activoId ? { ...chat, estado: 'respondido' } : chat)))
-    } catch (err) {
-      console.error('Error al responder con IA:', err)
-      setMensajes((prev) => prev.map((m) => (m.id === tempId ? { ...m, error: true } : m)))
-    }
   }
+
+  try {
+    // 2) Fallback: endpoint estándar
+    const { data } = await axios.post(
+      `/api/chats/${activoId}/messages`,
+      { text: body, body, contenido: body, from: 'agent' },
+      { headers: { Authorization: `Bearer ${token}` } }
+    )
+    aplicarOk(data)
+  } catch (err) {
+    await aplicarError(err)
+  }
+}
+
 
   // ——————————————————————————————
   // Enviar MEDIA por LINK
@@ -567,7 +660,7 @@ export default function ChatsPage() {
         activoId={activoId}
         estadoIconos={estadoIconos}
         estadoEstilos={estadoEstilos}
-        onNuevaConversacion={() => setMostrarModalCrear(true)}
+        // onNuevaConversacion={() => setMostrarModalCrear(true)}
       />
 
       <section className="flex-1 flex flex-col h-full bg-[#0B141A] overflow-hidden">
