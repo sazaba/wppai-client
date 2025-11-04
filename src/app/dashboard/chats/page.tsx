@@ -25,9 +25,9 @@ const estadoIconos = {
   respondido: <span className="inline-block w-2 h-2 bg-green-400 rounded-full" />,
   en_proceso: <span className="inline-block w-2 h-2 bg-blue-400 rounded-full" />,
   requiere_agente: <span className="inline-block w-2 h-2 bg-red-400 rounded-full" />,
-  venta_en_proceso: <FiShoppingCart className="inline mr-1" />,
-  venta_realizada: <FiCheckCircle className="inline mr-1" />,
-  agendado: <span className="inline-block w-2 h-2 bg-indigo-400 rounded-full" />, // 🆕
+  // venta_en_proceso: <FiShoppingCart className="inline mr-1" />,    // (no usado)
+  // venta_realizada: <FiCheckCircle className="inline mr-1" />,       // (no usado)
+  agendado: <span className="inline-block w-2 h-2 bg-indigo-400 rounded-full" />,
   cerrado: <span className="inline-block w-2 h-2 bg-gray-400 rounded-full" />,
   todos: <span className="inline-block w-2 h-2 bg-slate-400 rounded-full" />,
 }
@@ -37,9 +37,9 @@ const estadoEstilos = {
   respondido: 'bg-green-100 text-green-700',
   en_proceso: 'bg-blue-100 text-blue-700',
   requiere_agente: 'bg-red-100 text-red-700',
-  venta_en_proceso: 'bg-amber-100 text-amber-700',
-  venta_realizada: 'bg-emerald-100 text-emerald-700',
-  agendado: 'bg-indigo-100 text-indigo-700', // 🆕
+  // venta_en_proceso: 'bg-amber-100 text-amber-700',   // (no usado)
+  // venta_realizada: 'bg-emerald-100 text-emerald-700',// (no usado)
+  agendado: 'bg-indigo-100 text-indigo-700',
   cerrado: 'bg-gray-100 text-gray-600',
   todos: 'bg-slate-100 text-slate-700',
 }
@@ -308,7 +308,7 @@ export default function ChatsPage() {
   }
 
   // ——————————————————————————————
-  // Enviar TEXTO (optimista + persistencia + replace)
+  // Enviar TEXTO
   // ——————————————————————————————
   const handleSendMessage = async () => {
     const body = respuesta.trim()
@@ -469,7 +469,7 @@ export default function ChatsPage() {
     }
   }
 
-  // 🆕 Marcar conversación como "agendado" cuando el ChatInput cree la cita
+  // ✅ marcar como "agendado" cuando el ChatInput cree la cita
   const handleAppointmentCreated = async (created: { id: number; startAt: string }) => {
     if (!activoId || !token) return
     try {
@@ -484,7 +484,9 @@ export default function ChatsPage() {
     }
   }
 
-  // 🆕 Eliminar conversación — SweetAlert modo oscuro y solo si está cerrada
+  // ——————————————————————————————
+  // Eliminar conversación (solo si cerrada)
+  // ——————————————————————————————
   const handleEliminarConversacion = async () => {
     if (!activoId) return
     const chatActual = chats.find((c) => c.id === activoId)
@@ -619,7 +621,7 @@ export default function ChatsPage() {
               onSendGif={(url, isMp4) => handleSendMedia({ url, type: isMp4 ? 'video' : 'image' })}
               onUploadFile={(file, type) => handleUploadFile(file, type)}
               disabled={chats.find((c) => c.id === activoId)?.estado === 'cerrado'}
-              onAppointmentCreated={handleAppointmentCreated} // 🆕
+              onAppointmentCreated={handleAppointmentCreated} // ✅ ahora sí se usa
             />
           </>
         ) : (

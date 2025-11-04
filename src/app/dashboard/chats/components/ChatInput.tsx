@@ -17,7 +17,7 @@ interface Props {
   disabled?: boolean
   onSendGif?: (url: string, isMp4: boolean) => void
   onUploadFile?: (file: File, type: MediaKind) => void
-  onAppointmentCreated?: (created: { id: number; startAt: string }) => void // 🆕
+  onAppointmentCreated?: (created: { id: number; startAt: string }) => void // ✅ se usará
 }
 
 /* ---------- Helpers UX ---------- */
@@ -197,7 +197,7 @@ export default function ChatInput({
   disabled,
   onSendGif, // compat
   onUploadFile,
-  onAppointmentCreated, // 🆕
+  onAppointmentCreated, // ✅ ahora sí se recibe
 }: Props) {
   const [showEmoji, setShowEmoji] = useState(false)
   const [showAppt, setShowAppt] = useState(false)
@@ -262,6 +262,7 @@ export default function ChatInput({
     e.currentTarget.value = ''
   }
 
+  // Pegar archivos/imágenes directamente en el input
   const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
     const items = e.clipboardData?.items
     if (!items || !onUploadFile) return
@@ -323,25 +324,30 @@ export default function ChatInput({
         })}`
       )
 
-      // 🆕 Notifica al padre para marcar conversación como "agendado"
+      // ✅ Notificar al padre para marcar el chat como "agendado"
       onAppointmentCreated?.({ id: created.id, startAt: created.startAt })
 
-      // 🆕 Pregunta si desea programar confirmación 24h antes
-      const resp = await DarkSwal.fire({
-        title: '¿Programar confirmación 24h antes?',
-        text: 'Podemos enviar automáticamente un recordatorio 24 horas antes de la cita.',
+      // ✅ Preguntar si desea confirmar 24h antes
+      const wantConfirm = await DarkSwal.fire({
         icon: 'question',
+        title: '¿Confirmar 24 horas antes?',
+        text: 'Puedo programar un recordatorio automático 24 h antes de la cita.',
         showCancelButton: true,
         confirmButtonText: 'Sí, programar',
-        cancelButtonText: 'No ahora',
+        cancelButtonText: 'No, gracias',
       })
 
-      if (resp.isConfirmed) {
+      if (wantConfirm.isConfirmed) {
+        // Llamada opcional — si aún no tienes el endpoint, esto falla en silencio
         try {
-          await api(`/api/appointments/${created.id}/schedule-confirm-24h`, { method: 'POST' }, token)
-          await alertSuccess('Confirmación programada', 'Se enviará 24 horas antes de la cita.')
+          await api<{ ok: boolean }>(`/api/appointments/${created.id}/schedule-confirm-24h`, { method: 'POST' }, token)
+          await alertSuccess('Confirmación programada', 'Se enviará un recordatorio 24 h antes de la cita.')
         } catch {
-          await alertSuccess('Agendado', 'Guardaremos esta preferencia cuando el flujo esté listo.')
+          // Evitar romper el flujo si el endpoint todavía no existe
+          await alertError(
+            'No se pudo programar automáticamente',
+            'Aún no está disponible el programador. La cita quedó agendada correctamente.'
+          )
         }
       }
     } catch (err) {
@@ -395,7 +401,7 @@ export default function ChatInput({
           <FiCalendar className="w-5 h-5 text-[#D1D7DB]" />
         </button>
 
-        {/* Multimedia */}
+        {/* Multimedia (imagen / video / audio / doc) */}
         <button
           type="button"
           onClick={() => fileRef.current?.click()}
@@ -440,7 +446,7 @@ export default function ChatInput({
         </button>
       </div>
 
-      {/* Diálogo crear cita */}
+      {/* Dialogo para crear cita */}
       <Dialog open={showAppt} onClose={() => setShowAppt(false)}>
         <CreateApptForm
           onCancel={() => setShowAppt(false)}
