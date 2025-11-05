@@ -600,7 +600,8 @@ const handleSendMessage = async () => {
   }
 
   return (
-    <div className="flex h-full max-h-screen bg-[#111b21] text-white overflow-hidden">
+    <div className="flex h-full max-h-screen bg-[#111b21] text-white overflow-visible">
+
       <ChatSidebar
         chats={chats}
         loading={loading}
