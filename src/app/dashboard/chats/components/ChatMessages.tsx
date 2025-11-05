@@ -39,7 +39,8 @@ export default function ChatMessages({ mensajes, onLoadMore, hasMore }: ChatMess
   }, [list.length, isAtBottom])
 
   return (
-    <div className="flex-1 overflow-hidden relative bg-[#111B21]">
+    <div className="flex-1 overflow-hidden relative bg-[#111B21] z-0">
+
       <div
         ref={scrollContainerRef}
         onScroll={handleScroll}

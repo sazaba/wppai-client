@@ -615,7 +615,7 @@ const handleSendMessage = async () => {
         // onNuevaConversacion={() => setMostrarModalCrear(true)}
       />
 
-      <section className="flex-1 flex flex-col h-full bg-[#0B141A] overflow-hidden">
+<section className="flex-1 flex flex-col h-full bg-[#0B141A] overflow-visible relative">
         {activoId ? (
           <>
            <ChatHeader

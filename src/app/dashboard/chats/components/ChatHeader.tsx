@@ -75,7 +75,8 @@ export default function ChatHeader({
   }
 
   return (
-    <header className="flex-shrink-0 flex items-center justify-between px-4 py-3 bg-[#202C33] border-b border-[#2A3942] overflow-visible">
+    <header className="relative z-20 flex-shrink-0 flex items-center justify-between px-4 py-3 bg-[#202C33] border-b border-[#2A3942] overflow-visible">
+
       <div className="flex items-center gap-3 text-white truncate">
         <FiMessageSquare className="text-[#00A884]" />
         <div className="flex flex-col min-w-0">
@@ -96,9 +97,8 @@ export default function ChatHeader({
                   <FiChevronDown className="w-3 h-3" />
                 </Menu.Button>
 
-                <Menu.Items
-                  className="absolute left-0 mt-2 w-44 origin-top-left bg-[#2A3942] border border-[#3B4A54] rounded-md shadow-lg focus:outline-none text-sm text-white z-50"
-                >
+                <Menu.Items className="absolute left-0 mt-2 w-44 origin-top-left bg-[#2A3942] border border-[#3B4A54] rounded-md shadow-lg focus:outline-none text-sm text-white z-50">
+
                   {ESTADOS_MANUALES.map((opt) => (
                     <Menu.Item key={opt}>
                       {({ active }) => (
