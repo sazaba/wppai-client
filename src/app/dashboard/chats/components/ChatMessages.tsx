@@ -1,17 +1,14 @@
 'use client'
 
-import { useEffect, useMemo, useRef } from 'react'
-import { FiLoader } from 'react-icons/fi'
+import { useEffect, useRef } from 'react'
 
-interface Msg {
+type Msg = {
   id?: string | number
-  externalId?: string
-  from: 'client' | 'agent' | string
+  from: 'client' | 'agent'
   contenido?: string
-  timestamp?: string | number | Date
+  timestamp?: string
   mediaType?: 'image' | 'video' | 'audio' | 'document'
   mediaUrl?: string
-  mimeType?: string
   caption?: string
   error?: boolean
 }
@@ -22,127 +19,88 @@ export default function ChatMessages({
   hasMore,
 }: {
   mensajes: Msg[]
-  onLoadMore: () => void
-  hasMore: boolean
+  onLoadMore?: () => void
+  hasMore?: boolean
 }) {
-  const bottomRef = useRef<HTMLDivElement | null>(null)
-  const listRef = useRef<HTMLDivElement | null>(null)
+  const scrollRef = useRef<HTMLDivElement | null>(null)
 
-  // scroll al fondo cuando llegan mensajes nuevos (si estás cerca del final)
+  // Auto-scroll al final cuando hay nuevos
   useEffect(() => {
-    const el = listRef.current
+    const el = scrollRef.current
     if (!el) return
-    const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 200
-    if (nearBottom) bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
-  }, [mensajes])
+    // pequeño delay para que el DOM pinte
+    const t = setTimeout(() => {
+      el.scrollTop = el.scrollHeight
+    }, 50)
+    return () => clearTimeout(t)
+  }, [mensajes.length])
 
-  const items = useMemo(() => Array.isArray(mensajes) ? mensajes : [], [mensajes])
+  const renderBubble = (m: Msg) => {
+    const isAgent = m.from === 'agent'
 
-  return (
-    <div ref={listRef} className="flex-1 overflow-y-auto px-4 py-3 space-y-2 scrollbar-thin scrollbar-thumb-[#374045] scrollbar-track-transparent">
-      {/* Cargar más */}
-      {hasMore && (
-        <div className="py-2 flex justify-center">
-          <button
-            onClick={onLoadMore}
-            className="text-xs px-3 py-1 rounded-full bg-[#202C33] text-white/90 hover:bg-[#2A3942] border border-white/10"
-          >
-            Ver mensajes anteriores
-          </button>
-        </div>
-      )}
+    // colores y bordes de WhatsApp-like
+    const bubbleBase =
+      'relative w-fit max-w-[50%] px-4 py-2 rounded-2xl shadow-sm ' +
+      'whitespace-pre-wrap break-words hyphens-none leading-relaxed text-[15px]'
 
-      {items.map((m, i) => {
-        const isAgent = (m.from || '').toLowerCase() !== 'client'
-        const sending = typeof m.id === 'string' && m.id.startsWith('temp-') && !m.error
-        const failed  = !!m.error
+    const bubbleColor = isAgent
+      ? 'bg-[#1F8C6A] text-white' // verde salida
+      : 'bg-[#202C33] text-[#E9EDF0]' // gris entrada
 
-        // —— clases de burbuja (¡aquí está la corrección!)
-        //  - whitespace-pre-wrap: respeta saltos que envíe el usuario
-        //  - break-words: solo rompe palabras MUY largas (evita "Santiag / o")
-        //  - NO usar break-all ni overflow-wrap:anywhere
-        const bubbleBase =
-          'inline-block max-w-[80%] sm:max-w-[65%] rounded-2xl px-3 py-2 text-[15px] leading-relaxed ' +
-          'whitespace-pre-wrap break-words hyphens-none'
+    // borde “cola” sutil con radius asimétrico
+    const bubbleShape = isAgent
+      ? 'rounded-br-md rounded-tl-2xl rounded-tr-2xl rounded-bl-2xl'
+      : 'rounded-bl-md rounded-tr-2xl rounded-tl-2xl rounded-br-2xl'
 
-        const bubble =
-          (isAgent
-            ? 'bg-[#1F8C6A] text-white shadow-md' // saliente
-            : 'bg-[#202C33] text-[#E9EDEF]') + ' ' + bubbleBase
+    // wrapper para alinear a izquierda / derecha
+    const wrap = isAgent ? 'justify-end pr-3' : 'justify-start pl-3'
 
-        // hora pequeñita
-        const time = m.timestamp
-          ? new Date(m.timestamp as any).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-          : ''
-
-        return (
-          <div key={(m.id ?? i) as any} className={`w-full flex ${isAgent ? 'justify-end' : 'justify-start'}`}>
-            <div className="flex flex-col items-start gap-1">
-              {/* Bubble */}
-              <div className={bubble}>
-                {/* texto o media */}
-                {renderContent(m)}
-
-                {/* footer: estado / hora */}
-                <div className="mt-1 flex items-center gap-2 text-[11px] opacity-75">
-                  {failed ? (
-                    <span className="text-red-300">No enviado</span>
-                  ) : sending ? (
-                    <span className="flex items-center gap-1">
-                      <FiLoader className="animate-spin" /> Enviando…
-                    </span>
-                  ) : null}
-                  {time && <span>{time}</span>}
-                </div>
-              </div>
-            </div>
-          </div>
-        )
-      })}
-
-      <div ref={bottomRef} />
-    </div>
-  )
-}
-
-function renderContent(m: Msg) {
-  if (m.mediaUrl) {
-    if (m.mediaType === 'image') {
-      return (
-        <div className="space-y-1">
-          <img
-            src={m.mediaUrl}
-            alt={m.caption || 'imagen'}
-            className="rounded-xl max-h-[320px] object-contain"
-          />
-          {m.caption && <p className="whitespace-pre-wrap break-words">{m.caption}</p>}
-        </div>
-      )
-    }
-    if (m.mediaType === 'video') {
-      return (
-        <div className="space-y-1">
-          <video src={m.mediaUrl} controls className="rounded-xl max-h-[320px]" />
-          {m.caption && <p className="whitespace-pre-wrap break-words">{m.caption}</p>}
-        </div>
-      )
-    }
-    // audio/doc: mostramos link simple
     return (
-      <div className="space-y-1">
-        <a
-          href={m.mediaUrl}
-          target="_blank"
-          className="underline underline-offset-2 break-words"
-          rel="noreferrer"
-        >
-          Abrir archivo
-        </a>
-        {m.caption && <p className="whitespace-pre-wrap break-words">{m.caption}</p>}
+      <div key={`${m.id ?? Math.random()}`} className={`w-full flex ${wrap}`}>
+        <div className={`${bubbleBase} ${bubbleColor} ${bubbleShape}`}>
+          {/* Contenido de texto / caption */}
+          {m.contenido ? m.contenido : m.caption ? m.caption : ''}
+
+          {/* Hora dentro del bubble, alineada a la derecha */}
+          {m.timestamp && (
+            <div className="mt-1 text-[11px] opacity-80 text-right select-none">
+              {new Date(m.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </div>
+          )}
+
+          {/* Marca de error si falló el envío */}
+          {m.error && (
+            <div className="mt-1 text-[11px] text-red-300/90 font-medium text-right">No enviado</div>
+          )}
+        </div>
       </div>
     )
   }
 
-  // Mensaje de texto
-  return <p>{m.contenido || ''}</p>
+  return (
+    <section className="flex-1 overflow-y-auto bg-[#0B141A]">
+      {/* botón cargar más (arriba) */}
+      {hasMore && (
+        <div className="py-2 flex justify-center">
+          <button
+            onClick={onLoadMore}
+            className="text-xs px-3 py-1 rounded-full bg-[#1f2c33] text-[#cbd5e1] hover:bg-[#22343d]"
+          >
+            Cargar mensajes anteriores
+          </button>
+        </div>
+      )}
+
+      <div
+        ref={scrollRef}
+        className="px-2 sm:px-4 pb-4 flex flex-col gap-3"
+        style={{
+          // asegura que el contenedor real ocupe todo y calcule bien 50%
+          minHeight: '100%',
+        }}
+      >
+        {mensajes.map(renderBubble)}
+      </div>
+    </section>
+  )
 }
