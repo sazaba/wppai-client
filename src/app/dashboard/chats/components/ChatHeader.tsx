@@ -27,7 +27,7 @@ const ESTADOS_MANUALES = [
   'respondido',
   'requiere_agente',
   'agendado',
-  'agendado_consulta',
+  // 'agendado_consulta',
   'cerrado',
 ] as const
 
