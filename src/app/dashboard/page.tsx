@@ -212,7 +212,8 @@ export default function DashboardPage() {
                 <XAxis dataKey="name" stroke="#64748b" />
                 <YAxis stroke="#64748b" />
                 <Tooltip />
-                <Bar dataKey="count" />
+                <Bar dataKey="count" fill="#6366f1" />
+
               </BarChart>
             </ResponsiveContainer>
           </div>
