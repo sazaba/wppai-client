@@ -20,12 +20,14 @@ interface ChatHeaderProps {
   onEstadoCambiado?: (nuevo: string) => void
 }
 
+// Estados manuales visibles (post-agenda + control humano)
 const ESTADOS_MANUALES = [
-  'pendiente',
-  'en_proceso',
+  // 'pendiente',
+  // 'en_proceso',
   'respondido',
   'requiere_agente',
   'agendado',
+  'agendado_consulta',
   'cerrado',
 ] as const
 

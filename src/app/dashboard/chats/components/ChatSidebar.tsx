@@ -1,7 +1,6 @@
 'use client'
 
 import type { ReactNode } from 'react'
-
 import {
   FiSearch,
   FiLoader,
@@ -9,10 +8,7 @@ import {
   FiClock,
   FiCheck,
   FiChevronDown,
-  // FiPlus,                // ← eliminado
-  // FiShoppingCart,        // ← comentado (ventas no usadas)
-  // FiCheckCircle,         // ← comentado (ventas no usadas)
-  FiCalendar,              // ← para estado "agendado"
+  FiCalendar, // para estados "agendado*"
 } from 'react-icons/fi'
 import { Menu } from '@headlessui/react'
 
@@ -27,7 +23,6 @@ interface ChatSidebarProps {
   activoId: number | null
   estadoIconos?: Record<string, ReactNode>
   estadoEstilos?: Record<string, string>
-  // onNuevaConversacion?: () => void   // ← eliminado
 }
 
 /** Estados visibles en el filtro */
@@ -37,9 +32,8 @@ const estados = [
   'en_proceso',
   'respondido',
   'requiere_agente',
-  // 'venta_en_proceso', // ← comentado (no se usa)
-  // 'venta_realizada',  // ← comentado (no se usa)
-  'agendado',           // ← NUEVO
+  'agendado_consulta', // NUEVO: primero para visibilidad
+  'agendado',
   'cerrado',
 ] as const
 
@@ -54,29 +48,19 @@ export default function ChatSidebar({
   activoId,
   estadoIconos,
   estadoEstilos,
-  // onNuevaConversacion, // ← eliminado
 }: ChatSidebarProps) {
-
   // ——————————————————————————————
   // Fallbacks de iconos/estilos (si el padre no los provee)
   // ——————————————————————————————
   const icono = (estado: string) =>
     estadoIconos?.[estado] ??
-    // estado === 'venta_en_proceso'
-    //   ? <FiShoppingCart className="inline-block" />
-    // : estado === 'venta_realizada'
-    //   ? <FiCheckCircle className="inline-block" />
-    (estado === 'agendado'
+    (estado === 'agendado' || estado === 'agendado_consulta'
       ? <FiCalendar className="inline-block" />
       : <FiInbox className="inline-block" />)
 
   const estilo = (estado: string) =>
     estadoEstilos?.[estado] ??
-    // estado === 'venta_en_proceso'
-    //   ? 'bg-amber-900/30 text-amber-200 border border-amber-700'
-    // : estado === 'venta_realizada'
-    //   ? 'bg-emerald-900/30 text-emerald-200 border border-emerald-700'
-    (estado === 'agendado'
+    (estado === 'agendado' || estado === 'agendado_consulta'
       ? 'bg-indigo-900/30 text-indigo-200 border border-indigo-700'
       : 'bg-[#202C33] text-[#cbd5e1]')
 
@@ -89,12 +73,11 @@ export default function ChatSidebar({
 
   return (
     <aside className="w-full md:w-[30%] max-w-[400px] flex-shrink-0 bg-[#111B21] text-white flex flex-col h-full overflow-hidden">
-      {/* Título (sin botón) */}
+      {/* Título (sin botón nueva) */}
       <div className="p-4 flex items-center justify-between">
         <h1 className="font-bold text-lg flex items-center gap-2">
           <FiInbox /> Chats
         </h1>
-        {/* Botón "Nueva" eliminado */}
       </div>
 
       {/* Filtro */}

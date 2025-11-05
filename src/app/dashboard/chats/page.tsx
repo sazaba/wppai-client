@@ -1,8 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState, useCallback } from 'react'
-import { FiClock, FiAlertTriangle, FiShoppingCart, FiCheckCircle } from 'react-icons/fi'
-import { responderConIA } from '@/lib/chatService'
+import { FiClock, FiAlertTriangle } from 'react-icons/fi'
 import socket from '@/lib/socket'
 import axios from '@/lib/axios'
 import Swal from 'sweetalert2'
@@ -25,9 +24,8 @@ const estadoIconos = {
   respondido: <span className="inline-block w-2 h-2 bg-green-400 rounded-full" />,
   en_proceso: <span className="inline-block w-2 h-2 bg-blue-400 rounded-full" />,
   requiere_agente: <span className="inline-block w-2 h-2 bg-red-400 rounded-full" />,
-  // venta_en_proceso: <FiShoppingCart className="inline mr-1" />,    // (no usado)
-  // venta_realizada: <FiCheckCircle className="inline mr-1" />,       // (no usado)
   agendado: <span className="inline-block w-2 h-2 bg-indigo-400 rounded-full" />,
+  agendado_consulta: <span className="inline-block w-2 h-2 bg-indigo-400 rounded-full" />, // ← NUEVO
   cerrado: <span className="inline-block w-2 h-2 bg-gray-400 rounded-full" />,
   todos: <span className="inline-block w-2 h-2 bg-slate-400 rounded-full" />,
 }
@@ -37,9 +35,8 @@ const estadoEstilos = {
   respondido: 'bg-green-100 text-green-700',
   en_proceso: 'bg-blue-100 text-blue-700',
   requiere_agente: 'bg-red-100 text-red-700',
-  // venta_en_proceso: 'bg-amber-100 text-amber-700',   // (no usado)
-  // venta_realizada: 'bg-emerald-100 text-emerald-700',// (no usado)
   agendado: 'bg-indigo-100 text-indigo-700',
+  agendado_consulta: 'bg-indigo-100 text-indigo-700', // ← NUEVO
   cerrado: 'bg-gray-100 text-gray-600',
   todos: 'bg-slate-100 text-slate-700',
 }
@@ -308,105 +305,102 @@ export default function ChatsPage() {
   }
 
   // ——————————————————————————————
-// Enviar TEXTO (tolerante a ruta/payload)
-// ——————————————————————————————
-const handleSendMessage = async () => {
-  const body = respuesta.trim()
-  if (!body || !activoId) return
+  // Enviar TEXTO (tolerante a ruta/payload)
+  // ——————————————————————————————
+  const handleSendMessage = async () => {
+    const body = respuesta.trim()
+    if (!body || !activoId) return
 
-  const chatActual = chats.find((c) => c.id === activoId)
-  const tempId = `temp-${Date.now()}`
-  const timestamp = new Date().toISOString()
-  const msgOptimista = { id: tempId, from: 'agent', contenido: body, timestamp }
+    const chatActual = chats.find((c) => c.id === activoId)
+    const tempId = `temp-${Date.now()}`
+    const timestamp = new Date().toISOString()
+    const msgOptimista = { id: tempId, from: 'agent', contenido: body, timestamp }
 
-  setRespuesta('')
-  setMensajes((prev) => mergeUnique(prev, [msgOptimista]))
+    setRespuesta('')
+    setMensajes((prev) => mergeUnique(prev, [msgOptimista]))
 
-  // Si está cerrado, no intentes enviar (tu UI ya deshabilita, pero por si acaso)
-  if (chatActual?.estado === 'cerrado') {
-    setMensajes((prev) => prev.map((m) => (m.id === tempId ? { ...m, error: true } : m)))
-    await Swal.fire({
-      icon: 'info',
-      title: 'Conversación cerrada',
-      text: 'Debes reabrir la conversación antes de enviar un mensaje.',
-      background: '#0B141A',
-      color: '#e5e7eb',
-      confirmButtonColor: '#10b981',
-    })
-    return
-  }
-
-  // Helper para reemplazar el temporal por el real
-  const aplicarOk = (created: any) => {
-    const real = created?.message ?? created
-    setMensajes((prev) =>
-      ordenarMensajes(prev.map((m) => (m.id === tempId ? { ...m, ...real, id: real.id } : m)))
-    )
-    setChats((prev) =>
-  prev.map((chat) => {
-    if (chat.id !== activoId) return chat
-    // 🟢 Si ya estaba agendado, mantenerlo
-    if (chat.estado === 'agendado') return chat
-    return { ...chat, estado: 'respondido' }
-  })
-)
-
-  }
-
-  // Helper de error
-  const aplicarError = async (err: any) => {
-    console.error('Error al responder manualmente:', err)
-    setMensajes((prev) => prev.map((m) => (m.id === tempId ? { ...m, error: true } : m)))
-
-    let msg = ''
-    try {
-      const raw = err?.response?.data || err?.message || err
-      msg = typeof raw === 'string' ? raw : JSON.stringify(raw)
-    } catch {
-      msg = String(err)
-    }
-    await Swal.fire({
-      icon: 'error',
-      title: 'No se pudo enviar',
-      html: `<pre style="text-align:left;white-space:pre-wrap;">${msg}</pre>`,
-      background: '#0B141A',
-      color: '#e5e7eb',
-      confirmButtonColor: '#ef4444',
-    })
-  }
-
-  try {
-    // 1) Primer intento: tu ruta actual
-    const { data } = await axios.post(
-      `/api/chats/${activoId}/responder-manual`,
-      // Enviamos las tres llaves por compatibilidad de backend
-      { text: body, body, contenido: body, from: 'agent' },
-      { headers: { Authorization: `Bearer ${token}` } }
-    )
-    aplicarOk(data)
-    return
-  } catch (err: any) {
-    // Si es 404/405, intenta la ruta estándar
-    const status = err?.response?.status
-    if (status !== 404 && status !== 405) {
-      await aplicarError(err)
+    // Si está cerrado, no intentes enviar (tu UI ya deshabilita, pero por si acaso)
+    if (chatActual?.estado === 'cerrado') {
+      setMensajes((prev) => prev.map((m) => (m.id === tempId ? { ...m, error: true } : m)))
+      await Swal.fire({
+        icon: 'info',
+        title: 'Conversación cerrada',
+        text: 'Debes reabrir la conversación antes de enviar un mensaje.',
+        background: '#0B141A',
+        color: '#e5e7eb',
+        confirmButtonColor: '#10b981',
+      })
       return
     }
-  }
 
-  try {
-    // 2) Fallback: endpoint estándar
-    const { data } = await axios.post(
-      `/api/chats/${activoId}/messages`,
-      { text: body, body, contenido: body, from: 'agent' },
-      { headers: { Authorization: `Bearer ${token}` } }
-    )
-    aplicarOk(data)
-  } catch (err) {
-    await aplicarError(err)
-  }
-}
+    // Helper para reemplazar el temporal por el real
+    const aplicarOk = (created: any) => {
+      const real = created?.message ?? created
+      setMensajes((prev) =>
+        ordenarMensajes(prev.map((m) => (m.id === tempId ? { ...m, ...real, id: real.id } : m)))
+      )
+      setChats((prev) =>
+        prev.map((chat) => {
+          if (chat.id !== activoId) return chat
+          // 🟢 No pisar estados post-agenda
+          if (chat.estado === 'agendado' || chat.estado === 'agendado_consulta') return chat
+          return { ...chat, estado: 'respondido' }
+        })
+      )
+    }
 
+    // Helper de error
+    const aplicarError = async (err: any) => {
+      console.error('Error al responder manualmente:', err)
+      setMensajes((prev) => prev.map((m) => (m.id === tempId ? { ...m, error: true } : m)))
+
+      let msg = ''
+      try {
+        const raw = err?.response?.data || err?.message || err
+        msg = typeof raw === 'string' ? raw : JSON.stringify(raw)
+      } catch {
+        msg = String(err)
+      }
+      await Swal.fire({
+        icon: 'error',
+        title: 'No se pudo enviar',
+        html: `<pre style="text-align:left;white-space:pre-wrap;">${msg}</pre>`,
+        background: '#0B141A',
+        color: '#e5e7eb',
+        confirmButtonColor: '#ef4444',
+      })
+    }
+
+    try {
+      // 1) Primer intento: tu ruta actual
+      const { data } = await axios.post(
+        `/api/chats/${activoId}/responder-manual`,
+        { text: body, body, contenido: body, from: 'agent' },
+        { headers: { Authorization: `Bearer ${token}` } }
+      )
+      aplicarOk(data)
+      return
+    } catch (err: any) {
+      // Si es 404/405, intenta la ruta estándar
+      const status = err?.response?.status
+      if (status !== 404 && status !== 405) {
+        await aplicarError(err)
+        return
+      }
+    }
+
+    try {
+      // 2) Fallback: endpoint estándar
+      const { data } = await axios.post(
+        `/api/chats/${activoId}/messages`,
+        { text: body, body, contenido: body, from: 'agent' },
+        { headers: { Authorization: `Bearer ${token}` } }
+      )
+      aplicarOk(data)
+    } catch (err) {
+      await aplicarError(err)
+    }
+  }
 
   // ——————————————————————————————
   // Enviar MEDIA por LINK
@@ -601,7 +595,6 @@ const handleSendMessage = async () => {
 
   return (
     <div className="flex h-full max-h-screen bg-[#111b21] text-white overflow-visible">
-
       <ChatSidebar
         chats={chats}
         loading={loading}
@@ -613,22 +606,20 @@ const handleSendMessage = async () => {
         activoId={activoId}
         estadoIconos={estadoIconos}
         estadoEstilos={estadoEstilos}
-        // onNuevaConversacion={() => setMostrarModalCrear(true)}
       />
 
-<section className="flex-1 flex flex-col h-full bg-[#0B141A] overflow-visible relative">
+      <section className="flex-1 flex flex-col h-full bg-[#0B141A] overflow-visible relative">
         {activoId ? (
           <>
-           <ChatHeader
-  chatId={activoId!}
-  nombre={chats.find((c) => c.id === activoId)?.nombre || ''}
-  estado={chats.find((c) => c.id === activoId)?.estado || ''}
-  onCerrar={() => setMostrarModalCerrar(true)}
-  onReabrir={handleReabrirConversacion}
-  onEliminar={handleEliminarConversacion}
-  mostrarBotonCerrar={true}
-/>
-
+            <ChatHeader
+              chatId={activoId!}
+              nombre={chats.find((c) => c.id === activoId)?.nombre || ''}
+              estado={chats.find((c) => c.id === activoId)?.estado || ''}
+              onCerrar={() => setMostrarModalCerrar(true)}
+              onReabrir={handleReabrirConversacion}
+              onEliminar={handleEliminarConversacion}
+              mostrarBotonCerrar={true}
+            />
 
             {policyErrors[activoId] && (
               <div className="mx-6 mt-3 mb-1 rounded-lg border border-yellow-500/40 bg-yellow-500/10 text-yellow-200 px-4 py-3 text-sm">
@@ -669,7 +660,7 @@ const handleSendMessage = async () => {
               onSendGif={(url, isMp4) => handleSendMedia({ url, type: isMp4 ? 'video' : 'image' })}
               onUploadFile={(file, type) => handleUploadFile(file, type)}
               disabled={chats.find((c) => c.id === activoId)?.estado === 'cerrado'}
-              onAppointmentCreated={handleAppointmentCreated} // ✅ ahora sí se usa
+              onAppointmentCreated={handleAppointmentCreated}
             />
           </>
         ) : (
