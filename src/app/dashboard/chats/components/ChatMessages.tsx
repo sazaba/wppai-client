@@ -8,18 +8,18 @@ interface ChatMessagesProps {
   mensajes: ChatMessage[]
   onLoadMore: () => void
   hasMore: boolean
-  /** Muestra una burbuja efímera al final con loader de puntitos (bot escribiendo) */
-  isTyping?: boolean
-  /** Muestra skeleton arriba mientras se cargan mensajes antiguos */
+  /** loader superior mientras cargas históricos (opcional) */
   loadingMore?: boolean
+  /** burbuja efímera “escribiendo…” (opcional) */
+  isTyping?: boolean
 }
 
 export default function ChatMessages({
   mensajes,
   onLoadMore,
   hasMore,
-  isTyping = false,
   loadingMore = false,
+  isTyping = false,
 }: ChatMessagesProps) {
   const bottomRef = useRef<HTMLDivElement | null>(null)
   const scrollContainerRef = useRef<HTMLDivElement | null>(null)
@@ -58,9 +58,8 @@ export default function ChatMessages({
           px-3 sm:px-5 py-4
           scrollbar-thin scrollbar-thumb-[#2A3942]/60 scrollbar-track-transparent
           hover:scrollbar-thumb-[#2A3942]
-          [scrollbar-width:thin] [scrollbar-color:#2A3942_transparent] sm:[scrollbar-color:#2A3942_transparent]
+          [scrollbar-width:thin]
         "
-        // Nota: las dos líneas de abajo corrigen el valor inválido con guion bajo en navegadores que soportan la propiedad.
         style={{ scrollbarColor: '#2A3942 transparent' } as any}
       >
         {/* Limitador para simetría en desktop y evitar estirar de más */}
@@ -98,11 +97,11 @@ export default function ChatMessages({
               return <MessageBubble key={key} message={msg} isMine={isMine} />
             })}
 
-            {/* typing indicator al final */}
+            {/* Typing indicator (opcional) */}
             {isTyping && (
               <MessageBubble
                 key="typing-indicator"
-                isMine={true} // si tu bot va a la derecha; cambia a false si lo prefieres a la izquierda
+                isMine={true} // cambia a false si quieres que aparezca a la izquierda
                 message={{
                   id: 'typing',
                   from: 'bot',

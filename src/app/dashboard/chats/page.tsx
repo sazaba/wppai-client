@@ -305,7 +305,7 @@ export default function ChatsPage() {
   }
 
   // ——————————————————————————————
-  // Enviar TEXTO (tolerante a ruta/payload)
+  // Enviar TEXTO (con loader de burbuja)
   // ——————————————————————————————
   const handleSendMessage = async () => {
     const body = respuesta.trim()
@@ -314,14 +314,15 @@ export default function ChatsPage() {
     const chatActual = chats.find((c) => c.id === activoId)
     const tempId = `temp-${Date.now()}`
     const timestamp = new Date().toISOString()
-    const msgOptimista = { id: tempId, from: 'agent', contenido: body, timestamp }
 
+    // ⏳ burbuja con loader
+    const msgOptimista = { id: tempId, from: 'agent', contenido: body, timestamp, status: 'sending' }
     setRespuesta('')
     setMensajes((prev) => mergeUnique(prev, [msgOptimista]))
 
-    // Si está cerrado, no intentes enviar (tu UI ya deshabilita, pero por si acaso)
+    // Si está cerrado, corta
     if (chatActual?.estado === 'cerrado') {
-      setMensajes((prev) => prev.map((m) => (m.id === tempId ? { ...m, error: true } : m)))
+      setMensajes((prev) => prev.map((m) => (m.id === tempId ? { ...m, status: 'failed' } : m)))
       await Swal.fire({
         icon: 'info',
         title: 'Conversación cerrada',
@@ -333,26 +334,26 @@ export default function ChatsPage() {
       return
     }
 
-    // Helper para reemplazar el temporal por el real
+    // Helper OK
     const aplicarOk = (created: any) => {
       const real = created?.message ?? created
       setMensajes((prev) =>
-        ordenarMensajes(prev.map((m) => (m.id === tempId ? { ...m, ...real, id: real.id } : m)))
+        ordenarMensajes(prev.map((m) => (m.id === tempId ? { ...m, ...real, id: real.id, status: 'sent' } : m)))
       )
       setChats((prev) =>
         prev.map((chat) => {
           if (chat.id !== activoId) return chat
-          // 🟢 No pisar estados post-agenda
+          // No pisar estados post-agenda
           if (chat.estado === 'agendado' || chat.estado === 'agendado_consulta') return chat
           return { ...chat, estado: 'respondido' }
         })
       )
     }
 
-    // Helper de error
+    // Helper Error
     const aplicarError = async (err: any) => {
       console.error('Error al responder manualmente:', err)
-      setMensajes((prev) => prev.map((m) => (m.id === tempId ? { ...m, error: true } : m)))
+      setMensajes((prev) => prev.map((m) => (m.id === tempId ? { ...m, status: 'failed' } : m)))
 
       let msg = ''
       try {
@@ -372,7 +373,7 @@ export default function ChatsPage() {
     }
 
     try {
-      // 1) Primer intento: tu ruta actual
+      // 1) Ruta actual
       const { data } = await axios.post(
         `/api/chats/${activoId}/responder-manual`,
         { text: body, body, contenido: body, from: 'agent' },
@@ -381,7 +382,6 @@ export default function ChatsPage() {
       aplicarOk(data)
       return
     } catch (err: any) {
-      // Si es 404/405, intenta la ruta estándar
       const status = err?.response?.status
       if (status !== 404 && status !== 405) {
         await aplicarError(err)
@@ -390,7 +390,7 @@ export default function ChatsPage() {
     }
 
     try {
-      // 2) Fallback: endpoint estándar
+      // 2) Fallback estándar
       const { data } = await axios.post(
         `/api/chats/${activoId}/messages`,
         { text: body, body, contenido: body, from: 'agent' },
@@ -596,16 +596,15 @@ export default function ChatsPage() {
   return (
     <div className="flex h-full max-h-screen bg-[#111b21] text-white overflow-visible">
       <ChatSidebar
-  chats={chats}
-  loading={loading}
-  busqueda={busqueda}
-  setBusqueda={setBusqueda}
-  estadoFiltro={estadoFiltro}
-  setEstadoFiltro={setEstadoFiltro}
-  onSelectChat={handleSelectChat}
-  activoId={activoId}
-/>
-
+        chats={chats}
+        loading={loading}
+        busqueda={busqueda}
+        setBusqueda={setBusqueda}
+        estadoFiltro={estadoFiltro}
+        setEstadoFiltro={setEstadoFiltro}
+        onSelectChat={handleSelectChat}
+        activoId={activoId}
+      />
 
       <section className="flex-1 flex flex-col h-full bg-[#0B141A] overflow-visible relative">
         {activoId ? (
