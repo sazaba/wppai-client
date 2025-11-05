@@ -16,7 +16,6 @@ interface ChatHeaderProps {
   onReabrir?: () => void
   onEliminar?: () => void
   mostrarBotonCerrar?: boolean
-  /** Opcional: si quieres actualizar lista/estado en el padre además del socket */
   onEstadoCambiado?: (nuevo: string) => void
 }
 
@@ -51,7 +50,6 @@ export default function ChatHeader({
         { headers: { Authorization: `Bearer ${token}` } }
       )
 
-      // Aviso breve
       await Swal.fire({
         icon: 'success',
         title: 'Estado actualizado',
@@ -63,7 +61,6 @@ export default function ChatHeader({
       })
 
       onEstadoCambiado?.(nuevo)
-      // Si el backend emite `chat_actualizado` por socket, también se reflejará automáticamente.
     } catch (err) {
       console.error('Error actualizando estado:', err)
       await Swal.fire({
@@ -78,13 +75,12 @@ export default function ChatHeader({
   }
 
   return (
-    <header className="flex-shrink-0 flex items-center justify-between px-4 py-3 bg-[#202C33] border-b border-[#2A3942]">
+    <header className="flex-shrink-0 flex items-center justify-between px-4 py-3 bg-[#202C33] border-b border-[#2A3942] overflow-visible">
       <div className="flex items-center gap-3 text-white truncate">
         <FiMessageSquare className="text-[#00A884]" />
         <div className="flex flex-col min-w-0">
           <span className="font-semibold text-sm truncate">{nombre}</span>
 
-          {/* Etiqueta + menú de cambio de estado */}
           <div className="flex items-center gap-2">
             <span className="text-xs text-[#8696a0] truncate">
               {est.replaceAll('_', ' ')}
@@ -92,15 +88,22 @@ export default function ChatHeader({
 
             {!estaCerrado && (
               <Menu as="div" className="relative inline-block text-left">
-                <Menu.Button className="flex items-center gap-1 text-xs bg-[#2A3942] px-2 py-1 rounded-md hover:bg-[#3B4A54]">
+                <Menu.Button
+                  type="button"
+                  className="flex items-center gap-1 text-xs bg-[#2A3942] px-2 py-1 rounded-md hover:bg-[#3B4A54]"
+                >
                   Cambiar estado
                   <FiChevronDown className="w-3 h-3" />
                 </Menu.Button>
-                <Menu.Items className="absolute left-0 mt-2 w-44 origin-top-left bg-[#2A3942] border border-[#3B4A54] rounded-md shadow-lg focus:outline-none text-sm z-20">
+
+                <Menu.Items
+                  className="absolute left-0 mt-2 w-44 origin-top-left bg-[#2A3942] border border-[#3B4A54] rounded-md shadow-lg focus:outline-none text-sm text-white z-50"
+                >
                   {ESTADOS_MANUALES.map((opt) => (
                     <Menu.Item key={opt}>
                       {({ active }) => (
                         <button
+                          type="button"
                           onClick={() => handleCambiarEstado(opt)}
                           className={`w-full text-left px-3 py-1.5 ${
                             active ? 'bg-[#3B4A54]' : ''
@@ -119,7 +122,6 @@ export default function ChatHeader({
       </div>
 
       <div className="flex items-center gap-2">
-        {/* Si está cerrado, muestra Reabrir + Eliminar; si no, muestra Cerrar */}
         {estaCerrado ? (
           <>
             {onReabrir && (
