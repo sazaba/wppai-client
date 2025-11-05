@@ -4,7 +4,7 @@ import { useEffect, useRef } from 'react'
 
 type Msg = {
   id?: string | number
-  from: 'client' | 'agent'
+  from: 'client' | 'agent' | 'bot' | 'ai'
   contenido?: string
   timestamp?: string
   mediaType?: 'image' | 'video' | 'audio' | 'document'
@@ -36,7 +36,7 @@ export default function ChatMessages({
   }, [mensajes.length])
 
   const renderBubble = (m: Msg) => {
-    const isAgent = m.from === 'agent'
+    const isAgent = m.from !== 'client'  // 'agent', 'bot', 'ai' => derecha
 
     // colores y bordes de WhatsApp-like
     const bubbleBase =
@@ -91,14 +91,13 @@ export default function ChatMessages({
         </div>
       )}
 
-      <div
-        ref={scrollRef}
-        className="px-2 sm:px-4 pb-4 flex flex-col gap-3"
-        style={{
-          // asegura que el contenedor real ocupe todo y calcule bien 50%
-          minHeight: '100%',
-        }}
-      >
+<div
+  ref={scrollRef}
+  className="px-2 sm:px-4 pt-3 pb-4 flex flex-col gap-3"  // 👈 se agregó pt-3
+  style={{
+    minHeight: '100%',
+  }}
+>
         {mensajes.map(renderBubble)}
       </div>
     </section>
