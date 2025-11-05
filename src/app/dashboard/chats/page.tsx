@@ -596,17 +596,16 @@ export default function ChatsPage() {
   return (
     <div className="flex h-full max-h-screen bg-[#111b21] text-white overflow-visible">
       <ChatSidebar
-        chats={chats}
-        loading={loading}
-        busqueda={busqueda}
-        setBusqueda={setBusqueda}
-        estadoFiltro={estadoFiltro}
-        setEstadoFiltro={setEstadoFiltro}
-        onSelectChat={handleSelectChat}
-        activoId={activoId}
-        estadoIconos={estadoIconos}
-        estadoEstilos={estadoEstilos}
-      />
+  chats={chats}
+  loading={loading}
+  busqueda={busqueda}
+  setBusqueda={setBusqueda}
+  estadoFiltro={estadoFiltro}
+  setEstadoFiltro={setEstadoFiltro}
+  onSelectChat={handleSelectChat}
+  activoId={activoId}
+/>
+
 
       <section className="flex-1 flex flex-col h-full bg-[#0B141A] overflow-visible relative">
         {activoId ? (

@@ -8,7 +8,7 @@ import {
   FiClock,
   FiCheck,
   FiChevronDown,
-  FiCalendar, // para estados "agendado*"
+  FiCalendar,
 } from 'react-icons/fi'
 import { Menu } from '@headlessui/react'
 
@@ -21,6 +21,9 @@ interface ChatSidebarProps {
   setEstadoFiltro: (value: string) => void
   onSelectChat: (id: number) => void
   activoId: number | null
+
+  // Dejamos las props para compatibilidad, pero este componente
+  // ya NO usa estilos/íconos del padre para evitar que lo sobreescriban.
   estadoIconos?: Record<string, ReactNode>
   estadoEstilos?: Record<string, string>
 }
@@ -32,7 +35,7 @@ const estados = [
   'en_proceso',
   'respondido',
   'requiere_agente',
-  'agendado_consulta', // NUEVO: primero para visibilidad
+  'agendado_consulta',
   'agendado',
   'cerrado',
 ] as const
@@ -46,42 +49,53 @@ export default function ChatSidebar({
   setEstadoFiltro,
   onSelectChat,
   activoId,
-  estadoIconos,
-  estadoEstilos,
 }: ChatSidebarProps) {
   // ——————————————————————————————
-  // Fallbacks de iconos/estilos (si el padre no los provee)
+  // Iconos y estilos forzados (sin overrides del padre)
   // ——————————————————————————————
-  const icono = (estado: string) =>
-    estadoIconos?.[estado] ??
-    (estado === 'agendado' || estado === 'agendado_consulta'
-      ? <FiCalendar className="inline-block" />
-      : <FiInbox className="inline-block" />)
+  const icono = (estado: string) => {
+    if (estado === 'agendado')
+      return <span className="inline-block w-2 h-2 rounded-full bg-orange-400" />
+    if (estado === 'agendado_consulta')
+      return <span className="inline-block w-2 h-2 rounded-full bg-green-400" />
+    if (estado === 'pendiente')
+      return <FiClock className="inline-block" />
+    if (estado === 'cerrado')
+      return <span className="inline-block w-2 h-2 rounded-full bg-gray-400" />
+    if (estado === 'respondido')
+      return <span className="inline-block w-2 h-2 rounded-full bg-green-400" />
+    if (estado === 'en_proceso')
+      return <span className="inline-block w-2 h-2 rounded-full bg-blue-400" />
+    if (estado === 'requiere_agente')
+      return <span className="inline-block w-2 h-2 rounded-full bg-red-400" />
+    return <FiInbox className="inline-block" />
+  }
 
-      const estilo = (estado: string) => {
-        if (estadoEstilos?.[estado]) return estadoEstilos[estado]
-      
-        switch (estado) {
-          case 'agendado':
-            return 'bg-orange-900/30 text-orange-200 border border-orange-700' // 🟠 Naranja
-          case 'agendado_consulta':
-            return 'bg-green-900/30 text-green-200 border border-green-700'   // 🟢 Verde
-          default:
-            return 'bg-[#202C33] text-[#cbd5e1]'
-        }
-      }
-      
+  const estilo = (estado: string) => {
+    switch (estado) {
+      case 'agendado':
+        // 🟠 Naranja
+        return 'bg-orange-900/30 text-orange-200 border border-orange-700'
+      case 'agendado_consulta':
+        // 🟢 Verde
+        return 'bg-green-900/30 text-green-200 border border-green-700'
+      default:
+        return 'bg-[#202C33] text-[#cbd5e1]'
+    }
+  }
 
   const lista = Array.isArray(chats) ? chats : []
 
-  const chatsFiltrados = lista.filter(chat =>
+  const chatsFiltrados = lista.filter((chat) =>
     (estadoFiltro === 'todos' || (chat.estado ?? 'pendiente') === estadoFiltro) &&
-    String(chat.nombre ?? chat.phone ?? '').toLowerCase().includes((busqueda || '').toLowerCase())
+    String(chat.nombre ?? chat.phone ?? '')
+      .toLowerCase()
+      .includes((busqueda || '').toLowerCase())
   )
 
   return (
     <aside className="w-full md:w-[30%] max-w-[400px] flex-shrink-0 bg-[#111B21] text-white flex flex-col h-full overflow-hidden">
-      {/* Título (sin botón nueva) */}
+      {/* Título */}
       <div className="p-4 flex items-center justify-between">
         <h1 className="font-bold text-lg flex items-center gap-2">
           <FiInbox /> Chats
@@ -101,13 +115,15 @@ export default function ChatSidebar({
 
           <Menu.Items className="absolute z-10 mt-2 w-full bg-[#202C33] border border-[#2a3942] rounded-md shadow-lg max-h-60 overflow-auto text-sm text-white">
             {estados.map((estado) => {
-              const label = estado === 'todos'
-                ? 'Todos'
-                : estado.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase())
+              const label =
+                estado === 'todos'
+                  ? 'Todos'
+                  : estado.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase())
 
-              const count = estado === 'todos'
-                ? (lista?.length ?? 0)
-                : lista.filter((c) => (c.estado ?? 'pendiente') === estado).length
+              const count =
+                estado === 'todos'
+                  ? lista.length
+                  : lista.filter((c) => (c.estado ?? 'pendiente') === estado).length
 
               const selected = estadoFiltro === estado
 
