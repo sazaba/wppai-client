@@ -46,6 +46,7 @@ export default function ChatsPage() {
   const [busqueda, setBusqueda] = useState('')
   const [activoId, setActivoId] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
+  const [loadingMsgs, setLoadingMsgs] = useState(false)     // ⬅️ loader premium mensajes
   const [mensajes, setMensajes] = useState<any[]>([])
   const [respuesta, setRespuesta] = useState('')
   const [page, setPage] = useState(1)
@@ -233,6 +234,7 @@ export default function ChatsPage() {
     setActivoId(chatId)
     setMensajes([])
     setPage(1)
+    setLoadingMsgs(true) // ⬅️ ON loader premium
     try {
       const chatActual = chats.find((c) => c.id === chatId)
 
@@ -267,6 +269,8 @@ export default function ChatsPage() {
       setHasMore(res.data.pagination.hasMore)
     } catch (err) {
       console.error('Error al cargar mensajes:', err)
+    } finally {
+      setLoadingMsgs(false) // ⬅️ OFF loader premium
     }
   }
 
@@ -305,7 +309,7 @@ export default function ChatsPage() {
   }
 
   // ——————————————————————————————
-  // Enviar TEXTO (con loader de burbuja)
+  // Enviar TEXTO (tolerante a ruta/payload)
   // ——————————————————————————————
   const handleSendMessage = async () => {
     const body = respuesta.trim()
@@ -314,15 +318,14 @@ export default function ChatsPage() {
     const chatActual = chats.find((c) => c.id === activoId)
     const tempId = `temp-${Date.now()}`
     const timestamp = new Date().toISOString()
+    const msgOptimista = { id: tempId, from: 'agent', contenido: body, timestamp }
 
-    // ⏳ burbuja con loader
-    const msgOptimista = { id: tempId, from: 'agent', contenido: body, timestamp, status: 'sending' }
     setRespuesta('')
     setMensajes((prev) => mergeUnique(prev, [msgOptimista]))
 
-    // Si está cerrado, corta
+    // Si está cerrado, no intentes enviar
     if (chatActual?.estado === 'cerrado') {
-      setMensajes((prev) => prev.map((m) => (m.id === tempId ? { ...m, status: 'failed' } : m)))
+      setMensajes((prev) => prev.map((m) => (m.id === tempId ? { ...m, error: true } : m)))
       await Swal.fire({
         icon: 'info',
         title: 'Conversación cerrada',
@@ -334,26 +337,23 @@ export default function ChatsPage() {
       return
     }
 
-    // Helper OK
     const aplicarOk = (created: any) => {
       const real = created?.message ?? created
       setMensajes((prev) =>
-        ordenarMensajes(prev.map((m) => (m.id === tempId ? { ...m, ...real, id: real.id, status: 'sent' } : m)))
+        ordenarMensajes(prev.map((m) => (m.id === tempId ? { ...m, ...real, id: real.id } : m)))
       )
       setChats((prev) =>
         prev.map((chat) => {
           if (chat.id !== activoId) return chat
-          // No pisar estados post-agenda
           if (chat.estado === 'agendado' || chat.estado === 'agendado_consulta') return chat
           return { ...chat, estado: 'respondido' }
         })
       )
     }
 
-    // Helper Error
     const aplicarError = async (err: any) => {
       console.error('Error al responder manualmente:', err)
-      setMensajes((prev) => prev.map((m) => (m.id === tempId ? { ...m, status: 'failed' } : m)))
+      setMensajes((prev) => prev.map((m) => (m.id === tempId ? { ...m, error: true } : m)))
 
       let msg = ''
       try {
@@ -373,7 +373,7 @@ export default function ChatsPage() {
     }
 
     try {
-      // 1) Ruta actual
+      // 1) Ruta actual personalizada
       const { data } = await axios.post(
         `/api/chats/${activoId}/responder-manual`,
         { text: body, body, contenido: body, from: 'agent' },
@@ -604,6 +604,8 @@ export default function ChatsPage() {
         setEstadoFiltro={setEstadoFiltro}
         onSelectChat={handleSelectChat}
         activoId={activoId}
+        estadoIconos={estadoIconos}
+        estadoEstilos={estadoEstilos}
       />
 
       <section className="flex-1 flex flex-col h-full bg-[#0B141A] overflow-visible relative">
@@ -649,7 +651,12 @@ export default function ChatsPage() {
               </div>
             )}
 
-            <ChatMessages mensajes={mensajes} onLoadMore={handleLoadMore} hasMore={hasMore} />
+            <ChatMessages
+              mensajes={mensajes}
+              onLoadMore={handleLoadMore}
+              hasMore={hasMore}
+              loading={loadingMsgs} /* ⬅️ skeleton premium */
+            />
 
             <ChatInput
               value={respuesta}
