@@ -96,6 +96,21 @@ export default function DashboardPage() {
   const topProcedures = data?.series.topProcedures ?? []
 
   const PIE_COLORS = ['#818CF8','#22D3EE','#C084FC','#34D399','#F472B6']
+  // 🎨 Estilos para charts en modo dark (neón / alto contraste)
+const CHART_AXIS = '#93a3b8'        // ejes
+const CHART_GRID = 'rgba(148, 163, 184, 0.18)' // líneas guía
+const CHART_LINE = '#22d3ee'        // cian
+const CHART_FILL = 'rgba(34, 211, 238, 0.24)'  // cian translúcido
+const BAR_FILL   = '#8b5cf6'        // violeta
+const PIE_STROKE = '#0b0f14'        // borde de rebanadas (mismo fondo)
+
+const tooltipStyle = {
+  backgroundColor: '#0f172a',
+  border: '1px solid #334155',
+  borderRadius: 12,
+  color: '#e2e8f0',
+} as const
+
 
   const Badge = ({ ok, label }: { ok: boolean, label: string }) => (
     <span className={`px-2 py-1 rounded-full text-xs font-medium ${ok ? 'bg-emerald-500/15 text-emerald-400 ring-1 ring-emerald-500/30' : 'bg-rose-500/15 text-rose-400 ring-1 ring-rose-500/30'}`}>
@@ -191,14 +206,23 @@ export default function DashboardPage() {
             </span>
           </div>
           <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={seriesMensajes}>
-                <XAxis dataKey="day" stroke="#64748b" />
-                <YAxis stroke="#64748b" />
-                <Tooltip />
-                <Area type="monotone" dataKey="count" fill="#6366f1" fillOpacity={0.25} stroke="#818cf8" />
-              </AreaChart>
-            </ResponsiveContainer>
+          <ResponsiveContainer width="100%" height="100%">
+  <AreaChart data={seriesMensajes}>
+    <XAxis dataKey="day" stroke={CHART_AXIS} tick={{ fill: CHART_AXIS, fontSize: 12 }} />
+    <YAxis stroke={CHART_AXIS} tick={{ fill: CHART_AXIS, fontSize: 12 }} />
+    <Tooltip contentStyle={tooltipStyle} />
+    <Area
+      type="monotone"
+      dataKey="count"
+      stroke={CHART_LINE}
+      fill={CHART_FILL}
+      strokeWidth={2}
+      dot={{ r: 2, stroke: CHART_LINE }}
+      activeDot={{ r: 4 }}
+    />
+  </AreaChart>
+</ResponsiveContainer>
+
           </div>
         </Card>
 
@@ -207,15 +231,15 @@ export default function DashboardPage() {
             <h3 className="text-slate-200 font-semibold">Conversaciones por estado</h3>
           </div>
           <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={estadosBar}>
-                <XAxis dataKey="name" stroke="#64748b" />
-                <YAxis stroke="#64748b" />
-                <Tooltip />
-                <Bar dataKey="count" fill="#6366f1" />
+          <ResponsiveContainer width="100%" height="100%">
+  <BarChart data={estadosBar}>
+    <XAxis dataKey="name" stroke={CHART_AXIS} tick={{ fill: CHART_AXIS, fontSize: 12 }} />
+    <YAxis stroke={CHART_AXIS} tick={{ fill: CHART_AXIS, fontSize: 12 }} />
+    <Tooltip contentStyle={tooltipStyle} />
+    <Bar dataKey="count" fill={BAR_FILL} radius={[8, 8, 0, 0]} />
+  </BarChart>
+</ResponsiveContainer>
 
-              </BarChart>
-            </ResponsiveContainer>
           </div>
         </Card>
       </div>
@@ -226,14 +250,27 @@ export default function DashboardPage() {
             <h3 className="text-slate-200 font-semibold">Top procedimientos (solicitados)</h3>
           </div>
           <div className="h-64 flex items-center">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie data={topProcedures} dataKey="count" nameKey="name" outerRadius={100} innerRadius={50}>
-                  {topProcedures.map((_, idx) => <Cell key={idx} fill={PIE_COLORS[idx % PIE_COLORS.length]} />)}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
+          <ResponsiveContainer width="100%" height="100%">
+  <PieChart>
+    <Pie
+      data={topProcedures}
+      dataKey="count"
+      nameKey="name"
+      outerRadius={110}
+      innerRadius={54}
+      stroke={PIE_STROKE}
+      strokeWidth={2}
+      label={(entry) => entry.name}
+      labelLine={{ stroke: CHART_AXIS, strokeOpacity: 0.5 }}
+    >
+      {topProcedures.map((_, idx) => (
+        <Cell key={idx} fill={PIE_COLORS[idx % PIE_COLORS.length]} />
+      ))}
+    </Pie>
+    <Tooltip contentStyle={tooltipStyle} />
+  </PieChart>
+</ResponsiveContainer>
+
           </div>
         </Card>
 
