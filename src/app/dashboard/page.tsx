@@ -252,7 +252,15 @@ const tooltipStyle = {
       domain={[0, yMaxEstados]}     // ← aquí usamos el “aire” en Y
       allowDecimals={false}
     />
-    <Tooltip contentStyle={tooltipStyle} />
+    <Tooltip
+  contentStyle={{
+    ...tooltipStyle,
+    backgroundColor: 'rgba(15, 23, 42, 0.9)', // casi igual al fondo del card
+    boxShadow: '0 0 8px rgba(0,0,0,0.3)',
+  }}
+  cursor={{ fill: 'transparent' }} // 🔹 evita el rectángulo gris al hacer hover
+/>
+
     <Bar
       dataKey="count"
       fill={BAR_FILL}
