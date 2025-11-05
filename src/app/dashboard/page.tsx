@@ -20,6 +20,10 @@ import {
   BarChart, Bar, PieChart, Pie, Cell
 } from 'recharts'
 
+// ⬇️ BASE del backend (desde .env.local)
+const API = process.env.NEXT_PUBLIC_API_URL || ''
+
+
 type SummaryResponse = {
   kpis: {
     chatsActivos: number
@@ -44,10 +48,11 @@ type SummaryResponse = {
   incidents: { message: string; ts: string | Date }[]
 }
 
-const fetcher = (url: string) => fetch(url).then(r => {
+const fetcher = async (url: string) => {
+  const r = await fetch(url, { credentials: 'include' })
   if (!r.ok) throw new Error('Fetch error')
   return r.json()
-})
+}
 
 export default function DashboardPage() {
   const { empresa, isAuthenticated, loading } = useAuth()
@@ -58,11 +63,19 @@ export default function DashboardPage() {
   }, [loading, isAuthenticated, router])
 
   const empresaId = empresa?.id
+
+  // ⬇️ Construimos el endpoint con la BASE del backend
+  const endpoint =
+    isAuthenticated && empresaId
+      ? `${API}/api/dashboard/summary?empresaId=${empresaId}`
+      : null
+  
   const { data, isLoading, error } = useSWR<SummaryResponse>(
-    isAuthenticated && empresaId ? `/api/dashboard/summary?empresaId=${empresaId}` : null,
+    endpoint,
     fetcher,
     { revalidateOnFocus: false }
   )
+  
 
   if (loading || isLoading) return <SkeletonDashboard />
   if (!isAuthenticated) return null
