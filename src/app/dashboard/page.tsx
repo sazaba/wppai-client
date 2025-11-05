@@ -93,6 +93,9 @@ export default function DashboardPage() {
   }
   const seriesMensajes = data?.series.messages7d ?? []
   const estadosBar = data?.series.conversationsByStatus?.map(s => ({ name: s.status, count: s.count })) ?? []
+  // 👉 Dar margen al eje Y para que una barra con valor 1 no llene todo el alto
+const yMaxEstados = Math.max(2, ...(estadosBar.map(e => e.count ?? 0))) // mínimo 2
+
   const topProcedures = data?.series.topProcedures ?? []
 
   const PIE_COLORS = ['#818CF8','#22D3EE','#C084FC','#34D399','#F472B6']
@@ -232,13 +235,33 @@ const tooltipStyle = {
           </div>
           <div className="h-64">
           <ResponsiveContainer width="100%" height="100%">
-  <BarChart data={estadosBar}>
-    <XAxis dataKey="name" stroke={CHART_AXIS} tick={{ fill: CHART_AXIS, fontSize: 12 }} />
-    <YAxis stroke={CHART_AXIS} tick={{ fill: CHART_AXIS, fontSize: 12 }} />
+  <BarChart
+    data={estadosBar}
+    margin={{ top: 8, right: 8, bottom: 8, left: 8 }}
+    barCategoryGap="60%"    // controla el “espacio” cuando hay 1 sola barra
+  >
+    <XAxis
+      dataKey="name"
+      stroke={CHART_AXIS}
+      tick={{ fill: CHART_AXIS, fontSize: 12 }}
+      interval={0}
+    />
+    <YAxis
+      stroke={CHART_AXIS}
+      tick={{ fill: CHART_AXIS, fontSize: 12 }}
+      domain={[0, yMaxEstados]}     // ← aquí usamos el “aire” en Y
+      allowDecimals={false}
+    />
     <Tooltip contentStyle={tooltipStyle} />
-    <Bar dataKey="count" fill={BAR_FILL} radius={[8, 8, 0, 0]} />
+    <Bar
+      dataKey="count"
+      fill={BAR_FILL}
+      radius={[10, 10, 0, 0]}
+      maxBarSize={48}               // ancho máximo de barra
+    />
   </BarChart>
 </ResponsiveContainer>
+
 
           </div>
         </Card>
