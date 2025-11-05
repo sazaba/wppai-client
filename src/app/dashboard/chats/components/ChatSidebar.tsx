@@ -58,11 +58,19 @@ export default function ChatSidebar({
       ? <FiCalendar className="inline-block" />
       : <FiInbox className="inline-block" />)
 
-  const estilo = (estado: string) =>
-    estadoEstilos?.[estado] ??
-    (estado === 'agendado' || estado === 'agendado_consulta'
-      ? 'bg-indigo-900/30 text-indigo-200 border border-indigo-700'
-      : 'bg-[#202C33] text-[#cbd5e1]')
+      const estilo = (estado: string) => {
+        if (estadoEstilos?.[estado]) return estadoEstilos[estado]
+      
+        switch (estado) {
+          case 'agendado':
+            return 'bg-orange-900/30 text-orange-200 border border-orange-700' // 🟠 Naranja
+          case 'agendado_consulta':
+            return 'bg-green-900/30 text-green-200 border border-green-700'   // 🟢 Verde
+          default:
+            return 'bg-[#202C33] text-[#cbd5e1]'
+        }
+      }
+      
 
   const lista = Array.isArray(chats) ? chats : []
 
