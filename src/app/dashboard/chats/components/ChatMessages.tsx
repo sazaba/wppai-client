@@ -8,14 +8,24 @@ interface ChatMessagesProps {
   mensajes: ChatMessage[]
   onLoadMore: () => void
   hasMore: boolean
+  /** Muestra una burbuja efímera al final con loader de puntitos (bot escribiendo) */
+  isTyping?: boolean
+  /** Muestra skeleton arriba mientras se cargan mensajes antiguos */
+  loadingMore?: boolean
 }
 
-export default function ChatMessages({ mensajes, onLoadMore, hasMore }: ChatMessagesProps) {
+export default function ChatMessages({
+  mensajes,
+  onLoadMore,
+  hasMore,
+  isTyping = false,
+  loadingMore = false,
+}: ChatMessagesProps) {
   const bottomRef = useRef<HTMLDivElement | null>(null)
   const scrollContainerRef = useRef<HTMLDivElement | null>(null)
   const [isAtBottom, setIsAtBottom] = useState(true)
 
-  // Dedupe
+  // Dedupe estable por id y fallback seguro
   const list = useMemo(() => {
     const seen = new Set<string>()
     return mensajes.filter((m) => {
@@ -40,41 +50,71 @@ export default function ChatMessages({ mensajes, onLoadMore, hasMore }: ChatMess
 
   return (
     <div className="flex-1 overflow-hidden relative bg-[#111B21] z-0">
-
       <div
         ref={scrollContainerRef}
         onScroll={handleScroll}
         className="
           h-full overflow-y-auto overflow-x-hidden
           px-3 sm:px-5 py-4
-          [scrollbar-width:thin] [scrollbar-color:#2A3942_transparent]
-          hover:[scrollbar-color:#2A3942_transparent]
+          scrollbar-thin scrollbar-thumb-[#2A3942]/60 scrollbar-track-transparent
+          hover:scrollbar-thumb-[#2A3942]
+          [scrollbar-width:thin] [scrollbar-color:#2A3942_transparent] sm:[scrollbar-color:#2A3942_transparent]
         "
+        // Nota: las dos líneas de abajo corrigen el valor inválido con guion bajo en navegadores que soportan la propiedad.
+        style={{ scrollbarColor: '#2A3942 transparent' } as any}
       >
-        {/* Limitador para simetría en desktop */}
-        <div className="mx-auto w-full max-w-3xl flex flex-col gap-2 sm:gap-3">
-          {hasMore && (
-            <button
-              onClick={onLoadMore}
-              className="text-xs text-[#00A884] hover:underline self-center mb-2"
-            >
-              Ver mensajes anteriores
-            </button>
-          )}
+        {/* Limitador para simetría en desktop y evitar estirar de más */}
+        <div className="mx-auto w-full max-w-3xl">
+          {/* Pila de mensajes con ritmo vertical consistente */}
+          <div className="flex flex-col gap-2.5 sm:gap-3">
+            {hasMore && (
+              <div className="self-center flex flex-col items-center gap-2 mb-1">
+                <button
+                  onClick={onLoadMore}
+                  className="text-xs text-[#00A884] hover:underline"
+                  disabled={loadingMore}
+                >
+                  Ver mensajes anteriores
+                </button>
+                {loadingMore && (
+                  <div className="flex flex-col gap-2 w-full">
+                    <div className="self-start bg-[#1F2C34] rounded-2xl px-3.5 py-2.5 w-40 h-6 animate-pulse" />
+                    <div className="self-end bg-[#005C4B] rounded-2xl px-3.5 py-2.5 w-56 h-6 animate-pulse" />
+                  </div>
+                )}
+              </div>
+            )}
 
-          {list.length === 0 && !hasMore && (
-            <div className="self-center text-sm text-[#8696a0] py-6">
-              No hay mensajes todavía.
-            </div>
-          )}
+            {list.length === 0 && !hasMore && (
+              <div className="self-center text-sm text-[#8696a0] py-6">
+                No hay mensajes todavía.
+              </div>
+            )}
 
-          {list.map((msg) => {
-            const key = String(msg.id ?? `${msg.from}-${msg.timestamp}-${msg.contenido}`)
-            const isMine = msg.from === 'bot' || msg.from === 'agent'
-            return <MessageBubble key={key} message={msg} isMine={isMine} />
-          })}
+            {list.map((msg) => {
+              const key = String(msg.id ?? `${msg.from}-${msg.timestamp}-${msg.contenido}`)
+              // 👉 “Míos” = bot/agent (lado derecho)
+              const isMine = msg.from === 'bot' || msg.from === 'agent'
+              return <MessageBubble key={key} message={msg} isMine={isMine} />
+            })}
 
-          <div ref={bottomRef} />
+            {/* typing indicator al final */}
+            {isTyping && (
+              <MessageBubble
+                key="typing-indicator"
+                isMine={true} // si tu bot va a la derecha; cambia a false si lo prefieres a la izquierda
+                message={{
+                  id: 'typing',
+                  from: 'bot',
+                  contenido: '',
+                  status: 'sending',
+                  timestamp: new Date().toISOString(),
+                }}
+              />
+            )}
+
+            <div ref={bottomRef} />
+          </div>
         </div>
       </div>
 

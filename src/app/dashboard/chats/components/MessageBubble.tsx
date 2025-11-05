@@ -15,6 +15,7 @@ export type ChatMessage = {
   transcription?: string | null;
   isVoiceNote?: boolean;
   mediaId?: string | null;
+  status?: 'sending' | 'sent' | 'failed'; // ← OPCIONAL
 };
 
 type Props = { message: ChatMessage; isMine?: boolean };
@@ -32,7 +33,6 @@ function formatTime(ts?: string) {
   }
 }
 
-/** 🔗 Convierte rutas relativas '/api/...' a absolutas usando NEXT_PUBLIC_API_URL */
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || '';
 function toAbsolute(u?: string | null) {
   if (!u) return '';
@@ -42,17 +42,6 @@ function toAbsolute(u?: string | null) {
   return `${base}${path}`;
 }
 
-/** 🔑 Lee el token de la app (para firmar /media/:id?t=JWT en <img>/<video>) */
-function getAppToken() {
-  if (typeof window === 'undefined') return '';
-  try {
-    return localStorage.getItem('token') || '';
-  } catch {
-    return '';
-  }
-}
-
-/** Limpia cortes raros */
 function sanitizeAggressive(raw: string) {
   if (!raw) return '';
   let s = raw
@@ -62,38 +51,111 @@ function sanitizeAggressive(raw: string) {
     .replace(/\u00A0/g, ' ');
   s = s.replace(/\n{3,}/g, '\n\n');
   s = s.replace(/([A-Za-zÁÉÍÓÚÜÑáéíóúüñ])-\s*\n\s*([A-Za-zÁÉÍÓÚÜÑáéíóúüñ])/g, '$1$2');
-  s = s.replace(/([a-záéíóúüñ])\s*\n\s*([a-záéíóúüñ])/g, '$1$2');
-  s = s.replace(/(?<!\n)\n(?!\n)/g, ' ');
   s = s.replace(/[ \t]{2,}/g, ' ');
   return s.trim();
 }
 
-export default function MessageBubble({ message, isMine }: Props) {
-  const { contenido, mediaType, mediaUrl, mimeType, caption, transcription, mediaId } = message;
+/* ----------------- COLA CON BORDE ------------------ */
+function BubbleTail({ side, color, borderColor }: { side: 'left' | 'right'; color: string; borderColor: string }) {
+  if (side === 'right') {
+    return (
+      <>
+        <span
+          className="absolute -right-[7px] bottom-[7px] w-0 h-0"
+          style={{
+            borderTop: '8px solid transparent',
+            borderBottom: '8px solid transparent',
+            borderLeft: `10px solid ${borderColor}`,
+          }}
+        />
+        <span
+          className="absolute -right-[6px] bottom-[7px] w-0 h-0"
+          style={{
+            borderTop: '8px solid transparent',
+            borderBottom: '8px solid transparent',
+            borderLeft: `10px solid ${color}`,
+          }}
+        />
+      </>
+    );
+  }
+  return (
+    <>
+      <span
+        className="absolute -left-[7px] bottom-[7px] w-0 h-0"
+        style={{
+          borderTop: '8px solid transparent',
+          borderBottom: '8px solid transparent',
+          borderRight: `10px solid ${borderColor}`,
+        }}
+      />
+      <span
+        className="absolute -left-[6px] bottom-[7px] w-0 h-0"
+        style={{
+          borderTop: '8px solid transparent',
+          borderBottom: '8px solid transparent',
+          borderRight: `10px solid ${color}`,
+        }}
+      />
+    </>
+  );
+}
+
+/* --------- Contenedor de burbuja con cola opcional --------- */
+function BubbleBox({
+  children,
+  isMine,
+  withTail,
+}: {
+  children: React.ReactNode;
+  isMine: boolean;
+  withTail?: boolean;
+}) {
+  const bgMine = '#005C4B';
+  const bgOther = '#1F2C34';     // ← gris WhatsApp dark (más claro que #202C33)
+  const borderMine = '#004137';
+  const borderOther = '#111B21';
+
+  const bubbleBase = clsx(
+    'relative inline-flex flex-col',
+    'min-w-0 max-w-[92%] sm:max-w-[72%] md:max-w-[65%]',
+    'px-3.5 py-2.5 rounded-2xl shadow-sm',
+    isMine ? 'bg-[#005C4B] text-white self-end' : 'bg-[#1F2C34] text-[#E9EDEF] self-start'
+  );
+
+  return (
+    <div className={bubbleBase}>
+      {children}
+      {withTail ? (
+        <BubbleTail
+          side={isMine ? 'right' : 'left'}
+          color={isMine ? bgMine : bgOther}
+          borderColor={isMine ? borderMine : borderOther}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+/* --------- Loader de 3 puntitos estilo WhatsApp --------- */
+function DotsLoader({ className = '' }: { className?: string }) {
+  return (
+    <span className={clsx('flex items-center gap-1', className)}>
+      <span className="w-1.5 h-1.5 rounded-full bg-white/70 animate-bounce [animation-delay:-.2s]" />
+      <span className="w-1.5 h-1.5 rounded-full bg-white/70 animate-bounce [animation-delay:-.1s]" />
+      <span className="w-1.5 h-1.5 rounded-full bg-white/70 animate-bounce" />
+    </span>
+  );
+}
+
+export default function MessageBubble({ message, isMine = false }: Props) {
+  const { contenido, mediaType, mediaUrl, mimeType, caption, transcription, mediaId, status } = message;
   const time = formatTime(message.timestamp);
   const itsMedia = isMedia(mediaType);
 
-  const needsAggressiveWrap = useMemo(() => {
-    const text = (contenido || '').trim();
-    if (!text) return false;
-    const tokens = text.split(/\s+/);
-    return tokens.some((t) => /^https?:\/\//i.test(t) || t.length >= 28);
-  }, [contenido]);
-
-  const bubbleBase = clsx(
-    'relative inline-block align-top',
-    'max-w-[86%] sm:max-w-[70%] min-w-[9ch]',
-    'px-3 py-2 rounded-2xl shadow-sm ring-1 ring-white/5',
-    'overflow-hidden isolate flex flex-col',
-    isMine ? 'bg-[#005C4B] text-white ml-auto' : 'bg-[#202C33] text-[#E9EDEF]'
-  );
-
   const textClass = clsx(
     'text-[14px] leading-[1.45] antialiased',
-    'whitespace-pre-wrap',
-    needsAggressiveWrap
-      ? 'break-words [word-break:break-word]'
-      : 'break-normal [word-break:keep-all] [overflow-wrap:normal]'
+    'whitespace-pre-wrap break-words [overflow-wrap:anywhere]'
   );
 
   const timeClass = clsx(
@@ -107,27 +169,23 @@ export default function MessageBubble({ message, isMine }: Props) {
       contenido &&
       !['[imagen]', '[video]', '[nota de voz]', '[documento]'].includes(contenido));
 
- // ✅ Resolver URL final para media:
-// 1) usar mediaUrl si viene (ya viene firmada con ?t= de signMediaToken)
-// 2) si no, construir sin token y que el backend resuelva por DB (fallback)
-const resolvedMediaUrl = useMemo(() => {
-  const first = (mediaUrl || '').trim();
-  if (first) return toAbsolute(first);
+  const resolvedMediaUrl = useMemo(() => {
+    const first = (mediaUrl || '').trim();
+    if (first) return toAbsolute(first);
+    if (mediaId) return toAbsolute(`/api/whatsapp/media/${mediaId}`);
+    return '';
+  }, [mediaUrl, mediaId]);
 
-  if (mediaId) {
-    // ⚠️ NO usar token de app aquí. Deja sin ?t= para que el back haga fallback por DB.
-    return toAbsolute(`/api/whatsapp/media/${mediaId}`);
-  }
-  return '';
-}, [mediaUrl, mediaId]);
-
+  const willRenderMedia = itsMedia;
+  const willRenderText = !!showText;
+  const isSending = status === 'sending';
+  const isFailed = status === 'failed';
 
   return (
     <div className={clsx('w-full flex', isMine ? 'justify-end' : 'justify-start')}>
-      <div className="flex flex-col gap-1 max-w-full">
-        {/* BURBUJA MULTIMEDIA */}
-        {itsMedia && (
-          <div className={bubbleBase}>
+      <div className="max-w-full flex flex-col gap-1">
+        {willRenderMedia && (
+          <BubbleBox isMine={isMine} withTail={!willRenderText}>
             <MediaRenderer
               type={mediaType as any}
               url={resolvedMediaUrl}
@@ -138,15 +196,24 @@ const resolvedMediaUrl = useMemo(() => {
               time={time}
               timeClass={timeClass}
             />
-          </div>
+          </BubbleBox>
         )}
 
-        {/* BURBUJA DE TEXTO */}
-        {showText && (
-          <div className={bubbleBase}>
-            <p className={textClass}>{sanitizeAggressive(contenido)}</p>
-            {time ? <span className={timeClass}>{time}</span> : null}
-          </div>
+        {willRenderText && (
+          <BubbleBox isMine={isMine} withTail>
+            {contenido ? <p className={textClass}>{sanitizeAggressive(contenido)}</p> : null}
+
+            {/* Línea de estado + hora */}
+            <div className="mt-1 flex items-center gap-2 self-end">
+              {time ? <span className={timeClass}>{time}</span> : null}
+              {isSending && (
+                <DotsLoader className={clsx(isMine ? 'text-white/80' : 'text-[#E9EDEF]/80')} />
+              )}
+              {isFailed && (
+                <span className="text-[11px] text-red-400">Error</span>
+              )}
+            </div>
+          </BubbleBox>
         )}
       </div>
     </div>
@@ -177,7 +244,8 @@ function MediaRenderer({
   const [errored, setErrored] = useState(false);
   const [loaded, setLoaded] = useState(false);
 
-  const wideBox = 'w-[min(82vw,420px)] sm:w-[420px] max-w-full';
+  const mediaWrap = 'w-full';
+  const mediaBox = 'relative overflow-hidden rounded-xl';
   const phBase = 'rounded-xl bg-black/20 flex items-center justify-center text-[12px] text-gray-400 w-full';
   const imgPh = clsx(phBase, 'min-h-[180px] sm:min-h-[220px]');
   const vidPh = clsx(phBase, 'min-h-[160px] sm:min-h-[200px]');
@@ -197,16 +265,16 @@ function MediaRenderer({
   if (type === 'image') {
     if (!url || errored) {
       return (
-        <div className={wideBox}>
+        <div className={mediaWrap}>
           <div className={imgPh}>imagen</div>
-          {time ? <span className={clsx('absolute bottom-1 right-2', timeClass)}>{time}</span> : null}
+          {time ? <span className={timeClass}>{time}</span> : null}
         </div>
       );
     }
 
     return (
       <figure className="flex flex-col gap-2 max-w-full">
-        <div className={clsx(wideBox, 'relative overflow-hidden rounded-xl')}>
+        <div className={clsx(mediaWrap, mediaBox)}>
           {!loaded && <div className={clsx(imgPh, 'animate-pulse')} />}
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
@@ -234,16 +302,16 @@ function MediaRenderer({
   if (type === 'video') {
     if (!url || errored) {
       return (
-        <div className={wideBox}>
+        <div className={mediaWrap}>
           <div className={vidPh}>video</div>
-          {time ? <span className={clsx('absolute bottom-1 right-2', timeClass)}>{time}</span> : null}
+          {time ? <span className={timeClass}>{time}</span> : null}
         </div>
       );
     }
 
     return (
       <div className="flex flex-col gap-2 max-w-full">
-        <div className={clsx(wideBox, 'relative overflow-hidden rounded-xl')}>
+        <div className={clsx(mediaWrap, mediaBox)}>
           {!loaded && <div className={clsx(vidPh, 'animate-pulse')} />}
           <video
             src={url}
@@ -262,7 +330,6 @@ function MediaRenderer({
     );
   }
 
-  // document
   return (
     <div className="flex flex-col gap-1 max-w-full">
       <div className="flex items-center gap-2 min-w-0">
