@@ -527,7 +527,7 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId?: number
           }}
           className={cx(
             "relative min-h-[150px] rounded-2xl overflow-hidden cursor-pointer group",
-            "border border-white/10 bg-gradient-to-b from-zinc-900 to-zinc-800",
+            "border border-white/10 bg-gradient-to-b from-slate-950 to-slate-800",
             "hover:border-white/20 transition-colors",
             !inMonth && "opacity-60",
             isToday && "ring-2 ring-indigo-400/70"
