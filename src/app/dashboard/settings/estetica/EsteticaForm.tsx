@@ -1205,7 +1205,7 @@ export function EsteticaForm({ value, onChange }: Props) {
               </Select>
             </Field>
 
-            {value.appointmentVertical === "custom" && (
+            {/* {value.appointmentVertical === "custom" && (
               <Input
                 type="text"
                 placeholder="Ej: Clínica Láser, Nutrición, Barbería…"
@@ -1213,7 +1213,7 @@ export function EsteticaForm({ value, onChange }: Props) {
                 onChange={(e) => patch("appointmentVerticalCustom", e.target.value)}
                 className="mt-2"
               />
-            )}
+            )} */}
           </div>
 
           <div className="p-4 rounded-2xl bg-white/[.03] border border-white/10">
