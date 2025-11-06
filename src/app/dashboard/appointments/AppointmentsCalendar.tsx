@@ -199,6 +199,28 @@ function spanLabel(a: Date, b: Date) {
   const fmt = new Intl.DateTimeFormat("es-CO",{hour:"2-digit",minute:"2-digit",hour12:false});
   return `${fmt.format(a)}–${fmt.format(b)}`;
 }
+
+/* ---------- Count styles (month view) ---------- */
+function countTone(n: number) {
+  // paleta sobria + escalado discreto
+  if (n === 0) return {
+    badge: "bg-zinc-800/80 text-zinc-300 ring-white/10",
+    glow: "from-transparent via-transparent to-transparent",
+  };
+  if (n <= 2) return {
+    badge: "bg-indigo-500/20 text-indigo-200 ring-indigo-400/30",
+    glow: "from-indigo-500/10 via-indigo-500/5 to-transparent",
+  };
+  if (n <= 5) return {
+    badge: "bg-fuchsia-500/20 text-fuchsia-200 ring-fuchsia-400/30",
+    glow: "from-fuchsia-500/10 via-fuchsia-500/5 to-transparent",
+  };
+  return {
+    badge: "bg-rose-500/25 text-rose-200 ring-rose-400/30",
+    glow: "from-rose-500/15 via-rose-500/5 to-transparent",
+  };
+}
+
 function getWeekStart(d: Date) {
   const w = d.getDay(); // 0=Dom..6=Sab
   const mondayDiff = (w === 0 ? -6 : 1) - w;
@@ -474,66 +496,127 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId?: number
         )}
 
         {/* Grid Mes - PREMIUM (solo contador en burbuja) */}
-        {view === 'month' && (
-          <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 md:grid-cols-4 xl:grid-cols-7">
-            {daysMonth.map((day,i)=>{
-              const k = fmtKey(day);
-              const inMonth = day.getMonth() === current.getMonth();
-              const count = (eventsByDay[k] || []).length;
-              const isToday = isSameYMD(day, new Date());
+        
+{/* Grid Mes – DARK PREMIUM (sin listar citas, solo contador elegante) */}
+{view === 'month' && (
+  <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 md:grid-cols-4 xl:grid-cols-7">
+    {daysMonth.map((day, i) => {
+      const k = fmtKey(day);
+      const inMonth = day.getMonth() === current.getMonth();
+      const count = (eventsByDay[k] || []).length;
+      const isToday = isSameYMD(day, new Date());
+      const tone = countTone(count);
 
-              return (
-                <div
-                  key={i}
-                  onClick={() => { setSelectedDay(day); setSelectedWeekStart(getWeekStart(day)); setView('day'); }}
-                  onDoubleClick={(e) => {
-                    e.stopPropagation();
-                    const base = new Date(day);
-                    base.setHours(9,0,0,0); // 09:00 por defecto
-                    openCreateAt(base, 30);
-                  }}
-                  className={cx(
-                    "group relative min-h-[140px] rounded-2xl border p-3 shadow-sm transition cursor-pointer overflow-hidden",
-                    "bg-white text-zinc-900 border-zinc-200",
-                    "dark:bg-zinc-900 dark:text-white dark:border-zinc-800",
-                    !inMonth && "opacity-70",
-                    isToday && "ring-2 ring-indigo-400/70"
-                  )}
-                >
-                  {/* fondo sutil con gradiente si hay citas */}
-                  {count > 0 && (
-                    <div className="pointer-events-none absolute inset-0 opacity-70">
-                      <div className="absolute -top-20 -right-24 h-56 w-56 rounded-full bg-gradient-to-br from-indigo-500/20 to-fuchsia-500/10 blur-2xl" />
-                    </div>
-                  )}
-
-                  <div className="mb-2 flex items-start justify-between">
-                    <div className={cx("text-sm font-semibold", inMonth ? "" : "text-white/60")}>
-                      {day.getDate()}
-                    </div>
-
-                    {/* BURBUJITA de conteo */}
-                    <div
-                      className={cx(
-                        "inline-flex items-center justify-center rounded-full px-2.5 h-6 text-[11px] font-semibold",
-                        "bg-gradient-to-r from-indigo-600 to-fuchsia-600 text-white shadow-lg shadow-fuchsia-700/20",
-                        "backdrop-blur ring-1 ring-white/20"
-                      )}
-                      title={`${count} citas`}
-                    >
-                      {count}
-                    </div>
-                  </div>
-
-                  {/* micro hint para crear */}
-                  <div className="absolute bottom-2 left-3 text-[11px] text-white/70 opacity-0 group-hover:opacity-100 transition">
-                    Doble clic para agendar
-                  </div>
-                </div>
-              );
-            })}
+      return (
+        <div
+          key={i}
+          onClick={() => { setSelectedDay(day); setSelectedWeekStart(getWeekStart(day)); setView('day'); }}
+          onDoubleClick={(e) => {
+            e.stopPropagation();
+            const base = new Date(day);
+            base.setHours(9, 0, 0, 0); // default 09:00
+            // usa tu helper existente
+            const y = base.getFullYear();
+            const m = String(base.getMonth() + 1).padStart(2, "0");
+            const d = String(base.getDate()).padStart(2, "0");
+            const H = String(base.getHours()).padStart(2, "0");
+            const M = String(base.getMinutes()).padStart(2, "0");
+            const startISO = `${y}-${m}-${d}T${H}:${M}`;
+            setCreatePrefill({ startISO, durationMin: 30 });
+            setShowCreate(true);
+          }}
+          className={cx(
+            "relative min-h-[150px] rounded-2xl overflow-hidden cursor-pointer group",
+            "border border-white/10 bg-gradient-to-b from-zinc-950 to-black",
+            "hover:border-white/20 transition-colors",
+            !inMonth && "opacity-60",
+            isToday && "ring-2 ring-indigo-400/70"
+          )}
+          title={`${count} ${count === 1 ? "cita" : "citas"}`}
+        >
+          {/* Glow sutil condicionado por cantidad */}
+          <div className="pointer-events-none absolute inset-0">
+            <div className={cx(
+              "absolute -top-24 -right-24 h-56 w-56 rounded-full blur-2xl opacity-80",
+              "bg-gradient-to-br",
+              tone.glow
+            )}/>
           </div>
-        )}
+
+          {/* Header del día */}
+          <div className="relative z-10 flex items-start justify-between p-3">
+            <div className="flex items-center gap-2">
+              <span className={cx(
+                "text-lg font-semibold leading-none select-none",
+                "text-white"
+              )}>
+                {day.getDate()}
+              </span>
+              {!inMonth && (
+                <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-white/5 text-white/60 border border-white/10">
+                  fuera
+                </span>
+              )}
+              {isToday && (
+                <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-indigo-500/20 text-indigo-200 border border-indigo-400/30">
+                  hoy
+                </span>
+              )}
+            </div>
+
+            {/* Contador “chip” */}
+            <div
+              className={cx(
+                "inline-flex items-center gap-1 rounded-full px-2.5 h-6 text-[11px] font-semibold",
+                "backdrop-blur ring-1 shadow-lg",
+                tone.badge
+              )}
+            >
+              <span className="leading-none">{count}</span>
+              <span className="hidden sm:inline leading-none opacity-80">citas</span>
+            </div>
+          </div>
+
+          {/* Línea divisoria sutil */}
+          <div className="relative z-10 mx-3 border-t border-white/10" />
+
+          {/* Pie con “hint” */}
+          <div className="relative z-10 p-3 pt-2 text-[11px] text-white/60">
+            <div className="flex items-center justify-between">
+              <span className="opacity-80">Doble clic para agendar</span>
+              {/* Micro “carga” decorativa */}
+              <div className="flex -space-x-1">
+                {[...Array(Math.min(count, 6))].map((_, idx) => (
+                  <span
+                    key={idx}
+                    className={cx(
+                      "h-1.5 w-3 rounded-full",
+                      idx < 2 ? "bg-indigo-400/40" : idx < 5 ? "bg-fuchsia-400/40" : "bg-rose-400/50"
+                    )}
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Hover overlay */}
+          <div className="pointer-events-none absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition">
+            <div className="absolute inset-0 bg-white/5" />
+          </div>
+        </div>
+      );
+    })}
+  </div>
+)}
+
+
+
+
+
+
+
+
+
 
         {/* Cabecera de días (Semana/Día) */}
         {(view === "week" || view === "day") && (
