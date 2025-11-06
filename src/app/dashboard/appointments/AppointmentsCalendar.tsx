@@ -40,12 +40,10 @@ function localToISOWithOffset(local: string, offsetMinutes = -300): { iso: strin
   return { iso: `${yyyy}-${MM}-${dd}T${HH}:${mm}:00${tz}`, dateLocal };
 }
 
-/** ISO (con Z u offset) -> "YYYY-MM-DDTHH:mm" en zona con offset dado (default Bogotá -05:00)
- *  Evita el desfase típico del input datetime-local cuando el backend devuelve UTC.
- */
+/** ISO -> "YYYY-MM-DDTHH:mm" en offset (Bogotá -05:00 por defecto) */
 function isoToLocalYMDHM(iso: string, offsetMinutes = -300): string {
   const t = new Date(iso).getTime();
-  const shifted = new Date(t + offsetMinutes * 60_000); // “mueve” a la pared horaria de la zona
+  const shifted = new Date(t + offsetMinutes * 60_000);
   const yyyy = shifted.getUTCFullYear();
   const MM = String(shifted.getUTCMonth() + 1).padStart(2, "0");
   const dd = String(shifted.getUTCDate()).padStart(2, "0");
@@ -59,7 +57,7 @@ const DarkSwal = Swal.mixin({
   background: "#0B0C14",
   color: "#E5E7EB",
   iconColor: "#A78BFA",
-  showClass: { popup: "swal2-noanimation" }, // dejamos animación a framer y UI
+  showClass: { popup: "swal2-noanimation" },
   hideClass: { popup: "" },
   buttonsStyling: false,
   customClass: {
@@ -72,28 +70,12 @@ const DarkSwal = Swal.mixin({
       "inline-flex items-center justify-center rounded-xl px-4 py-2 font-medium border border-white/15 text-white/90 hover:bg-white/5 ml-2",
   },
 });
-
-function extractErrorMessage(err: unknown): string {
+const alertSuccess = (title: string, text?: string) => DarkSwal.fire({ icon:"success", title, text, confirmButtonText:"Aceptar" });
+const alertError = (title: string, html?: string) => DarkSwal.fire({ icon:"error", title, html, confirmButtonText:"Entendido" });
+const extractErrorMessage = (err: unknown) => {
   const raw = err instanceof Error ? err.message : String(err);
-  try {
-    const j = JSON.parse(raw);
-    return j?.message || j?.error || j?.details || j?.msg || raw;
-  } catch {
-    return raw;
-  }
-}
-
-async function alertSuccess(title: string, text?: string) {
-  await DarkSwal.fire({ icon: "success", title, text, confirmButtonText: "Aceptar" });
-}
-async function alertError(title: string, html?: string) {
-  await DarkSwal.fire({
-    icon: "error",
-    title,
-    html,
-    confirmButtonText: "Entendido",
-  });
-}
+  try { const j = JSON.parse(raw); return j?.message || j?.error || j?.details || j?.msg || raw; } catch { return raw; }
+};
 
 /* ---------- UI Primitives ---------- */
 function Button(
@@ -142,7 +124,6 @@ function Input(
     </label>
   );
 }
-
 function TextArea(
   { label, value, onChange, placeholder }:
   { label:string; value:string; onChange:(v:string)=>void; placeholder?:string }
@@ -171,7 +152,7 @@ export type Appointment = {
   serviceName: string;
   sedeName?: string | null;
   providerName?: string | null;
-  startAt: string; // ISO (puede venir con Z)
+  startAt: string; // ISO
   endAt: string;
   notas?: string | null;
   status?: "pending" | "confirmed" | "rescheduled" | "cancelled" | "completed" | "no_show";
@@ -191,22 +172,23 @@ async function api<T>(path: string, init?: RequestInit, token?: string): Promise
   if (!res.ok) throw new Error(await res.text());
   return res.json();
 }
-function qs(params: Record<string, any>) {
+const qs = (params: Record<string, any>) => {
   const u = new URLSearchParams();
   Object.entries(params).forEach(([k, v]) => {
     if (v === undefined || v === null || v === "") return;
     u.append(k, String(v));
   });
   return u.toString();
-}
+};
 
-/* ---------- Month/Day helpers ---------- */
-type ViewMode = "month" | "day";
+/* ---------- Time & view helpers ---------- */
+type ViewMode = "month" | "week" | "day";
 const START_HOUR = 6;
 const END_HOUR = 21;
 const TOTAL_MIN = (END_HOUR - START_HOUR) * 60;
 const PX_PER_MIN = 1;
 const clamp = (n: number, a: number, b: number) => Math.max(a, Math.min(b, n));
+
 function isSameYMD(a: Date, b: Date) {
   return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
 }
@@ -217,6 +199,14 @@ function minutesFromStart(d: Date) {
 function spanLabel(a: Date, b: Date) {
   const fmt = new Intl.DateTimeFormat("es-CO",{hour:"2-digit",minute:"2-digit",hour12:false});
   return `${fmt.format(a)}–${fmt.format(b)}`;
+}
+function getWeekStart(d: Date) {
+  const w = d.getDay(); // 0=Dom..6=Sab
+  const mondayDiff = (w === 0 ? -6 : 1) - w;
+  const m = new Date(d);
+  m.setDate(d.getDate() + mondayDiff);
+  m.setHours(0,0,0,0);
+  return m;
 }
 
 /* ---------- Component ---------- */
@@ -230,17 +220,15 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId?: number
   const [showCreate, setShowCreate] = useState(false);
   const [editing, setEditing] = useState<Appointment | null>(null);
 
-  // vista y día seleccionado
+  // vistas
   const [view, setView] = useState<ViewMode>("month");
   const [selectedDay, setSelectedDay] = useState<Date>(() => new Date());
+  const [selectedWeekStart, setSelectedWeekStart] = useState<Date>(() => getWeekStart(new Date()));
 
-  // matrix 7x6 Monday-first
-  const days = useMemo(() => {
+  // matrix 7x6 lunes-primero
+  const daysMonth = useMemo(() => {
     const first = new Date(current.getFullYear(), current.getMonth(), 1);
-    const mondayStart = new Date(first);
-    const w = first.getDay(); // 0 dom - 6 sab
-    const diff = (w === 0 ? -6 : 1) - w;
-    mondayStart.setDate(first.getDate() + diff);
+    const mondayStart = getWeekStart(first);
     return Array.from({length:42},(_,i)=> {
       const d = new Date(mondayStart);
       d.setDate(mondayStart.getDate()+i);
@@ -248,6 +236,16 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId?: number
       return d;
     });
   },[current]);
+
+  // semana actual (Lun-Dom)
+  const weekDays = useMemo(()=> {
+    return Array.from({length:7},(_,i)=>{
+      const d=new Date(selectedWeekStart);
+      d.setDate(selectedWeekStart.getDate()+i);
+      d.setHours(0,0,0,0);
+      return d;
+    });
+  },[selectedWeekStart]);
 
   const eventsByDay = useMemo(()=>{
     const map: Record<string, Appointment[]> = {};
@@ -265,17 +263,24 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId?: number
       .sort((a,b) => +new Date(a.startAt) - +new Date(b.startAt));
   }, [events, selectedDay]);
 
+  const eventsForWeek = useMemo(() => {
+    const end = new Date(selectedWeekStart); end.setDate(end.getDate()+7);
+    return events.filter(ev=>{
+      const s=new Date(ev.startAt);
+      return s>=selectedWeekStart && s<end;
+    });
+  },[events, selectedWeekStart]);
+
   const hourTicks = useMemo(() => {
     const arr: Date[] = [];
-    const base = new Date(selectedDay);
-    base.setHours(START_HOUR,0,0,0);
+    const base = new Date(); base.setHours(START_HOUR,0,0,0);
     for (let i=0;i<=END_HOUR-START_HOUR;i++){
       const d = new Date(base);
       d.setHours(START_HOUR + i);
       arr.push(d);
     }
     return arr;
-  }, [selectedDay]);
+  }, []);
 
   /* ---------- Load appointments from backend ---------- */
   useEffect(() => {
@@ -299,7 +304,7 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId?: number
     })();
   }, [current, effEmpresaId, token]);
 
-  /* ---------- CRUD wired to backend ---------- */
+  /* ---------- CRUD ---------- */
   async function addAppointment(data: {
     name: string; phone: string;
     service: string; sede?: string; provider?: string;
@@ -332,11 +337,8 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId?: number
       }, token);
 
       setEvents((prev) => [...prev, created]);
-
-      await alertSuccess(
-        "Cita creada",
-        `${created.customerName} • ${new Date(created.startAt).toLocaleString("es-CO", { dateStyle: "medium", timeStyle: "short" })}`
-      );
+      await alertSuccess("Cita creada",
+        `${created.customerName} • ${new Date(created.startAt).toLocaleString("es-CO", { dateStyle: "medium", timeStyle: "short" })}`);
       return created;
     } catch (err) {
       const msg = extractErrorMessage(err);
@@ -353,10 +355,8 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId?: number
         body: JSON.stringify(patch),
       }, token);
       setEvents(prev => prev.map(e => e.id === id ? updated : e));
-      await alertSuccess(
-        "Cita actualizada",
-        `${updated.customerName} • ${new Date(updated.startAt).toLocaleString("es-CO", { dateStyle: "medium", timeStyle: "short" })}`
-      );
+      await alertSuccess("Cita actualizada",
+        `${updated.customerName} • ${new Date(updated.startAt).toLocaleString("es-CO", { dateStyle: "medium", timeStyle: "short" })}`);
       return updated;
     } catch (err) {
       const msg = extractErrorMessage(err);
@@ -367,8 +367,6 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId?: number
 
   async function deleteAppointment(id: number) {
     if (!effEmpresaId || !token) return;
-
-    // Confirm “dark premium”
     const confirm = await DarkSwal.fire({
       icon: "warning",
       title: "Eliminar cita",
@@ -390,62 +388,75 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId?: number
     }
   }
 
+  /* ---------- UI ---------- */
+  const monthTitle = current.toLocaleString("es-CO",{month:"long", year:"numeric"});
+  const weekTitle = (() => {
+    const start = weekDays[0];
+    const end = weekDays[6];
+    const sameMonth = start.getMonth() === end.getMonth();
+    const opts = { day:"numeric" } as const;
+    const s = start.toLocaleDateString("es-CO", sameMonth ? opts : { ...opts, month:"short" });
+    const e = end.toLocaleDateString("es-CO", { day:"numeric", month:"short" });
+    const y = end.getFullYear();
+    return `${s} – ${e} ${y}`;
+  })();
+
   return (
     <div className="w-full h-full">
       <div className="mx-auto max-w-[1600px] p-4 md:p-6 lg:p-8">
-        {/* Header */}
+
+        {/* Header estilo Google */}
         <div className="mb-5 rounded-2xl border border-white/10 bg-white/5 p-3 text-white backdrop-blur md:p-4">
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div className="flex items-center gap-2">
-              {view === 'month' ? (
-                <>
-                  <Button variant="ghost" aria-label="Mes anterior"
-                    onClick={()=>setCurrent(new Date(current.getFullYear(), current.getMonth()-1, 1))}>
-                    <ChevronLeft className="h-4 w-4"/>
-                  </Button>
-                  <Button variant="ghost" aria-label="Mes siguiente"
-                    onClick={()=>setCurrent(new Date(current.getFullYear(), current.getMonth()+1, 1))}>
-                    <ChevronRight className="h-4 w-4"/>
-                  </Button>
-                  <div className="rounded-xl px-3 py-1.5 text-base font-semibold">
-                    {current.toLocaleString("es-CO",{month:"long", year:"numeric"})}
-                  </div>
-                  <Button variant="outline" onClick={()=>{ setCurrent(new Date()); setSelectedDay(new Date()); }}>
-                    Hoy
-                  </Button>
-                </>
-              ) : (
-                <>
-                  <Button variant="ghost" aria-label="Día anterior"
-                    onClick={()=>{
-                      const d=new Date(selectedDay); d.setDate(d.getDate()-1); setSelectedDay(d);
-                    }}>
-                    <ChevronLeft className="h-4 w-4"/>
-                  </Button>
-                  <Button variant="ghost" aria-label="Día siguiente"
-                    onClick={()=>{
-                      const d=new Date(selectedDay); d.setDate(d.getDate()+1); setSelectedDay(d);
-                    }}>
-                    <ChevronRight className="h-4 w-4"/>
-                  </Button>
-                  <div className="rounded-xl px-3 py-1.5 text-base font-semibold capitalize">
-                    {selectedDay.toLocaleDateString('es-CO', { weekday:'long', day:'numeric', month:'long', year:'numeric' })}
-                  </div>
-                  <Button variant="outline" onClick={()=>setSelectedDay(new Date())}>Hoy</Button>
-                </>
-              )}
+              {/* Navegación */}
+              <Button variant="ghost" aria-label="Anterior" onClick={()=>{
+                if (view === "month") setCurrent(new Date(current.getFullYear(), current.getMonth()-1, 1));
+                if (view === "week")  { const d=new Date(selectedWeekStart); d.setDate(d.getDate()-7); setSelectedWeekStart(getWeekStart(d)); }
+                if (view === "day")   { const d=new Date(selectedDay); d.setDate(d.getDate()-1); setSelectedDay(d); }
+              }}>
+                <ChevronLeft className="h-4 w-4"/>
+              </Button>
+              <Button variant="ghost" aria-label="Siguiente" onClick={()=>{
+                if (view === "month") setCurrent(new Date(current.getFullYear(), current.getMonth()+1, 1));
+                if (view === "week")  { const d=new Date(selectedWeekStart); d.setDate(d.getDate()+7); setSelectedWeekStart(getWeekStart(d)); }
+                if (view === "day")   { const d=new Date(selectedDay); d.setDate(d.getDate()+1); setSelectedDay(d); }
+              }}>
+                <ChevronRight className="h-4 w-4"/>
+              </Button>
+
+              {/* Título rango */}
+              <div className="rounded-xl px-3 py-1.5 text-base font-semibold capitalize">
+                {view === "month" && monthTitle}
+                {view === "week"  && weekTitle}
+                {view === "day"   && selectedDay.toLocaleDateString('es-CO', { weekday:'long', day:'numeric', month:'long', year:'numeric' })}
+              </div>
+
+              {/* Hoy */}
+              <Button variant="outline" onClick={()=>{
+                const now=new Date();
+                setCurrent(new Date());
+                setSelectedDay(now);
+                setSelectedWeekStart(getWeekStart(now));
+              }}>
+                Hoy
+              </Button>
             </div>
+
+            {/* Selector de vista + acción */}
             <div className="flex items-center gap-2">
               <Button variant={view==='month'?'primary':'outline'} onClick={()=>setView('month')}>Mes</Button>
-              <Button variant={view==='day'?'primary':'outline'} onClick={()=>setView('day')}>Día</Button>
-              <Button onClick={()=>setShowCreate(true)}>
-                <Plus className="h-4 w-4"/> Nueva cita
-              </Button>
+              <Button variant={view==='week'?'primary':'outline'}  onClick={()=>{
+                setSelectedWeekStart(getWeekStart(selectedDay));
+                setView('week');
+              }}>Semana</Button>
+              <Button variant={view==='day'?'primary':'outline'}   onClick={()=>setView('day')}>Día</Button>
+              <Button onClick={()=>setShowCreate(true)}><Plus className="h-4 w-4"/> Nueva cita</Button>
             </div>
           </div>
         </div>
 
-        {/* Weekdays */}
+        {/* Cabeceras de días (Mes) */}
         {view === 'month' && (
           <div className="mb-2 grid grid-cols-7 gap-3 text-xs font-medium text-white/80">
             {["Lun","Mar","Mié","Jue","Vie","Sáb","Dom"].map((w)=> <div key={w} className="px-1">{w}</div>)}
@@ -455,19 +466,21 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId?: number
         {/* Grid Mes */}
         {view === 'month' && (
           <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 md:grid-cols-4 xl:grid-cols-7">
-            {days.map((day,i)=>{
+            {daysMonth.map((day,i)=>{
               const k = fmtKey(day);
               const inMonth = day.getMonth() === current.getMonth();
               const list = eventsByDay[k] || [];
+              const isToday = isSameYMD(day, new Date());
               return (
                 <div
                   key={i}
-                  onClick={() => { setSelectedDay(day); setView('day'); }}
+                  onClick={() => { setSelectedDay(day); setSelectedWeekStart(getWeekStart(day)); setView('day'); }}
                   className={cx(
                     "min-h-[120px] rounded-2xl border p-3 shadow-sm transition cursor-pointer",
                     "bg-white text-zinc-900 border-zinc-200",
                     "dark:bg-zinc-900 dark:text-white dark:border-zinc-800",
-                    !inMonth && "opacity-80"
+                    !inMonth && "opacity-70",
+                    isToday && "ring-2 ring-indigo-400/70"
                   )}
                 >
                   <div className="mb-2 flex items-center justify-between">
@@ -499,7 +512,33 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId?: number
           </div>
         )}
 
-        {/* Day View */}
+        {/* Cabecera de días (Semana/Día) */}
+        {(view === "week" || view === "day") && (
+          <div className="mb-2 grid grid-cols-12 text-xs font-medium text-white/80">
+            <div className="col-span-2 sm:col-span-1"></div>
+            <div className={cx(view==="day" ? "col-span-10 sm:col-span-11" : "col-span-10 sm:col-span-11 grid grid-cols-7 gap-3")}>
+              {view==="day" ? (
+                <div className="px-2 py-1 rounded-lg border border-white/10 bg-white/5 capitalize">
+                  {selectedDay.toLocaleDateString("es-CO", { weekday:"long", day:"numeric", month:"short" })}
+                </div>
+              ) : (
+                weekDays.map((d,i)=>{
+                  const isToday = isSameYMD(d,new Date());
+                  return (
+                    <div key={i}
+                      className={cx("px-2 py-1 rounded-lg border border-white/10 bg-white/5 capitalize text-center",
+                                    isToday && "ring-2 ring-indigo-400/70")}
+                    >
+                      {d.toLocaleDateString("es-CO",{weekday:"short"})} {d.getDate()}
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Vista Día */}
         {view === 'day' && (
           <div className="grid grid-cols-12 gap-3">
             {/* Columna horas */}
@@ -558,6 +597,73 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId?: number
             </div>
           </div>
         )}
+
+        {/* Vista Semana (7 columnas, estilo Google) */}
+        {view === "week" && (
+          <div className="grid grid-cols-12 gap-3">
+            {/* Columna horas */}
+            <div className="col-span-2 sm:col-span-1">
+              <div style={{ height: TOTAL_MIN * PX_PER_MIN }} className="relative border-l border-white/10">
+                {hourTicks.map((t,i)=>(
+                  <div key={i} className="absolute left-0 -translate-y-2 text-xs text-white/70"
+                    style={{ top: ((i*60) * PX_PER_MIN) }}>
+                    {new Intl.DateTimeFormat('es-CO',{hour:'2-digit',minute:'2-digit',hour12:false}).format(t)}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* 7 días */}
+            <div className="col-span-10 sm:col-span-11 grid grid-cols-7 gap-3">
+              {weekDays.map((day, idx)=>{
+                const dayEvents = eventsForWeek.filter(ev => isSameYMD(new Date(ev.startAt), day));
+                return (
+                  <div key={idx}
+                    className="relative rounded-2xl border border-white/10 bg-white/5 overflow-hidden"
+                    style={{ height: TOTAL_MIN * PX_PER_MIN }}
+                    onDoubleClick={()=>{ setSelectedDay(day); setView("day"); }}
+                    title="Doble clic para abrir el Día"
+                  >
+                    {hourTicks.map((_,i)=>(
+                      <div key={i}
+                        className={cx("absolute left-0 right-0 border-t", i===0 ? "border-white/20" : "border-white/10")}
+                        style={{ top: ((i*60) * PX_PER_MIN) }}
+                      />
+                    ))}
+
+                    {dayEvents.map(ev=>{
+                      const s = new Date(ev.startAt);
+                      const e = new Date(ev.endAt);
+                      const top = minutesFromStart(s) * PX_PER_MIN;
+                      const height = Math.max(24, ( (e.getTime()-s.getTime())/60000 ) * PX_PER_MIN );
+                      return (
+                        <div key={ev.id}
+                          className="absolute left-1 right-1 sm:left-2 sm:right-2 rounded-xl border text-[11px] shadow
+                                     bg-indigo-600/20 border-indigo-400/40 text-white backdrop-blur"
+                          style={{ top, height }}
+                          title={spanLabel(s,e)}
+                        >
+                          <div className="flex items-center justify-between px-2 py-1">
+                            <div className="truncate">
+                              <strong>{ev.customerName}</strong>
+                              {ev.serviceName ? <> · <span className="opacity-90">{ev.serviceName}</span></> : null}
+                            </div>
+                            <div className="ml-1 shrink-0 flex gap-1">
+                              <button title="Editar" onClick={()=>setEditing(ev)}><Edit className="h-3.5 w-3.5 text-indigo-200"/></button>
+                              <button title="Eliminar" onClick={()=>deleteAppointment(ev.id)}><Trash className="h-3.5 w-3.5 text-red-300"/></button>
+                            </div>
+                          </div>
+                          <div className="px-2 pb-1 opacity-80">{spanLabel(s,e)}</div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
       </div>
 
       {/* Loading overlay */}
@@ -586,7 +692,6 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId?: number
             onSave={async (patch)=>{
               // Mantener duración original
               const startLocalStr = (patch.startAt ? patch.startAt : editing.startAt);
-              // startLocalStr podría venir ISO/UTC; normalizamos a "YYYY-MM-DDTHH:mm" en -05:00
               const normalizedLocal = startLocalStr.includes("T") && startLocalStr.length > 16
                 ? isoToLocalYMDHM(startLocalStr, -300)
                 : startLocalStr.slice(0,16);
@@ -650,7 +755,7 @@ function EditForm({
   const [name,setName] = useState(appt.customerName);
   const [phone,setPhone] = useState(appt.customerPhone);
   const [service,setService] = useState(appt.serviceName);
-  // ⚠️ FIX: normalizamos a “pared horaria” Bogotá para evitar desfaces cuando backend responde en UTC (“Z”)
+  // normalizamos a pared horaria Bogotá
   const [start,setStart] = useState(() => isoToLocalYMDHM(appt.startAt, -300));
   const [notes,setNotes] = useState(appt.notas ?? "");
 
@@ -658,7 +763,7 @@ function EditForm({
     <form
       onSubmit={async (e)=>{ e.preventDefault(); await onSave({
         customerName:name, customerPhone:phone, serviceName:service,
-        startAt:start, // el caller convertirá a ISO con offset preservando duración
+        startAt:start, // el caller convertirá a ISO preservando duración
         notas:notes
       }); }}
       className="space-y-4 text-white"
