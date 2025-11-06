@@ -9,7 +9,6 @@ import {
 import { motion } from "framer-motion";
 import { useAuth } from "../../context/AuthContext";
 
-// SweetAlert2 dark premium
 import Swal from "sweetalert2";
 import "sweetalert2/dist/sweetalert2.min.css";
 
@@ -220,6 +219,9 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId?: number
   const [showCreate, setShowCreate] = useState(false);
   const [editing, setEditing] = useState<Appointment | null>(null);
 
+  // NUEVO: prefill para crear con doble clic
+  const [createPrefill, setCreatePrefill] = useState<{ startISO?: string; durationMin?: number }>({});
+
   // vistas
   const [view, setView] = useState<ViewMode>("month");
   const [selectedDay, setSelectedDay] = useState<Date>(() => new Date());
@@ -299,7 +301,7 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId?: number
       } catch (e) {
         console.error("[appointments load]", e);
       } finally {
-        setLoading(false);
+               setLoading(false);
       }
     })();
   }, [current, effEmpresaId, token]);
@@ -401,6 +403,16 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId?: number
     return `${s} – ${e} ${y}`;
   })();
 
+  /* ---------- helpers de creación con doble clic ---------- */
+  const openCreateAt = (date: Date, durationMin = 30) => {
+    const y = date.getFullYear(), m = date.getMonth()+1, d = date.getDate();
+    const H = String(date.getHours()).padStart(2,"0");
+    const M = String(date.getMinutes()).padStart(2,"0");
+    const startISO = `${y}-${String(m).padStart(2,"0")}-${String(d).padStart(2,"0")}T${H}:${M}`;
+    setCreatePrefill({ startISO, durationMin });
+    setShowCreate(true);
+  };
+
   return (
     <div className="w-full h-full">
       <div className="mx-auto max-w-[1600px] p-4 md:p-6 lg:p-8">
@@ -409,7 +421,6 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId?: number
         <div className="mb-5 rounded-2xl border border-white/10 bg-white/5 p-3 text-white backdrop-blur md:p-4">
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div className="flex items-center gap-2">
-              {/* Navegación */}
               <Button variant="ghost" aria-label="Anterior" onClick={()=>{
                 if (view === "month") setCurrent(new Date(current.getFullYear(), current.getMonth()-1, 1));
                 if (view === "week")  { const d=new Date(selectedWeekStart); d.setDate(d.getDate()-7); setSelectedWeekStart(getWeekStart(d)); }
@@ -425,14 +436,12 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId?: number
                 <ChevronRight className="h-4 w-4"/>
               </Button>
 
-              {/* Título rango */}
               <div className="rounded-xl px-3 py-1.5 text-base font-semibold capitalize">
                 {view === "month" && monthTitle}
                 {view === "week"  && weekTitle}
                 {view === "day"   && selectedDay.toLocaleDateString('es-CO', { weekday:'long', day:'numeric', month:'long', year:'numeric' })}
               </div>
 
-              {/* Hoy */}
               <Button variant="outline" onClick={()=>{
                 const now=new Date();
                 setCurrent(new Date());
@@ -443,7 +452,6 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId?: number
               </Button>
             </div>
 
-            {/* Selector de vista + acción */}
             <div className="flex items-center gap-2">
               <Button variant={view==='month'?'primary':'outline'} onClick={()=>setView('month')}>Mes</Button>
               <Button variant={view==='week'?'primary':'outline'}  onClick={()=>{
@@ -451,7 +459,9 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId?: number
                 setView('week');
               }}>Semana</Button>
               <Button variant={view==='day'?'primary':'outline'}   onClick={()=>setView('day')}>Día</Button>
-              <Button onClick={()=>setShowCreate(true)}><Plus className="h-4 w-4"/> Nueva cita</Button>
+              <Button onClick={()=>{ setCreatePrefill({}); setShowCreate(true); }}>
+                <Plus className="h-4 w-4"/> Nueva cita
+              </Button>
             </div>
           </div>
         </div>
@@ -463,48 +473,61 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId?: number
           </div>
         )}
 
-        {/* Grid Mes */}
+        {/* Grid Mes - PREMIUM (solo contador en burbuja) */}
         {view === 'month' && (
           <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 md:grid-cols-4 xl:grid-cols-7">
             {daysMonth.map((day,i)=>{
               const k = fmtKey(day);
               const inMonth = day.getMonth() === current.getMonth();
-              const list = eventsByDay[k] || [];
+              const count = (eventsByDay[k] || []).length;
               const isToday = isSameYMD(day, new Date());
+
               return (
                 <div
                   key={i}
                   onClick={() => { setSelectedDay(day); setSelectedWeekStart(getWeekStart(day)); setView('day'); }}
+                  onDoubleClick={(e) => {
+                    e.stopPropagation();
+                    const base = new Date(day);
+                    base.setHours(9,0,0,0); // 09:00 por defecto
+                    openCreateAt(base, 30);
+                  }}
                   className={cx(
-                    "min-h-[120px] rounded-2xl border p-3 shadow-sm transition cursor-pointer",
+                    "group relative min-h-[140px] rounded-2xl border p-3 shadow-sm transition cursor-pointer overflow-hidden",
                     "bg-white text-zinc-900 border-zinc-200",
                     "dark:bg-zinc-900 dark:text-white dark:border-zinc-800",
                     !inMonth && "opacity-70",
                     isToday && "ring-2 ring-indigo-400/70"
                   )}
                 >
-                  <div className="mb-2 flex items-center justify-between">
+                  {/* fondo sutil con gradiente si hay citas */}
+                  {count > 0 && (
+                    <div className="pointer-events-none absolute inset-0 opacity-70">
+                      <div className="absolute -top-20 -right-24 h-56 w-56 rounded-full bg-gradient-to-br from-indigo-500/20 to-fuchsia-500/10 blur-2xl" />
+                    </div>
+                  )}
+
+                  <div className="mb-2 flex items-start justify-between">
                     <div className={cx("text-sm font-semibold", inMonth ? "" : "text-white/60")}>
                       {day.getDate()}
                     </div>
+
+                    {/* BURBUJITA de conteo */}
+                    <div
+                      className={cx(
+                        "inline-flex items-center justify-center rounded-full px-2.5 h-6 text-[11px] font-semibold",
+                        "bg-gradient-to-r from-indigo-600 to-fuchsia-600 text-white shadow-lg shadow-fuchsia-700/20",
+                        "backdrop-blur ring-1 ring-white/20"
+                      )}
+                      title={`${count} citas`}
+                    >
+                      {count}
+                    </div>
                   </div>
 
-                  <div className="space-y-1.5">
-                    {list.map(ev=>(
-                      <div key={ev.id}
-                           className="flex items-center justify-between rounded-xl border border-zinc-200 bg-zinc-50 px-2 py-1.5 text-xs
-                                      dark:border-zinc-700 dark:bg-zinc-800"
-                      >
-                        <div className="truncate">
-                          <span className="mr-1 inline-flex items-center gap-1"><Clock className="h-3 w-3"/> {hhmm(new Date(ev.startAt))}</span>
-                          · {ev.customerName}
-                        </div>
-                        <div className="ml-2 shrink-0 flex gap-1">
-                          <button title="Editar" onClick={(e)=>{ e.stopPropagation(); setEditing(ev); }}><Edit className="h-3.5 w-3.5 text-indigo-400"/></button>
-                          <button title="Eliminar" onClick={(e)=>{ e.stopPropagation(); deleteAppointment(ev.id); }}><Trash className="h-3.5 w-3.5 text-red-400"/></button>
-                        </div>
-                      </div>
-                    ))}
+                  {/* micro hint para crear */}
+                  <div className="absolute bottom-2 left-3 text-[11px] text-white/70 opacity-0 group-hover:opacity-100 transition">
+                    Doble clic para agendar
                   </div>
                 </div>
               );
@@ -555,8 +578,21 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId?: number
 
             {/* Columna eventos */}
             <div className="col-span-10 sm:col-span-11">
-              <div className="relative rounded-2xl border border-white/10 bg-white/5 overflow-hidden"
-                style={{ height: TOTAL_MIN * PX_PER_MIN }}>
+              <div
+                className="relative rounded-2xl border border-white/10 bg-white/5 overflow-hidden"
+                style={{ height: TOTAL_MIN * PX_PER_MIN }}
+                onDoubleClick={(e)=>{
+                  const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
+                  const y = e.clientY - rect.top;
+                  const minutes = Math.max(0, Math.min(TOTAL_MIN, Math.round(y / PX_PER_MIN)));
+                  const start = new Date(selectedDay);
+                  start.setHours(START_HOUR,0,0,0);
+                  start.setMinutes(start.getMinutes() + minutes);
+                  start.setMinutes(Math.round(start.getMinutes()/15)*15, 0, 0);
+                  openCreateAt(start, 30);
+                }}
+                title="Doble clic para agendar"
+              >
                 {hourTicks.map((_,i)=>(
                   <div key={i}
                     className={cx("absolute left-0 right-0 border-t", i===0 ? "border-white/20" : "border-white/10")}
@@ -598,7 +634,7 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId?: number
           </div>
         )}
 
-        {/* Vista Semana (7 columnas, estilo Google) */}
+        {/* Vista Semana (7 columnas) */}
         {view === "week" && (
           <div className="grid grid-cols-12 gap-3">
             {/* Columna horas */}
@@ -618,11 +654,21 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId?: number
               {weekDays.map((day, idx)=>{
                 const dayEvents = eventsForWeek.filter(ev => isSameYMD(new Date(ev.startAt), day));
                 return (
-                  <div key={idx}
+                  <div
+                    key={idx}
                     className="relative rounded-2xl border border-white/10 bg-white/5 overflow-hidden"
                     style={{ height: TOTAL_MIN * PX_PER_MIN }}
-                    onDoubleClick={()=>{ setSelectedDay(day); setView("day"); }}
-                    title="Doble clic para abrir el Día"
+                    onDoubleClick={(e)=>{
+                      const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
+                      const y = e.clientY - rect.top;
+                      const minutes = Math.max(0, Math.min(TOTAL_MIN, Math.round(y / PX_PER_MIN)));
+                      const start = new Date(day);
+                      start.setHours(START_HOUR,0,0,0);
+                      start.setMinutes(start.getMinutes() + minutes);
+                      start.setMinutes(Math.round(start.getMinutes()/15)*15, 0, 0);
+                      openCreateAt(start, 30);
+                    }}
+                    title="Doble clic para agendar"
                   >
                     {hourTicks.map((_,i)=>(
                       <div key={i}
@@ -675,9 +721,11 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId?: number
         </div>
       )}
 
-      {/* Crear cita */}
+      {/* Crear cita (con prefill) */}
       <Dialog open={showCreate} onClose={()=>setShowCreate(false)}>
         <CreateForm
+          initialStartISO={createPrefill.startISO}
+          initialDurationMin={createPrefill.durationMin ?? 30}
           onCancel={()=>setShowCreate(false)}
           onSave={async (data)=>{ await addAppointment(data); setShowCreate(false); }}
         />
@@ -690,7 +738,6 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId?: number
             appt={editing}
             onCancel={()=>setEditing(null)}
             onSave={async (patch)=>{
-              // Mantener duración original
               const startLocalStr = (patch.startAt ? patch.startAt : editing.startAt);
               const normalizedLocal = startLocalStr.includes("T") && startLocalStr.length > 16
                 ? isoToLocalYMDHM(startLocalStr, -300)
@@ -714,15 +761,22 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId?: number
 
 /* ---------- Formularios ---------- */
 function CreateForm({
+  initialStartISO,
+  initialDurationMin = 30,
   onSave, onCancel
 }:{
+  initialStartISO?: string;
+  initialDurationMin?: number;
   onSave:(d:{name:string;phone:string;service:string;sede?:string;provider?:string;startISO:string;durationMin?:number;notes?:string;})=>Promise<void>|void;
   onCancel:()=>void;
 }) {
   const [form, setForm] = useState({
     name:"", phone:"", service:"", sede:"", provider:"",
-    startISO:"", durationMin:30, notes:""
+    startISO: initialStartISO ?? "", durationMin: initialDurationMin, notes:""
   });
+
+  // Actualiza el prefill si cambia por otro doble clic
+  useEffect(()=>{ setForm(f=>({ ...f, startISO: initialStartISO ?? f.startISO, durationMin: initialDurationMin })); }, [initialStartISO, initialDurationMin]);
 
   return (
     <form onSubmit={async (e)=>{ e.preventDefault(); await onSave(form); }} className="space-y-4 text-white">
@@ -755,7 +809,6 @@ function EditForm({
   const [name,setName] = useState(appt.customerName);
   const [phone,setPhone] = useState(appt.customerPhone);
   const [service,setService] = useState(appt.serviceName);
-  // normalizamos a pared horaria Bogotá
   const [start,setStart] = useState(() => isoToLocalYMDHM(appt.startAt, -300));
   const [notes,setNotes] = useState(appt.notas ?? "");
 
@@ -763,7 +816,7 @@ function EditForm({
     <form
       onSubmit={async (e)=>{ e.preventDefault(); await onSave({
         customerName:name, customerPhone:phone, serviceName:service,
-        startAt:start, // el caller convertirá a ISO preservando duración
+        startAt:start,
         notas:notes
       }); }}
       className="space-y-4 text-white"
