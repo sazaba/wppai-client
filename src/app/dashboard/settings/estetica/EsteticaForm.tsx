@@ -1182,7 +1182,7 @@ export function EsteticaForm({ value, onChange }: Props) {
         subtitle="La IA responde, propone horarios y puede confirmar citas. Siempre puedes desactivarla."
       >
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="flex items-center justify-between gap-4 p-4 rounded-2xl bg-white/[.03] border border-white/10">
+          {/* <div className="flex items-center justify-between gap-4 p-4 rounded-2xl bg-white/[.03] border border-white/10">
             <div className="min-w-0">
               <div className="text-sm font-medium text-slate-200">Agenda automática</div>
               <div className="text-[12px] text-slate-400 truncate">
@@ -1190,7 +1190,7 @@ export function EsteticaForm({ value, onChange }: Props) {
               </div>
             </div>
             <Toggle checked={value.appointmentEnabled} onClick={() => patch("appointmentEnabled", !value.appointmentEnabled)} sr="Habilitar agenda automática" />
-          </div>
+          </div> */}
 
           <div className="p-4 rounded-2xl bg-white/[.03] border border-white/10">
             <Field label="Tipo de negocio (vertical)" help="Ajusta el tono y guías del asistente.">
@@ -1198,10 +1198,10 @@ export function EsteticaForm({ value, onChange }: Props) {
                 value={value.appointmentVertical}
                 onChange={(e) => patch("appointmentVertical", e.target.value as ApptVertical)}
               >
-                <option value="odontologica">Clínica Odontológica</option>
+                {/* <option value="odontologica">Clínica Odontológica</option> */}
                 <option value="estetica">Clínica Estética</option>
-                <option value="spa">Spa</option>
-                <option value="custom">Otra (especifica abajo)</option>
+                {/* <option value="spa">Spa</option>
+                <option value="custom">Otra (especifica abajo)</option> */}
               </Select>
             </Field>
 
