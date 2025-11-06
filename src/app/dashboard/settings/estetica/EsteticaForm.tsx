@@ -802,7 +802,6 @@
 //   );
 // }
 
-
 // client/src/app/dashboard/settings/estetica/EsteticaForm.tsx
 "use client";
 
@@ -826,19 +825,21 @@ export type AppointmentDay = {
 /** Valor del formulario (UI) */
 export type AppointmentConfigValue = {
   appointmentEnabled: boolean; // (UI) útil como switch maestro. La IA no lo lee directamente.
+  // ⟶ Sugerencia: propagar también a summary.flags.appointmentEnabled para que la IA se inhiba de confirmar cuando esté desactivado.
   appointmentVertical: ApptVertical;
   appointmentVerticalCustom?: string | null;
   appointmentTimezone: string;
   appointmentBufferMin: number;
   appointmentPolicies?: string;
   appointmentReminders: boolean; // ⛔ No usado por la IA (KB)
+  // ⟶ Aclaración: este flag y el bloque "reminders" no son consumidos por la KB/IA hoy.
 
   location?: {
     name?: string | null;
     address?: string | null;
     mapsUrl?: string | null;
     parkingInfo?: string | null;
-    virtualLink?: string | null; // ⛔ No usado por la IA (KB)
+    virtualLink?: string | null; // ⛔ No usado por la IA (KB) — si haces teleconsulta, hoy no se cita desde la IA.
     instructionsArrival?: string | null;
   };
 
@@ -849,6 +850,7 @@ export type AppointmentConfigValue = {
     noShowPolicy?: string | null;             // ⛔ No usado por la IA (KB)
     depositRequired?: boolean | null;         // ⛔ No usado por la IA (KB) — la IA usa depósito por procedimiento
     depositAmount?: number | null;            // ⛔ No usado por la IA (KB)
+    // ⟶ Nota: el “depósito” lo gestiona la IA a nivel de EsteticaProcedure, no como regla global.
     blackoutDates?: string[] | null;          // ⛔ No usado por la IA (KB)
     overlapStrategy?: string | null;          // ⛔ No usado por la IA (KB)
   };
@@ -857,6 +859,7 @@ export type AppointmentConfigValue = {
     schedule?: Array<{ offsetHours: number; channel: string }> | null; // ⛔
     templateId?: string | null;                                        // ⛔
     postBookingMessage?: string | null;                                // ⛔
+    // ⟶ Bloque de recordatorios no consumido por la KB/IA actualmente.
   };
 
   kb?: {
