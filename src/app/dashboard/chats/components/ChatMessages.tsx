@@ -42,6 +42,13 @@ const isNearBottom = (el: HTMLElement | null, threshold = 80) => {
   return distance <= threshold
 }
 
+/** Firma estable para mensajes sin id/externalId (último recurso) */
+const softFingerprint = (m: Msg) =>
+  `${m.from}|${m.timestamp ?? ''}|${(m.contenido ?? '').slice(0, 64)}|${m.mediaUrl ?? ''}`
+
+/** Key estable (no usar Math.random) */
+const getMsgKey = (m: Msg) => String(m.id ?? m.externalId ?? softFingerprint(m))
+
 /* ============ Skeleton Premium ============ */
 function SkeletonBubble({ side = 'left' }: { side?: 'left' | 'right' }) {
   return (
@@ -92,13 +99,30 @@ export default function ChatMessages({ mensajes, onLoadMore, hasMore, loading }:
   // Guardamos si el usuario está pegado al fondo
   const atBottomRef = useRef(true)
 
-  // Clave del último mensaje para detectar cambios
+  /* ===== FIX: DEDUP + ORDEN =====
+     - Quitamos duplicados por id/externalId
+     - Si no existen, usamos una firma suave (from+timestamp+contenido)
+     - Ordenamos por timestamp asc para consistencia
+  */
+  const msgsDeduped = useMemo(() => {
+    const seen = new Set<string>()
+    const sorted = [...(mensajes ?? [])].sort((a, b) => {
+      const ta = a.timestamp ? new Date(a.timestamp).getTime() : 0
+      const tb = b.timestamp ? new Date(b.timestamp).getTime() : 0
+      return ta - tb
+    })
+    return sorted.filter((m) => {
+      const k = getMsgKey(m)
+      if (seen.has(k)) return false
+      seen.add(k)
+      return true
+    })
+  }, [mensajes])
+
+  // Clave del último mensaje para detectar cambios (sobre deduplicados)
   const lastKey = useMemo(
-    () =>
-      mensajes.length
-        ? `${mensajes[mensajes.length - 1].id ?? mensajes[mensajes.length - 1].externalId ?? 'k'}`
-        : '',
-    [mensajes]
+    () => (msgsDeduped.length ? getMsgKey(msgsDeduped[msgsDeduped.length - 1]) : ''),
+    [msgsDeduped]
   )
 
   // Listener de scroll para mostrar/ocultar el botón de bajar
@@ -127,7 +151,6 @@ export default function ChatMessages({ mensajes, onLoadMore, hasMore, loading }:
     if (!el) return
 
     if (atBottomRef.current) {
-      // scroll suave al fondo
       bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
       setNewCount(0)
     } else {
@@ -137,8 +160,6 @@ export default function ChatMessages({ mensajes, onLoadMore, hasMore, loading }:
 
   // Acción del botón (bajar al final)
   const scrollToBottom = () => {
-    const el = scrollRef.current
-    if (!el) return
     bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
     atBottomRef.current = true
     setShowScrollDown(false)
@@ -146,7 +167,7 @@ export default function ChatMessages({ mensajes, onLoadMore, hasMore, loading }:
   }
 
   // Mientras carga el historial inicial => skeleton premium
-  if (loading && mensajes.length === 0) {
+  if (loading && msgsDeduped.length === 0) {
     return (
       <section className="flex-1 overflow-y-auto">
         <div className="px-4 pt-3">
@@ -182,7 +203,7 @@ export default function ChatMessages({ mensajes, onLoadMore, hasMore, loading }:
         className="relative flex-1 overflow-y-auto px-2 sm:px-4 pt-3 pb-16 flex flex-col gap-3"
         style={{ maxHeight: '100%' }}
       >
-        {mensajes.map((m) => {
+        {msgsDeduped.map((m) => {
           const side: 'left' | 'right' = m.from === 'client' ? 'left' : 'right'
           const isRight = side === 'right'
           const isError = !!m.error
@@ -196,7 +217,7 @@ export default function ChatMessages({ mensajes, onLoadMore, hasMore, loading }:
           const bubbleError = isError ? 'ring-1 ring-red-500/50' : ''
 
           return (
-            <div key={m.id || m.externalId || Math.random()} className={`flex ${isRight ? 'justify-end' : 'justify-start'}`}>
+            <div key={getMsgKey(m)} className={`flex ${isRight ? 'justify-end' : 'justify-start'}`}>
               <div className={`${bubbleBase} ${bubbleColor} ${bubbleError}`}>
                 {/* Texto / Caption */}
                 {m.contenido ? <p className="whitespace-pre-wrap leading-relaxed">{m.contenido}</p> : null}
