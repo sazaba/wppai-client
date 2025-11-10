@@ -658,15 +658,21 @@ export default function ChatsPage() {
               loading={loadingMsgs} /* ⬅️ skeleton premium */
             />
 
-            <ChatInput
-              value={respuesta}
-              onChange={setRespuesta}
-              onSend={handleSendMessage}
-              onSendGif={(url, isMp4) => handleSendMedia({ url, type: isMp4 ? 'video' : 'image' })}
-              onUploadFile={(file, type) => handleUploadFile(file, type)}
-              disabled={chats.find((c) => c.id === activoId)?.estado === 'cerrado'}
-              onAppointmentCreated={handleAppointmentCreated}
-            />
+<ChatInput
+  value={respuesta}
+  onChange={setRespuesta}
+  onSend={handleSendMessage}
+  onSendGif={(url, isMp4) => handleSendMedia({ url, type: isMp4 ? 'video' : 'image' })}
+  onUploadFile={(file, type) => handleUploadFile(file, type)}
+  disabled={chats.find((c) => c.id === activoId)?.estado === 'cerrado'}
+  onAppointmentCreated={handleAppointmentCreated}
+
+  // ✅ NUEVO: para lectura de summary y teléfono
+  conversationId={activoId}
+  chatPhone={chats.find((c) => c.id === activoId)?.telefono || chats.find((c) => c.id === activoId)?.phone}
+  summaryText={chats.find((c) => c.id === activoId)?.summaryText || chats.find((c) => c.id === activoId)?.summary?.text}
+/>
+
           </>
         ) : (
           <div className="h-full flex items-center justify-center text-gray-400 text-sm">
