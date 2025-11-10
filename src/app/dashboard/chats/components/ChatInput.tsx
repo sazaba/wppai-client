@@ -22,7 +22,7 @@ interface Props {
   /** OPCIONALES para no tocar tu estrategia */
   conversationId?: number              // para intentar leer summary/phone del estado
   chatPhone?: string                   // teléfono del chat si ya lo tienes a mano
-  summaryText?: string                 // si ya traes el summary con AGENDA_COLECTADA
+  summaryText?: string                 // summary con STAFF (y opcionalmente AGENDA_COLECTADA)
 }
 
 /* ---------- Helpers UX ---------- */
@@ -112,8 +112,16 @@ type CreateApptPayload = {
   notes?: string
 }
 
-/* ---------- Util: extraer AGENDA_COLECTADA del summary ---------- */
-function extractAgendaFromSummary(summary?: string): { nombre?: string; servicio?: string; preferencia?: string } {
+/* ---------- Util: extraer agenda/staff desde estado/summary ---------- */
+function extractAgendaFromState(state?: any): { nombre?: string; servicio?: string } {
+  if (!state) return {}
+  const nombre = state?.draft?.name || state?.draft?.pendingConfirm?.name
+  const servicio = state?.draft?.procedureName || state?.draft?.pendingConfirm?.procedureName
+  return { nombre, servicio }
+}
+
+/** Fallback si aún usas el bloque AGENDA_COLECTADA en summary.text */
+function extractAgendaFromSummaryBlock(summary?: string): { nombre?: string; servicio?: string } {
   if (!summary) return {}
   const m = /=== AGENDA_COLECTADA ===([\s\S]*?)=== FIN_AGENDA ===/m.exec(summary)
   if (!m) return {}
@@ -127,8 +135,18 @@ function extractAgendaFromSummary(summary?: string): { nombre?: string; servicio
   return {
     servicio: take('tratamiento'),
     nombre: take('nombre'),
-    preferencia: take('preferencia'),
   }
+}
+
+function extractStaffFromSummaryText(summaryText?: string): Array<{ id: number; name: string }> {
+  if (!summaryText) return []
+  const staffBlock = /=== STAFF ===([\s\S]*?)=== FIN_STAFF ===/m.exec(summaryText)?.[1] || ''
+  const out: Array<{ id: number; name: string }> = []
+  staffBlock.split('\n').forEach((line) => {
+    const m = /id\s*=\s*(\d+)\s*;\s*name\s*=\s*([^;]+)\s*;/i.exec(line)
+    if (m) out.push({ id: Number(m[1]), name: m[2].trim() })
+  })
+  return out
 }
 
 /* ---------- Componente principal ---------- */
@@ -141,7 +159,7 @@ export default function ChatInput({
   onUploadFile,
   onAppointmentCreated,
 
-  // nuevos opcionales para no tocar tu estrategia
+  // opcionales
   conversationId,
   chatPhone,
   summaryText,
@@ -149,9 +167,9 @@ export default function ChatInput({
   const [showEmoji, setShowEmoji] = useState(false)
   const [showAppt, setShowAppt] = useState(false)
   const [staffOpts, setStaffOpts] = useState<Array<{ id: number; name: string }>>([])
-  const [lockedName, setLockedName] = useState<string>('')       // desde summary
-  const [lockedService, setLockedService] = useState<string>('') // desde summary
-  const [lockedPhone, setLockedPhone] = useState<string>(chatPhone || '') // desde chat
+  const [lockedName, setLockedName] = useState<string>('')       // desde draft / summary
+  const [lockedService, setLockedService] = useState<string>('') // desde draft / summary
+  const [lockedPhone, setLockedPhone] = useState<string>(chatPhone || '') // desde chat/estado
   const fileRef = useRef<HTMLInputElement | null>(null)
   const inputRef = useRef<HTMLInputElement | null>(null)
 
@@ -171,49 +189,77 @@ export default function ChatInput({
         const active = (res || []).filter((s) => s && (s as any).active !== false)
         setStaffOpts(active.map((s) => ({ id: s.id, name: s.name })))
       } catch {
-        // silencio: no bloquear UI si aún no está ese endpoint
+        // silencio
       }
     }
     loadStaff()
   }, [token])
 
-  /* ---- Leer summary/phone si no vienen por props ---- */
+  /* ---- Primeros datos desde props (summaryText/chatPhone) ---- */
+  useEffect(() => {
+    if (summaryText) {
+      // 1) staff desde summary
+      const staffFromSummary = extractStaffFromSummaryText(summaryText)
+      if (staffFromSummary.length && !staffOpts.length) setStaffOpts(staffFromSummary)
+      // 2) agenda desde bloque (fallback)
+      const agBlock = extractAgendaFromSummaryBlock(summaryText)
+      if (agBlock.nombre && !lockedName) setLockedName(agBlock.nombre)
+      if (agBlock.servicio && !lockedService) setLockedService(agBlock.servicio)
+    }
+    if (chatPhone && !lockedPhone) setLockedPhone(chatPhone)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [summaryText, chatPhone])
+
+  /* ---- Leer estado de conversación para tomar draft (fuente principal) ---- */
   useEffect(() => {
     const prime = async () => {
-      // 1) Prioriza props: summaryText y chatPhone
-      if (summaryText) {
-        const ag = extractAgendaFromSummary(summaryText)
-        setLockedName(ag.nombre || '')
-        setLockedService(ag.servicio || '')
-      }
-      if (chatPhone) setLockedPhone(chatPhone)
+      if (!conversationId || !token) return
+      try {
+        // Preferido: endpoint de estado
+        const stateResp = await api<any>(`/api/conversations/${conversationId}/state`, undefined, token)
+        const state = stateResp?.data || stateResp
 
-      // 2) Si tenemos conversationId pero no nos pasaron summary/phone, intenta endpoints comunes
-      if (conversationId && token) {
-        // intenta 1: /api/conversations/:id/state  (data.summary.text y data.phone si lo expones)
+        // Nombre/servicio desde draft
+        const { nombre, servicio } = extractAgendaFromState(state)
+        if (nombre && !lockedName) setLockedName(nombre)
+        if (servicio && !lockedService) setLockedService(servicio)
+
+        // Teléfono desde estado o meta
+        const phoneFromState = state?.phone || stateResp?.phone || stateResp?.conversation?.phone
+        if (!lockedPhone && phoneFromState) setLockedPhone(String(phoneFromState))
+
+        // Staff desde summary.text (si no llegó por props o API)
+        const summaryTextLocal = state?.summary?.text || stateResp?.summary?.text
+        const staffFromSummary = extractStaffFromSummaryText(summaryTextLocal)
+        if (staffFromSummary.length && !staffOpts.length) setStaffOpts(staffFromSummary)
+
+        // Como fallback adicional, intenta bloque AGENDA_COLECTADA en summary.text
+        if ((!nombre || !servicio) && summaryTextLocal) {
+          const agBlock = extractAgendaFromSummaryBlock(summaryTextLocal)
+          if (agBlock.nombre && !lockedName) setLockedName(agBlock.nombre)
+          if (agBlock.servicio && !lockedService) setLockedService(agBlock.servicio)
+        }
+      } catch {
+        // Fallback meta simple
         try {
-          const state = await api<any>(`/api/conversations/${conversationId}/state`, undefined, token)
-          const summary = state?.data?.summary?.text || state?.summary?.text || ''
-          const ag = extractAgendaFromSummary(summary)
-          if (!lockedName && ag.nombre) setLockedName(ag.nombre)
-          if (!lockedService && ag.servicio) setLockedService(ag.servicio)
-          const phoneFromState = state?.phone || state?.data?.phone || state?.conversation?.phone
-          if (!lockedPhone && phoneFromState) setLockedPhone(String(phoneFromState))
+          const conv = await api<any>(`/api/conversations/${conversationId}`, undefined, token)
+          const phoneFromConv = conv?.phone || conv?.data?.phone
+          if (!lockedPhone && phoneFromConv) setLockedPhone(String(phoneFromConv))
+          const summaryTextLocal = conv?.summary?.text || conv?.data?.summary?.text
+          const staffFromSummary = extractStaffFromSummaryText(summaryTextLocal)
+          if (staffFromSummary.length && !staffOpts.length) setStaffOpts(staffFromSummary)
+          // último intento de agenda por bloque
+          const agBlock = extractAgendaFromSummaryBlock(summaryTextLocal)
+          if (agBlock.nombre && !lockedName) setLockedName(agBlock.nombre)
+          if (agBlock.servicio && !lockedService) setLockedService(agBlock.servicio)
         } catch {
-          // intenta 2: /api/conversations/:id (meta básica con phone)
-          try {
-            const conv = await api<any>(`/api/conversations/${conversationId}`, undefined, token)
-            const phoneFromConv = conv?.phone || conv?.data?.phone
-            if (!lockedPhone && phoneFromConv) setLockedPhone(String(phoneFromConv))
-          } catch {
-            /* noop */
-          }
+          /* noop */
         }
       }
     }
     prime()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [conversationId, token, summaryText, chatPhone])
+  }, [conversationId, token])
 
   /* ---- Insertar emoji en la posición del caret ---- */
   const insertAtCursor = useCallback(
@@ -298,11 +344,11 @@ export default function ChatInput({
 
     // Validaciones duras: solo fuentes de verdad
     if (!lockedName) {
-      await alertError('Falta el nombre', 'El nombre debe venir del resumen (AGENDA_COLECTADA).')
+      await alertError('Falta el nombre', 'El nombre debe venir del estado (draft del summary).')
       return
     }
     if (!lockedService) {
-      await alertError('Falta el servicio', 'El servicio debe venir del resumen (AGENDA_COLECTADA).')
+      await alertError('Falta el servicio', 'El servicio debe venir del estado (draft del summary).')
       return
     }
     if (!lockedPhone) {
@@ -324,9 +370,9 @@ export default function ChatInput({
 
       const body = {
         empresaId,
-        customerName: lockedName,             // ← nombre solo del summary
+        customerName: lockedName,             // ← nombre solo del draft/summary
         customerPhone: lockedPhone,          // ← teléfono del chat
-        serviceName: lockedService,          // ← servicio solo del summary
+        serviceName: lockedService,          // ← servicio solo del draft/summary
         providerName: data.provider || null, // ← staff elegido desde BD
         sede: data.sede || null,
         notas: data.notes || null,
@@ -669,7 +715,8 @@ function CreateApptForm({
       <div className="flex items-start gap-2 rounded-xl border border-amber-400/30 bg-amber-500/10 p-3 text-amber-200">
         <FiInfo className="mt-0.5 h-4 w-4" />
         <p className="text-sm">
-          <b>Reglas activas:</b> Nombre y servicio se toman <i>solo</i> del resumen; el teléfono es el del chat; el profesional se elige del staff (BD).
+          <b>Reglas:</b> Nombre y servicio se toman <i>solo</i> del estado (draft del summary); el teléfono es el del
+          chat; el profesional se elige del staff (BD).
         </p>
       </div>
 
@@ -681,7 +728,7 @@ function CreateApptForm({
           readOnly
           disabled
           rightIcon={<FiUser />}
-          helpText="Bloqueado: viene del summary (AGENDA_COLECTADA)"
+          helpText="Bloqueado: viene del draft del summary"
         />
         <Input
           label="Teléfono (chat)"
@@ -690,7 +737,7 @@ function CreateApptForm({
           readOnly
           disabled
           rightIcon={<FiPhone />}
-          helpText="Bloqueado: teléfono del chat"
+          helpText="Bloqueado: teléfono del chat/estado"
         />
 
         <Input
@@ -700,9 +747,9 @@ function CreateApptForm({
           placeholder="Ej. Sede Centro"
         />
 
-        {/* Staff desde BD */}
+        {/* Staff desde BD (o summary si API no responde) */}
         <label className="space-y-1">
-          <span className="text-xs text-white/80">Profesional (staff BD)</span>
+          <span className="text-xs text-white/80">Profesional (staff)</span>
           <select
             value={form.provider || ''}
             onChange={(e) => setForm((s) => ({ ...s, provider: e.target.value }))}
@@ -715,7 +762,7 @@ function CreateApptForm({
               </option>
             ))}
           </select>
-          <span className="text-[11px] text-white/50">Se carga con /api/estetica/staff</span>
+          <span className="text-[11px] text-white/50">Se carga por API o desde summary STAFF</span>
         </label>
 
         <Input
@@ -724,7 +771,7 @@ function CreateApptForm({
           onChange={() => {}}
           readOnly
           disabled
-          helpText="Bloqueado: viene del summary (AGENDA_COLECTADA)"
+          helpText="Bloqueado: viene del draft del summary"
         />
 
         <Input
