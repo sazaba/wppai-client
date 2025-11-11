@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Calendar as CalendarIcon,
   ChevronLeft, ChevronRight, Plus,
@@ -187,6 +187,7 @@ const END_HOUR = 21;
 const TOTAL_MIN = (END_HOUR - START_HOUR) * 60;
 const PX_PER_MIN = 1;
 const clamp = (n: number, a: number, b: number) => Math.max(a, Math.min(b, n));
+const snap15 = (m:number) => Math.round(m/15)*15;
 
 function isSameYMD(a: Date, b: Date) {
   return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
@@ -230,15 +231,14 @@ function getWeekStart(d: Date) {
 }
 
 /* =========================================================
-   NUEVO: Layout de solapamientos (tipo Google Calendar)
+   Layout de solapamientos (tipo Google Calendar)
    ========================================================= */
 
 type LayoutBox = { top: number; height: number; leftPct: number; widthPct: number };
 
 function assignColumnsInCluster(cluster: Appointment[]) {
-  // Greedy: coloca cada evento en la primera columna que no se solape
-  const columnsEnd: number[] = [];              // fin (ms) de cada columna
-  const colIndex: Record<number, number> = {};  // appt.id -> columna
+  const columnsEnd: number[] = [];
+  const colIndex: Record<number, number> = {};
   const byStart = [...cluster].sort((a,b)=>+new Date(a.startAt)-+new Date(b.startAt));
 
   for (const ev of byStart) {
@@ -262,7 +262,6 @@ function assignColumnsInCluster(cluster: Appointment[]) {
 }
 
 function buildDayLayout(dayEvents: Appointment[]): Record<number, LayoutBox> {
-  // 1) Ordenar por inicio; 2) formar clústeres de eventos que se solapan
   const sorted = [...dayEvents].sort((a,b)=>+new Date(a.startAt)-+new Date(b.startAt));
   const clusters: Appointment[][] = [];
   let curr: Appointment[] = [];
@@ -282,10 +281,7 @@ function buildDayLayout(dayEvents: Appointment[]): Record<number, LayoutBox> {
   }
   if (curr.length) clusters.push(curr);
 
-  // 3) Para cada clúster, asignar columnas y calcular posiciones
   const layout: Record<number, LayoutBox> = {};
-  const GAP = 2; // px entre columnas (se resta al width final)
-
   for (const cluster of clusters) {
     const { colIndex, totalCols } = assignColumnsInCluster(cluster);
     for (const ev of cluster) {
@@ -296,16 +292,31 @@ function buildDayLayout(dayEvents: Appointment[]): Record<number, LayoutBox> {
       const col = colIndex[ev.id] ?? 0;
       const widthPct = 100 / totalCols;
       const leftPct  = (col * 100) / totalCols;
-      layout[ev.id] = {
-        top,
-        height,
-        leftPct,
-        // restamos un micro-gap visual para que no se toquen
-        widthPct: widthPct
-      };
+      layout[ev.id] = { top, height, leftPct, widthPct };
     }
   }
   return layout;
+}
+
+/* =========================================================
+   NUEVO: Drag & Drop (vertical) para cambiar la hora
+   ========================================================= */
+
+type DragState = {
+  id: number;
+  view: "day" | "week";
+  durationMin: number;
+  originTopPx: number;
+  startTopPx: number;
+  currentTopPx: number;
+  dayDate: Date;      // día al que pertenece (no cambia en esta versión)
+};
+
+function getMinutesFromPointer(container: HTMLDivElement, clientY: number) {
+  const rect = container.getBoundingClientRect();
+  const y = clientY - rect.top;
+  const rawMin = clamp(Math.round(y / PX_PER_MIN), 0, TOTAL_MIN);
+  return snap15(rawMin);
 }
 
 /* ---------- Component ---------- */
@@ -326,6 +337,13 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId?: number
   const [view, setView] = useState<ViewMode>("month");
   const [selectedDay, setSelectedDay] = useState<Date>(() => new Date());
   const [selectedWeekStart, setSelectedWeekStart] = useState<Date>(() => getWeekStart(new Date()));
+
+  // Refs para drag: contenedor de Día y 7 contenedores de Semana
+  const dayContainerRef = useRef<HTMLDivElement | null>(null);
+  const weekColumnRefs = useRef<(HTMLDivElement | null)[]>([]);
+  weekColumnRefs.current = []; // se rellena en render
+
+  const [drag, setDrag] = useState<DragState | null>(null);
 
   // matrix 7x6 lunes-primero
   const daysMonth = useMemo(() => {
@@ -489,6 +507,78 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId?: number
       throw err;
     }
   }
+
+  /* ---------- DnD handlers ---------- */
+  function beginDrag(ev: Appointment, viewKind: "day" | "week", containerEl: HTMLDivElement | null, dayDate: Date, e: React.MouseEvent) {
+    if (!containerEl) return;
+    e.preventDefault();
+    const s = new Date(ev.startAt);
+    const en = new Date(ev.endAt);
+    const durationMin = Math.max(15, Math.round((en.getTime() - s.getTime())/60000));
+    const startTopPx = minutesFromStart(s) * PX_PER_MIN;
+    const originMin = getMinutesFromPointer(containerEl, e.clientY);
+    const originTopPx = originMin * PX_PER_MIN;
+
+    document.body.style.userSelect = "none";
+    setDrag({
+      id: ev.id,
+      view: viewKind,
+      durationMin,
+      originTopPx,
+      startTopPx,
+      currentTopPx: startTopPx,
+      dayDate
+    });
+  }
+
+  useEffect(() => {
+    function onMove(e: MouseEvent) {
+      if (!drag) return;
+      const container = drag.view === "day" ? dayContainerRef.current : null;
+      if (!container) return;
+      const pointerMin = getMinutesFromPointer(container, e.clientY);
+      const deltaMin = pointerMin - Math.round(drag.originTopPx / PX_PER_MIN);
+      const newStartMin = clamp(snap15(Math.round(drag.startTopPx / PX_PER_MIN) + deltaMin), 0, TOTAL_MIN - drag.durationMin);
+      setDrag(d => d ? { ...d, currentTopPx: newStartMin * PX_PER_MIN } : d);
+    }
+
+    async function onUp() {
+      if (!drag) return;
+      const finalStartMin = Math.round(drag.currentTopPx / PX_PER_MIN); // ya viene con snap
+      // construir fecha local (YYYY-MM-DDTHH:mm) del nuevo inicio
+      const base = new Date(drag.dayDate);
+      base.setHours(START_HOUR, 0, 0, 0);
+      base.setMinutes(finalStartMin);
+      const y = base.getFullYear();
+      const m = String(base.getMonth()+1).padStart(2,"0");
+      const ddd = String(base.getDate()).padStart(2,"0");
+      const HH = String(base.getHours()).padStart(2,"0");
+      const MM = String(base.getMinutes()).padStart(2,"0");
+      const startLocalStr = `${y}-${m}-${ddd}T${HH}:${MM}`;
+
+      const { iso: startAtISO, dateLocal } = localToISOWithOffset(startLocalStr, -300);
+      const endLocal = new Date(dateLocal.getTime() + drag.durationMin * 60_000);
+      const endLocalStr = `${endLocal.getFullYear()}-${String(endLocal.getMonth()+1).padStart(2,"0")}-${String(endLocal.getDate()).padStart(2,"0")}T${String(endLocal.getHours()).padStart(2,"0")}:${String(endLocal.getMinutes()).padStart(2,"0")}`;
+      const { iso: endAtISO } = localToISOWithOffset(endLocalStr, -300);
+
+      const id = drag.id;
+      setDrag(null);
+      document.body.style.userSelect = "";
+
+      try {
+        await updateAppointment(id, { startAt: startAtISO, endAt: endAtISO });
+      } catch {
+        // si falla, el toast ya se mostró en updateAppointment
+      }
+    }
+
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+    return () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+  }, [drag]); // eslint-disable-line
 
   /* ---------- UI ---------- */
   const monthTitle = current.toLocaleString("es-CO",{month:"long", year:"numeric"});
@@ -695,7 +785,7 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId?: number
           </div>
         )}
 
-        {/* Vista Día (con layout de solapados) */}
+        {/* Vista Día */}
         {view === 'day' && (
           <div className="grid grid-cols-12 gap-3">
             {/* Columna horas */}
@@ -713,6 +803,7 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId?: number
             {/* Columna eventos */}
             <div className="col-span-10 sm:col-span-11">
               <div
+                ref={dayContainerRef}
                 className="relative rounded-2xl border border-white/10 bg-white/5 overflow-hidden"
                 style={{ height: TOTAL_MIN * PX_PER_MIN }}
                 onDoubleClick={(e)=>{
@@ -734,33 +825,48 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId?: number
                   />
                 ))}
 
-                {/* NUEVO: calcular layout y aplicarlo */}
                 {(() => {
                   const layout = buildDayLayout(eventsForSelectedDay);
-                  const GAP_PX = 4; // espacio interno para que no se toquen
+                  const GAP_PX = 4;
                   return eventsForSelectedDay.map(ev=>{
                     const s = new Date(ev.startAt);
                     const e = new Date(ev.endAt);
                     const box = layout[ev.id];
                     const left = `calc(${box.leftPct}% + ${GAP_PX}px)`;
                     const width = `calc(${box.widthPct}% - ${GAP_PX * 2}px)`;
+                    const isDragging = drag?.id === ev.id && drag.view === "day";
+                    const top = isDragging ? drag.currentTopPx : box.top;
+
                     return (
-                      <div key={ev.id}
-                        className="absolute rounded-xl border text-xs shadow bg-violet-600/20 border-violet-500/40 text-white backdrop-blur"
-                        style={{ top: box.top, height: box.height, left, width }}
+                      <div
+                        key={ev.id}
+                        className={cx(
+                          "absolute rounded-xl border text-xs shadow bg-violet-600/20 border-violet-500/40 text-white backdrop-blur select-none",
+                          "cursor-grab active:cursor-grabbing",
+                          isDragging && "ring-2 ring-indigo-400/70 z-20"
+                        )}
+                        style={{ top, height: box.height, left, width }}
                         title={spanLabel(s,e)}
+                        onMouseDown={(e)=>beginDrag(ev, "day", dayContainerRef.current, selectedDay, e)}
                       >
                         <div className="flex items-center justify-between px-2 py-1">
                           <div className="truncate">
                             <span className="mr-2 inline-flex items-center gap-1 text-[11px] opacity-90">
-                              <Clock className="h-3 w-3"/>{spanLabel(s,e)}
+                              <Clock className="h-3 w-3"/>{spanLabel(
+                                new Date(selectedDay.getFullYear(), selectedDay.getMonth(), selectedDay.getDate(), START_HOUR, 0, 0, 0 + Math.round(top/PX_PER_MIN)),
+                                e
+                              )}
                             </span>
                             <strong>{ev.customerName}</strong>
                             {ev.serviceName ? <> · <span className="opacity-90">{ev.serviceName}</span></> : null}
                           </div>
                           <div className="ml-2 shrink-0 flex gap-1">
-                            <button title="Editar" onClick={()=>setEditing(ev)}><Edit className="h-3.5 w-3.5 text-indigo-300"/></button>
-                            <button title="Eliminar" onClick={()=>deleteAppointment(ev.id)}><Trash className="h-3.5 w-3.5 text-red-300"/></button>
+                            <button title="Editar" onClick={(evt)=>{ evt.stopPropagation(); setEditing(ev); }}>
+                              <Edit className="h-3.5 w-3.5 text-indigo-300"/>
+                            </button>
+                            <button title="Eliminar" onClick={(evt)=>{ evt.stopPropagation(); deleteAppointment(ev.id); }}>
+                              <Trash className="h-3.5 w-3.5 text-red-300"/>
+                            </button>
                           </div>
                         </div>
                         {ev.notas && <div className="px-2 pb-1 pr-12 opacity-80 line-clamp-2">{ev.notas}</div>}
@@ -798,6 +904,7 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId?: number
                 return (
                   <div
                     key={idx}
+                    ref={(el)=>{ weekColumnRefs.current[idx] = el }}
                     className="relative rounded-2xl border border-white/10 bg-white/5 overflow-hidden"
                     style={{ height: TOTAL_MIN * PX_PER_MIN }}
                     onDoubleClick={(e)=>{
@@ -825,11 +932,20 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId?: number
                       const box = layout[ev.id];
                       const left = `calc(${box.leftPct}% + ${GAP_PX}px)`;
                       const width = `calc(${box.widthPct}% - ${GAP_PX * 2}px)`;
+                      const isDragging = drag?.id === ev.id && drag.view === "week";
+                      const top = isDragging ? drag.currentTopPx : box.top;
+
                       return (
-                        <div key={ev.id}
-                          className="absolute rounded-xl border text-[11px] shadow bg-indigo-600/20 border-indigo-400/40 text-white backdrop-blur"
-                          style={{ top: box.top, height: box.height, left, width }}
+                        <div
+                          key={ev.id}
+                          className={cx(
+                            "absolute rounded-xl border text-[11px] shadow bg-indigo-600/20 border-indigo-400/40 text-white backdrop-blur select-none",
+                            "cursor-grab active:cursor-grabbing",
+                            isDragging && "ring-2 ring-indigo-400/70 z-20"
+                          )}
+                          style={{ top, height: box.height, left, width }}
                           title={spanLabel(s,e)}
+                          onMouseDown={(e)=>beginDrag(ev, "week", weekColumnRefs.current[idx], day, e)}
                         >
                           <div className="flex items-center justify-between px-2 py-1">
                             <div className="truncate">
@@ -837,11 +953,18 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId?: number
                               {ev.serviceName ? <> · <span className="opacity-90">{ev.serviceName}</span></> : null}
                             </div>
                             <div className="ml-1 shrink-0 flex gap-1">
-                              <button title="Editar" onClick={()=>setEditing(ev)}><Edit className="h-3.5 w-3.5 text-indigo-200"/></button>
-                              <button title="Eliminar" onClick={()=>deleteAppointment(ev.id)}><Trash className="h-3.5 w-3.5 text-red-300"/></button>
+                              <button title="Editar" onClick={(evt)=>{ evt.stopPropagation(); setEditing(ev); }}>
+                                <Edit className="h-3.5 w-3.5 text-indigo-200"/>
+                              </button>
+                              <button title="Eliminar" onClick={(evt)=>{ evt.stopPropagation(); deleteAppointment(ev.id); }}>
+                                <Trash className="h-3.5 w-3.5 text-red-300"/>
+                              </button>
                             </div>
                           </div>
-                          <div className="px-2 pb-1 opacity-80">{spanLabel(s,e)}</div>
+                          <div className="px-2 pb-1 opacity-80">{spanLabel(
+                            new Date(day.getFullYear(), day.getMonth(), day.getDate(), START_HOUR, 0, 0, 0 + Math.round(top/PX_PER_MIN)),
+                            e
+                          )}</div>
                         </div>
                       );
                     })}
