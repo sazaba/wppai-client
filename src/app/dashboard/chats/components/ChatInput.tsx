@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { FiSend, FiSmile, FiImage, FiCalendar, FiUser, FiPhone, FiChevronUp, FiChevronDown, FiLoader } from 'react-icons/fi'
+import { FiSend, FiSmile, FiImage, FiCalendar, FiChevronUp, FiChevronDown, FiLoader } from 'react-icons/fi'
 import EmojiPicker, { EmojiClickData, EmojiStyle, Theme } from 'emoji-picker-react'
 import { motion } from 'framer-motion'
 import Swal from 'sweetalert2'
@@ -25,7 +25,6 @@ interface Props {
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || ''
 
-/** Endpoints alias (chat-input) */
 const CI = {
   state: (id: number) => `/api/chat-input/state/${id}`,
   meta:  (id: number) => `/api/chat-input/meta/${id}`,
@@ -64,7 +63,6 @@ async function alertError(title: string, html?: string) {
   await DarkSwal.fire({ icon: 'error', title, html, confirmButtonText: 'Entendido' })
 }
 
-/** "YYYY-MM-DDTHH:mm" -> ISO con offset fijo (default Bogotá -05:00) */
 function localToISOWithOffset(local: string, offsetMinutes = -300): { iso: string; dateLocal: Date } {
   const [y, m, rest] = local.split('-')
   const [d, hm] = (rest || '').split('T')
@@ -99,14 +97,13 @@ async function api<T>(path: string, init?: RequestInit, token?: string): Promise
 
 function cx(...c: (string | false | undefined)[]) { return c.filter(Boolean).join(' ') }
 
-/* ---------- Types ---------- */
 type CreateApptPayload = {
   name: string
   phone: string
   service: string
   sede?: string
   provider?: string
-  startISO: string // "YYYY-MM-DDTHH:mm"
+  startISO: string
   durationMin?: number
   notes?: string
 }
@@ -118,7 +115,6 @@ function extractAgendaFromState(state?: any): { nombre?: string; servicio?: stri
   return { nombre, servicio }
 }
 
-/** Fallback si aún usas el bloque AGENDA_COLECTADA en summary.text */
 function extractAgendaFromSummaryBlock(summary?: string): { nombre?: string; servicio?: string } {
   if (!summary) return {}
   const m = /=== AGENDA_COLECTADA ===([\s\S]*?)=== FIN_AGENDA ===/m.exec(summary)
@@ -144,7 +140,6 @@ function extractStaffFromSummaryText(summaryText?: string): Array<{ id: number; 
   return out
 }
 
-/* ===================== Componente principal ===================== */
 export default function ChatInput({
   value,
   onChange,
@@ -160,7 +155,6 @@ export default function ChatInput({
   const [showEmoji, setShowEmoji] = useState(false)
   const [showAppt, setShowAppt] = useState(false)
   const [staffOpts, setStaffOpts] = useState<Array<{ id: number; name: string }>>([])
-  // ⬇️ ahora servicios incluyen defaultDuration
   const [serviceOpts, setServiceOpts] = useState<Array<{ id: number; name: string; defaultDuration?: number }>>([])
   const [lockedName, setLockedName] = useState<string>('')
   const [lockedService, setLockedService] = useState<string>('')
@@ -171,7 +165,6 @@ export default function ChatInput({
   const { token, usuario } = useAuth()
   const empresaId = usuario?.empresaId
 
-  /* ---- Staff ---- */
   useEffect(() => {
     const loadStaff = async () => {
       if (!token) return
@@ -187,7 +180,6 @@ export default function ChatInput({
     loadStaff()
   }, [token])
 
-  /* ---- Servicios (con defaultDuration) ---- */
   useEffect(() => {
     const loadServices = async () => {
       if (!token) return
@@ -203,7 +195,6 @@ export default function ChatInput({
     loadServices()
   }, [token])
 
-  /* ---- Props ---- */
   useEffect(() => {
     if (summaryText) {
       const staffFromSummary = extractStaffFromSummaryText(summaryText)
@@ -213,10 +204,8 @@ export default function ChatInput({
       if (agBlock.servicio && !lockedService) setLockedService(agBlock.servicio)
     }
     if (chatPhone && !lockedPhone) setLockedPhone(chatPhone)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [summaryText, chatPhone])
+  }, [summaryText, chatPhone]) // eslint-disable-line
 
-  /* ---- Estado conversación ---- */
   useEffect(() => {
     const prime = async () => {
       if (!conversationId || !token) return
@@ -251,10 +240,8 @@ export default function ChatInput({
       }
     }
     prime()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [conversationId, token])
+  }, [conversationId, token]) // eslint-disable-line
 
-  /* ---- Emoji ---- */
   const insertAtCursor = useCallback(
     (insertText: string) => {
       const el = inputRef.current
@@ -273,7 +260,6 @@ export default function ChatInput({
   )
   const handleEmojiClick = (emojiData: EmojiClickData) => { insertAtCursor(emojiData.emoji); setShowEmoji(false) }
 
-  /* ---- Teclado ---- */
   const handleKeyDown: React.KeyboardEventHandler<HTMLInputElement> = (e) => {
     const isSubmit =
       (e.key === 'Enter' && !e.shiftKey) || ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'enter')
@@ -285,7 +271,6 @@ export default function ChatInput({
     if (e.key === 'Escape') { if (showEmoji) setShowEmoji(false); if (showAppt) setShowAppt(false) }
   }
 
-  /* ---- Adjuntos ---- */
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0]
     if (!f) return
@@ -314,7 +299,6 @@ export default function ChatInput({
     }
   }
 
-  /* ---- Crear cita ---- */
   async function createAppointmentFromChat(data: CreateApptPayload) {
     if (!empresaId || !token) { await alertError('No se pudo agendar', '<span>Falta sesión o empresa seleccionada.</span>'); return }
     if (!data.name?.trim())  { await alertError('Falta el nombre'); return }
@@ -368,7 +352,6 @@ export default function ChatInput({
   return (
     <div className="relative border-t border-white/10 bg-[#202C33] p-2">
       <div className="flex items-center gap-2">
-        {/* Emoji */}
         <button
           type="button"
           onClick={() => setShowEmoji((v) => !v)}
@@ -392,7 +375,6 @@ export default function ChatInput({
           </div>
         )}
 
-        {/* Agenda: crear cita */}
         <button
           type="button"
           onClick={() => setShowAppt(true)}
@@ -404,7 +386,6 @@ export default function ChatInput({
           <FiCalendar className="w-5 h-5 text-[#D1D7DB]" />
         </button>
 
-        {/* Multimedia */}
         <button
           type="button"
           onClick={() => fileRef.current?.click()}
@@ -423,7 +404,6 @@ export default function ChatInput({
           accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx"
         />
 
-        {/* Campo de texto */}
         <input
           ref={inputRef}
           type="text"
@@ -436,7 +416,6 @@ export default function ChatInput({
           disabled={disabled}
         />
 
-        {/* Enviar */}
         <button
           type="button"
           onClick={onSend}
@@ -449,7 +428,6 @@ export default function ChatInput({
         </button>
       </div>
 
-      {/* Diálogo para crear cita */}
       <Dialog open={showAppt} onClose={() => setShowAppt(false)}>
         <CreateApptForm
           defaultName={lockedName}
@@ -465,43 +443,30 @@ export default function ChatInput({
         />
       </Dialog>
 
-      {/* Estilos globales para scrollbar y number-input */}
       <style jsx global>{`
-        /* Scrollbar sutil estilo WhatsApp */
         .whatsapp-scroll {
-          scrollbar-width: thin; /* Firefox */
+          scrollbar-width: thin;
           scrollbar-color: rgba(255,255,255,.18) transparent;
         }
-        .whatsapp-scroll::-webkit-scrollbar { /* Chrome/Edge/Safari */
+        .whatsapp-scroll::-webkit-scrollbar {
           width: 8px;
         }
-        .whatsapp-scroll::-webkit-scrollbar-track {
-          background: transparent;
-        }
+        .whatsapp-scroll::-webkit-scrollbar-track { background: transparent; }
         .whatsapp-scroll::-webkit-scrollbar-thumb {
           background: rgba(255,255,255,.14);
           border-radius: 9999px;
           border: 2px solid transparent;
         }
-        .whatsapp-scroll:hover::-webkit-scrollbar-thumb {
-          background: rgba(255,255,255,.22);
-        }
+        .whatsapp-scroll:hover::-webkit-scrollbar-thumb { background: rgba(255,255,255,.22); }
 
-        /* Ocultar spinners nativos del input number */
         .no-native-spin::-webkit-outer-spin-button,
-        .no-native-spin::-webkit-inner-spin-button {
-          -webkit-appearance: none;
-          margin: 0;
-        }
-        .no-native-spin {
-          -moz-appearance: textfield;
-        }
+        .no-native-spin::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        .no-native-spin { -moz-appearance: textfield; }
       `}</style>
     </div>
   )
 }
 
-/* ===================== UI Primitives ===================== */
 function Button(
   props: React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: 'primary' | 'ghost' | 'outline' | 'danger' }
 ) {
@@ -527,7 +492,6 @@ function Dialog({ open, onClose, children }: { open: boolean; onClose: () => voi
         animate={{ opacity: 1, y: 0, scale: 1 }}
         className="relative z-10 w-full max-w-xl rounded-2xl border border-white/10 bg-zinc-900 p-0 text-white shadow-2xl"
       >
-        {/* Contenedor scrolleable con estilo WhatsApp */}
         <div className="max-h-[75vh] overflow-y-auto whatsapp-scroll p-6">
           {children}
         </div>
@@ -617,7 +581,6 @@ function TextArea({
   )
 }
 
-/* ===================== Formulario Crear Cita ===================== */
 function CreateApptForm({
   onSave,
   onCancel,
@@ -635,7 +598,6 @@ function CreateApptForm({
   staffOptions: Array<{ id: number; name: string }>
   serviceOptions: Array<{ id: number; name: string; defaultDuration?: number }>
 }) {
-  // Defaults
   const now = new Date()
   const yyyy = now.getFullYear()
   const MM = String(now.getMonth() + 1).padStart(2, '0')
@@ -643,18 +605,16 @@ function CreateApptForm({
   const HH = String(now.getHours()).padStart(2, '0')
   const mm = String(now.getMinutes()).padStart(2, '0')
 
-  // State
   const [name, setName] = useState(defaultName || '')
   const [phone, setPhone] = useState(defaultPhone || '')
   const [service, setService] = useState(defaultService || '')
   const [sede, setSede] = useState('')
   const [provider, setProvider] = useState('')
-  const [dateTime, setDateTime] = useState(`${yyyy}-${MM}-${dd}T${HH}:${mm}`) // fecha + hora
+  const [dateTime, setDateTime] = useState(`${yyyy}-${MM}-${dd}T${HH}:${mm}`)
   const [durationMin, setDurationMin] = useState<number>(30)
   const [notes, setNotes] = useState('')
   const [saving, setSaving] = useState(false)
 
-  // Si el servicio prellenado tiene defaultDuration, úsalo al montar
   useEffect(() => {
     if (!service || !serviceOptions.length) return
     const found = serviceOptions.find(s => s.name === service)
@@ -663,7 +623,6 @@ function CreateApptForm({
     }
   }, [serviceOptions, service])
 
-  // sync locks si llegan luego
   useEffect(() => { if (defaultName) setName(defaultName) }, [defaultName])
   useEffect(() => { if (defaultPhone) setPhone(defaultPhone) }, [defaultPhone])
   useEffect(() => { if (defaultService) setService(defaultService) }, [defaultService])
@@ -672,10 +631,8 @@ function CreateApptForm({
     name.trim() && phone.trim() && service.trim() &&
     dateTime.length >= 16 && Number(durationMin) > 0 && !saving
 
-  // helpers duración
   const bump = (delta: number) => setDurationMin((v) => Math.max(1, v + delta))
 
-  // chips sugeridos dinámicos (incluye defaultDuration si existe)
   const suggestedChips = useMemo(() => {
     const base = [15, 30, 45, 60, 90]
     const current = serviceOptions.find(s => s.name === service)?.defaultDuration
@@ -711,11 +668,9 @@ function CreateApptForm({
         <FiCalendar className="h-5 w-5" /> Crear nueva cita
       </h2>
 
-      {/* Datos del cliente */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 rounded-2xl border border-white/10 bg-zinc-900/60 p-4">
         <Input label="Nombre cliente" value={name} onChange={setName} />
         <Input label="Teléfono (chat)" value={phone} onChange={setPhone} />
-        {/* Servicio desde BD con defaultDuration */}
         <label className="space-y-1">
           <span className="text-xs text-white/80">Servicio</span>
           <select
@@ -742,7 +697,6 @@ function CreateApptForm({
         <Input label="Sede (opcional)" value={sede} onChange={setSede} placeholder="Ej. Sede Centro" />
       </div>
 
-      {/* Staff + Fecha/Hora */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 rounded-2xl border border-white/10 bg-zinc-900/60 p-4 items-start">
         <label className="space-y-1">
           <span className="text-xs text-white/80">Profesional (staff)</span>
@@ -761,19 +715,15 @@ function CreateApptForm({
 
         <label className="space-y-1">
           <span className="text-xs text-white/80">Fecha y hora</span>
-          <div className="relative">
-            <input
-              type="datetime-local"
-              value={dateTime}
-              onChange={(e) => setDateTime(e.target.value)}
-              className="w-full rounded-xl border border-white/15 bg-zinc-900 px-3 py-3 pr-10 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
-            />
-            <FiCalendar className="absolute right-3 top-1/2 -translate-y-1/2 text-white/60" />
-          </div>
+          <input
+            type="datetime-local"
+            value={dateTime}
+            onChange={(e) => setDateTime(e.target.value)}
+            className="w-full rounded-xl border border-white/15 bg-zinc-900 px-3 py-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+          />
         </label>
       </div>
 
-      {/* Duración + Notas */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 rounded-2xl border border-white/10 bg-zinc-900/60 p-4 items-start">
         <div className="space-y-2">
           <span className="text-xs text-white/80">Duración (min)</span>
@@ -790,7 +740,6 @@ function CreateApptForm({
               placeholder="30"
               min={1}
             />
-            {/* Flechas premium */}
             <div className="absolute right-1 top-1/2 -translate-y-1/2 flex flex-col">
               <button type="button" onClick={() => bump(+5)} className="rounded-lg p-1 hover:bg-white/10" title="+5">
                 <FiChevronUp />
