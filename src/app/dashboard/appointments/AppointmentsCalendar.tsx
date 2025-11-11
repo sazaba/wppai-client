@@ -77,6 +77,12 @@ const extractErrorMessage = (err: unknown) => {
 };
 
 /* ---------- UI Primitives ---------- */
+/** Evita iniciar drag cuando el click viene de un control interactivo (botón, icono, etc.) */
+const isNoDragTarget = (el: EventTarget | null) => {
+  const node = el as HTMLElement | null;
+  return !!node?.closest('[data-nodrag]');
+};
+
 function Button(
   { className, variant="primary", ...props }:
   React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: "primary" | "ghost" | "outline" | "danger" }
@@ -1334,7 +1340,11 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId?: number
                         )}
                         style={{ top: isResizingT ? drag.currentTopMin * PX_PER_MIN : topPx, height: heightPx, left, width }}
                         title={spanLabel(s,e)}
-                        onMouseDown={(e)=>beginDrag_day(ev, dayContainerRef.current, selectedDay, e)}
+                        onMouseDown={(e)=>{ 
+                          if (isNoDragTarget(e.target)) return; 
+                          beginDrag_day(ev, dayContainerRef.current, selectedDay, e);
+                        }}
+                        
                       >
                         {/* Handle superior (resizeTop) */}
                         <div
@@ -1354,12 +1364,13 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId?: number
                             {ev.serviceName ? <> · <span className="opacity-90">{ev.serviceName}</span></> : null}
                           </div>
                           <div className="ml-2 shrink-0 flex gap-1">
-                            <button title="Editar" onClick={(evt)=>{ evt.stopPropagation(); setEditing(ev); }}>
-                              <Edit className="h-3.5 w-3.5 text-indigo-300"/>
-                            </button>
-                            <button title="Eliminar" onClick={(evt)=>{ evt.stopPropagation(); deleteAppointment(ev.id); }}>
-                              <Trash className="h-3.5 w-3.5 text-red-300"/>
-                            </button>
+                          <button data-nodrag title="Editar" onClick={(evt)=>{ evt.stopPropagation(); setEditing(ev); }}>
+  <Edit className="h-3.5 w-3.5 text-indigo-300"/>
+</button>
+<button data-nodrag title="Eliminar" onClick={(evt)=>{ evt.stopPropagation(); deleteAppointment(ev.id); }}>
+  <Trash className="h-3.5 w-3.5 text-red-300"/>
+</button>
+
                           </div>
                         </div>
                         {ev.notas && <div className="px-2 pb-1 pr-12 opacity-80 line-clamp-2">{ev.notas}</div>}
@@ -1479,7 +1490,11 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId?: number
                           )}
                           style={{ top: topPx, height: heightPx, left, width }}
                           title={spanLabel(s,e)}
-                          onMouseDown={(e)=>beginDrag_week(ev, weekColumnRefs.current, selectedWeekStart, thisIdx, e)}
+                          onMouseDown={(e)=>{ 
+                            if (isNoDragTarget(e.target)) return; 
+                            beginDrag_week(ev, weekColumnRefs.current, selectedWeekStart, thisIdx, e);
+                          }}
+                          
                         >
                           {/* Handle superior (resizeTop) */}
                           <div
@@ -1496,12 +1511,13 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId?: number
                               {ev.serviceName ? <> · <span className="opacity-90">{ev.serviceName}</span></> : null}
                             </div>
                             <div className="ml-1 shrink-0 flex gap-1">
-                              <button title="Editar" onClick={(evt)=>{ evt.stopPropagation(); setEditing(ev); }}>
-                                <Edit className="h-3.5 w-3.5 text-indigo-200"/>
-                              </button>
-                              <button title="Eliminar" onClick={(evt)=>{ evt.stopPropagation(); deleteAppointment(ev.id); }}>
-                                <Trash className="h-3.5 w-3.5 text-red-300"/>
-                              </button>
+                            <button data-nodrag title="Editar" onClick={(evt)=>{ evt.stopPropagation(); setEditing(ev); }}>
+  <Edit className="h-3.5 w-3.5 text-indigo-200"/>
+</button>
+<button data-nodrag title="Eliminar" onClick={(evt)=>{ evt.stopPropagation(); deleteAppointment(ev.id); }}>
+  <Trash className="h-3.5 w-3.5 text-red-300"/>
+</button>
+
                             </div>
                           </div>
                           <div className="px-2 pb-1 opacity-80">{spanLabel(startForLabel, endForLabel)}</div>
