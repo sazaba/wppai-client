@@ -659,6 +659,7 @@ export default function ChatsPage() {
             />
 
 <ChatInput
+  key={activoId || 'none'}
   value={respuesta}
   onChange={setRespuesta}
   onSend={handleSendMessage}
@@ -667,11 +668,21 @@ export default function ChatsPage() {
   disabled={chats.find((c) => c.id === activoId)?.estado === 'cerrado'}
   onAppointmentCreated={handleAppointmentCreated}
 
-  // ✅ NUEVO: para lectura de summary y teléfono
+  /* ✅ claves para que se llenen los campos y el dropdown del staff */
   conversationId={activoId}
-  chatPhone={chats.find((c) => c.id === activoId)?.telefono || chats.find((c) => c.id === activoId)?.phone}
-  summaryText={chats.find((c) => c.id === activoId)?.summaryText || chats.find((c) => c.id === activoId)?.summary?.text}
+  chatPhone={
+    chats.find((c) => c.id === activoId)?.telefono ||
+    chats.find((c) => c.id === activoId)?.phone ||
+    ''
+  }
+  summaryText={
+    chats.find((c) => c.id === activoId)?.summaryText ||
+    chats.find((c) => c.id === activoId)?.summary?.text ||
+    ''
+  }
 />
+
+
 
           </>
         ) : (
