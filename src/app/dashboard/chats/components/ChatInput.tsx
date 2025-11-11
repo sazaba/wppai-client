@@ -464,6 +464,39 @@ export default function ChatInput({
           }}
         />
       </Dialog>
+
+      {/* Estilos globales para scrollbar y number-input */}
+      <style jsx global>{`
+        /* Scrollbar sutil estilo WhatsApp */
+        .whatsapp-scroll {
+          scrollbar-width: thin; /* Firefox */
+          scrollbar-color: rgba(255,255,255,.18) transparent;
+        }
+        .whatsapp-scroll::-webkit-scrollbar { /* Chrome/Edge/Safari */
+          width: 8px;
+        }
+        .whatsapp-scroll::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        .whatsapp-scroll::-webkit-scrollbar-thumb {
+          background: rgba(255,255,255,.14);
+          border-radius: 9999px;
+          border: 2px solid transparent;
+        }
+        .whatsapp-scroll:hover::-webkit-scrollbar-thumb {
+          background: rgba(255,255,255,.22);
+        }
+
+        /* Ocultar spinners nativos del input number */
+        .no-native-spin::-webkit-outer-spin-button,
+        .no-native-spin::-webkit-inner-spin-button {
+          -webkit-appearance: none;
+          margin: 0;
+        }
+        .no-native-spin {
+          -moz-appearance: textfield;
+        }
+      `}</style>
     </div>
   )
 }
@@ -492,9 +525,12 @@ function Dialog({ open, onClose, children }: { open: boolean; onClose: () => voi
       <motion.div
         initial={{ opacity: 0, y: 8, scale: 0.98 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
-        className="relative z-10 w-full max-w-xl rounded-2xl border border-white/10 bg-zinc-900 p-6 text-white shadow-2xl"
+        className="relative z-10 w-full max-w-xl rounded-2xl border border-white/10 bg-zinc-900 p-0 text-white shadow-2xl"
       >
-        {children}
+        {/* Contenedor scrolleable con estilo WhatsApp */}
+        <div className="max-h-[75vh] overflow-y-auto whatsapp-scroll p-6">
+          {children}
+        </div>
       </motion.div>
     </div>
   )
@@ -654,6 +690,7 @@ function CreateApptForm({
 
   return (
     <form
+      noValidate
       onSubmit={async (e) => {
         e.preventDefault()
         if (!canSave) return
@@ -743,12 +780,15 @@ function CreateApptForm({
           <div className="relative">
             <input
               type="number"
+              inputMode="numeric"
               value={String(durationMin)}
-              onChange={(e) => setDurationMin(Math.max(1, Number(e.target.value || 1)))}
-              className="w-full rounded-xl border border-white/15 bg-zinc-900 px-3 py-3 pr-12 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              onChange={(e) => {
+                const n = Number((e.target.value || '').replace(/[^\d]/g, '')) || 1
+                setDurationMin(Math.max(1, n))
+              }}
+              className="no-native-spin w-full rounded-xl border border-white/15 bg-zinc-900 px-3 py-3 pr-12 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
               placeholder="30"
               min={1}
-              step={5}
             />
             {/* Flechas premium */}
             <div className="absolute right-1 top-1/2 -translate-y-1/2 flex flex-col">
