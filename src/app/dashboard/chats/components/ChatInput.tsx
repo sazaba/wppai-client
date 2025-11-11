@@ -20,13 +20,20 @@ interface Props {
   onAppointmentCreated?: (created: { id: number; startAt: string }) => void
 
   /** OPCIONALES para no tocar tu estrategia */
-  conversationId?: number              // para intentar leer summary/phone del estado
-  chatPhone?: string                   // teléfono del chat si ya lo tienes a mano
-  summaryText?: string                 // summary con STAFF (y opcionalmente AGENDA_COLECTADA)
+  conversationId?: number
+  chatPhone?: string
+  summaryText?: string
 }
 
 /* ---------- Helpers UX ---------- */
 const API_URL = process.env.NEXT_PUBLIC_API_URL || ''
+
+/** Endpoints alias (chat-input) */
+const CI = {
+  state: (id: number) => `/api/chat-input/state/${id}`,
+  meta:  (id: number) => `/api/chat-input/meta/${id}`,
+  staff: `/api/chat-input/staff`,
+}
 
 const DarkSwal = Swal.mixin({
   background: '#0B0C14',
@@ -181,15 +188,14 @@ export default function ChatInput({
     const loadStaff = async () => {
       if (!token) return
       try {
-        const res = await api<Array<{ id: number; name: string; role?: string; active?: boolean }>>(
-          `/api/estetica/staff`,
-          undefined,
-          token
+        const res = await api<{ ok: boolean; data: Array<{ id: number; name: string; role?: string; active?: boolean }> }>(
+          CI.staff, undefined, token
         )
-        const active = (res || []).filter((s) => s && (s as any).active !== false)
+        const list = Array.isArray(res?.data) ? res.data : []
+        const active = list.filter((s) => s && (s as any).active !== false)
         setStaffOpts(active.map((s) => ({ id: s.id, name: s.name })))
       } catch {
-        // silencio
+        /* silencio */
       }
     }
     loadStaff()
@@ -215,41 +221,48 @@ export default function ChatInput({
     const prime = async () => {
       if (!conversationId || !token) return
       try {
-        // Preferido: endpoint de estado
-        const stateResp = await api<any>(`/api/conversations/${conversationId}/state`, undefined, token)
-        const state = stateResp?.data || stateResp
+        // Estado principal
+        const stateResp = await api<any>(CI.state(conversationId), undefined, token)
+        // shape esperado: { data, phone, summary, conversation }
+        const state = stateResp?.data ?? null
 
-        // Nombre/servicio desde draft
         const { nombre, servicio } = extractAgendaFromState(state)
         if (nombre && !lockedName) setLockedName(nombre)
         if (servicio && !lockedService) setLockedService(servicio)
 
-        // Teléfono desde estado o meta
-        const phoneFromState = state?.phone || stateResp?.phone || stateResp?.conversation?.phone
-        if (!lockedPhone && phoneFromState) setLockedPhone(String(phoneFromState))
+        const phoneFromState =
+          stateResp?.phone ||
+          state?.phone ||
+          stateResp?.conversation?.phone
+        if (phoneFromState && !lockedPhone) setLockedPhone(String(phoneFromState))
 
-        // Staff desde summary.text (si no llegó por props o API)
-        const summaryTextLocal = state?.summary?.text || stateResp?.summary?.text
-        const staffFromSummary = extractStaffFromSummaryText(summaryTextLocal)
+        const summaryFromStateText =
+          stateResp?.summary?.text ||
+          state?.summary?.text ||
+          null
+
+        const staffFromSummary = extractStaffFromSummaryText(summaryFromStateText || '')
         if (staffFromSummary.length && !staffOpts.length) setStaffOpts(staffFromSummary)
 
-        // Como fallback adicional, intenta bloque AGENDA_COLECTADA en summary.text
-        if ((!nombre || !servicio) && summaryTextLocal) {
-          const agBlock = extractAgendaFromSummaryBlock(summaryTextLocal)
+        // Fallback: bloque AGENDA_COLECTADA
+        if ((!nombre || !servicio) && summaryFromStateText) {
+          const agBlock = extractAgendaFromSummaryBlock(summaryFromStateText)
           if (agBlock.nombre && !lockedName) setLockedName(agBlock.nombre)
           if (agBlock.servicio && !lockedService) setLockedService(agBlock.servicio)
         }
       } catch {
-        // Fallback meta simple
+        // Fallback: meta simple
         try {
-          const conv = await api<any>(`/api/conversations/${conversationId}`, undefined, token)
-          const phoneFromConv = conv?.phone || conv?.data?.phone
-          if (!lockedPhone && phoneFromConv) setLockedPhone(String(phoneFromConv))
-          const summaryTextLocal = conv?.summary?.text || conv?.data?.summary?.text
-          const staffFromSummary = extractStaffFromSummaryText(summaryTextLocal)
+          const meta = await api<any>(CI.meta(conversationId), undefined, token)
+          // shape: { id, phone, nombre, estado, summary }
+          const phoneFromConv = meta?.phone
+          if (phoneFromConv && !lockedPhone) setLockedPhone(String(phoneFromConv))
+
+          const summaryFromMetaText = meta?.summary?.text as string | undefined
+          const staffFromSummary = extractStaffFromSummaryText(summaryFromMetaText || '')
           if (staffFromSummary.length && !staffOpts.length) setStaffOpts(staffFromSummary)
-          // último intento de agenda por bloque
-          const agBlock = extractAgendaFromSummaryBlock(summaryTextLocal)
+
+          const agBlock = extractAgendaFromSummaryBlock(summaryFromMetaText || '')
           if (agBlock.nombre && !lockedName) setLockedName(agBlock.nombre)
           if (agBlock.servicio && !lockedService) setLockedService(agBlock.servicio)
         } catch {
@@ -360,20 +373,17 @@ export default function ChatInput({
       const { iso: startAtISO, dateLocal } = localToISOWithOffset(data.startISO, -300)
       const durationMin = Number.isFinite(data.durationMin as number) ? (data.durationMin as number) : 30
       const endLocal = new Date(dateLocal.getTime() + durationMin * 60_000)
-      const endLocalStr = `${endLocal.getFullYear()}-${String(endLocal.getMonth() + 1).padStart(2, '0')}-${String(
-        endLocal.getDate()
-      ).padStart(2, '0')}T${String(endLocal.getHours()).padStart(2, '0')}:${String(endLocal.getMinutes()).padStart(
-        2,
-        '0'
-      )}`
+      const endLocalStr =
+        `${endLocal.getFullYear()}-${String(endLocal.getMonth() + 1).padStart(2, '0')}-${String(endLocal.getDate()).padStart(2, '0')}T` +
+        `${String(endLocal.getHours()).padStart(2, '0')}:${String(endLocal.getMinutes()).padStart(2, '0')}`
       const { iso: endAtISO } = localToISOWithOffset(endLocalStr, -300)
 
       const body = {
         empresaId,
-        customerName: lockedName,             // ← nombre solo del draft/summary
-        customerPhone: lockedPhone,          // ← teléfono del chat
-        serviceName: lockedService,          // ← servicio solo del draft/summary
-        providerName: data.provider || null, // ← staff elegido desde BD
+        customerName: lockedName,
+        customerPhone: lockedPhone,
+        serviceName: lockedService,
+        providerName: data.provider || null,
         sede: data.sede || null,
         notas: data.notes || null,
         startAt: startAtISO,
