@@ -18,7 +18,7 @@ const fmtKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth()+1).padStar
 const hhmm = (d: Date) => new Intl.DateTimeFormat("es-CO",{hour:"2-digit",minute:"2-digit",hour12:false}).format(d);
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
 
-/** "YYYY-MM-DDTHH:mm" -> ISO con offset fijo (ej: -05:00) */
+/** "YYYY-MM-DDTHH:mm" -> ISO con offset (Bogotá -05:00 por defecto) */
 function localToISOWithOffset(local: string, offsetMinutes = -300): { iso: string; dateLocal: Date } {
   const [y, m, rest] = local.split("-");
   const [d, hm] = (rest || "").split("T");
@@ -39,7 +39,7 @@ function localToISOWithOffset(local: string, offsetMinutes = -300): { iso: strin
   return { iso: `${yyyy}-${MM}-${dd}T${HH}:${mm}:00${tz}`, dateLocal };
 }
 
-/** ISO -> "YYYY-MM-DDTHH:mm" en offset (Bogotá -05:00 por defecto) */
+/** ISO -> "YYYY-MM-DDTHH:mm" (Bogotá -05:00 por defecto) */
 function isoToLocalYMDHM(iso: string, offsetMinutes = -300): string {
   const t = new Date(iso).getTime();
   const shifted = new Date(t + offsetMinutes * 60_000);
@@ -299,17 +299,23 @@ function buildDayLayout(dayEvents: Appointment[]): Record<number, LayoutBox> {
 }
 
 /* =========================================================
-   NUEVO: Drag & Drop (vertical) para cambiar la hora
+   Drag & Drop (vertical + cambio de día en SEMANA)
    ========================================================= */
 
 type DragState = {
   id: number;
   view: "day" | "week";
   durationMin: number;
-  originTopPx: number;
-  startTopPx: number;
-  currentTopPx: number;
-  dayDate: Date;      // día al que pertenece (no cambia en esta versión)
+  // referencia inicial para calcular delta
+  originMin: number;
+  startMin: number;
+  currentMin: number;
+  // Day view:
+  dayDate?: Date;
+  // Week view:
+  weekStart?: Date;
+  originDayIdx?: number;
+  currentDayIdx?: number;
 };
 
 function getMinutesFromPointer(container: HTMLDivElement, clientY: number) {
@@ -317,6 +323,18 @@ function getMinutesFromPointer(container: HTMLDivElement, clientY: number) {
   const y = clientY - rect.top;
   const rawMin = clamp(Math.round(y / PX_PER_MIN), 0, TOTAL_MIN);
   return snap15(rawMin);
+}
+
+function findWeekColumnIndex(columns: (HTMLDivElement | null)[], clientX: number, clientY: number) {
+  for (let i=0;i<columns.length;i++) {
+    const el = columns[i];
+    if (!el) continue;
+    const r = el.getBoundingClientRect();
+    if (clientX >= r.left && clientX <= r.right && clientY >= r.top && clientY <= r.bottom) {
+      return i;
+    }
+  }
+  return null;
 }
 
 /* ---------- Component ---------- */
@@ -327,10 +345,11 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId?: number
   const [current, setCurrent] = useState(() => new Date());
   const [events, setEvents] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false); // NUEVO: loader para PUT al confirmar
   const [showCreate, setShowCreate] = useState(false);
   const [editing, setEditing] = useState<Appointment | null>(null);
 
-  // NUEVO: prefill para crear con doble clic
+  // prefill para crear con doble clic
   const [createPrefill, setCreatePrefill] = useState<{ startISO?: string; durationMin?: number }>({});
 
   // vistas
@@ -338,14 +357,14 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId?: number
   const [selectedDay, setSelectedDay] = useState<Date>(() => new Date());
   const [selectedWeekStart, setSelectedWeekStart] = useState<Date>(() => getWeekStart(new Date()));
 
-  // Refs para drag: contenedor de Día y 7 contenedores de Semana
+  // refs para drag: contenedor de Día y 7 contenedores de Semana
   const dayContainerRef = useRef<HTMLDivElement | null>(null);
   const weekColumnRefs = useRef<(HTMLDivElement | null)[]>([]);
-  weekColumnRefs.current = []; // se rellena en render
+  weekColumnRefs.current = [];
 
   const [drag, setDrag] = useState<DragState | null>(null);
 
-  // matrix 7x6 lunes-primero
+  // matriz mes
   const daysMonth = useMemo(() => {
     const first = new Date(current.getFullYear(), current.getMonth(), 1);
     const mondayStart = getWeekStart(first);
@@ -357,7 +376,7 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId?: number
     });
   },[current]);
 
-  // semana actual (Lun-Dom)
+  // semana actual
   const weekDays = useMemo(()=> {
     return Array.from({length:7},(_,i)=>{
       const d=new Date(selectedWeekStart);
@@ -402,7 +421,7 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId?: number
     return arr;
   }, []);
 
-  /* ---------- Load appointments from backend ---------- */
+  /* ---------- Load appointments ---------- */
   useEffect(() => {
     if (!effEmpresaId || !token) return;
     const first = new Date(current.getFullYear(), current.getMonth(), 1);
@@ -509,66 +528,134 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId?: number
   }
 
   /* ---------- DnD handlers ---------- */
-  function beginDrag(ev: Appointment, viewKind: "day" | "week", containerEl: HTMLDivElement | null, dayDate: Date, e: React.MouseEvent) {
+  function beginDrag_day(ev: Appointment, containerEl: HTMLDivElement | null, dayDate: Date, e: React.MouseEvent) {
     if (!containerEl) return;
     e.preventDefault();
     const s = new Date(ev.startAt);
     const en = new Date(ev.endAt);
     const durationMin = Math.max(15, Math.round((en.getTime() - s.getTime())/60000));
-    const startTopPx = minutesFromStart(s) * PX_PER_MIN;
+    const startMin = minutesFromStart(s);
     const originMin = getMinutesFromPointer(containerEl, e.clientY);
-    const originTopPx = originMin * PX_PER_MIN;
 
     document.body.style.userSelect = "none";
     setDrag({
       id: ev.id,
-      view: viewKind,
+      view: "day",
       durationMin,
-      originTopPx,
-      startTopPx,
-      currentTopPx: startTopPx,
+      originMin,
+      startMin,
+      currentMin: startMin,
       dayDate
+    });
+  }
+
+  function beginDrag_week(ev: Appointment, columns: (HTMLDivElement | null)[], weekStart: Date, currentDayIdx: number, e: React.MouseEvent) {
+    e.preventDefault();
+    const s = new Date(ev.startAt);
+    const en = new Date(ev.endAt);
+    const durationMin = Math.max(15, Math.round((en.getTime() - s.getTime())/60000));
+    const startMin = minutesFromStart(s);
+
+    let originMin = startMin;
+    const el = columns[currentDayIdx];
+    if (el) originMin = getMinutesFromPointer(el, e.clientY);
+
+    document.body.style.userSelect = "none";
+    setDrag({
+      id: ev.id,
+      view: "week",
+      durationMin,
+      originMin,
+      startMin,
+      currentMin: startMin,
+      weekStart,
+      originDayIdx: currentDayIdx,
+      currentDayIdx
     });
   }
 
   useEffect(() => {
     function onMove(e: MouseEvent) {
       if (!drag) return;
-      const container = drag.view === "day" ? dayContainerRef.current : null;
-      if (!container) return;
-      const pointerMin = getMinutesFromPointer(container, e.clientY);
-      const deltaMin = pointerMin - Math.round(drag.originTopPx / PX_PER_MIN);
-      const newStartMin = clamp(snap15(Math.round(drag.startTopPx / PX_PER_MIN) + deltaMin), 0, TOTAL_MIN - drag.durationMin);
-      setDrag(d => d ? { ...d, currentTopPx: newStartMin * PX_PER_MIN } : d);
+
+      if (drag.view === "day") {
+        const container = dayContainerRef.current;
+        if (!container) return;
+        const pointerMin = getMinutesFromPointer(container, e.clientY);
+        const deltaMin = pointerMin - drag.originMin;
+        const newStartMin = clamp(snap15(drag.startMin + deltaMin), 0, TOTAL_MIN - drag.durationMin);
+        setDrag(d => d ? { ...d, currentMin: newStartMin } : d);
+      } else {
+        // WEEK: detectar columna bajo el puntero
+        const idx = findWeekColumnIndex(weekColumnRefs.current, e.clientX, e.clientY);
+        const colIdx = (idx ?? drag.currentDayIdx!)!;
+        const el = weekColumnRefs.current[colIdx];
+        if (!el) return;
+
+        const pointerMin = getMinutesFromPointer(el, e.clientY);
+        const deltaMin = pointerMin - drag.originMin;
+        const newStartMin = clamp(snap15(drag.startMin + deltaMin), 0, TOTAL_MIN - drag.durationMin);
+
+        setDrag(d => d ? { ...d, currentMin: newStartMin, currentDayIdx: colIdx } : d);
+      }
     }
 
     async function onUp() {
       if (!drag) return;
-      const finalStartMin = Math.round(drag.currentTopPx / PX_PER_MIN); // ya viene con snap
-      // construir fecha local (YYYY-MM-DDTHH:mm) del nuevo inicio
-      const base = new Date(drag.dayDate);
-      base.setHours(START_HOUR, 0, 0, 0);
-      base.setMinutes(finalStartMin);
-      const y = base.getFullYear();
-      const m = String(base.getMonth()+1).padStart(2,"0");
-      const ddd = String(base.getDate()).padStart(2,"0");
-      const HH = String(base.getHours()).padStart(2,"0");
-      const MM = String(base.getMinutes()).padStart(2,"0");
-      const startLocalStr = `${y}-${m}-${ddd}T${HH}:${MM}`;
 
-      const { iso: startAtISO, dateLocal } = localToISOWithOffset(startLocalStr, -300);
+      // Resolver fecha/hora destino
+      let baseDate: Date;
+      if (drag.view === "day") {
+        baseDate = new Date(drag.dayDate!);
+      } else {
+        baseDate = new Date(drag.weekStart!);
+        baseDate.setDate(baseDate.getDate() + (drag.currentDayIdx ?? drag.originDayIdx!)!);
+      }
+      baseDate.setHours(START_HOUR,0,0,0);
+      baseDate.setMinutes(drag.currentMin);
+
+      const y = baseDate.getFullYear();
+      const m = String(baseDate.getMonth()+1).padStart(2,"0");
+      const ddd = String(baseDate.getDate()).padStart(2,"0");
+      const HH = String(baseDate.getHours()).padStart(2,"0");
+      const MM = String(baseDate.getMinutes()).padStart(2,"0");
+
+      const newLocal = `${y}-${m}-${ddd}T${HH}:${MM}`;
+      const { iso: startAtISO, dateLocal } = localToISOWithOffset(newLocal, -300);
       const endLocal = new Date(dateLocal.getTime() + drag.durationMin * 60_000);
       const endLocalStr = `${endLocal.getFullYear()}-${String(endLocal.getMonth()+1).padStart(2,"0")}-${String(endLocal.getDate()).padStart(2,"0")}T${String(endLocal.getHours()).padStart(2,"0")}:${String(endLocal.getMinutes()).padStart(2,"0")}`;
       const { iso: endAtISO } = localToISOWithOffset(endLocalStr, -300);
 
-      const id = drag.id;
-      setDrag(null);
+      // Texto de confirmación
+      const oldStart = events.find(x=>x.id===drag.id)?.startAt;
+      const oldEnd   = events.find(x=>x.id===drag.id)?.endAt;
+      const fmtCO = (iso?: string) => iso ? new Date(iso).toLocaleString("es-CO",{ dateStyle:"medium", timeStyle:"short" }) : "";
+      const oldLbl  = `${fmtCO(oldStart)} – ${fmtCO(oldEnd)}`;
+      const newLbl  = `${fmtCO(startAtISO)} – ${fmtCO(endAtISO)}`;
+
       document.body.style.userSelect = "";
+      setDrag(null);
+
+      const confirm = await DarkSwal.fire({
+        icon: "question",
+        title: "¿Reprogramar cita?",
+        html: `<div class="text-left">
+                 <div class="mb-1 text-white/80">Antes:</div>
+                 <div class="mb-3"><strong>${oldLbl}</strong></div>
+                 <div class="mb-1 text-white/80">Después:</div>
+                 <div><strong>${newLbl}</strong></div>
+               </div>`,
+        showCancelButton: true,
+        confirmButtonText: "Confirmar",
+        cancelButtonText: "Cancelar",
+      });
+      if (!confirm.isConfirmed) return;
 
       try {
-        await updateAppointment(id, { startAt: startAtISO, endAt: endAtISO });
-      } catch {
-        // si falla, el toast ya se mostró en updateAppointment
+        setSaving(true);
+        await updateAppointment(drag.id, { startAt: startAtISO, endAt: endAtISO });
+      } finally {
+        setSaving(false);
       }
     }
 
@@ -578,7 +665,7 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId?: number
       window.removeEventListener("mousemove", onMove);
       window.removeEventListener("mouseup", onUp);
     };
-  }, [drag]); // eslint-disable-line
+  }, [drag, events]); // eslint-disable-line
 
   /* ---------- UI ---------- */
   const monthTitle = current.toLocaleString("es-CO",{month:"long", year:"numeric"});
@@ -607,7 +694,7 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId?: number
     <div className="w-full h-full">
       <div className="mx-auto max-w-[1600px] p-4 md:p-6 lg:p-8">
 
-        {/* Header estilo Google */}
+        {/* Header */}
         <div className="mb-5 rounded-2xl border border-white/10 bg-white/5 p-3 text-white backdrop-blur md:p-4">
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div className="flex items-center gap-2">
@@ -656,14 +743,14 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId?: number
           </div>
         </div>
 
-        {/* Cabeceras de días (Mes) */}
+        {/* Cabeceras mes */}
         {view === 'month' && (
           <div className="mb-2 grid grid-cols-7 gap-3 text-xs font-medium text-white/80">
             {["Lun","Mar","Mié","Jue","Vie","Sáb","Dom"].map((w)=> <div key={w} className="px-1">{w}</div>)}
           </div>
         )}
 
-        {/* Grid Mes – contador elegante */}
+        {/* Grid Mes */}
         {view === 'month' && (
           <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 md:grid-cols-4 xl:grid-cols-7">
             {daysMonth.map((day, i) => {
@@ -835,7 +922,7 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId?: number
                     const left = `calc(${box.leftPct}% + ${GAP_PX}px)`;
                     const width = `calc(${box.widthPct}% - ${GAP_PX * 2}px)`;
                     const isDragging = drag?.id === ev.id && drag.view === "day";
-                    const top = isDragging ? drag.currentTopPx : box.top;
+                    const topPx = (isDragging ? drag.currentMin : Math.round(box.top / PX_PER_MIN)) * PX_PER_MIN;
 
                     return (
                       <div
@@ -845,15 +932,15 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId?: number
                           "cursor-grab active:cursor-grabbing",
                           isDragging && "ring-2 ring-indigo-400/70 z-20"
                         )}
-                        style={{ top, height: box.height, left, width }}
+                        style={{ top: topPx, height: box.height, left, width }}
                         title={spanLabel(s,e)}
-                        onMouseDown={(e)=>beginDrag(ev, "day", dayContainerRef.current, selectedDay, e)}
+                        onMouseDown={(e)=>beginDrag_day(ev, dayContainerRef.current, selectedDay, e)}
                       >
                         <div className="flex items-center justify-between px-2 py-1">
                           <div className="truncate">
                             <span className="mr-2 inline-flex items-center gap-1 text-[11px] opacity-90">
                               <Clock className="h-3 w-3"/>{spanLabel(
-                                new Date(selectedDay.getFullYear(), selectedDay.getMonth(), selectedDay.getDate(), START_HOUR, 0, 0, 0 + Math.round(top/PX_PER_MIN)),
+                                new Date(selectedDay.getFullYear(), selectedDay.getMonth(), selectedDay.getDate(), START_HOUR, 0, 0, 0 + Math.round(topPx/PX_PER_MIN)),
                                 e
                               )}
                             </span>
@@ -879,7 +966,7 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId?: number
           </div>
         )}
 
-        {/* Vista Semana (7 columnas) */}
+        {/* Vista Semana (arrastre entre días) */}
         {view === "week" && (
           <div className="grid grid-cols-12 gap-3">
             {/* Columna horas */}
@@ -932,8 +1019,13 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId?: number
                       const box = layout[ev.id];
                       const left = `calc(${box.leftPct}% + ${GAP_PX}px)`;
                       const width = `calc(${box.widthPct}% - ${GAP_PX * 2}px)`;
+
+                      // índices para drag semanal
+                      const thisIdx = idx;
                       const isDragging = drag?.id === ev.id && drag.view === "week";
-                      const top = isDragging ? drag.currentTopPx : box.top;
+                      const isThisCol = (drag?.currentDayIdx ?? thisIdx) === thisIdx;
+                      const topMin = isDragging && isThisCol ? drag.currentMin : Math.round(box.top / PX_PER_MIN);
+                      const topPx = topMin * PX_PER_MIN;
 
                       return (
                         <div
@@ -941,11 +1033,11 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId?: number
                           className={cx(
                             "absolute rounded-xl border text-[11px] shadow bg-indigo-600/20 border-indigo-400/40 text-white backdrop-blur select-none",
                             "cursor-grab active:cursor-grabbing",
-                            isDragging && "ring-2 ring-indigo-400/70 z-20"
+                            isDragging && isThisCol && "ring-2 ring-indigo-400/70 z-20"
                           )}
-                          style={{ top, height: box.height, left, width }}
+                          style={{ top: topPx, height: box.height, left, width }}
                           title={spanLabel(s,e)}
-                          onMouseDown={(e)=>beginDrag(ev, "week", weekColumnRefs.current[idx], day, e)}
+                          onMouseDown={(e)=>beginDrag_week(ev, weekColumnRefs.current, selectedWeekStart, thisIdx, e)}
                         >
                           <div className="flex items-center justify-between px-2 py-1">
                             <div className="truncate">
@@ -962,7 +1054,7 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId?: number
                             </div>
                           </div>
                           <div className="px-2 pb-1 opacity-80">{spanLabel(
-                            new Date(day.getFullYear(), day.getMonth(), day.getDate(), START_HOUR, 0, 0, 0 + Math.round(top/PX_PER_MIN)),
+                            new Date(day.getFullYear(), day.getMonth(), day.getDate(), START_HOUR, 0, 0, 0 + Math.round(topPx/PX_PER_MIN)),
                             e
                           )}</div>
                         </div>
@@ -977,7 +1069,7 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId?: number
 
       </div>
 
-      {/* Loading overlay */}
+      {/* Loading overlay de carga inicial */}
       {loading && (
         <div className="fixed inset-0 z-40 grid place-items-center bg-black/20 backdrop-blur-sm">
           <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="rounded-2xl bg-zinc-900 px-4 py-3 text-white shadow-xl border border-white/10">
@@ -986,7 +1078,20 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId?: number
         </div>
       )}
 
-      {/* Crear cita (con prefill) */}
+      {/* Loader durante PUT de reprogramación */}
+      {saving && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 backdrop-blur-sm">
+          <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+            className="rounded-2xl bg-zinc-900 px-4 py-3 text-white shadow-xl border border-white/10">
+            <div className="flex items-center gap-2">
+              <CalendarIcon className="h-4 w-4" />
+              Reprogramando cita…
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Crear cita */}
       <Dialog open={showCreate} onClose={()=>setShowCreate(false)}>
         <CreateForm
           initialStartISO={createPrefill.startISO}
