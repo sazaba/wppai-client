@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { FiSend, FiSmile, FiImage, FiCalendar, FiUser, FiPhone, FiChevronLeft, FiChevronRight } from 'react-icons/fi'
+import { FiSend, FiSmile, FiImage, FiCalendar, FiUser, FiPhone, FiChevronUp, FiChevronDown, FiLoader } from 'react-icons/fi'
 import EmojiPicker, { EmojiClickData, EmojiStyle, Theme } from 'emoji-picker-react'
 import { motion } from 'framer-motion'
 import Swal from 'sweetalert2'
@@ -23,15 +23,15 @@ interface Props {
   summaryText?: string
 }
 
-/* ---------- Config endpoints ---------- */
 const API_URL = process.env.NEXT_PUBLIC_API_URL || ''
+
+/** Endpoints alias (chat-input) */
 const CI = {
   state: (id: number) => `/api/chat-input/state/${id}`,
   meta:  (id: number) => `/api/chat-input/meta/${id}`,
   staff: `/api/chat-input/staff`,
 }
 
-/* ---------- SweetAlert Dark ---------- */
 const DarkSwal = Swal.mixin({
   background: '#0B0C14',
   color: '#E5E7EB',
@@ -56,17 +56,26 @@ function extractErrorMessage(err: unknown): string {
   } catch { return raw }
 }
 
+async function alertSuccess(title: string, text?: string) {
+  await DarkSwal.fire({ icon: 'success', title, text, confirmButtonText: 'Aceptar' })
+}
+async function alertError(title: string, html?: string) {
+  await DarkSwal.fire({ icon: 'error', title, html, confirmButtonText: 'Entendido' })
+}
+
 /** "YYYY-MM-DDTHH:mm" -> ISO con offset fijo (default Bogotá -05:00) */
 function localToISOWithOffset(local: string, offsetMinutes = -300): { iso: string; dateLocal: Date } {
   const [y, m, rest] = local.split('-')
   const [d, hm] = (rest || '').split('T')
   const [H, M] = (hm || '').split(':')
   const dateLocal = new Date(Number(y), Number(m) - 1, Number(d), Number(H || 0), Number(M || 0), 0, 0)
+
   const sign = offsetMinutes <= 0 ? '-' : '+'
   const abs = Math.abs(offsetMinutes)
   const oh = String(Math.floor(abs / 60)).padStart(2, '0')
   const om = String(abs % 60).padStart(2, '0')
   const tz = `${sign}${oh}:${om}`
+
   const yyyy = dateLocal.getFullYear()
   const MM = String(dateLocal.getMonth() + 1).padStart(2, '0')
   const dd = String(dateLocal.getDate()).padStart(2, '0')
@@ -136,19 +145,25 @@ function extractStaffFromSummaryText(summaryText?: string): Array<{ id: number; 
   return out
 }
 
-/* =========================================================
-   CHAT INPUT
-========================================================= */
+/* ===================== Componente principal ===================== */
 export default function ChatInput({
-  value, onChange, onSend, disabled, onSendGif, onUploadFile, onAppointmentCreated,
-  conversationId, chatPhone, summaryText,
+  value,
+  onChange,
+  onSend,
+  disabled,
+  onSendGif,
+  onUploadFile,
+  onAppointmentCreated,
+  conversationId,
+  chatPhone,
+  summaryText,
 }: Props) {
   const [showEmoji, setShowEmoji] = useState(false)
   const [showAppt, setShowAppt] = useState(false)
   const [staffOpts, setStaffOpts] = useState<Array<{ id: number; name: string }>>([])
-  const [lockedName, setLockedName] = useState<string>('')       // editable
-  const [lockedService, setLockedService] = useState<string>('') // editable
-  const [lockedPhone, setLockedPhone] = useState<string>(chatPhone || '') // editable
+  const [lockedName, setLockedName] = useState<string>('')       // ahora editable
+  const [lockedService, setLockedService] = useState<string>('') // ahora editable
+  const [lockedPhone, setLockedPhone] = useState<string>(chatPhone || '')
   const fileRef = useRef<HTMLInputElement | null>(null)
   const inputRef = useRef<HTMLInputElement | null>(null)
 
@@ -171,7 +186,7 @@ export default function ChatInput({
     loadStaff()
   }, [token])
 
-  /* ---- Primeros datos desde props ---- */
+  /* ---- Props ---- */
   useEffect(() => {
     if (summaryText) {
       const staffFromSummary = extractStaffFromSummaryText(summaryText)
@@ -184,7 +199,7 @@ export default function ChatInput({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [summaryText, chatPhone])
 
-  /* ---- Leer estado de conversación (fuente principal) ---- */
+  /* ---- Estado conversación ---- */
   useEffect(() => {
     const prime = async () => {
       if (!conversationId || !token) return
@@ -194,14 +209,11 @@ export default function ChatInput({
         const { nombre, servicio } = extractAgendaFromState(state)
         if (nombre && !lockedName) setLockedName(nombre)
         if (servicio && !lockedService) setLockedService(servicio)
-
         const phoneFromState = stateResp?.phone || state?.phone || stateResp?.conversation?.phone
         if (phoneFromState && !lockedPhone) setLockedPhone(String(phoneFromState))
-
         const summaryFromStateText = stateResp?.summary?.text || state?.summary?.text || null
         const staffFromSummary = extractStaffFromSummaryText(summaryFromStateText || '')
         if (staffFromSummary.length && !staffOpts.length) setStaffOpts(staffFromSummary)
-
         if ((!nombre || !servicio) && summaryFromStateText) {
           const agBlock = extractAgendaFromSummaryBlock(summaryFromStateText)
           if (agBlock.nombre && !lockedName) setLockedName(agBlock.nombre)
@@ -226,25 +238,33 @@ export default function ChatInput({
   }, [conversationId, token])
 
   /* ---- Emoji ---- */
-  const insertAtCursor = useCallback((insertText: string) => {
-    const el = inputRef.current
-    if (!el) { onChange(value + insertText); return }
-    const start = el.selectionStart ?? value.length
-    const end = el.selectionEnd ?? value.length
-    const newVal = value.slice(0, start) + insertText + value.slice(end)
-    const caret = start + insertText.length
-    onChange(newVal)
-    requestAnimationFrame(() => {
-      el.focus()
-      try { el.setSelectionRange(caret, caret) } catch {}
-    })
-  }, [onChange, value])
+  const insertAtCursor = useCallback(
+    (insertText: string) => {
+      const el = inputRef.current
+      if (!el) { onChange(value + insertText); return }
+      const start = el.selectionStart ?? value.length
+      const end = el.selectionEnd ?? value.length
+      const newVal = value.slice(0, start) + insertText + value.slice(end)
+      const caret = start + insertText.length
+      onChange(newVal)
+      requestAnimationFrame(() => {
+        el.focus()
+        try { el.setSelectionRange(caret, caret) } catch {}
+      })
+    },
+    [onChange, value]
+  )
   const handleEmojiClick = (emojiData: EmojiClickData) => { insertAtCursor(emojiData.emoji); setShowEmoji(false) }
 
   /* ---- Teclado ---- */
   const handleKeyDown: React.KeyboardEventHandler<HTMLInputElement> = (e) => {
-    const isSubmit = (e.key === 'Enter' && !e.shiftKey) || ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'enter')
-    if (isSubmit) { e.preventDefault(); if (!disabled && value.trim()) onSend(); return }
+    const isSubmit =
+      (e.key === 'Enter' && !e.shiftKey) || ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'enter')
+    if (isSubmit) {
+      e.preventDefault()
+      if (!disabled && value.trim()) onSend()
+      return
+    }
     if (e.key === 'Escape') { if (showEmoji) setShowEmoji(false); if (showAppt) setShowAppt(false) }
   }
 
@@ -279,13 +299,10 @@ export default function ChatInput({
 
   /* ---- Crear cita ---- */
   async function createAppointmentFromChat(data: CreateApptPayload) {
-    if (!empresaId || !token) {
-      await DarkSwal.fire({ icon: 'error', title: 'No se pudo agendar', text: 'Falta sesión o empresa seleccionada.' })
-      return
-    }
-    if (!data.name?.trim())  { await DarkSwal.fire({ icon:'error', title:'Falta el nombre' }); return }
-    if (!data.service?.trim()) { await DarkSwal.fire({ icon:'error', title:'Falta el servicio' }); return }
-    if (!data.phone?.trim()) { await DarkSwal.fire({ icon:'error', title:'Falta el teléfono' }); return }
+    if (!empresaId || !token) { await alertError('No se pudo agendar', '<span>Falta sesión o empresa seleccionada.</span>'); return }
+    if (!data.name?.trim())  { await alertError('Falta el nombre'); return }
+    if (!data.service?.trim()) { await alertError('Falta el servicio'); return }
+    if (!data.phone?.trim()) { await alertError('Falta el teléfono'); return }
 
     try {
       const { iso: startAtISO, dateLocal } = localToISOWithOffset(data.startISO, -300)
@@ -310,24 +327,29 @@ export default function ChatInput({
       }
 
       const created = await api<{ id: number; customerName: string; startAt: string }>(
-        `/api/appointments?empresaId=${empresaId}`, { method: 'POST', body: JSON.stringify(body) }, token
+        `/api/appointments?empresaId=${empresaId}`,
+        { method: 'POST', body: JSON.stringify(body) },
+        token
       )
 
-      await DarkSwal.fire({
-        icon: 'success',
-        title: 'Cita creada',
-        text: `${created.customerName} • ${new Date(created.startAt).toLocaleString('es-CO', { dateStyle: 'medium', timeStyle: 'short' })}`
-      })
+      await alertSuccess(
+        'Cita creada',
+        `${created.customerName} • ${new Date(created.startAt).toLocaleString('es-CO', {
+          dateStyle: 'medium',
+          timeStyle: 'short',
+        })}`
+      )
+
       onAppointmentCreated?.({ id: created.id, startAt: created.startAt })
     } catch (err) {
       const msg = extractErrorMessage(err)
-      await DarkSwal.fire({ icon:'error', title:'No se pudo agendar la cita', html:`<pre style="text-align:left;white-space:pre-wrap;">${msg}</pre>` })
+      await alertError('No se pudo agendar la cita', `<pre style="text-align:left;white-space:pre-wrap;">${msg}</pre>`)
       throw err
     }
   }
 
   return (
-    <div className="relative border-t border-white/10 bg-[#202C33] p-3">
+    <div className="relative border-t border-white/10 bg-[#202C33] p-2">
       <div className="flex items-center gap-2">
         {/* Emoji */}
         <button
@@ -353,7 +375,7 @@ export default function ChatInput({
           </div>
         )}
 
-        {/* Crear cita */}
+        {/* Agenda: crear cita */}
         <button
           type="button"
           onClick={() => setShowAppt(true)}
@@ -365,7 +387,7 @@ export default function ChatInput({
           <FiCalendar className="w-5 h-5 text-[#D1D7DB]" />
         </button>
 
-        {/* Adjuntar */}
+        {/* Multimedia */}
         <button
           type="button"
           onClick={() => fileRef.current?.click()}
@@ -410,7 +432,7 @@ export default function ChatInput({
         </button>
       </div>
 
-      {/* Dialogo Crear Cita */}
+      {/* Diálogo para crear cita */}
       <Dialog open={showAppt} onClose={() => setShowAppt(false)}>
         <CreateApptForm
           defaultName={lockedName}
@@ -428,15 +450,13 @@ export default function ChatInput({
   )
 }
 
-/* =========================================================
-   UI PRIMITIVOS
-========================================================= */
+/* ===================== UI Primitives ===================== */
 function Button(
   props: React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: 'primary' | 'ghost' | 'outline' | 'danger' }
 ) {
   const { className, variant = 'primary', ...rest } = props
   const base =
-    'inline-flex items-center justify-center gap-2 rounded-xl px-3 py-2 text-sm font-medium transition focus:outline-none focus:ring-2'
+    'inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium transition focus:outline-none focus:ring-2'
   const variants = {
     primary: 'text-white bg-emerald-600 hover:bg-emerald-700 focus:ring-emerald-400',
     ghost: 'text-white/90 hover:bg-white/10',
@@ -454,7 +474,7 @@ function Dialog({ open, onClose, children }: { open: boolean; onClose: () => voi
       <motion.div
         initial={{ opacity: 0, y: 8, scale: 0.98 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
-        className="relative z-10 w-full max-w-2xl rounded-2xl border border-white/10 bg-[#0F1216] p-6 text-white shadow-2xl"
+        className="relative z-10 w-full max-w-xl rounded-2xl border border-white/10 bg-zinc-900 p-6 text-white shadow-2xl"
       >
         {children}
       </motion.div>
@@ -462,47 +482,58 @@ function Dialog({ open, onClose, children }: { open: boolean; onClose: () => voi
   )
 }
 
-function FieldLabel({ icon, text }: { icon?: React.ReactNode; text: string }) {
-  return (
-    <div className="flex items-center gap-2 text-xs text-white/80">
-      {icon} <span>{text}</span>
-    </div>
-  )
-}
-
 function Input({
-  label, icon, type = 'text', value, onChange, placeholder, disabled, readOnly,
+  label,
+  type = 'text',
+  value,
+  onChange,
+  placeholder,
+  disabled,
+  readOnly,
+  rightIcon,
+  helpText,
 }: {
   label: string
-  icon?: React.ReactNode
   type?: string
   value: string
   onChange: (v: string) => void
   placeholder?: string
   disabled?: boolean
   readOnly?: boolean
+  rightIcon?: React.ReactNode
+  helpText?: string
 }) {
   return (
     <label className="space-y-1">
-      <FieldLabel icon={icon} text={label} />
-      <input
-        type={type}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-        className={cx(
-          'w-full rounded-xl border border-white/10 bg-[#0B0E12] px-3 py-2 text-sm text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-emerald-500',
-          disabled && 'opacity-60 cursor-not-allowed'
-        )}
-        disabled={disabled}
-        readOnly={readOnly}
-      />
+      <span className="text-xs text-white/80">{label}</span>
+      <div className="relative">
+        <input
+          type={type}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+          className={cx(
+            'w-full rounded-xl border border-white/15 bg-zinc-900 px-3 py-3 pr-10 text-sm text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-emerald-500',
+            disabled && 'opacity-60 cursor-not-allowed'
+          )}
+          disabled={disabled}
+          readOnly={readOnly}
+        />
+        {rightIcon && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-white/60">{rightIcon}</span>}
+      </div>
+      {helpText && <span className="text-[11px] text-white/50">{helpText}</span>}
     </label>
   )
 }
 
 function TextArea({
-  label, value, onChange, placeholder, disabled, readOnly,
+  label,
+  value,
+  onChange,
+  placeholder,
+  disabled,
+  readOnly,
+  helpText,
 }: {
   label: string
   value: string
@@ -510,214 +541,36 @@ function TextArea({
   placeholder?: string
   disabled?: boolean
   readOnly?: boolean
+  helpText?: string
 }) {
   return (
     <label className="space-y-1 sm:col-span-2">
-      <FieldLabel text={label} />
+      <span className="text-xs text-white/80">{label}</span>
       <textarea
         rows={3}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         className={cx(
-          'w-full rounded-xl border border-white/10 bg-[#0B0E12] px-3 py-2 text-sm text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-emerald-500',
+          'w-full rounded-xl border border-white/15 bg-zinc-900 px-3 py-3 text-sm text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-emerald-500',
           disabled && 'opacity-60 cursor-not-allowed'
         )}
         disabled={disabled}
         readOnly={readOnly}
       />
+      {helpText && <span className="text-[11px] text-white/50">{helpText}</span>}
     </label>
   )
 }
 
-/* =========================================================
-   COMPONENTES: DatePicker + MinutePicker (premium)
-========================================================= */
-function startOfMonth(d: Date) { return new Date(d.getFullYear(), d.getMonth(), 1) }
-function endOfMonth(d: Date) { return new Date(d.getFullYear(), d.getMonth() + 1, 0) }
-function addMonths(d: Date, n: number) { return new Date(d.getFullYear(), d.getMonth() + n, 1) }
-function sameYMD(a: Date, b: Date) {
-  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate()
-}
-
-function CustomDatePicker({
-  value, onChange,
-}: {
-  /** value en formato YYYY-MM-DD */
-  value: string
-  onChange: (v: string) => void
-}) {
-  const [open, setOpen] = useState(false)
-  const [viewDate, setViewDate] = useState(() => {
-    const parts = value?.split('-').map(Number)
-    return (parts?.length === 3) ? new Date(parts[0], (parts[1] || 1) - 1, parts[2] || 1) : new Date()
-  })
-  const selected = useMemo(() => {
-    const p = value?.split('-').map(Number) || []
-    return (p.length === 3) ? new Date(p[0], (p[1] || 1) - 1, p[2] || 1) : null
-  }, [value])
-
-  const first = startOfMonth(viewDate)
-  const last = endOfMonth(viewDate)
-  const firstWeekday = (first.getDay() + 6) % 7 // convertir domingo=0 a lunes=0
-  const totalDays = last.getDate()
-
-  const days: Array<Date | null> = []
-  for (let i = 0; i < firstWeekday; i++) days.push(null)
-  for (let d = 1; d <= totalDays; d++) days.push(new Date(viewDate.getFullYear(), viewDate.getMonth(), d))
-
-  const monthName = viewDate.toLocaleString('es-CO', { month: 'long', year: 'numeric' })
-
-  function choose(d: Date) {
-    const y = d.getFullYear()
-    const m = String(d.getMonth() + 1).padStart(2, '0')
-    const dd = String(d.getDate()).padStart(2, '0')
-    onChange(`${y}-${m}-${dd}`)
-    setOpen(false)
-  }
-
-  return (
-    <div className="relative">
-      <button
-        type="button"
-        onClick={() => setOpen(v => !v)}
-        className="w-full rounded-xl border border-white/10 bg-[#0B0E12] px-3 py-2 text-sm text-white text-left focus:outline-none focus:ring-2 focus:ring-emerald-500"
-      >
-        {value || 'Selecciona fecha'}
-      </button>
-
-      {open && (
-        <div className="absolute z-50 mt-2 w-72 rounded-2xl border border-white/10 bg-[#0F1216] p-3 shadow-2xl">
-          <div className="flex items-center justify-between mb-2">
-            <button
-              type="button"
-              className="p-2 rounded-lg hover:bg-white/10"
-              onClick={() => setViewDate(v => addMonths(v, -1))}
-              aria-label="Mes anterior"
-            >
-              <FiChevronLeft />
-            </button>
-            <div className="text-sm font-medium capitalize">{monthName}</div>
-            <button
-              type="button"
-              className="p-2 rounded-lg hover:bg-white/10"
-              onClick={() => setViewDate(v => addMonths(v, 1))}
-              aria-label="Mes siguiente"
-            >
-              <FiChevronRight />
-            </button>
-          </div>
-
-          <div className="grid grid-cols-7 text-center text-[11px] text-white/60 mb-1">
-            {['L','M','X','J','V','S','D'].map((d) => <div key={d} className="py-1">{d}</div>)}
-          </div>
-          <div className="grid grid-cols-7 gap-1">
-            {days.map((d, i) => {
-              if (!d) return <div key={i} />
-              const isToday = sameYMD(d, new Date())
-              const isSelected = selected ? sameYMD(d, selected) : false
-              return (
-                <button
-                  key={i}
-                  type="button"
-                  onClick={() => choose(d)}
-                  className={cx(
-                    'py-2 rounded-lg text-sm',
-                    isSelected
-                      ? 'bg-emerald-600 text-white'
-                      : 'hover:bg-white/10 text-white',
-                    isToday && !isSelected && 'ring-1 ring-emerald-400/40'
-                  )}
-                >
-                  {d.getDate()}
-                </button>
-              )
-            })}
-          </div>
-
-          <div className="flex items-center justify-between mt-3">
-            <button
-              type="button"
-              className="text-xs text-white/70 hover:underline"
-              onClick={() => { const t = new Date(); choose(t) }}
-            >
-              Hoy
-            </button>
-            <button
-              type="button"
-              className="text-xs text-white/70 hover:underline"
-              onClick={() => setOpen(false)}
-            >
-              Cerrar
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
-
-function MinutePicker({
-  value, onChange,
-}: {
-  /** mm en string '00'..'59' */
-  value: string
-  onChange: (v: string) => void
-}) {
-  const chips = useMemo(() => {
-    const arr: string[] = []
-    for (let m = 0; m < 60; m += 5) arr.push(String(m).padStart(2, '0'))
-    return arr
-  }, [])
-
-  function bump(delta: number) {
-    const m = Math.max(0, Math.min(59, (Number(value) || 0) + delta))
-    onChange(String(m).padStart(2, '0'))
-  }
-
-  return (
-    <div className="space-y-2">
-      <div className="flex items-center gap-2">
-        <input
-          type="number"
-          min={0}
-          max={59}
-          value={value}
-          onChange={(e) => {
-            const n = Math.max(0, Math.min(59, Number(e.target.value || 0)))
-            onChange(String(n).padStart(2, '0'))
-          }}
-          className="w-20 rounded-xl border border-white/10 bg-[#0B0E12] px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
-        />
-        <Button variant="outline" type="button" onClick={() => bump(-5)}>-5</Button>
-        <Button variant="outline" type="button" onClick={() => bump(+5)}>+5</Button>
-      </div>
-      <div className="flex gap-2 flex-wrap">
-        {chips.map((c) => (
-          <button
-            key={c}
-            type="button"
-            onClick={() => onChange(c)}
-            className={cx(
-              'px-2.5 py-1.5 rounded-lg text-xs border',
-              value === c
-                ? 'bg-emerald-600 text-white border-emerald-500'
-                : 'bg-[#0B0E12] text-white/90 border-white/10 hover:bg-white/10'
-            )}
-          >
-            {c}
-          </button>
-        ))}
-      </div>
-    </div>
-  )
-}
-
-/* =========================================================
-   FORM: Crear Cita (con DatePicker premium y MinutePicker)
-========================================================= */
+/* ===================== Formulario Crear Cita ===================== */
 function CreateApptForm({
-  onSave, onCancel, defaultName, defaultPhone, defaultService, staffOptions,
+  onSave,
+  onCancel,
+  defaultName,
+  defaultPhone,
+  defaultService,
+  staffOptions,
 }: {
   onSave: (d: CreateApptPayload) => Promise<void> | void
   onCancel: () => void
@@ -726,7 +579,7 @@ function CreateApptForm({
   defaultService: string
   staffOptions: Array<{ id: number; name: string }>
 }) {
-  // Defaults locales
+  // Defaults
   const now = new Date()
   const yyyy = now.getFullYear()
   const MM = String(now.getMonth() + 1).padStart(2, '0')
@@ -734,142 +587,164 @@ function CreateApptForm({
   const HH = String(now.getHours()).padStart(2, '0')
   const mm = String(now.getMinutes()).padStart(2, '0')
 
+  // State
   const [name, setName] = useState(defaultName || '')
   const [phone, setPhone] = useState(defaultPhone || '')
   const [service, setService] = useState(defaultService || '')
   const [sede, setSede] = useState('')
   const [provider, setProvider] = useState('')
-  const [datePart, setDatePart] = useState(`${yyyy}-${MM}-${dd}`)
-  const [hourPart, setHourPart] = useState(HH)
-  const [minutePart, setMinutePart] = useState(mm.padStart(2, '0'))
+  const [dateTime, setDateTime] = useState(`${yyyy}-${MM}-${dd}T${HH}:${mm}`) // <- fecha + hora (datetime-local)
   const [durationMin, setDurationMin] = useState<number>(30)
   const [notes, setNotes] = useState('')
+  const [saving, setSaving] = useState(false)
 
-  // sincronizar si llegan locks luego
+  // sync locks si llegan luego
   useEffect(() => { if (defaultName) setName(defaultName) }, [defaultName])
   useEffect(() => { if (defaultPhone) setPhone(defaultPhone) }, [defaultPhone])
   useEffect(() => { if (defaultService) setService(defaultService) }, [defaultService])
 
-  const timeHHMM = useMemo(() => {
-    const H = String(Math.max(0, Math.min(23, Number(hourPart) || 0))).padStart(2, '0')
-    const M = String(Math.max(0, Math.min(59, Number(minutePart) || 0))).padStart(2, '0')
-    return `${H}:${M}`
-  }, [hourPart, minutePart])
-
-  const startISO = useMemo(() => `${datePart}T${timeHHMM}`, [datePart, timeHHMM])
-
-  function bumpHour(delta: number) {
-    const [H, M] = timeHHMM.split(':').map(Number)
-    const base = new Date(2000, 0, 1, H, M, 0, 0)
-    base.setHours(base.getHours() + delta)
-    setHourPart(String(base.getHours()).padStart(2, '0'))
-  }
-
   const canSave =
-    name.trim() &&
-    phone.trim() &&
-    service.trim() &&
-    datePart.length === 10 &&
-    timeHHMM.length === 5 &&
-    Number(durationMin) > 0
+    name.trim() && phone.trim() && service.trim() &&
+    dateTime.length >= 16 && Number(durationMin) > 0 && !saving
+
+  // helpers duración
+  const bump = (delta: number) => setDurationMin((v) => Math.max(1, v + delta))
 
   return (
     <form
       onSubmit={async (e) => {
         e.preventDefault()
         if (!canSave) return
-        await onSave({
-          name, phone, service, sede, provider,
-          startISO, durationMin, notes,
-        })
+        setSaving(true)
+        try {
+          const payload: CreateApptPayload = {
+            name, phone, service, sede, provider,
+            startISO: dateTime, durationMin, notes,
+          }
+          await onSave(payload)
+        } finally {
+          setSaving(false)
+        }
       }}
-      className="space-y-5 text-white"
+      className="space-y-6 text-white"
     >
       <h2 className="text-xl font-semibold flex items-center gap-2">
         <FiCalendar className="h-5 w-5" /> Crear nueva cita
       </h2>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Input label="Nombre cliente" icon={<FiUser className="opacity-70" />} value={name} onChange={setName} />
-        <Input label="Teléfono (chat)" icon={<FiPhone className="opacity-70" />} value={phone} onChange={setPhone} />
-
+      {/* Datos del cliente */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 rounded-2xl border border-white/10 bg-zinc-900/60 p-4">
+        <Input label="Nombre cliente" value={name} onChange={setName} />
+        <Input label="Teléfono (chat)" value={phone} onChange={setPhone} />
         <Input label="Servicio" value={service} onChange={setService} placeholder="Ej. Limpieza facial" />
         <Input label="Sede (opcional)" value={sede} onChange={setSede} placeholder="Ej. Sede Centro" />
+      </div>
 
-        {/* Staff desde BD */}
+      {/* Staff + Fecha/Hora */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 rounded-2xl border border-white/10 bg-zinc-900/60 p-4">
         <label className="space-y-1">
-          <FieldLabel text="Profesional (staff)" />
+          <span className="text-xs text-white/80">Profesional (staff)</span>
           <select
             value={provider || ''}
             onChange={(e) => setProvider(e.target.value)}
-            className="w-full rounded-xl border border-white/10 bg-[#0B0E12] px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            className="w-full rounded-xl border border-white/15 bg-zinc-900 px-3 py-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
           >
             <option value="">(Sin preferencia)</option>
             {staffOptions.map((s) => (
-              <option key={s.id} value={s.name}>
-                {s.name}
-              </option>
+              <option key={s.id} value={s.name}>{s.name}</option>
             ))}
           </select>
           <span className="text-[11px] text-white/50">Se carga por API o desde summary STAFF</span>
         </label>
 
-        {/* Fecha premium */}
         <label className="space-y-1">
-          <FieldLabel text="Fecha" />
-          <CustomDatePicker value={datePart} onChange={setDatePart} />
+          <span className="text-xs text-white/80">Fecha y hora</span>
+          <div className="relative">
+            <input
+              type="datetime-local"
+              value={dateTime}
+              onChange={(e) => setDateTime(e.target.value)}
+              className="w-full rounded-xl border border-white/15 bg-zinc-900 px-3 py-3 pr-10 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            />
+            <FiCalendar className="absolute right-3 top-1/2 -translate-y-1/2 text-white/60" />
+          </div>
         </label>
-
-        {/* Hora + minutos premium */}
-        <div className="grid grid-cols-1 gap-3">
-          <label className="space-y-1">
-            <FieldLabel text="Hora (HH)" />
-            <div className="flex items-center gap-2">
-              <input
-                type="number"
-                min={0}
-                max={23}
-                value={hourPart}
-                onChange={(e) => setHourPart(e.target.value.padStart(2, '0'))}
-                className="w-24 rounded-xl border border-white/10 bg-[#0B0E12] px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
-              />
-              <Button variant="outline" type="button" onClick={() => bumpHour(-1)}>-1h</Button>
-              <Button variant="outline" type="button" onClick={() => bumpHour(+1)}>+1h</Button>
-            </div>
-          </label>
-
-          <label className="space-y-1">
-            <FieldLabel text="Minutos" />
-            <MinutePicker value={minutePart} onChange={setMinutePart} />
-          </label>
-        </div>
-
-        <label className="space-y-1">
-          <FieldLabel text="Duración (min)" />
-          <input
-            type="number"
-            value={String(durationMin)}
-            onChange={(e) => setDurationMin(Math.max(1, Number(e.target.value || 30)))}
-            className="w-full rounded-xl border border-white/10 bg-[#0B0E12] px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
-            placeholder="30"
-          />
-        </label>
-
-        <TextArea
-          label="Notas (opcional)"
-          value={notes}
-          onChange={setNotes}
-          placeholder="Observaciones, indicaciones…"
-        />
       </div>
 
-      <div className="flex justify-end gap-2 pt-1">
-        <Button variant="outline" type="button" onClick={onCancel}>
+      {/* Duración + Notas */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 rounded-2xl border border-white/10 bg-zinc-900/60 p-4">
+        <div className="space-y-1">
+          <span className="text-xs text-white/80">Duración (min)</span>
+          <div className="relative">
+            <input
+              type="number"
+              value={String(durationMin)}
+              onChange={(e) => setDurationMin(Math.max(1, Number(e.target.value || 1)))}
+              className="w-full rounded-xl border border-white/15 bg-zinc-900 px-3 py-3 pr-12 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              placeholder="30"
+              min={1}
+              step={5}
+            />
+            {/* Flechas premium */}
+            <div className="absolute right-1 top-1/2 -translate-y-1/2 flex flex-col">
+              <button
+                type="button"
+                onClick={() => bump(+5)}
+                className="rounded-lg p-1 hover:bg-white/10"
+                title="+5"
+              >
+                <FiChevronUp />
+              </button>
+              <button
+                type="button"
+                onClick={() => bump(-5)}
+                className="rounded-lg p-1 hover:bg-white/10"
+                title="-5"
+              >
+                <FiChevronDown />
+              </button>
+            </div>
+          </div>
+          <div className="mt-2 flex gap-2">
+            {[15, 30, 45, 60, 90].map((m) => (
+              <button
+                key={m}
+                type="button"
+                onClick={() => setDurationMin(m)}
+                className={cx(
+                  'rounded-lg px-2 py-1 text-xs border border-white/15 hover:bg-white/5',
+                  durationMin === m && 'border-emerald-400 bg-emerald-500/10'
+                )}
+              >
+                {m} min
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="md:col-span-2">
+          <TextArea
+            label="Notas (opcional)"
+            value={notes}
+            onChange={setNotes}
+            placeholder="Observaciones, indicaciones…"
+          />
+        </div>
+      </div>
+
+      <div className="flex justify-end gap-2">
+        <Button variant="outline" type="button" onClick={onCancel} disabled={saving}>
           Cancelar
         </Button>
-        <Button type="submit" className={cx(!(canSave) && 'opacity-60 pointer-events-none')}>
-          Guardar
-        </Button>
+        <button
+          type="submit"
+          disabled={!canSave}
+          className={cx(
+            'inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-400 disabled:opacity-60 disabled:cursor-not-allowed'
+          )}
+        >
+          {saving && <FiLoader className="h-4 w-4 animate-spin" />} Guardar
+        </button>
       </div>
     </form>
   )
