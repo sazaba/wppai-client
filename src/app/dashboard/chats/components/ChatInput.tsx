@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { FiSend, FiSmile, FiImage, FiCalendar, FiUser, FiPhone, FiInfo } from 'react-icons/fi'
+import { FiSend, FiSmile, FiImage, FiCalendar, FiUser, FiPhone } from 'react-icons/fi'
 import EmojiPicker, { EmojiClickData, EmojiStyle, Theme } from 'emoji-picker-react'
 import { motion } from 'framer-motion'
 import Swal from 'sweetalert2'
@@ -18,8 +18,6 @@ interface Props {
   onSendGif?: (url: string, isMp4: boolean) => void
   onUploadFile?: (file: File, type: MediaKind) => void
   onAppointmentCreated?: (created: { id: number; startAt: string }) => void
-
-  /** OPCIONALES para no tocar tu estrategia */
   conversationId?: number
   chatPhone?: string
   summaryText?: string
@@ -107,7 +105,7 @@ function cx(...c: (string | false | undefined)[]) {
   return c.filter(Boolean).join(' ')
 }
 
-/* ---------- Types para cita ---------- */
+/* ---------- Types ---------- */
 type CreateApptPayload = {
   name: string
   phone: string
@@ -119,7 +117,6 @@ type CreateApptPayload = {
   notes?: string
 }
 
-/* ---------- Util: extraer agenda/staff desde estado/summary ---------- */
 function extractAgendaFromState(state?: any): { nombre?: string; servicio?: string } {
   if (!state) return {}
   const nombre = state?.draft?.name || state?.draft?.pendingConfirm?.name
@@ -139,10 +136,7 @@ function extractAgendaFromSummaryBlock(summary?: string): { nombre?: string; ser
     const v = (mm?.[1] || '').trim()
     return v && v !== '—' ? v : undefined
   }
-  return {
-    servicio: take('tratamiento'),
-    nombre: take('nombre'),
-  }
+  return { servicio: take('tratamiento'), nombre: take('nombre') }
 }
 
 function extractStaffFromSummaryText(summaryText?: string): Array<{ id: number; name: string }> {
@@ -165,8 +159,6 @@ export default function ChatInput({
   onSendGif,
   onUploadFile,
   onAppointmentCreated,
-
-  // opcionales
   conversationId,
   chatPhone,
   summaryText,
@@ -174,9 +166,9 @@ export default function ChatInput({
   const [showEmoji, setShowEmoji] = useState(false)
   const [showAppt, setShowAppt] = useState(false)
   const [staffOpts, setStaffOpts] = useState<Array<{ id: number; name: string }>>([])
-  const [lockedName, setLockedName] = useState<string>('')       // desde draft / summary
-  const [lockedService, setLockedService] = useState<string>('') // desde draft / summary
-  const [lockedPhone, setLockedPhone] = useState<string>(chatPhone || '') // desde chat/estado
+  const [lockedName, setLockedName] = useState<string>('')       // viene de draft/summary (editable)
+  const [lockedService, setLockedService] = useState<string>('') // viene de draft/summary (editable)
+  const [lockedPhone, setLockedPhone] = useState<string>(chatPhone || '') // viene del chat/estado (editable)
   const fileRef = useRef<HTMLInputElement | null>(null)
   const inputRef = useRef<HTMLInputElement | null>(null)
 
@@ -194,20 +186,16 @@ export default function ChatInput({
         const list = Array.isArray(res?.data) ? res.data : []
         const active = list.filter((s) => s && (s as any).active !== false)
         setStaffOpts(active.map((s) => ({ id: s.id, name: s.name })))
-      } catch {
-        /* silencio */
-      }
+      } catch {/* noop */}
     }
     loadStaff()
   }, [token])
 
-  /* ---- Primeros datos desde props (summaryText/chatPhone) ---- */
+  /* ---- Primeros datos desde props ---- */
   useEffect(() => {
     if (summaryText) {
-      // 1) staff desde summary
       const staffFromSummary = extractStaffFromSummaryText(summaryText)
       if (staffFromSummary.length && !staffOpts.length) setStaffOpts(staffFromSummary)
-      // 2) agenda desde bloque (fallback)
       const agBlock = extractAgendaFromSummaryBlock(summaryText)
       if (agBlock.nombre && !lockedName) setLockedName(agBlock.nombre)
       if (agBlock.servicio && !lockedService) setLockedService(agBlock.servicio)
@@ -221,60 +209,43 @@ export default function ChatInput({
     const prime = async () => {
       if (!conversationId || !token) return
       try {
-        // Estado principal
         const stateResp = await api<any>(CI.state(conversationId), undefined, token)
-        // shape esperado: { data, phone, summary, conversation }
         const state = stateResp?.data ?? null
-
         const { nombre, servicio } = extractAgendaFromState(state)
         if (nombre && !lockedName) setLockedName(nombre)
         if (servicio && !lockedService) setLockedService(servicio)
 
-        const phoneFromState =
-          stateResp?.phone ||
-          state?.phone ||
-          stateResp?.conversation?.phone
+        const phoneFromState = stateResp?.phone || state?.phone || stateResp?.conversation?.phone
         if (phoneFromState && !lockedPhone) setLockedPhone(String(phoneFromState))
 
-        const summaryFromStateText =
-          stateResp?.summary?.text ||
-          state?.summary?.text ||
-          null
-
+        const summaryFromStateText = stateResp?.summary?.text || state?.summary?.text || null
         const staffFromSummary = extractStaffFromSummaryText(summaryFromStateText || '')
         if (staffFromSummary.length && !staffOpts.length) setStaffOpts(staffFromSummary)
 
-        // Fallback: bloque AGENDA_COLECTADA
         if ((!nombre || !servicio) && summaryFromStateText) {
           const agBlock = extractAgendaFromSummaryBlock(summaryFromStateText)
           if (agBlock.nombre && !lockedName) setLockedName(agBlock.nombre)
           if (agBlock.servicio && !lockedService) setLockedService(agBlock.servicio)
         }
       } catch {
-        // Fallback: meta simple
         try {
           const meta = await api<any>(CI.meta(conversationId), undefined, token)
-          // shape: { id, phone, nombre, estado, summary }
           const phoneFromConv = meta?.phone
           if (phoneFromConv && !lockedPhone) setLockedPhone(String(phoneFromConv))
-
           const summaryFromMetaText = meta?.summary?.text as string | undefined
           const staffFromSummary = extractStaffFromSummaryText(summaryFromMetaText || '')
           if (staffFromSummary.length && !staffOpts.length) setStaffOpts(staffFromSummary)
-
           const agBlock = extractAgendaFromSummaryBlock(summaryFromMetaText || '')
           if (agBlock.nombre && !lockedName) setLockedName(agBlock.nombre)
           if (agBlock.servicio && !lockedService) setLockedService(agBlock.servicio)
-        } catch {
-          /* noop */
-        }
+        } catch {/* noop */}
       }
     }
     prime()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [conversationId, token])
 
-  /* ---- Insertar emoji en la posición del caret ---- */
+  /* ---- Insertar emoji en el caret ---- */
   const insertAtCursor = useCallback(
     (insertText: string) => {
       const el = inputRef.current
@@ -289,9 +260,7 @@ export default function ChatInput({
       onChange(newVal)
       requestAnimationFrame(() => {
         el.focus()
-        try {
-          el.setSelectionRange(caret, caret)
-        } catch {}
+        try { el.setSelectionRange(caret, caret) } catch {}
       })
     },
     [onChange, value]
@@ -329,7 +298,6 @@ export default function ChatInput({
     e.currentTarget.value = ''
   }
 
-  // Pegar archivos/imágenes directamente en el input
   const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
     const items = e.clipboardData?.items
     if (!items || !onUploadFile) return
@@ -348,26 +316,15 @@ export default function ChatInput({
     }
   }
 
-  /* ---- Crear cita desde el chat (POST al backend) ---- */
+  /* ---- Crear cita ---- */
   async function createAppointmentFromChat(data: CreateApptPayload) {
     if (!empresaId || !token) {
       await alertError('No se pudo agendar', '<span>Falta sesión o empresa seleccionada.</span>')
       return
     }
-
-    // Validaciones duras: solo fuentes de verdad
-    if (!lockedName) {
-      await alertError('Falta el nombre', 'El nombre debe venir del estado (draft del summary).')
-      return
-    }
-    if (!lockedService) {
-      await alertError('Falta el servicio', 'El servicio debe venir del estado (draft del summary).')
-      return
-    }
-    if (!lockedPhone) {
-      await alertError('Falta el teléfono', 'No se detectó el teléfono del chat.')
-      return
-    }
+    if (!data.name?.trim())  { await alertError('Falta el nombre'); return }
+    if (!data.service?.trim()) { await alertError('Falta el servicio'); return }
+    if (!data.phone?.trim()) { await alertError('Falta el teléfono'); return }
 
     try {
       const { iso: startAtISO, dateLocal } = localToISOWithOffset(data.startISO, -300)
@@ -380,9 +337,9 @@ export default function ChatInput({
 
       const body = {
         empresaId,
-        customerName: lockedName,
-        customerPhone: lockedPhone,
-        serviceName: lockedService,
+        customerName: data.name,
+        customerPhone: data.phone,
+        serviceName: data.service,
         providerName: data.provider || null,
         sede: data.sede || null,
         notas: data.notes || null,
@@ -406,27 +363,6 @@ export default function ChatInput({
       )
 
       onAppointmentCreated?.({ id: created.id, startAt: created.startAt })
-
-      const wantConfirm = await DarkSwal.fire({
-        icon: 'question',
-        title: '¿Confirmar 24 horas antes?',
-        text: 'Puedo programar un recordatorio automático 24 h antes de la cita.',
-        showCancelButton: true,
-        confirmButtonText: 'Sí, programar',
-        cancelButtonText: 'No, gracias',
-      })
-
-      if (wantConfirm.isConfirmed) {
-        try {
-          await api<{ ok: boolean }>(`/api/appointments/${created.id}/schedule-confirm-24h`, { method: 'POST' }, token)
-          await alertSuccess('Confirmación programada', 'Se enviará un recordatorio 24 h antes de la cita.')
-        } catch {
-          await alertError(
-            'No se pudo programar automáticamente',
-            'Aún no está disponible el programador. La cita quedó agendada correctamente.'
-          )
-        }
-      }
     } catch (err) {
       const msg = extractErrorMessage(err)
       await alertError('No se pudo agendar la cita', `<pre style="text-align:left;white-space:pre-wrap;">${msg}</pre>`)
@@ -478,7 +414,7 @@ export default function ChatInput({
           <FiCalendar className="w-5 h-5 text-[#D1D7DB]" />
         </button>
 
-        {/* Multimedia (imagen / video / audio / doc) */}
+        {/* Multimedia */}
         <button
           type="button"
           onClick={() => fileRef.current?.click()}
@@ -526,13 +462,13 @@ export default function ChatInput({
       {/* Dialogo para crear cita */}
       <Dialog open={showAppt} onClose={() => setShowAppt(false)}>
         <CreateApptForm
-          lockedName={lockedName}
-          lockedPhone={lockedPhone}
-          lockedService={lockedService}
+          defaultName={lockedName}
+          defaultPhone={lockedPhone}
+          defaultService={lockedService}
           staffOptions={staffOpts}
           onCancel={() => setShowAppt(false)}
-          onSave={async (data) => {
-            await createAppointmentFromChat(data)
+          onSave={async (payload) => {
+            await createAppointmentFromChat(payload)
             setShowAppt(false)
           }}
         />
@@ -658,62 +594,82 @@ function TextArea({
 function CreateApptForm({
   onSave,
   onCancel,
-  lockedName,
-  lockedPhone,
-  lockedService,
+  defaultName,
+  defaultPhone,
+  defaultService,
   staffOptions,
 }: {
   onSave: (d: CreateApptPayload) => Promise<void> | void
   onCancel: () => void
-  lockedName: string
-  lockedPhone: string
-  lockedService: string
+  defaultName: string
+  defaultPhone: string
+  defaultService: string
   staffOptions: Array<{ id: number; name: string }>
 }) {
-  const nowLocal = useMemo(() => {
-    const d = new Date()
-    const yyyy = d.getFullYear()
-    const MM = String(d.getMonth() + 1).padStart(2, '0')
-    const dd = String(d.getDate()).padStart(2, '0')
-    const HH = String(d.getHours()).padStart(2, '0')
-    const mm = String(d.getMinutes()).padStart(2, '0')
-    return `${yyyy}-${MM}-${dd}T${HH}:${mm}`
+  // Defaults locales
+  const now = new Date()
+  const yyyy = now.getFullYear()
+  const MM = String(now.getMonth() + 1).padStart(2, '0')
+  const dd = String(now.getDate()).padStart(2, '0')
+  const HH = String(now.getHours()).padStart(2, '0')
+  const mm = String(now.getMinutes()).padStart(2, '0')
+
+  const [name, setName] = useState(defaultName || '')
+  const [phone, setPhone] = useState(defaultPhone || '')
+  const [service, setService] = useState(defaultService || '')
+  const [sede, setSede] = useState('')
+  const [provider, setProvider] = useState('')
+  const [datePart, setDatePart] = useState(`${yyyy}-${MM}-${dd}`)      // YYYY-MM-DD
+  const [hourPart, setHourPart] = useState(HH)                         // HH
+  const [minutePart, setMinutePart] = useState(mm.padStart(2, '0'))    // mm
+  const [durationMin, setDurationMin] = useState<number>(30)
+  const [notes, setNotes] = useState('')
+
+  // Si llegan locks luego de montar, sincroniza
+  useEffect(() => { if (defaultName) setName(defaultName) }, [defaultName])
+  useEffect(() => { if (defaultPhone) setPhone(defaultPhone) }, [defaultPhone])
+  useEffect(() => { if (defaultService) setService(defaultService) }, [defaultService])
+
+  const minutesOptions = useMemo(() => {
+    const arr: string[] = []
+    for (let m = 0; m < 60; m += 5) arr.push(String(m).padStart(2, '0'))
+    return arr
   }, [])
 
-  const [form, setForm] = useState<CreateApptPayload>({
-    name: lockedName || '',
-    phone: lockedPhone || '',
-    service: lockedService || '',
-    sede: '',
-    provider: '',
-    startISO: nowLocal,
-    durationMin: 30,
-    notes: '',
-  })
+  const timeHHMM = useMemo(() => {
+    const H = String(Math.max(0, Math.min(23, Number(hourPart) || 0))).padStart(2, '0')
+    const M = String(Math.max(0, Math.min(59, Number(minutePart) || 0))).padStart(2, '0')
+    return `${H}:${M}`
+  }, [hourPart, minutePart])
 
-  // si cambian los locks después de montar (fetch asíncrono), sincroniza
-  useEffect(() => {
-    setForm((s) => ({
-      ...s,
-      name: lockedName || s.name,
-      phone: lockedPhone || s.phone,
-      service: lockedService || s.service,
-    }))
-  }, [lockedName, lockedPhone, lockedService])
+  const startISO = useMemo(() => `${datePart}T${timeHHMM}`, [datePart, timeHHMM])
+
+  function bumpMinutes(delta: number) {
+    const [H, M] = timeHHMM.split(':').map(Number)
+    const base = new Date(2000, 0, 1, H, M, 0, 0)
+    base.setMinutes(base.getMinutes() + delta)
+    setHourPart(String(base.getHours()).padStart(2, '0'))
+    setMinutePart(String(base.getMinutes()).padStart(2, '0'))
+  }
 
   const canSave =
-    form.name.trim() &&
-    form.phone.trim() &&
-    form.service.trim() &&
-    form.startISO.length >= 16 &&
-    Number(form.durationMin) > 0
+    name.trim() &&
+    phone.trim() &&
+    service.trim() &&
+    datePart.length === 10 &&
+    timeHHMM.length === 5 &&
+    Number(durationMin) > 0
 
   return (
     <form
       onSubmit={async (e) => {
         e.preventDefault()
         if (!canSave) return
-        await onSave(form)
+        const payload: CreateApptPayload = {
+          name, phone, service, sede, provider,
+          startISO, durationMin, notes,
+        }
+        await onSave(payload)
       }}
       className="space-y-4 text-white"
     >
@@ -721,48 +677,19 @@ function CreateApptForm({
         <FiCalendar className="h-5 w-5" /> Crear nueva cita
       </h2>
 
-      {/* Aviso de bloqueos/locks de fuente de verdad */}
-      <div className="flex items-start gap-2 rounded-xl border border-amber-400/30 bg-amber-500/10 p-3 text-amber-200">
-        <FiInfo className="mt-0.5 h-4 w-4" />
-        <p className="text-sm">
-          <b>Reglas:</b> Nombre y servicio se toman <i>solo</i> del estado (draft del summary); el teléfono es el del
-          chat; el profesional se elige del staff (BD).
-        </p>
-      </div>
-
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <Input
-          label="Nombre cliente"
-          value={form.name}
-          onChange={() => {}}
-          readOnly
-          disabled
-          rightIcon={<FiUser />}
-          helpText="Bloqueado: viene del draft del summary"
-        />
-        <Input
-          label="Teléfono (chat)"
-          value={form.phone}
-          onChange={() => {}}
-          readOnly
-          disabled
-          rightIcon={<FiPhone />}
-          helpText="Bloqueado: teléfono del chat/estado"
-        />
+        <Input label="Nombre cliente" value={name} onChange={setName} rightIcon={<FiUser />} />
+        <Input label="Teléfono (chat)" value={phone} onChange={setPhone} rightIcon={<FiPhone />} />
 
-        <Input
-          label="Sede (opcional)"
-          value={form.sede || ''}
-          onChange={(v) => setForm((s) => ({ ...s, sede: v }))}
-          placeholder="Ej. Sede Centro"
-        />
+        <Input label="Servicio" value={service} onChange={setService} placeholder="Ej. Limpieza facial" />
+        <Input label="Sede (opcional)" value={sede} onChange={setSede} placeholder="Ej. Sede Centro" />
 
-        {/* Staff desde BD (o summary si API no responde) */}
+        {/* Staff desde BD */}
         <label className="space-y-1">
           <span className="text-xs text-white/80">Profesional (staff)</span>
           <select
-            value={form.provider || ''}
-            onChange={(e) => setForm((s) => ({ ...s, provider: e.target.value }))}
+            value={provider || ''}
+            onChange={(e) => setProvider(e.target.value)}
             className="w-full rounded-xl border border-white/15 bg-zinc-900 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
           >
             <option value="">(Sin preferencia)</option>
@@ -775,34 +702,62 @@ function CreateApptForm({
           <span className="text-[11px] text-white/50">Se carga por API o desde summary STAFF</span>
         </label>
 
-        <Input
-          label="Servicio"
-          value={form.service}
-          onChange={() => {}}
-          readOnly
-          disabled
-          helpText="Bloqueado: viene del draft del summary"
-        />
+        {/* Fecha y hora mejoradas */}
+        <label className="space-y-1">
+          <span className="text-xs text-white/80">Fecha</span>
+          <input
+            type="date"
+            value={datePart}
+            onChange={(e) => setDatePart(e.target.value)}
+            className="w-full rounded-xl border border-white/15 bg-zinc-900 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+          />
+        </label>
 
-        <Input
-          label="Fecha y hora"
-          type="datetime-local"
-          value={form.startISO}
-          onChange={(v) => setForm((s) => ({ ...s, startISO: v }))}
-        />
+        <div className="grid grid-cols-3 gap-2">
+          <label className="space-y-1">
+            <span className="text-xs text-white/80">Hora (HH)</span>
+            <input
+              type="number"
+              min={0}
+              max={23}
+              value={hourPart}
+              onChange={(e) => setHourPart(e.target.value.padStart(2, '0'))}
+              className="w-full rounded-xl border border-white/15 bg-zinc-900 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            />
+          </label>
+          <label className="space-y-1">
+            <span className="text-xs text-white/80">Minutos</span>
+            <select
+              value={minutePart}
+              onChange={(e) => setMinutePart(e.target.value)}
+              className="w-full rounded-xl border border-white/15 bg-zinc-900 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            >
+              {minutesOptions.map((m) => (
+                <option key={m} value={m}>{m}</option>
+              ))}
+            </select>
+          </label>
+          <div className="flex items-end gap-2">
+            <Button type="button" variant="outline" onClick={() => bumpMinutes(-15)}>-15 min</Button>
+            <Button type="button" variant="outline" onClick={() => bumpMinutes(+15)}>+15 min</Button>
+          </div>
+        </div>
 
-        <Input
-          label="Duración (min)"
-          type="number"
-          value={String(form.durationMin || 30)}
-          onChange={(v) => setForm((s) => ({ ...s, durationMin: Number(v || 30) }))}
-          placeholder="30"
-        />
+        <label className="space-y-1">
+          <span className="text-xs text-white/80">Duración (min)</span>
+          <input
+            type="number"
+            value={String(durationMin)}
+            onChange={(e) => setDurationMin(Math.max(1, Number(e.target.value || 30)))}
+            className="w-full rounded-xl border border-white/15 bg-zinc-900 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            placeholder="30"
+          />
+        </label>
 
         <TextArea
           label="Notas (opcional)"
-          value={form.notes || ''}
-          onChange={(v) => setForm((s) => ({ ...s, notes: v }))}
+          value={notes}
+          onChange={setNotes}
           placeholder="Observaciones, indicaciones…"
         />
       </div>
@@ -811,7 +766,7 @@ function CreateApptForm({
         <Button variant="outline" type="button" onClick={onCancel}>
           Cancelar
         </Button>
-        <Button type="submit" className={cx(!canSave && 'opacity-60 pointer-events-none')}>
+        <Button type="submit" className={cx(!(canSave) && 'opacity-60 pointer-events-none')}>
           Guardar
         </Button>
       </div>
