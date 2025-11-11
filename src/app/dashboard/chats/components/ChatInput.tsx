@@ -30,6 +30,7 @@ const CI = {
   state: (id: number) => `/api/chat-input/state/${id}`,
   meta:  (id: number) => `/api/chat-input/meta/${id}`,
   staff: `/api/chat-input/staff`,
+  services: `/api/chat-input/services`,
 }
 
 const DarkSwal = Swal.mixin({
@@ -69,13 +70,11 @@ function localToISOWithOffset(local: string, offsetMinutes = -300): { iso: strin
   const [d, hm] = (rest || '').split('T')
   const [H, M] = (hm || '').split(':')
   const dateLocal = new Date(Number(y), Number(m) - 1, Number(d), Number(H || 0), Number(M || 0), 0, 0)
-
   const sign = offsetMinutes <= 0 ? '-' : '+'
   const abs = Math.abs(offsetMinutes)
   const oh = String(Math.floor(abs / 60)).padStart(2, '0')
   const om = String(abs % 60).padStart(2, '0')
   const tz = `${sign}${oh}:${om}`
-
   const yyyy = dateLocal.getFullYear()
   const MM = String(dateLocal.getMonth() + 1).padStart(2, '0')
   const dd = String(dateLocal.getDate()).padStart(2, '0')
@@ -161,8 +160,10 @@ export default function ChatInput({
   const [showEmoji, setShowEmoji] = useState(false)
   const [showAppt, setShowAppt] = useState(false)
   const [staffOpts, setStaffOpts] = useState<Array<{ id: number; name: string }>>([])
-  const [lockedName, setLockedName] = useState<string>('')       // ahora editable
-  const [lockedService, setLockedService] = useState<string>('') // ahora editable
+  // ⬇️ ahora servicios incluyen defaultDuration
+  const [serviceOpts, setServiceOpts] = useState<Array<{ id: number; name: string; defaultDuration?: number }>>([])
+  const [lockedName, setLockedName] = useState<string>('')
+  const [lockedService, setLockedService] = useState<string>('')
   const [lockedPhone, setLockedPhone] = useState<string>(chatPhone || '')
   const fileRef = useRef<HTMLInputElement | null>(null)
   const inputRef = useRef<HTMLInputElement | null>(null)
@@ -175,15 +176,31 @@ export default function ChatInput({
     const loadStaff = async () => {
       if (!token) return
       try {
-        const res = await api<{ ok: boolean; data: Array<{ id: number; name: string; role?: string; active?: boolean }> }>(
+        const res = await api<{ ok: boolean; data: Array<{ id: number; name: string; active?: boolean }> }>(
           CI.staff, undefined, token
         )
         const list = Array.isArray(res?.data) ? res.data : []
         const active = list.filter((s) => s && (s as any).active !== false)
         setStaffOpts(active.map((s) => ({ id: s.id, name: s.name })))
-      } catch {/* noop */}
+      } catch {}
     }
     loadStaff()
+  }, [token])
+
+  /* ---- Servicios (con defaultDuration) ---- */
+  useEffect(() => {
+    const loadServices = async () => {
+      if (!token) return
+      try {
+        const res = await api<{ ok: boolean; data: Array<{ id: number; name: string; active?: boolean; defaultDuration?: number }> }>(
+          CI.services, undefined, token
+        )
+        const list = Array.isArray(res?.data) ? res.data : []
+        const active = list.filter((s) => s && (s as any).active !== false)
+        setServiceOpts(active.map((s) => ({ id: s.id, name: s.name, defaultDuration: (s as any).defaultDuration })))
+      } catch {}
+    }
+    loadServices()
   }, [token])
 
   /* ---- Props ---- */
@@ -230,7 +247,7 @@ export default function ChatInput({
           const agBlock = extractAgendaFromSummaryBlock(summaryFromMetaText || '')
           if (agBlock.nombre && !lockedName) setLockedName(agBlock.nombre)
           if (agBlock.servicio && !lockedService) setLockedService(agBlock.servicio)
-        } catch {/* noop */}
+        } catch {}
       }
     }
     prime()
@@ -439,6 +456,7 @@ export default function ChatInput({
           defaultPhone={lockedPhone}
           defaultService={lockedService}
           staffOptions={staffOpts}
+          serviceOptions={serviceOpts}
           onCancel={() => setShowAppt(false)}
           onSave={async (payload) => {
             await createAppointmentFromChat(payload)
@@ -544,10 +562,10 @@ function TextArea({
   helpText?: string
 }) {
   return (
-    <label className="space-y-1 sm:col-span-2">
+    <label className="space-y-1 w-full">
       <span className="text-xs text-white/80">{label}</span>
       <textarea
-        rows={3}
+        rows={4}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
@@ -571,6 +589,7 @@ function CreateApptForm({
   defaultPhone,
   defaultService,
   staffOptions,
+  serviceOptions,
 }: {
   onSave: (d: CreateApptPayload) => Promise<void> | void
   onCancel: () => void
@@ -578,6 +597,7 @@ function CreateApptForm({
   defaultPhone: string
   defaultService: string
   staffOptions: Array<{ id: number; name: string }>
+  serviceOptions: Array<{ id: number; name: string; defaultDuration?: number }>
 }) {
   // Defaults
   const now = new Date()
@@ -593,10 +613,19 @@ function CreateApptForm({
   const [service, setService] = useState(defaultService || '')
   const [sede, setSede] = useState('')
   const [provider, setProvider] = useState('')
-  const [dateTime, setDateTime] = useState(`${yyyy}-${MM}-${dd}T${HH}:${mm}`) // <- fecha + hora (datetime-local)
+  const [dateTime, setDateTime] = useState(`${yyyy}-${MM}-${dd}T${HH}:${mm}`) // fecha + hora
   const [durationMin, setDurationMin] = useState<number>(30)
   const [notes, setNotes] = useState('')
   const [saving, setSaving] = useState(false)
+
+  // Si el servicio prellenado tiene defaultDuration, úsalo al montar
+  useEffect(() => {
+    if (!service || !serviceOptions.length) return
+    const found = serviceOptions.find(s => s.name === service)
+    if (found?.defaultDuration && Number.isFinite(found.defaultDuration)) {
+      setDurationMin(found.defaultDuration as number)
+    }
+  }, [serviceOptions, service])
 
   // sync locks si llegan luego
   useEffect(() => { if (defaultName) setName(defaultName) }, [defaultName])
@@ -609,6 +638,19 @@ function CreateApptForm({
 
   // helpers duración
   const bump = (delta: number) => setDurationMin((v) => Math.max(1, v + delta))
+
+  // chips sugeridos dinámicos (incluye defaultDuration si existe)
+  const suggestedChips = useMemo(() => {
+    const base = [15, 30, 45, 60, 90]
+    const current = serviceOptions.find(s => s.name === service)?.defaultDuration
+    const list = current && !base.includes(current) ? [...base, current] : base
+    return [...new Set(list)].sort((a, b) => a - b)
+  }, [serviceOptions, service])
+
+  const suggestedMsg = useMemo(() => {
+    const d = serviceOptions.find(s => s.name === service)?.defaultDuration
+    return d ? `Sugerido por servicio: ${d} min` : ''
+  }, [serviceOptions, service])
 
   return (
     <form
@@ -636,12 +678,35 @@ function CreateApptForm({
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 rounded-2xl border border-white/10 bg-zinc-900/60 p-4">
         <Input label="Nombre cliente" value={name} onChange={setName} />
         <Input label="Teléfono (chat)" value={phone} onChange={setPhone} />
-        <Input label="Servicio" value={service} onChange={setService} placeholder="Ej. Limpieza facial" />
+        {/* Servicio desde BD con defaultDuration */}
+        <label className="space-y-1">
+          <span className="text-xs text-white/80">Servicio</span>
+          <select
+            value={service}
+            onChange={(e) => {
+              const v = e.target.value
+              setService(v)
+              const opt = serviceOptions.find(s => s.name === v)
+              if (opt?.defaultDuration && Number.isFinite(opt.defaultDuration)) {
+                setDurationMin(opt.defaultDuration as number)
+              }
+            }}
+            className="w-full rounded-xl border border-white/15 bg-zinc-900 px-3 py-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+          >
+            <option value="">{service ? `(Mantener: ${service})` : '(Selecciona un servicio)'}</option>
+            {serviceOptions.map((s) => (
+              <option key={s.id} value={s.name}>
+                {s.name}{s.defaultDuration ? ` — ${s.defaultDuration} min` : ''}
+              </option>
+            ))}
+          </select>
+          {suggestedMsg && <span className="text-[11px] text-emerald-300">{suggestedMsg}</span>}
+        </label>
         <Input label="Sede (opcional)" value={sede} onChange={setSede} placeholder="Ej. Sede Centro" />
       </div>
 
       {/* Staff + Fecha/Hora */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 rounded-2xl border border-white/10 bg-zinc-900/60 p-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 rounded-2xl border border-white/10 bg-zinc-900/60 p-4 items-start">
         <label className="space-y-1">
           <span className="text-xs text-white/80">Profesional (staff)</span>
           <select
@@ -672,8 +737,8 @@ function CreateApptForm({
       </div>
 
       {/* Duración + Notas */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 rounded-2xl border border-white/10 bg-zinc-900/60 p-4">
-        <div className="space-y-1">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 rounded-2xl border border-white/10 bg-zinc-900/60 p-4 items-start">
+        <div className="space-y-2">
           <span className="text-xs text-white/80">Duración (min)</span>
           <div className="relative">
             <input
@@ -687,26 +752,17 @@ function CreateApptForm({
             />
             {/* Flechas premium */}
             <div className="absolute right-1 top-1/2 -translate-y-1/2 flex flex-col">
-              <button
-                type="button"
-                onClick={() => bump(+5)}
-                className="rounded-lg p-1 hover:bg-white/10"
-                title="+5"
-              >
+              <button type="button" onClick={() => bump(+5)} className="rounded-lg p-1 hover:bg-white/10" title="+5">
                 <FiChevronUp />
               </button>
-              <button
-                type="button"
-                onClick={() => bump(-5)}
-                className="rounded-lg p-1 hover:bg-white/10"
-                title="-5"
-              >
+              <button type="button" onClick={() => bump(-5)} className="rounded-lg p-1 hover:bg-white/10" title="-5">
                 <FiChevronDown />
               </button>
             </div>
           </div>
-          <div className="mt-2 flex gap-2">
-            {[15, 30, 45, 60, 90].map((m) => (
+
+          <div className="flex flex-wrap gap-2 pt-1">
+            {suggestedChips.map((m) => (
               <button
                 key={m}
                 type="button"
@@ -722,7 +778,7 @@ function CreateApptForm({
           </div>
         </div>
 
-        <div className="md:col-span-2">
+        <div className="w-full">
           <TextArea
             label="Notas (opcional)"
             value={notes}
