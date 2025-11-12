@@ -4,17 +4,19 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { RotateCw, Calendar, Bot } from 'lucide-react'
 import axios from 'axios'
+import Swal from 'sweetalert2'
+import 'sweetalert2/dist/sweetalert2.min.css'
+
 import ModalEntrenamiento from './components/training/ModalEntrenamiento'
 import WhatsappConfig from './components/WhatsappConfig'
+import ActivatePhoneCard from './ActivatePhoneCard'
 
 import type {
   ConfigForm,
   BusinessType,
   BackendBusinessConfig,
 } from './components/training/types'
-import ActivatePhoneCard from './ActivatePhoneCard'
 
-// 👇 NUEVO: usa tus servicios (con unwrap)
 import { getApptConfig, getAppointmentHours } from '@/services/estetica.service'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL as string
@@ -25,7 +27,6 @@ function getAuthHeaders(): Record<string, string> {
   return token ? { Authorization: `Bearer ${token}` } : {}
 }
 
-// Defaults acotados (compat backend)
 const DEFAULTS: ConfigForm = {
   nombre: '',
   descripcion: '',
@@ -81,7 +82,6 @@ function materializeConfig(data?: BackendBusinessConfig | null): ConfigForm {
   }
 }
 
-// ===== Helpers de detección de configuración =====
 function isAgentConfigured(cfg: ConfigForm | null): boolean {
   if (!cfg) return false
   const hasText =
@@ -92,17 +92,14 @@ function isAgentConfigured(cfg: ConfigForm | null): boolean {
   return Boolean(hasText || specialtySet)
 }
 
-// 🔁 NUEVO: detección usando servicios (unwrap) + horarios
 async function fetchAppointmentsConfigured(): Promise<boolean> {
   try {
     const [cfg, hours] = await Promise.all([getApptConfig(), getAppointmentHours()])
-
     const enabled = !!cfg?.appointmentEnabled
     const hasTz = typeof cfg?.appointmentTimezone === 'string' && cfg.appointmentTimezone.trim() !== ''
     const hasVert = typeof cfg?.appointmentVertical === 'string' && cfg.appointmentVertical.trim() !== ''
     const hasServ = typeof (cfg as any)?.servicesText === 'string' && (cfg as any).servicesText.trim() !== ''
     const anyOpen = Array.isArray(hours) && hours.some((h: any) => !!h?.isOpen)
-
     return Boolean(enabled || hasTz || hasVert || hasServ || anyOpen)
   } catch {
     return false
@@ -111,19 +108,14 @@ async function fetchAppointmentsConfigured(): Promise<boolean> {
 
 export default function SettingsPage() {
   const router = useRouter()
-
   const [form, setForm] = useState<ConfigForm>(DEFAULTS)
   const [configGuardada, setConfigGuardada] = useState<ConfigForm | null>(null)
-
-  // Flags para ocultar cards y mostrar acciones
   const [agentConfigured, setAgentConfigured] = useState(false)
   const [appointmentsConfigured, setAppointmentsConfigured] = useState(false)
-
-  // Modal (solo para Agente)
   const [trainingActive, setTrainingActive] = useState(false)
   const [initialTrainingPanel, setInitialTrainingPanel] = useState<'agente' | null>(null)
-
   const [loading, setLoading] = useState(true)
+  const [resetting, setResetting] = useState(false)
 
   async function refreshAll() {
     try {
@@ -131,7 +123,6 @@ export default function SettingsPage() {
       const safe = materializeConfig(data as BackendBusinessConfig)
       setConfigGuardada(Object.keys(data || {}).length ? safe : null)
       setForm(safe)
-
       setAgentConfigured(isAgentConfigured(safe))
       const apptOk = await fetchAppointmentsConfigured()
       setAppointmentsConfigured(apptOk)
@@ -151,15 +142,50 @@ export default function SettingsPage() {
   }, [])
 
   const reiniciarEntrenamiento = async () => {
+    const confirm = await Swal.fire({
+      title: '¿Reiniciar entrenamiento?',
+      html: `
+        <div class="text-slate-300">
+          Se <b>eliminará</b> la configuración actual del negocio y se limpiará la agenda
+          (config de estética, horarios, staff, procedimientos y excepciones).
+        </div>
+      `,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Sí, reiniciar',
+      cancelButtonText: 'Cancelar',
+      background: '#0f172a',
+      color: '#e2e8f0',
+      iconColor: '#f59e0b',
+      confirmButtonColor: '#ef4444',
+      cancelButtonColor: '#334155',
+      customClass: {
+        popup: 'rounded-2xl border border-white/10',
+        title: 'text-slate-100',
+        htmlContainer: 'text-slate-300',
+        confirmButton: 'rounded-xl',
+        cancelButton: 'rounded-xl',
+      },
+    })
+    if (!confirm.isConfirmed) return
+
+    setResetting(true)
+    await Swal.fire({
+      title: 'Reiniciando…',
+      html: '<div class="text-slate-300">Aplicando cambios y limpiando datos…</div>',
+      allowOutsideClick: false,
+      allowEscapeKey: false,
+      didOpen: () => Swal.showLoading(),
+      background: '#0f172a',
+      color: '#e2e8f0',
+      customClass: {
+        popup: 'rounded-2xl border border-white/10',
+        title: 'text-slate-100',
+        htmlContainer: 'text-slate-300',
+      },
+    })
+
     try {
-      if (typeof window !== 'undefined') {
-        const ok = window.confirm(
-          '¿Reiniciar todo?\n\nSe eliminará la configuración actual del negocio y se limpiará la agenda (config de estética, horarios, staff, procedimientos y excepciones).'
-        )
-        if (!ok) return
-      }
-  
-      // 1) PURGE total de Estética (nuevo endpoint)
       let esteticaPurged = false
       try {
         await axios.delete(`${API_URL}/api/estetica/purge`, {
@@ -170,8 +196,7 @@ export default function SettingsPage() {
       } catch (err) {
         console.warn('[reiniciar] DELETE /api/estetica/purge falló, intentaré legacy:', err)
       }
-  
-      // Fallback legacy si /purge no existe o falla: borrar config + hours
+
       if (!esteticaPurged) {
         let apptWiped = false
         try {
@@ -183,21 +208,19 @@ export default function SettingsPage() {
         } catch (err) {
           console.warn('[reiniciar] DELETE /api/estetica/config?purgeHours=1 falló, probaré /reset:', err)
         }
-  
+
         if (!apptWiped) {
           try {
-            await axios.post(
-              `${API_URL}/api/estetica/config/reset`,
-              null,
-              { headers: getAuthHeaders(), params: { t: Date.now() } }
-            )
+            await axios.post(`${API_URL}/api/estetica/config/reset`, null, {
+              headers: getAuthHeaders(),
+              params: { t: Date.now() },
+            })
           } catch (err) {
             console.warn('[reiniciar] POST /api/estetica/config/reset también falló:', err)
           }
         }
       }
-  
-      // 2) Reset principal del AGENTE (se mantiene)
+
       try {
         await axios.post(`${API_URL}/api/config/reset`, null, {
           params: { withCatalog: true, t: Date.now() },
@@ -206,24 +229,53 @@ export default function SettingsPage() {
       } catch (e) {
         console.warn('[reiniciar] /api/config/reset falló (se ignora):', e)
       }
-  
-      // 3) Estado local limpio
+
       setConfigGuardada(null)
       setForm(DEFAULTS)
       setAgentConfigured(false)
       setAppointmentsConfigured(false)
       setInitialTrainingPanel(null)
       setTrainingActive(false)
+
+      await Swal.fire({
+        title: '¡Reinicio completado!',
+        text: 'La configuración fue limpiada correctamente.',
+        icon: 'success',
+        confirmButtonText: 'Listo',
+        background: '#0f172a',
+        color: '#e2e8f0',
+        iconColor: '#22c55e',
+        confirmButtonColor: '#7c3aed',
+        customClass: {
+          popup: 'rounded-2xl border border-white/10',
+          title: 'text-slate-100',
+          htmlContainer: 'text-slate-300',
+          confirmButton: 'rounded-xl',
+        },
+      })
     } catch (e: any) {
       console.error('[reiniciarEntrenamiento] error:', e?.response?.data || e?.message || e)
-      alert('Error al reiniciar configuración')
+      await Swal.fire({
+        title: 'Error al reiniciar',
+        text: e?.message || 'No fue posible completar el reinicio.',
+        icon: 'error',
+        confirmButtonText: 'Entendido',
+        background: '#0f172a',
+        color: '#e2e8f0',
+        iconColor: '#ef4444',
+        confirmButtonColor: '#7c3aed',
+        customClass: {
+          popup: 'rounded-2xl border border-white/10',
+          title: 'text-slate-100',
+          htmlContainer: 'text-slate-300',
+          confirmButton: 'rounded-xl',
+        },
+      })
+    } finally {
+      setResetting(false)
     }
   }
-  
 
-  // Abrir entrenamiento:
-  // - 'estetica' => navega a la página dedicada (sin modal)
-  // - 'agente'   => abre el modal y muestra ese panel
   const openTraining = (panel: 'estetica' | 'agente' | null) => {
     if (panel === 'estetica') {
       router.push('/dashboard/settings/estetica')
@@ -266,13 +318,11 @@ export default function SettingsPage() {
 
   return (
     <div className="min-h-screen overflow-y-auto px-4 sm:px-6 py-8 scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-transparent">
-
       <div className="max-w-5xl mx-auto space-y-6">
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold text-white">Entrenamiento de tu IA</h1>
         </div>
 
-        {/* Cards (trigger) */}
         {!hideTopCards && (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Card
@@ -290,7 +340,6 @@ export default function SettingsPage() {
           </div>
         )}
 
-        {/* Acciones */}
         {showActions && (
           <div className="bg-slate-800 border border-slate-700 p-6 rounded-2xl shadow-xl text-white space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
@@ -346,16 +395,16 @@ export default function SettingsPage() {
 
               <button
                 onClick={reiniciarEntrenamiento}
-                className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg shadow"
+                disabled={resetting}
+                className="flex items-center gap-2 bg-red-600 hover:bg-red-700 disabled:opacity-60 text-white px-4 py-2 rounded-lg shadow"
               >
-                <RotateCw className="w-4 h-4" />
-                Reiniciar entrenamiento
+                <RotateCw className={`w-4 h-4 ${resetting ? 'animate-spin' : ''}`} />
+                {resetting ? 'Reiniciando…' : 'Reiniciar entrenamiento'}
               </button>
             </div>
           </div>
         )}
 
-        {/* Modal (solo AGENTE) */}
         <ModalEntrenamiento
           key={`modal-${initialTrainingPanel ?? 'cards'}`}
           trainingActive={trainingActive}
