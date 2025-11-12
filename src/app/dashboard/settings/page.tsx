@@ -9,14 +9,15 @@ import 'sweetalert2/dist/sweetalert2.min.css'
 
 import ModalEntrenamiento from './components/training/ModalEntrenamiento'
 import WhatsappConfig from './components/WhatsappConfig'
-import ActivatePhoneCard from './ActivatePhoneCard'
 
 import type {
   ConfigForm,
   BusinessType,
   BackendBusinessConfig,
 } from './components/training/types'
+import ActivatePhoneCard from './ActivatePhoneCard'
 
+// 👇 usa tus servicios (unwrap)
 import { getApptConfig, getAppointmentHours } from '@/services/estetica.service'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL as string
@@ -27,6 +28,7 @@ function getAuthHeaders(): Record<string, string> {
   return token ? { Authorization: `Bearer ${token}` } : {}
 }
 
+// Defaults acotados (compat backend)
 const DEFAULTS: ConfigForm = {
   nombre: '',
   descripcion: '',
@@ -82,6 +84,7 @@ function materializeConfig(data?: BackendBusinessConfig | null): ConfigForm {
   }
 }
 
+// ===== Helpers de detección de configuración =====
 function isAgentConfigured(cfg: ConfigForm | null): boolean {
   if (!cfg) return false
   const hasText =
@@ -92,6 +95,7 @@ function isAgentConfigured(cfg: ConfigForm | null): boolean {
   return Boolean(hasText || specialtySet)
 }
 
+// 🔁 detección usando servicios (unwrap) + horarios
 async function fetchAppointmentsConfigured(): Promise<boolean> {
   try {
     const [cfg, hours] = await Promise.all([getApptConfig(), getAppointmentHours()])
@@ -108,21 +112,31 @@ async function fetchAppointmentsConfigured(): Promise<boolean> {
 
 export default function SettingsPage() {
   const router = useRouter()
+
   const [form, setForm] = useState<ConfigForm>(DEFAULTS)
   const [configGuardada, setConfigGuardada] = useState<ConfigForm | null>(null)
+
+  // Flags para ocultar cards y mostrar acciones
   const [agentConfigured, setAgentConfigured] = useState(false)
   const [appointmentsConfigured, setAppointmentsConfigured] = useState(false)
+
+  // Modal (solo para Agente)
   const [trainingActive, setTrainingActive] = useState(false)
   const [initialTrainingPanel, setInitialTrainingPanel] = useState<'agente' | null>(null)
+
   const [loading, setLoading] = useState(true)
   const [resetting, setResetting] = useState(false)
 
   async function refreshAll() {
     try {
-      const { data } = await axios.get(`${API_URL}/api/config`, { headers: getAuthHeaders() })
+      const { data } = await axios.get(`${API_URL}/api/config`, {
+        headers: getAuthHeaders(),
+        timeout: 15000,
+      })
       const safe = materializeConfig(data as BackendBusinessConfig)
       setConfigGuardada(Object.keys(data || {}).length ? safe : null)
       setForm(safe)
+
       setAgentConfigured(isAgentConfigured(safe))
       const apptOk = await fetchAppointmentsConfigured()
       setAppointmentsConfigured(apptOk)
@@ -142,6 +156,10 @@ export default function SettingsPage() {
   }, [])
 
   const reiniciarEntrenamiento = async () => {
+    // Evita dobles clics
+    if (resetting) return
+
+    // Confirmación
     const confirm = await Swal.fire({
       title: '¿Reiniciar entrenamiento?',
       html: `
@@ -170,6 +188,8 @@ export default function SettingsPage() {
     if (!confirm.isConfirmed) return
 
     setResetting(true)
+
+    // Loader bloqueante
     await Swal.fire({
       title: 'Reiniciando…',
       html: '<div class="text-slate-300">Aplicando cambios y limpiando datos…</div>',
@@ -185,58 +205,67 @@ export default function SettingsPage() {
       },
     })
 
+    // Helper para headers+timeout en cada request
+    const req = <T = any>(method: 'get'|'post'|'delete', url: string, data?: any, params?: any) =>
+      axios.request<T>({
+        method,
+        url: `${API_URL}${url}`,
+        data,
+        params,
+        headers: getAuthHeaders(),
+        timeout: 15000,
+      })
+
     try {
+      // 1) PURGE total de Estética (nuevo endpoint)
       let esteticaPurged = false
       try {
-        await axios.delete(`${API_URL}/api/estetica/purge`, {
-          headers: getAuthHeaders(),
-          params: { t: Date.now() },
-        })
+        await req('delete', '/api/estetica/purge', null, { t: Date.now() })
         esteticaPurged = true
+        console.info('[reiniciar] purge OK')
       } catch (err) {
-        console.warn('[reiniciar] DELETE /api/estetica/purge falló, intentaré legacy:', err)
+        console.warn('[reiniciar] DELETE /api/estetica/purge falló:', err)
       }
 
+      // 1b) Fallback legacy si /purge falla o no existe
       if (!esteticaPurged) {
         let apptWiped = false
         try {
-          await axios.delete(`${API_URL}/api/estetica/config`, {
-            headers: getAuthHeaders(),
-            params: { purgeHours: 1, t: Date.now() },
-          })
+          await req('delete', '/api/estetica/config', null, { purgeHours: 1, t: Date.now() })
           apptWiped = true
+          console.info('[reiniciar] legacy wipe config+hours OK')
         } catch (err) {
-          console.warn('[reiniciar] DELETE /api/estetica/config?purgeHours=1 falló, probaré /reset:', err)
+          console.warn('[reiniciar] DELETE /api/estetica/config?purgeHours=1 falló:', err)
         }
 
         if (!apptWiped) {
           try {
-            await axios.post(`${API_URL}/api/estetica/config/reset`, null, {
-              headers: getAuthHeaders(),
-              params: { t: Date.now() },
-            })
+            await req('post', '/api/estetica/config/reset', null, { t: Date.now() })
+            console.info('[reiniciar] legacy reset OK')
           } catch (err) {
-            console.warn('[reiniciar] POST /api/estetica/config/reset también falló:', err)
+            console.warn('[reiniciar] POST /api/estetica/config/reset falló también:', err)
           }
         }
       }
 
+      // 2) Reset principal del AGENTE (no crítico si falla)
       try {
-        await axios.post(`${API_URL}/api/config/reset`, null, {
-          params: { withCatalog: true, t: Date.now() },
-          headers: getAuthHeaders(),
-        })
+        await req('post', '/api/config/reset', null, { withCatalog: true, t: Date.now() })
+        console.info('[reiniciar] /api/config/reset OK')
       } catch (e) {
         console.warn('[reiniciar] /api/config/reset falló (se ignora):', e)
       }
 
+      // 3) Estado local limpio + refresco
       setConfigGuardada(null)
       setForm(DEFAULTS)
       setAgentConfigured(false)
       setAppointmentsConfigured(false)
       setInitialTrainingPanel(null)
       setTrainingActive(false)
+      await refreshAll()
 
+      // 4) Éxito
       await Swal.fire({
         title: '¡Reinicio completado!',
         text: 'La configuración fue limpiada correctamente.',
@@ -254,7 +283,7 @@ export default function SettingsPage() {
         },
       })
     } catch (e: any) {
-      console.error('[reiniciarEntrenamiento] error:', e?.response?.data || e?.message || e)
+      console.error('[reiniciarEntrenamiento] error no controlado:', e?.response?.data || e?.message || e)
       await Swal.fire({
         title: 'Error al reiniciar',
         text: e?.message || 'No fue posible completar el reinicio.',
@@ -272,10 +301,15 @@ export default function SettingsPage() {
         },
       })
     } finally {
+      // Garantiza cierre del loader si algo se quedó abierto
+      try { Swal.close() } catch {}
       setResetting(false)
     }
   }
 
+  // Abrir entrenamiento:
+  // - 'estetica' => navega a la página dedicada (sin modal)
+  // - 'agente'   => abre el modal y muestra ese panel
   const openTraining = (panel: 'estetica' | 'agente' | null) => {
     if (panel === 'estetica') {
       router.push('/dashboard/settings/estetica')
@@ -323,6 +357,7 @@ export default function SettingsPage() {
           <h1 className="text-2xl font-bold text-white">Entrenamiento de tu IA</h1>
         </div>
 
+        {/* Cards (trigger) */}
         {!hideTopCards && (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Card
@@ -340,6 +375,7 @@ export default function SettingsPage() {
           </div>
         )}
 
+        {/* Acciones */}
         {showActions && (
           <div className="bg-slate-800 border border-slate-700 p-6 rounded-2xl shadow-xl text-white space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
@@ -405,6 +441,7 @@ export default function SettingsPage() {
           </div>
         )}
 
+        {/* Modal (solo AGENTE) */}
         <ModalEntrenamiento
           key={`modal-${initialTrainingPanel ?? 'cards'}`}
           trainingActive={trainingActive}
