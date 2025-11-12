@@ -381,6 +381,8 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { RotateCw, Calendar, Bot } from 'lucide-react'
 import axios from 'axios'
+import Swal from 'sweetalert2'
+import 'sweetalert2/dist/sweetalert2.min.css'
 import ModalEntrenamiento from './components/training/ModalEntrenamiento'
 import WhatsappConfig from './components/WhatsappConfig'
 
@@ -402,7 +404,7 @@ function getAuthHeaders(): Record<string, string> {
   return token ? { Authorization: `Bearer ${token}` } : {}
 }
 
-// Defaults (compat backend)
+// =========== Defaults (compat backend) ===========
 const DEFAULTS: ConfigForm = {
   nombre: '',
   descripcion: '',
@@ -527,38 +529,68 @@ export default function SettingsPage() {
     refreshAll()
   }, [])
 
-  // Reinicio estilo "viejo": sin Swal bloqueante, con fallbacks y timeouts cortos
+  // ====== REINICIO con SweetAlert (confirmación + loading + éxito/error) ======
   const reiniciarEntrenamiento = async () => {
+    const confirm = await Swal.fire({
+      title: '¿Reiniciar entrenamiento?',
+      html:
+        '<div class="text-slate-300 text-sm">Se eliminará la configuración actual del negocio y se limpiará la agenda (estética, horarios, staff, procedimientos y excepciones).</div>',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Sí, reiniciar',
+      cancelButtonText: 'Cancelar',
+      background: '#0f172a',
+      color: '#e2e8f0',
+      iconColor: '#f59e0b',
+      confirmButtonColor: '#ef4444',
+      cancelButtonColor: '#334155',
+      customClass: {
+        popup: 'rounded-2xl border border-white/10',
+        title: 'text-slate-100',
+        htmlContainer: 'text-slate-300',
+        confirmButton: 'rounded-xl',
+        cancelButton: 'rounded-xl',
+      },
+    })
+    if (!confirm.isConfirmed) return
+
+    // Mostrar loading mientras corren los pasos
+    await Swal.fire({
+      title: 'Reiniciando…',
+      html: '<div class="text-slate-300 text-sm">Aplicando cambios y limpiando datos…</div>',
+      allowOutsideClick: false,
+      allowEscapeKey: false,
+      didOpen: () => {
+        Swal.showLoading()
+      },
+      background: '#0f172a',
+      color: '#e2e8f0',
+      customClass: {
+        popup: 'rounded-2xl border border-white/10',
+        title: 'text-slate-100',
+        htmlContainer: 'text-slate-300',
+      },
+    })
+
+    const req = <T = any>(method: 'get' | 'post' | 'delete', url: string, data?: any, params?: any) =>
+      axios.request<T>({
+        method,
+        url: `${API_URL}${url}`,
+        data,
+        params: { t: Date.now(), ...(params || {}) },
+        headers: getAuthHeaders(),
+        timeout: 10000,
+        validateStatus: (s) => s >= 200 && s < 500, // no romper el flujo en 4xx
+      })
+
     try {
-      const ok =
-        typeof window !== 'undefined' &&
-        window.confirm(
-          '¿Reiniciar todo?\n\nSe eliminará la configuración actual del negocio y se limpiará la agenda (config de estética, horarios, staff, procedimientos y excepciones).'
-        )
-      if (!ok) return
-
-      const req = <T = any>(method: 'get' | 'post' | 'delete', url: string, data?: any, params?: any) =>
-        axios.request<T>({
-          method,
-          url: `${API_URL}${url}`,
-          data,
-          params: { t: Date.now(), ...(params || {}) },
-          headers: getAuthHeaders(),
-          timeout: 10000,
-          // seguimos aunque devuelva 4xx para no colgar el flujo
-          validateStatus: (s) => s >= 200 && s < 500,
-        })
-
-      console.info('[reiniciar] INICIO')
-
-      // 1) Intento de PURGE total (si existe)
+      // 1) Intento de PURGE total
       let purged = false
       try {
         const r = await req('delete', '/api/estetica/purge')
-        console.info('[reiniciar] purge status', r.status)
         purged = r.status >= 200 && r.status < 300
       } catch (e) {
-        console.warn('[reiniciar] purge lanzó excepción', e)
+        // continúa con fallbacks
       }
 
       // 2) Fallbacks legacy
@@ -566,31 +598,21 @@ export default function SettingsPage() {
         let wiped = false
         try {
           const r = await req('delete', '/api/estetica/config', null, { purgeHours: 1 })
-          console.info('[reiniciar] wipe config+hours status', r.status)
           wiped = r.status >= 200 && r.status < 300
-        } catch (e) {
-          console.warn('[reiniciar] wipe lanzó excepción', e)
-        }
-
+        } catch {}
         if (!wiped) {
           try {
-            const r = await req('post', '/api/estetica/config/reset')
-            console.info('[reiniciar] legacy reset status', r.status)
-          } catch (e) {
-            console.warn('[reiniciar] legacy reset lanzó excepción', e)
-          }
+            await req('post', '/api/estetica/config/reset')
+          } catch {}
         }
       }
 
-      // 3) Reset principal del AGENTE (si existe)
+      // 3) Reset principal del agente
       try {
-        const r = await req('post', '/api/config/reset', null, { withCatalog: true })
-        console.info('[reiniciar] config/reset status', r.status)
-      } catch (e) {
-        console.warn('[reiniciar] config/reset lanzó excepción', e)
-      }
+        await req('post', '/api/config/reset', null, { withCatalog: true })
+      } catch {}
 
-      // 4) Limpia estado local y refresca
+      // 4) Estado limpio + refresh
       setConfigGuardada(null)
       setForm(DEFAULTS)
       setAgentConfigured(false)
@@ -599,16 +621,40 @@ export default function SettingsPage() {
       setTrainingActive(false)
       await refreshAll()
 
-      // 5) Aviso simple
-      if (typeof window !== 'undefined') {
-        alert('Reinicio completado.')
-      }
-      console.info('[reiniciar] FIN OK')
+      await Swal.fire({
+        title: 'Listo',
+        text: 'Reinicio completado.',
+        icon: 'success',
+        confirmButtonText: 'OK',
+        background: '#0f172a',
+        color: '#e2e8f0',
+        iconColor: '#22c55e',
+        confirmButtonColor: '#7c3aed',
+        customClass: {
+          popup: 'rounded-2xl border border-white/10',
+          title: 'text-slate-100',
+          htmlContainer: 'text-slate-300',
+          confirmButton: 'rounded-xl',
+        },
+      })
     } catch (e: any) {
       console.error('[reiniciarEntrenamiento] error:', e?.response?.data || e?.message || e)
-      if (typeof window !== 'undefined') {
-        alert('Error al reiniciar configuración.')
-      }
+      await Swal.fire({
+        title: 'Error',
+        text: 'No fue posible reiniciar. Intenta nuevamente.',
+        icon: 'error',
+        confirmButtonText: 'Entendido',
+        background: '#0f172a',
+        color: '#e2e8f0',
+        iconColor: '#ef4444',
+        confirmButtonColor: '#7c3aed',
+        customClass: {
+          popup: 'rounded-2xl border border-white/10',
+          title: 'text-slate-100',
+          htmlContainer: 'text-slate-300',
+          confirmButton: 'rounded-xl',
+        },
+      })
     }
   }
 
