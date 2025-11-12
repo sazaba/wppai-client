@@ -803,6 +803,8 @@
 // }
 
 
+
+
 // client/src/app/dashboard/settings/estetica/EsteticaForm.tsx
 "use client";
 
@@ -812,7 +814,6 @@ import Swal from "sweetalert2";
 
 /* ================= Tipos exportados (UI) ================= */
 export type Weekday = "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
-export type ApptVertical = "odontologica" | "estetica" | "spa" | "custom";
 
 export type AppointmentDay = {
   day: Weekday;
@@ -823,41 +824,33 @@ export type AppointmentDay = {
   end2: string | null;
 };
 
-/** Valor del formulario (UI) */
+/** Valor del formulario (UI) — versión reducida */
 export type AppointmentConfigValue = {
-  appointmentEnabled: boolean;
-  appointmentVertical: ApptVertical;
-  appointmentVerticalCustom?: string | null;
+  // 🔹 Mantener
   appointmentTimezone: string;
-  appointmentBufferMin: number;
-  appointmentPolicies?: string;
 
+  // 🔹 Ubicación / logística
   location?: {
     name?: string | null;
     address?: string | null;
     mapsUrl?: string | null;
     parkingInfo?: string | null;
-    // virtualLink eliminado
+    virtualLink?: string | null;
     instructionsArrival?: string | null;
   };
 
-  rules?: {
-    // Solo los que sí usamos
-    noShowPolicy?: string | null;
-    depositRequired?: boolean | null;
-    depositAmount?: number | null;
-  };
-
+  // 🔹 Knowledge base
   kb?: {
     businessOverview?: string | null;
-    /** Arreglo visual de FAQs que se guardará como JSON en DB (kbFAQs) */
+    /** Arreglo visual de FAQs que se guarda como JSON en DB (kbFAQs) */
     faqs?: Array<{ q: string; a: string }> | null;
     /** Compat: copia JSON string de faqs para backends antiguos */
     faqsText?: string | null;
     freeText?: string | null;
   };
 
-  hours?: AppointmentDay[];
+  // (otros campos pueden existir en el objeto original, pero no se usan aquí)
+  hours?: AppointmentDay[]; // no se edita aquí; se deja por compat si el hook lo trae
 };
 
 type Props = {
@@ -899,13 +892,6 @@ export function normalizeHours(rows?: AppointmentDay[] | null): AppointmentDay[]
     }
   }
   return ORDER.map((d) => base.get(d)!);
-}
-
-function clampBuffer(n: number) {
-  if (!Number.isFinite(n)) return 10;
-  if (n < 0) return 0;
-  if (n > 240) return 240;
-  return Math.round(n);
 }
 
 /* =============== UI helpers (solo estilo) =============== */
@@ -954,34 +940,6 @@ function Select(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
   return <select {...props} className={`${baseControl} ${props.className || ""}`} />;
 }
 
-function Toggle({
-  checked,
-  onClick,
-  sr,
-}: { checked: boolean; onClick: () => void; sr?: string }) {
-  return (
-    <button
-      type="button"
-      aria-label={sr || "toggle"}
-      aria-pressed={checked}
-      onClick={onClick}
-      className={[
-        "relative inline-flex h-8 w-[68px] items-center rounded-full border transition-all",
-        checked
-          ? "bg-emerald-500/90 border-emerald-400 shadow-[0_0_0_4px_rgba(16,185,129,.18)]"
-          : "bg-slate-700/80 border-slate-600",
-      ].join(" ")}
-    >
-      <span
-        className={[
-          "inline-block h-7 w-7 rounded-full bg-white shadow-md transform transition",
-          checked ? "translate-x-[38px]" : "translate-x-[3px]",
-        ].join(" ")}
-      />
-    </button>
-  );
-}
-
 /* =============== Editor visual de FAQs =============== */
 function FAQEditor({
   items,
@@ -1020,10 +978,7 @@ function FAQEditor({
       )}
 
       {faqs.map((it, idx) => (
-        <div
-          key={idx}
-          className="rounded-xl border border-white/10 bg-white/[.03] p-4"
-        >
+        <div key={idx} className="rounded-xl border border-white/10 bg-white/[.03] p-4">
           <div className="flex items-center justify-between mb-2">
             <div className="text-[12px] text-slate-400">FAQ #{idx + 1}</div>
             <div className="flex gap-2">
@@ -1089,7 +1044,7 @@ function FAQEditor({
 
 /* =================== FORM UI (presentacional) =================== */
 export function EsteticaForm({ value, onChange }: Props) {
-  const hours = useMemo(() => normalizeHours(value.hours), [value.hours]);
+  const hours = useMemo(() => normalizeHours(value.hours), [value.hours]); // compat (no mostrado)
 
   function patch<K extends keyof AppointmentConfigValue>(key: K, v: AppointmentConfigValue[K]) {
     onChange({ [key]: v } as Partial<AppointmentConfigValue>);
@@ -1097,28 +1052,6 @@ export function EsteticaForm({ value, onChange }: Props) {
   function patchNested<T extends object>(key: keyof AppointmentConfigValue, partial: Partial<T>) {
     const current = ((value as any)[key] ?? {}) as T;
     onChange({ [key]: { ...(current as any), ...partial } } as any);
-  }
-  function patchDay(day: Weekday, partial: Partial<AppointmentDay>) {
-    const next = hours.map((h) => (h.day === day ? { ...h, ...partial } : h));
-    onChange({ hours: next });
-  }
-
-  function toggleDay(d: Weekday) {
-    const current = hours.find((h) => h.day === d)!;
-    const nextOpen = !current.isOpen;
-    patchDay(d, {
-      isOpen: nextOpen,
-      start1: nextOpen ? current.start1 ?? "09:00" : null,
-      end1: nextOpen ? current.end1 ?? "13:00" : null,
-      start2: nextOpen ? current.start2 : null,
-      end2: nextOpen ? current.end2 : null,
-    });
-  }
-
-  function updateTime(d: Weekday, field: keyof AppointmentDay, val: string) {
-    const safe = val || "";
-    if (safe && !isHHMM(safe)) return;
-    patchDay(d, { [field]: safe ? safe : null } as any);
   }
 
   // ——— Normaliza FAQs al cargar (si existe faqsText pero no kb.faqs)
@@ -1145,89 +1078,20 @@ export function EsteticaForm({ value, onChange }: Props) {
 
   return (
     <div className="space-y-10">
-      {/* ====== 1) Activar agenda ====== */}
-      <Section
-        title="Activar agenda con IA (Estética)"
-        subtitle="La IA responde, propone horarios y puede confirmar citas. Siempre puedes desactivarla."
-      >
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="flex items-center justify-between gap-4 p-4 rounded-2xl bg-white/[.03] border border-white/10">
-            <div className="min-w-0">
-              <div className="text-sm font-medium text-slate-200">Agenda automática</div>
-              <div className="text-[12px] text-slate-400 truncate">
-                Actívala para que el asistente gestione reservas por ti.
-              </div>
-            </div>
-            <Toggle checked={value.appointmentEnabled} onClick={() => patch("appointmentEnabled", !value.appointmentEnabled)} sr="Habilitar agenda automática" />
-          </div>
-
-          <div className="p-4 rounded-2xl bg-white/[.03] border border-white/10">
-            <Field label="Tipo de negocio (vertical)" help="Ajusta el tono y guías del asistente.">
-              <Select
-                value={value.appointmentVertical}
-                onChange={(e) => patch("appointmentVertical", e.target.value as ApptVertical)}
-              >
-                <option value="odontologica">Clínica Odontológica</option>
-                <option value="estetica">Clínica Estética</option>
-                <option value="spa">Spa</option>
-                <option value="custom">Otra (especifica abajo)</option>
-              </Select>
-            </Field>
-
-            {value.appointmentVertical === "custom" && (
-              <Input
-                type="text"
-                placeholder="Ej: Clínica Láser, Nutrición, Barbería…"
-                value={value.appointmentVerticalCustom ?? ""}
-                onChange={(e) => patch("appointmentVerticalCustom", e.target.value)}
-                className="mt-2"
-              />
-            )}
-          </div>
-
-          <div className="p-4 rounded-2xl bg-white/[.03] border border-white/10">
-            <Field label="Zona horaria del negocio (IANA)" help="Ejemplo: America/Bogota">
-              <Input
-                type="text"
-                placeholder="America/Bogota"
-                value={value.appointmentTimezone}
-                onChange={(e) => patch("appointmentTimezone", e.target.value)}
-              />
-            </Field>
-          </div>
-
-          <div className="p-4 rounded-2xl bg-white/[.03] border border-white/10">
-            <Field label="Tiempo entre citas (minutos)" help="Tiempo de limpieza/preparación · 0–240">
-              <Input
-                type="number"
-                min={0}
-                max={240}
-                value={value.appointmentBufferMin}
-                onChange={(e) => patch("appointmentBufferMin", clampBuffer(parseInt(e.target.value, 10)))}
-              />
-            </Field>
-          </div>
-        </div>
+      {/* ====== 1) Zona horaria ====== */}
+      <Section title="Zona horaria del negocio (IANA)" subtitle="Ejemplo: America/Bogota">
+        <Field label="Zona horaria">
+          <Input
+            type="text"
+            placeholder="America/Bogota"
+            value={value.appointmentTimezone}
+            onChange={(e) => patch("appointmentTimezone", e.target.value)}
+          />
+        </Field>
       </Section>
 
-      {/* ====== 2) Políticas ====== */}
-      <Section
-        title="Políticas visibles"
-        subtitle="Se muestran al reservar y la IA las cita al responder dudas."
-      >
-        <Textarea
-          rows={4}
-          placeholder="Ej: Llega 10 min antes. Reprogramaciones con 12 h de antelación. El depósito se descuenta del valor del servicio."
-          value={value.appointmentPolicies || ""}
-          onChange={(e) => patch("appointmentPolicies", e.target.value)}
-        />
-      </Section>
-
-      {/* ====== 3) Ubicación ====== */}
-      <Section
-        title="Ubicación y logística"
-        subtitle="La información práctica se envía junto a la confirmación."
-      >
+      {/* ====== 2) Ubicación ====== */}
+      <Section title="Ubicación y logística" subtitle="La información práctica se envía junto a la confirmación.">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Input
             type="text"
@@ -1246,13 +1110,20 @@ export function EsteticaForm({ value, onChange }: Props) {
             placeholder="Link de Google Maps"
             value={value.location?.mapsUrl ?? ""}
             onChange={(e) => patchNested("location", { mapsUrl: e.target.value })}
+            className="md:col-span-2"
           />
-          {/* virtualLink removido */}
           <Textarea
             rows={3}
             placeholder="¿Hay parqueadero? ¿Documento en recepción? ¿Cómo llegar?"
             value={value.location?.parkingInfo ?? ""}
             onChange={(e) => patchNested("location", { parkingInfo: e.target.value })}
+            className="md:col-span-2"
+          />
+          <Input
+            type="text"
+            placeholder="Link de videollamada (si aplica)"
+            value={value.location?.virtualLink ?? ""}
+            onChange={(e) => patchNested("location", { virtualLink: e.target.value })}
             className="md:col-span-2"
           />
           <Textarea
@@ -1265,54 +1136,7 @@ export function EsteticaForm({ value, onChange }: Props) {
         </div>
       </Section>
 
-      {/* ====== 4) Reglas (solo las válidas) ====== */}
-      <Section
-        title="Reglas de agenda"
-        subtitle="El sistema y la IA respetarán estos límites al ofrecer horarios."
-      >
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Field label="Política de inasistencia (No-show)">
-            <Textarea
-              rows={3}
-              placeholder="Ej: Si no asistes sin avisar, se cobrará $X o se pierde el depósito."
-              value={value.rules?.noShowPolicy ?? ""}
-              onChange={(e) => patchNested("rules", { noShowPolicy: e.target.value })}
-              className="md:col-span-3"
-            />
-          </Field>
-
-          <div className="md:col-span-3 flex flex-col sm:flex-row gap-4">
-            <label className="inline-flex items-center gap-2">
-              <input
-                id="depositRequired"
-                type="checkbox"
-                checked={!!value.rules?.depositRequired}
-                onChange={(e) => patchNested("rules", { depositRequired: e.target.checked })}
-                className="h-4 w-4 rounded border-slate-600 bg-slate-900"
-              />
-              <span className="text-sm text-slate-200">Requerir depósito</span>
-            </label>
-
-            <div className="sm:min-w-[260px]">
-              <Field label="Monto del depósito" help="Opcional">
-                <Input
-                  type="number"
-                  min={0}
-                  step="0.01"
-                  value={value.rules?.depositAmount ?? ""}
-                  onChange={(e) =>
-                    patchNested("rules", {
-                      depositAmount: e.target.value === "" ? null : parseFloat(e.target.value),
-                    })
-                  }
-                />
-              </Field>
-            </div>
-          </div>
-        </div>
-      </Section>
-
-      {/* ====== 5) Knowledge base ====== */}
+      {/* ====== 3) Knowledge base ====== */}
       <Section
         title="Knowledge base"
         subtitle="La IA usa esta información para dar respuestas precisas y con tu tono."
@@ -1325,29 +1149,13 @@ export function EsteticaForm({ value, onChange }: Props) {
             onChange={(e) => patchNested("kb", { businessOverview: e.target.value })}
           />
 
+        {/* Editor visual de FAQs */}
           <div>
             <div className="mb-2 text-sm font-medium text-slate-200">FAQs</div>
-            <FAQEditor
-              items={value.kb?.faqs}
-              onChange={setFAQs}
-            />
+            <FAQEditor items={value.kb?.faqs} onChange={setFAQs} />
             <div className="mt-2 text-[11px] text-slate-400">
               Se guardan como arreglo JSON interno compatible con el resumen y la BD.
             </div>
-          </div>
-
-          {/* Campo oculto/compat */}
-          <div className="hidden">
-            <Textarea
-              rows={2}
-              value={value.kb?.faqsText ?? ""}
-              onChange={(e) => {
-                const txt = e.target.value;
-                let parsed: Array<{ q: string; a: string }> = [];
-                try { parsed = JSON.parse(txt); } catch {}
-                patchNested("kb", { faqsText: txt, faqs: parsed });
-              }}
-            />
           </div>
 
           <Textarea
@@ -1356,83 +1164,6 @@ export function EsteticaForm({ value, onChange }: Props) {
             value={value.kb?.freeText ?? ""}
             onChange={(e) => patchNested("kb", { freeText: e.target.value })}
           />
-        </div>
-      </Section>
-
-      {/* ====== 6) Horario semanal ====== */}
-      <Section
-        title="Horario semanal"
-        subtitle="Define tus tramos de atención. El bloque 1 es obligatorio; el bloque 2 es opcional."
-      >
-        <div className="divide-y divide-white/10">
-          {hours.map((h) => (
-            <div key={h.day} className="py-4 grid grid-cols-1 lg:grid-cols-12 gap-4 items-center">
-              {/* Día + toggle */}
-              <div className="lg:col-span-3 flex items-center justify-between lg:justify-start gap-4">
-                <div className="flex items-center gap-3">
-                  <div className="h-8 w-8 rounded-xl bg-violet-500/15 border border-violet-400/20 grid place-items-center text-[12px] text-violet-300">
-                    {DAY_LABEL[h.day].slice(0, 2)}
-                  </div>
-                  <div>
-                    <div className="text-sm font-medium text-slate-200">{DAY_LABEL[h.day]}</div>
-                    <div className="text-[11px] text-slate-400">{h.isOpen ? "Abierto" : "Cerrado"}</div>
-                  </div>
-                </div>
-                <Toggle checked={h.isOpen} onClick={() => toggleDay(h.day)} sr={`Alternar ${DAY_LABEL[h.day]}`} />
-              </div>
-
-              {/* Ranges */}
-              <div className={`lg:col-span-9 grid grid-cols-2 md:grid-cols-8 gap-3 ${!h.isOpen ? "opacity-60" : ""}`}>
-                {/* Bloque 1 */}
-                <div className="col-span-2 md:col-span-2">
-                  <Field label="Inicio" help="Bloque 1">
-                    <Input
-                      type="time"
-                      value={h.start1 || ""}
-                      disabled={!h.isOpen}
-                      onChange={(e) => updateTime(h.day, "start1", e.target.value)}
-                    />
-                  </Field>
-                </div>
-                <div className="col-span-2 md:col-span-2">
-                  <Field label="Fin" help="Bloque 1">
-                    <Input
-                      type="time"
-                      value={h.end1 || ""}
-                      disabled={!h.isOpen}
-                      onChange={(e) => updateTime(h.day, "end1", e.target.value)}
-                    />
-                  </Field>
-                </div>
-
-                {/* Bloque 2 (opcional) */}
-                <div className="col-span-2 md:col-span-2">
-                  <Field label="Inicio" help="Bloque 2 (opcional)">
-                    <Input
-                      type="time"
-                      value={h.start2 || ""}
-                      disabled={!h.isOpen}
-                      onChange={(e) => updateTime(h.day, "start2", e.target.value)}
-                    />
-                  </Field>
-                </div>
-                <div className="col-span-2 md:col-span-2">
-                  <Field label="Fin" help="Bloque 2 (opcional)">
-                    <Input
-                      type="time"
-                      value={h.end2 || ""}
-                      disabled={!h.isOpen}
-                      onChange={(e) => updateTime(h.day, "end2", e.target.value)}
-                    />
-                  </Field>
-                </div>
-
-                <div className="col-span-2 md:col-span-8 text-[12px] text-slate-400">
-                  {h.isOpen ? "Bloque 1 obligatorio · Bloque 2 opcional" : "Cerrado"}
-                </div>
-              </div>
-            </div>
-          ))}
         </div>
       </Section>
     </div>
@@ -1453,21 +1184,16 @@ export default function EsteticaFormSmart({ empresaId }: { empresaId?: number })
 
   return (
     <div className="space-y-6">
-      {/* Título simple */}
       <div>
         <h1 className="text-xl font-semibold tracking-tight">Estética — Configuración</h1>
-        <p className="text-[12px] text-slate-400">Ajusta tu agenda, políticas y mensajes.</p>
+        <p className="text-[12px] text-slate-400">Ajusta zona horaria, ubicación y conocimiento base.</p>
       </div>
 
       <EsteticaForm
         value={value}
-        onChange={(patch) => {
-          // Mantener estado maestro
-          setValue((prev) => ({ ...prev, ...patch }));
-        }}
+        onChange={(patch) => setValue((prev) => ({ ...prev, ...patch }))}
       />
 
-      {/* Barra inferior sticky con acciones */}
       <div className="sticky bottom-0 z-10 -mx-4 px-4 py-4 bg-gradient-to-t from-slate-950/85 via-slate-950/50 to-transparent backdrop-blur supports-[backdrop-filter]:backdrop-blur">
         <div className="flex flex-col sm:flex-row sm:justify-end gap-2">
           <button
@@ -1482,7 +1208,7 @@ export default function EsteticaFormSmart({ empresaId }: { empresaId?: number })
                 await save();
                 await Swal.fire({
                   title: "¡Guardado!",
-                  text: "Configuración y horarios guardados",
+                  text: "Configuración guardada",
                   icon: "success",
                   confirmButtonText: "Listo",
                   background: "#0f172a",
@@ -1525,4 +1251,3 @@ export default function EsteticaFormSmart({ empresaId }: { empresaId?: number })
     </div>
   );
 }
-
