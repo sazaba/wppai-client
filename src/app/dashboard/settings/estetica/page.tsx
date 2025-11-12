@@ -6,10 +6,10 @@ import ProceduresPanel from '@/app/dashboard/settings/estetica/ProceduresPanel'
 import StaffPanel from '@/app/dashboard/settings/estetica/StaffPanel'
 import ExceptionsPanel from '@/app/dashboard/settings/estetica/ExceptionsPanel'
 
-type Tab = 'staff' | 'procedures' | 'config' | 'exceptions'
+type Tab = 'config' | 'staff' | 'procedures' | 'exceptions'
 
 export default function Page() {
-  const [tab, setTab] = useState<Tab>('staff')
+  const [tab, setTab] = useState<Tab>('config')
 
   const TabBtn = ({ id, children }: { id: Tab; children: React.ReactNode }) => {
     const active = tab === id
@@ -44,9 +44,9 @@ export default function Page() {
           className="w-full overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         >
           <div className="inline-flex gap-2 rounded-2xl border border-white/10 bg-slate-900/40 backdrop-blur-md p-1 shadow-md">
+            <TabBtn id="config">Configuración</TabBtn>
             <TabBtn id="staff">Staff</TabBtn>
             <TabBtn id="procedures">Servicios</TabBtn>
-            <TabBtn id="config">Configuración</TabBtn>
             <TabBtn id="exceptions">Fechas bloqueadas</TabBtn>
           </div>
         </div>
@@ -54,6 +54,12 @@ export default function Page() {
 
       {/* Contenido */}
       <div className="space-y-6">
+        {tab === 'config' && (
+          <section className="rounded-2xl border border-white/10 bg-slate-900/50 backdrop-blur-md p-4 sm:p-6 shadow">
+            <EsteticaFormSmart />
+          </section>
+        )}
+
         {tab === 'staff' && (
           <section className="rounded-2xl border border-white/10 bg-slate-900/50 backdrop-blur-md p-4 sm:p-6 shadow">
             <StaffPanel />
@@ -63,12 +69,6 @@ export default function Page() {
         {tab === 'procedures' && (
           <section className="rounded-2xl border border-white/10 bg-slate-900/50 backdrop-blur-md p-4 sm:p-6 shadow">
             <ProceduresPanel />
-          </section>
-        )}
-
-        {tab === 'config' && (
-          <section className="rounded-2xl border border-white/10 bg-slate-900/50 backdrop-blur-md p-4 sm:p-6 shadow">
-            <EsteticaFormSmart />
           </section>
         )}
 
