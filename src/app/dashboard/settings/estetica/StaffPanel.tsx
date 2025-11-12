@@ -1,14 +1,20 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { listStaff, upsertStaff, type StaffRow } from '@/services/estetica.service'
-import Swal from 'sweetalert2' // ⬅️ agregado
+import Swal from 'sweetalert2'
+import 'sweetalert2/dist/sweetalert2.min.css'
+import { useAuth } from '@/app/context/AuthContext'
+import { Trash2 } from 'lucide-react'
 
 const ROLES: StaffRow['role'][] = ['profesional', 'esteticista', 'medico']
+const API = process.env.NEXT_PUBLIC_API_URL || ''
 
 export default function StaffPanel() {
+  const { token } = useAuth() || {}
   const [rows, setRows] = useState<StaffRow[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [deletingId, setDeletingId] = useState<number | null>(null)
   const [editing, setEditing] = useState<Partial<StaffRow>>({
     name: '',
     role: 'esteticista',
@@ -27,7 +33,6 @@ export default function StaffPanel() {
   }
 
   useEffect(() => {
-    // ⬅️ al abrir la tab (montaje), hacer scroll al tope
     try { window.scrollTo({ top: 0, behavior: 'smooth' }) } catch {}
     reload()
   }, [])
@@ -72,7 +77,6 @@ export default function StaffPanel() {
       await upsertStaff(payload as any)
       await reload()
       startNew()
-
       await Swal.fire({
         title: '¡Guardado!',
         text: 'Staff guardado',
@@ -145,6 +149,83 @@ export default function StaffPanel() {
     }
   }
 
+  async function confirmAndDelete(r: StaffRow) {
+    const result = await Swal.fire({
+      title: 'Eliminar miembro',
+      html: `<div class="text-slate-300">¿Seguro que deseas eliminar a <b>${(r.name || '').replace(/</g,'&lt;')}</b> del staff?</div>`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Sí, eliminar',
+      cancelButtonText: 'Cancelar',
+      background: '#0f172a',
+      color: '#e2e8f0',
+      iconColor: '#f59e0b',
+      confirmButtonColor: '#ef4444',
+      cancelButtonColor: '#334155',
+      customClass: {
+        popup: 'rounded-2xl border border-white/10',
+        title: 'text-slate-100',
+        htmlContainer: 'text-slate-300',
+        confirmButton: 'rounded-xl',
+        cancelButton: 'rounded-xl',
+      },
+    })
+    if (!result.isConfirmed) return
+
+    try {
+      setDeletingId(r.id)
+      const res = await fetch(`${API}/api/estetica/staff/${r.id}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        credentials: 'include',
+      })
+      if (!res.ok) {
+        const msg = (await res.json().catch(() => ({})))?.error || `No se pudo eliminar (#${r.id})`
+        throw new Error(msg)
+      }
+      await reload()
+      if (editing?.id === r.id) startNew()
+      await Swal.fire({
+        title: 'Eliminado',
+        text: 'El miembro fue eliminado correctamente.',
+        icon: 'success',
+        confirmButtonText: 'Listo',
+        background: '#0f172a',
+        color: '#e2e8f0',
+        iconColor: '#22c55e',
+        confirmButtonColor: '#7c3aed',
+        customClass: {
+          popup: 'rounded-2xl border border-white/10',
+          title: 'text-slate-100',
+          htmlContainer: 'text-slate-300',
+          confirmButton: 'rounded-xl',
+        },
+      })
+    } catch (e: any) {
+      await Swal.fire({
+        title: 'Error al eliminar',
+        text: e?.message || 'No fue posible eliminar.',
+        icon: 'error',
+        confirmButtonText: 'Entendido',
+        background: '#0f172a',
+        color: '#e2e8f0',
+        iconColor: '#ef4444',
+        confirmButtonColor: '#7c3aed',
+        customClass: {
+          popup: 'rounded-2xl border border-white/10',
+          title: 'text-slate-100',
+          htmlContainer: 'text-slate-300',
+          confirmButton: 'rounded-xl',
+        },
+      })
+    } finally {
+      setDeletingId(null)
+    }
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -174,37 +255,61 @@ export default function StaffPanel() {
               <div className="p-4 text-slate-400 text-sm">Aún no hay staff. Crea uno en el panel derecho.</div>
             ) : (
               rows.map((r) => (
-                <button
+                <div
                   key={r.id}
-                  onClick={() => editRow(r)}
                   className="w-full text-left p-3 rounded-xl border border-white/10 bg-white/[.03] hover:bg-white/[.06] transition group"
                 >
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
-                    <div className="font-medium truncate">{r.name}</div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-[11px] rounded-full px-2 py-0.5 border border-indigo-400/40 text-indigo-200 bg-indigo-500/10">
-                        {r.role}
-                      </span>
-                      <span
-                        className={[
-                          'text-[11px] rounded-full px-2 py-0.5 border',
-                          r.active
-                            ? 'border-emerald-500/70 text-emerald-300 bg-emerald-500/10'
-                            : 'border-slate-500/70 text-slate-300 bg-slate-500/10',
-                        ].join(' ')}
-                      >
-                        {r.active ? 'Activo' : 'Inactivo'}
-                      </span>
-                    </div>
+                  <div className="flex items-start gap-3">
+                    <button
+                      onClick={() => editRow(r)}
+                      className="flex-1 text-left"
+                      title="Editar"
+                    >
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
+                        <div className="font-medium truncate">{r.name}</div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[11px] rounded-full px-2 py-0.5 border border-indigo-400/40 text-indigo-200 bg-indigo-500/10">
+                            {r.role}
+                          </span>
+                          <span
+                            className={[
+                              'text-[11px] rounded-full px-2 py-0.5 border',
+                              r.active
+                                ? 'border-emerald-500/70 text-emerald-300 bg-emerald-500/10'
+                                : 'border-slate-500/70 text-slate-300 bg-slate-500/10',
+                            ].join(' ')}
+                          >
+                            {r.active ? 'Activo' : 'Inactivo'}
+                          </span>
+                        </div>
+                      </div>
+                      {r.availability ? (
+                        <div className="mt-1 text-[12px] text-slate-500 line-clamp-1">
+                          Disponibilidad personalizada
+                        </div>
+                      ) : (
+                        <div className="mt-1 text-[12px] text-slate-500">Sin disponibilidad definida</div>
+                      )}
+                    </button>
+
+                    {/* Botón eliminar */}
+                    <button
+                      onClick={(e) => { e.stopPropagation(); confirmAndDelete(r) }}
+                      className="shrink-0 h-9 w-9 flex items-center justify-center rounded-lg border border-white/10 bg-white/[.02] hover:bg-red-500/10 hover:border-red-500/50 text-slate-300 hover:text-red-300 transition"
+                      title="Eliminar"
+                      disabled={deletingId === r.id}
+                    >
+                      {deletingId === r.id ? (
+                        <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+                        </svg>
+                      ) : (
+                        <Trash2 className="h-4 w-4" />
+                      )}
+                    </button>
                   </div>
-                  {r.availability ? (
-                    <div className="mt-1 text-[12px] text-slate-500 line-clamp-1">
-                      Disponibilidad personalizada
-                    </div>
-                  ) : (
-                    <div className="mt-1 text-[12px] text-slate-500">Sin disponibilidad definida</div>
-                  )}
-                </button>
+                </div>
               ))
             )}
           </div>
@@ -234,7 +339,7 @@ export default function StaffPanel() {
               <div className="mt-1 text-[11px] text-slate-500">Nombre como aparecerá en la agenda interna.</div>
             </div>
 
-            {/* Rol - select premium */}
+            {/* Rol */}
             <div className="sm:col-span-1">
               <label className="text-xs text-slate-400 mb-1 block">Rol</label>
               <div className="relative">
@@ -245,7 +350,6 @@ export default function StaffPanel() {
                 >
                   {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
                 </select>
-                {/* Chevron */}
                 <svg
                   className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 peer-focus:text-violet-300"
                   viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"
@@ -337,11 +441,22 @@ Ejemplos válidos:
                 >
                   Nuevo
                 </button>
+
+                {/* Eliminar desde el editor */}
                 {editing?.id ? (
+                  <button
+                    onClick={() => confirmAndDelete(editing as StaffRow)}
+                    className="ml-auto px-3 py-2 rounded-xl border border-white/10 bg-white/[.02] hover:bg-red-500/10 hover:border-red-500/50 text-red-200 flex items-center gap-2"
+                    title="Eliminar este miembro"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    Eliminar
+                  </button>
+                ) : (
                   <span className="ml-auto text-[11px] text-slate-400 self-center">
-                    Editando: <strong className="text-slate-300">{editing.name || `#${editing.id}`}</strong>
+                    Crea o selecciona un profesional para editar.
                   </span>
-                ) : null}
+                )}
               </div>
             </div>
           </div>
