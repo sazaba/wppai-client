@@ -377,34 +377,38 @@
 
 'use client'
 
-import { useState, useEffect } from 'react'
+import React, { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { RotateCw, Calendar, Bot } from 'lucide-react'
 import axios from 'axios'
 import Swal from 'sweetalert2'
-import 'sweetalert2/dist/sweetalert2.min.css'
+
 import ModalEntrenamiento from './components/training/ModalEntrenamiento'
 import WhatsappConfig from './components/WhatsappConfig'
+import ActivatePhoneCard from './ActivatePhoneCard'
 
 import type {
   ConfigForm,
   BusinessType,
   BackendBusinessConfig,
 } from './components/training/types'
-import ActivatePhoneCard from './ActivatePhoneCard'
 
-// 👇 usa tus servicios (unwrap)
+// 👇 Servicios para detectar configuración de citas
 import { getApptConfig, getAppointmentHours } from '@/services/estetica.service'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL as string
 
 function getAuthHeaders(): Record<string, string> {
   if (typeof window === 'undefined') return {}
-  const token = localStorage.getItem('token')
-  return token ? { Authorization: `Bearer ${token}` } : {}
+  try {
+    const token = localStorage.getItem('token')
+    return token ? { Authorization: `Bearer ${token}` } : {}
+  } catch {
+    return {}
+  }
 }
 
-// =========== Defaults (compat backend) ===========
+/* ================= Defaults (compat backend) ================= */
 const DEFAULTS: ConfigForm = {
   nombre: '',
   descripcion: '',
@@ -460,7 +464,7 @@ function materializeConfig(data?: BackendBusinessConfig | null): ConfigForm {
   }
 }
 
-// ===== Helpers de detección de configuración =====
+/* ================= Helpers de detección ================= */
 function isAgentConfigured(cfg: ConfigForm | null): boolean {
   if (!cfg) return false
   const hasText =
@@ -471,15 +475,21 @@ function isAgentConfigured(cfg: ConfigForm | null): boolean {
   return Boolean(hasText || specialtySet)
 }
 
-// 🔁 detección usando servicios (unwrap) + horarios
+// Usa servicios para detectar si hay configuración de agenda
 async function fetchAppointmentsConfigured(): Promise<boolean> {
   try {
     const [cfg, hours] = await Promise.all([getApptConfig(), getAppointmentHours()])
 
     const enabled = !!cfg?.appointmentEnabled
-    const hasTz = typeof cfg?.appointmentTimezone === 'string' && cfg.appointmentTimezone.trim() !== ''
-    const hasVert = typeof cfg?.appointmentVertical === 'string' && cfg.appointmentVertical.trim() !== ''
-    const hasServ = typeof (cfg as any)?.servicesText === 'string' && (cfg as any).servicesText.trim() !== ''
+    const hasTz =
+      typeof cfg?.appointmentTimezone === 'string' &&
+      cfg.appointmentTimezone.trim() !== ''
+    const hasVert =
+      typeof cfg?.appointmentVertical === 'string' &&
+      cfg.appointmentVertical.trim() !== ''
+    const hasServ =
+      typeof (cfg as any)?.servicesText === 'string' &&
+      (cfg as any).servicesText.trim() !== ''
     const anyOpen = Array.isArray(hours) && hours.some((h: any) => !!h?.isOpen)
 
     return Boolean(enabled || hasTz || hasVert || hasServ || anyOpen)
@@ -488,25 +498,29 @@ async function fetchAppointmentsConfigured(): Promise<boolean> {
   }
 }
 
-export default function SettingsPage() {
+/* =================== Componente =================== */
+export default function SettingsPage(): React.ReactElement {
   const router = useRouter()
 
   const [form, setForm] = useState<ConfigForm>(DEFAULTS)
   const [configGuardada, setConfigGuardada] = useState<ConfigForm | null>(null)
 
-  // Flags para ocultar cards y mostrar acciones
-  const [agentConfigured, setAgentConfigured] = useState(false)
-  const [appointmentsConfigured, setAppointmentsConfigured] = useState(false)
+  const [agentConfigured, setAgentConfigured] = useState<boolean>(false)
+  const [appointmentsConfigured, setAppointmentsConfigured] = useState<boolean>(false)
 
-  // Modal (solo para Agente)
-  const [trainingActive, setTrainingActive] = useState(false)
+  // Modal (solo Agente)
+  const [trainingActive, setTrainingActive] = useState<boolean>(false)
   const [initialTrainingPanel, setInitialTrainingPanel] = useState<'agente' | null>(null)
 
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState<boolean>(true)
 
-  async function refreshAll() {
+  async function refreshAll(): Promise<void> {
     try {
-      const { data } = await axios.get(`${API_URL}/api/config`, { headers: getAuthHeaders() })
+      const { data } = await axios.get<BackendBusinessConfig | Record<string, never>>(
+        `${API_URL}/api/config`,
+        { headers: getAuthHeaders() }
+      )
+
       const safe = materializeConfig(data as BackendBusinessConfig)
       setConfigGuardada(Object.keys(data || {}).length ? safe : null)
       setForm(safe)
@@ -526,12 +540,12 @@ export default function SettingsPage() {
   }
 
   useEffect(() => {
-    refreshAll()
+    void refreshAll()
   }, [])
 
-  // ====== REINICIO con SweetAlert (confirmación + loading + éxito/error) ======
-  const reiniciarEntrenamiento = async () => {
-    const confirm = await Swal.fire({
+  // ============= Reinicio con SweetAlert (confirm + loader) =============
+  const reiniciarEntrenamiento = async (): Promise<void> => {
+    const { isConfirmed } = await Swal.fire({
       title: '¿Reiniciar entrenamiento?',
       html:
         '<div class="text-slate-300 text-sm">Se eliminará la configuración actual del negocio y se limpiará la agenda (estética, horarios, staff, procedimientos y excepciones).</div>',
@@ -552,17 +566,16 @@ export default function SettingsPage() {
         cancelButton: 'rounded-xl',
       },
     })
-    if (!confirm.isConfirmed) return
 
-    // Mostrar loading mientras corren los pasos
-    await Swal.fire({
+    if (!isConfirmed) return
+
+    // Abre loader NO bloqueante (sin await)
+    Swal.fire({
       title: 'Reiniciando…',
       html: '<div class="text-slate-300 text-sm">Aplicando cambios y limpiando datos…</div>',
       allowOutsideClick: false,
       allowEscapeKey: false,
-      didOpen: () => {
-        Swal.showLoading()
-      },
+      didOpen: () => Swal.showLoading(),
       background: '#0f172a',
       color: '#e2e8f0',
       customClass: {
@@ -572,47 +585,59 @@ export default function SettingsPage() {
       },
     })
 
-    const req = <T = any>(method: 'get' | 'post' | 'delete', url: string, data?: any, params?: any) =>
+    // Helper de requests con tipado y timeout
+    const req = <T = unknown>(
+      method: 'get' | 'post' | 'delete',
+      url: string,
+      data?: unknown,
+      params?: Record<string, unknown>
+    ) =>
       axios.request<T>({
         method,
         url: `${API_URL}${url}`,
         data,
         params: { t: Date.now(), ...(params || {}) },
         headers: getAuthHeaders(),
-        timeout: 10000,
-        validateStatus: (s) => s >= 200 && s < 500, // no romper el flujo en 4xx
+        timeout: 15000,
+        validateStatus: (s) => s >= 200 && s < 500,
       })
 
     try {
-      // 1) Intento de PURGE total
+      // 1) PURGE total de Estética (si existe)
       let purged = false
       try {
         const r = await req('delete', '/api/estetica/purge')
         purged = r.status >= 200 && r.status < 300
-      } catch (e) {
-        // continúa con fallbacks
+      } catch {
+        purged = false
       }
 
-      // 2) Fallbacks legacy
+      // 2) Fallbacks
       if (!purged) {
         let wiped = false
         try {
           const r = await req('delete', '/api/estetica/config', null, { purgeHours: 1 })
           wiped = r.status >= 200 && r.status < 300
-        } catch {}
+        } catch {
+          wiped = false
+        }
         if (!wiped) {
           try {
             await req('post', '/api/estetica/config/reset')
-          } catch {}
+          } catch {
+            /* ignore */
+          }
         }
       }
 
-      // 3) Reset principal del agente
+      // 3) Reset del agente (catálogo)
       try {
         await req('post', '/api/config/reset', null, { withCatalog: true })
-      } catch {}
+      } catch {
+        /* ignore */
+      }
 
-      // 4) Estado limpio + refresh
+      // 4) Estado local y recarga
       setConfigGuardada(null)
       setForm(DEFAULTS)
       setAgentConfigured(false)
@@ -621,6 +646,7 @@ export default function SettingsPage() {
       setTrainingActive(false)
       await refreshAll()
 
+      Swal.close()
       await Swal.fire({
         title: 'Listo',
         text: 'Reinicio completado.',
@@ -639,6 +665,7 @@ export default function SettingsPage() {
       })
     } catch (e: any) {
       console.error('[reiniciarEntrenamiento] error:', e?.response?.data || e?.message || e)
+      Swal.close()
       await Swal.fire({
         title: 'Error',
         text: 'No fue posible reiniciar. Intenta nuevamente.',
@@ -658,7 +685,7 @@ export default function SettingsPage() {
     }
   }
 
-  // Abrir entrenamiento
+  // Abrir entrenamiento:
   const openTraining = (panel: 'estetica' | 'agente' | null) => {
     if (panel === 'estetica') {
       router.push('/dashboard/settings/estetica')
@@ -779,7 +806,7 @@ export default function SettingsPage() {
               )}
 
               <button
-                onClick={reiniciarEntrenamiento}
+                onClick={() => void reiniciarEntrenamiento()}
                 className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg shadow"
               >
                 <RotateCw className="w-4 h-4" />
