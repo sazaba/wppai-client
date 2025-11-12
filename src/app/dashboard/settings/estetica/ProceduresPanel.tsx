@@ -7,7 +7,10 @@ import {
   type Procedure,
   type StaffRow,
 } from '@/services/estetica.service'
-import Swal from 'sweetalert2' // ⬅️ agregado
+import Swal from 'sweetalert2'
+import 'sweetalert2/dist/sweetalert2.min.css'
+import { useAuth } from '@/app/context/AuthContext'
+import { Trash2 } from 'lucide-react'
 
 /** Estado del editor: números o null para montos/duración */
 type Editing = {
@@ -48,11 +51,15 @@ const EMPTY: Editing = {
   requiredStaffIds: [],
 }
 
+const API = process.env.NEXT_PUBLIC_API_URL || ''
+
 export default function ProceduresPanel() {
+  const { token } = useAuth() || {}
   const [rows, setRows] = useState<Procedure[]>([])
   const [staff, setStaff] = useState<StaffRow[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [deletingId, setDeletingId] = useState<number | null>(null)
   const [editing, setEditing] = useState<Editing>(EMPTY)
 
   async function reload() {
@@ -70,10 +77,7 @@ export default function ProceduresPanel() {
   }
 
   useEffect(() => {
-    // ⬅️ al abrir la tab (montaje del componente), hacer scroll al top
-    try {
-      window.scrollTo({ top: 0, behavior: 'smooth' })
-    } catch {}
+    try { window.scrollTo({ top: 0, behavior: 'smooth' }) } catch {}
     reload()
   }, [])
 
@@ -119,8 +123,8 @@ export default function ProceduresPanel() {
         confirmButtonText: 'Entendido',
         background: '#0f172a',
         color: '#e2e8f0',
-        iconColor: '#f59e0b',      // amber-500
-        confirmButtonColor: '#7c3aed', // violet-600
+        iconColor: '#f59e0b',
+        confirmButtonColor: '#7c3aed',
         customClass: {
           popup: 'rounded-2xl border border-white/10',
           title: 'text-slate-100',
@@ -134,20 +138,15 @@ export default function ProceduresPanel() {
     try {
       const payload = {
         ...editing,
-        // normaliza aliases a string[] | null
         aliases:
           typeof editing.aliases === 'string'
-            ? editing.aliases
-                .split(',')
-                .map(s => s.trim())
-                .filter(Boolean)
+            ? editing.aliases.split(',').map(s => s.trim()).filter(Boolean)
             : editing.aliases ?? null,
       }
       await upsertProcedure(payload as any)
       await reload()
       startNew()
 
-      // ✅ Éxito (SweetAlert dark)
       await Swal.fire({
         title: '¡Guardado!',
         text: 'Procedimiento guardado',
@@ -155,7 +154,7 @@ export default function ProceduresPanel() {
         confirmButtonText: 'Listo',
         background: '#0f172a',
         color: '#e2e8f0',
-        iconColor: '#22c55e',        // emerald-500
+        iconColor: '#22c55e',
         confirmButtonColor: '#7c3aed',
         customClass: {
           popup: 'rounded-2xl border border-white/10',
@@ -165,7 +164,6 @@ export default function ProceduresPanel() {
         },
       })
     } catch (e: any) {
-      // ❌ Error (SweetAlert dark)
       await Swal.fire({
         title: 'Error al guardar',
         text: e?.message || 'Error al guardar procedimiento',
@@ -173,7 +171,7 @@ export default function ProceduresPanel() {
         confirmButtonText: 'Entendido',
         background: '#0f172a',
         color: '#e2e8f0',
-        iconColor: '#ef4444',        // red-500
+        iconColor: '#ef4444',
         confirmButtonColor: '#7c3aed',
         customClass: {
           popup: 'rounded-2xl border border-white/10',
@@ -184,6 +182,84 @@ export default function ProceduresPanel() {
       })
     } finally {
       setSaving(false)
+    }
+  }
+
+  async function confirmAndDelete(r: Procedure) {
+    const result = await Swal.fire({
+      title: 'Eliminar servicio',
+      html: `<div class="text-slate-300">¿Seguro que deseas eliminar <b>${(r.name || '').replace(/</g,'&lt;')}</b>?</div>`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Sí, eliminar',
+      cancelButtonText: 'Cancelar',
+      background: '#0f172a',
+      color: '#e2e8f0',
+      iconColor: '#f59e0b',
+      confirmButtonColor: '#ef4444',
+      cancelButtonColor: '#334155',
+      customClass: {
+        popup: 'rounded-2xl border border-white/10',
+        title: 'text-slate-100',
+        htmlContainer: 'text-slate-300',
+        confirmButton: 'rounded-xl',
+        cancelButton: 'rounded-xl',
+      },
+    })
+    if (!result.isConfirmed) return
+
+    try {
+      setDeletingId(r.id)
+      const res = await fetch(`${API}/api/estetica/procedure/${r.id}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        credentials: 'include',
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        const msg = data?.error || `No se pudo eliminar (#${r.id})`
+        throw new Error(msg)
+      }
+      await reload()
+      if (editing?.id === r.id) startNew()
+      await Swal.fire({
+        title: 'Eliminado',
+        text: 'El servicio fue eliminado correctamente.',
+        icon: 'success',
+        confirmButtonText: 'Listo',
+        background: '#0f172a',
+        color: '#e2e8f0',
+        iconColor: '#22c55e',
+        confirmButtonColor: '#7c3aed',
+        customClass: {
+          popup: 'rounded-2xl border border-white/10',
+          title: 'text-slate-100',
+          htmlContainer: 'text-slate-300',
+          confirmButton: 'rounded-xl',
+        },
+      })
+    } catch (e: any) {
+      await Swal.fire({
+        title: 'Error al eliminar',
+        text: e?.message || 'No fue posible eliminar.',
+        icon: 'error',
+        confirmButtonText: 'Entendido',
+        background: '#0f172a',
+        color: '#e2e8f0',
+        iconColor: '#ef4444',
+        confirmButtonColor: '#7c3aed',
+        customClass: {
+          popup: 'rounded-2xl border border-white/10',
+          title: 'text-slate-100',
+          htmlContainer: 'text-slate-300',
+          confirmButton: 'rounded-xl',
+        },
+      })
+    } finally {
+      setDeletingId(null)
     }
   }
 
@@ -225,33 +301,71 @@ export default function ProceduresPanel() {
               </div>
             ) : (
               rows.map((r) => (
-                <button
+                <div
                   key={r.id}
-                  onClick={() => editRow(r)}
                   className="w-full text-left p-3 rounded-xl border border-white/10 bg-white/[.03] hover:bg-white/[.06] transition group"
                 >
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="font-medium truncate">{r.name}</div>
-                    <span
-                      className={[
-                        'text-[11px] rounded-full px-2 py-0.5 border',
-                        r.enabled
-                          ? 'border-emerald-500/70 text-emerald-300 bg-emerald-500/10'
-                          : 'border-slate-500/70 text-slate-300 bg-slate-500/10',
-                      ].join(' ')}
+                  <div className="flex items-start gap-3">
+                    <button
+                      onClick={() => editRow(r)}
+                      className="flex-1 text-left"
+                      title="Editar"
                     >
-                      {r.enabled ? 'Activo' : 'Inactivo'}
-                    </span>
-                  </div>
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="font-medium truncate">{r.name}</div>
+                        <span
+                          className={[
+                            'text-[11px] rounded-full px-2 py-0.5 border',
+                            r.enabled
+                              ? 'border-emerald-500/70 text-emerald-300 bg-emerald-500/10'
+                              : 'border-slate-500/70 text-slate-300 bg-slate-500/10',
+                          ].join(' ')}
+                        >
+                          {r.enabled ? 'Activo' : 'Inactivo'}
+                        </span>
+                      </div>
+                      <div className="mt-1 flex flex-wrap items-center gap-2 text-[12px] text-slate-400">
+                        {r.durationMin ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-white/5 border border-white/10">
+                            {r.durationMin} min
+                          </span>
+                        ) : null}
+                        {r.priceMin ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-white/5 border border-white/10">
+                            Desde {r.priceMin}
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-white/5 border border-white/10">
+                            Sin precio
+                          </span>
+                        )}
+                        {Array.isArray(r.aliases) && r.aliases.length > 0 ? (
+                          <span className="truncate text-slate-500">
+                            · {r.aliases.slice(0, 3).join(', ')}
+                            {r.aliases.length > 3 ? '…' : ''}
+                          </span>
+                        ) : null}
+                      </div>
+                    </button>
 
-                  <div className="mt-1 flex flex-wrap items-center gap-2 text-[12px] text-slate-400">
-                    {r.durationMin ? <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-white/5 border border-white/10">{r.durationMin} min</span> : null}
-                    {r.priceMin ? <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-white/5 border border-white/10">Desde {r.priceMin}</span> : <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-white/5 border border-white/10">Sin precio</span>}
-                    {Array.isArray(r.aliases) && r.aliases.length > 0 ? (
-                      <span className="truncate text-slate-500">· {r.aliases.slice(0, 3).join(', ')}{r.aliases.length > 3 ? '…' : ''}</span>
-                    ) : null}
+                    {/* Botón eliminar */}
+                    <button
+                      onClick={(e) => { e.stopPropagation(); confirmAndDelete(r) }}
+                      className="shrink-0 h-9 w-9 flex items-center justify-center rounded-lg border border-white/10 bg-white/[.02] hover:bg-red-500/10 hover:border-red-500/50 text-slate-300 hover:text-red-300 transition"
+                      title="Eliminar servicio"
+                      disabled={deletingId === r.id}
+                    >
+                      {deletingId === r.id ? (
+                        <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+                        </svg>
+                      ) : (
+                        <Trash2 className="h-4 w-4" />
+                      )}
+                    </button>
                   </div>
-                </button>
+                </div>
               ))
             )}
           </div>
@@ -507,10 +621,19 @@ export default function ProceduresPanel() {
                   Nuevo
                 </button>
                 {editing?.id ? (
+                  <button
+                    onClick={() => confirmAndDelete(editing as unknown as Procedure)}
+                    className="ml-auto px-3 py-2 rounded-xl border border-white/10 bg-white/[.02] hover:bg-red-500/10 hover:border-red-500/50 text-red-200 flex items-center gap-2"
+                    title="Eliminar este servicio"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    Eliminar
+                  </button>
+                ) : (
                   <span className="ml-auto text-[11px] text-slate-400 self-center">
-                    Editando: <strong className="text-slate-300">{editing.name || `#${editing.id}`}</strong>
+                    Crea o selecciona un servicio para editar.
                   </span>
-                ) : null}
+                )}
               </div>
             </div>
           </div>
