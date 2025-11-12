@@ -6,7 +6,7 @@ import ProceduresPanel from '@/app/dashboard/settings/estetica/ProceduresPanel'
 import StaffPanel from '@/app/dashboard/settings/estetica/StaffPanel'
 import ExceptionsPanel from '@/app/dashboard/settings/estetica/ExceptionsPanel'
 
-type Tab = 'procedures' | 'staff' | 'exceptions'
+type Tab = 'procedures' | 'staff' | 'config' | 'exceptions'
 
 export default function Page() {
   const [tab, setTab] = useState<Tab>('procedures')
@@ -46,6 +46,7 @@ export default function Page() {
           <div className="inline-flex gap-2 rounded-2xl border border-white/10 bg-slate-900/40 backdrop-blur-md p-1 shadow-md">
             <TabBtn id="procedures">Servicios</TabBtn>
             <TabBtn id="staff">Staff</TabBtn>
+            <TabBtn id="config">Configuración</TabBtn>
             <TabBtn id="exceptions">Fechas bloqueadas</TabBtn>
           </div>
         </div>
@@ -60,16 +61,15 @@ export default function Page() {
         )}
 
         {tab === 'staff' && (
-          <>
-            <section className="rounded-2xl border border-white/10 bg-slate-900/50 backdrop-blur-md p-4 sm:p-6 shadow">
-              <StaffPanel />
-            </section>
+          <section className="rounded-2xl border border-white/10 bg-slate-900/50 backdrop-blur-md p-4 sm:p-6 shadow">
+            <StaffPanel />
+          </section>
+        )}
 
-            {/* 👇 EsteticaForm después del Staff */}
-            <section className="rounded-2xl border border-white/10 bg-slate-900/50 backdrop-blur-md p-4 sm:p-6 shadow">
-              <EsteticaFormSmart />
-            </section>
-          </>
+        {tab === 'config' && (
+          <section className="rounded-2xl border border-white/10 bg-slate-900/50 backdrop-blur-md p-4 sm:p-6 shadow">
+            <EsteticaFormSmart />
+          </section>
         )}
 
         {tab === 'exceptions' && (
