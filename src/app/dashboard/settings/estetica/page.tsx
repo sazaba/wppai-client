@@ -6,10 +6,10 @@ import ProceduresPanel from '@/app/dashboard/settings/estetica/ProceduresPanel'
 import StaffPanel from '@/app/dashboard/settings/estetica/StaffPanel'
 import ExceptionsPanel from '@/app/dashboard/settings/estetica/ExceptionsPanel'
 
-type Tab = 'config' | 'procedures' | 'staff' | 'exceptions'
+type Tab = 'procedures' | 'staff' | 'exceptions'
 
 export default function Page() {
-  const [tab, setTab] = useState<Tab>('config')
+  const [tab, setTab] = useState<Tab>('procedures')
 
   const TabBtn = ({ id, children }: { id: Tab; children: React.ReactNode }) => {
     const active = tab === id
@@ -36,7 +36,7 @@ export default function Page() {
 
   return (
     <div className="p-4 sm:p-6 space-y-6">
-      {/* Barra de pestañas con efecto glass y bordes más suaves */}
+      {/* Barra de pestañas */}
       <div className="sticky top-0 z-20 -mx-4 sm:-mx-6 px-4 sm:px-6 py-3 backdrop-blur-md bg-slate-950/50 border-b border-white/10 rounded-b-2xl">
         <div
           role="tablist"
@@ -44,7 +44,6 @@ export default function Page() {
           className="w-full overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         >
           <div className="inline-flex gap-2 rounded-2xl border border-white/10 bg-slate-900/40 backdrop-blur-md p-1 shadow-md">
-            <TabBtn id="config">Configuración</TabBtn>
             <TabBtn id="procedures">Servicios</TabBtn>
             <TabBtn id="staff">Staff</TabBtn>
             <TabBtn id="exceptions">Fechas bloqueadas</TabBtn>
@@ -54,18 +53,25 @@ export default function Page() {
 
       {/* Contenido */}
       <div className="space-y-6">
-        {tab === 'config' && <EsteticaFormSmart />}
-
         {tab === 'procedures' && (
           <section className="rounded-2xl border border-white/10 bg-slate-900/50 backdrop-blur-md p-4 sm:p-6 shadow">
             <ProceduresPanel />
           </section>
         )}
+
         {tab === 'staff' && (
-          <section className="rounded-2xl border border-white/10 bg-slate-900/50 backdrop-blur-md p-4 sm:p-6 shadow">
-            <StaffPanel />
-          </section>
+          <>
+            <section className="rounded-2xl border border-white/10 bg-slate-900/50 backdrop-blur-md p-4 sm:p-6 shadow">
+              <StaffPanel />
+            </section>
+
+            {/* 👇 EsteticaForm después del Staff */}
+            <section className="rounded-2xl border border-white/10 bg-slate-900/50 backdrop-blur-md p-4 sm:p-6 shadow">
+              <EsteticaFormSmart />
+            </section>
+          </>
         )}
+
         {tab === 'exceptions' && (
           <section className="rounded-2xl border border-white/10 bg-slate-900/50 backdrop-blur-md p-4 sm:p-6 shadow">
             <ExceptionsPanel />

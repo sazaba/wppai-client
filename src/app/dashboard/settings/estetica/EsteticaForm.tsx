@@ -824,33 +824,26 @@ export type AppointmentDay = {
   end2: string | null;
 };
 
-/** Valor del formulario (UI) — versión reducida */
+/** Valor del formulario (UI) — versión depurada */
 export type AppointmentConfigValue = {
-  // 🔹 Mantener
   appointmentTimezone: string;
 
-  // 🔹 Ubicación / logística
   location?: {
     name?: string | null;
     address?: string | null;
     mapsUrl?: string | null;
     parkingInfo?: string | null;
-    virtualLink?: string | null;
     instructionsArrival?: string | null;
   };
 
-  // 🔹 Knowledge base
   kb?: {
     businessOverview?: string | null;
-    /** Arreglo visual de FAQs que se guarda como JSON en DB (kbFAQs) */
     faqs?: Array<{ q: string; a: string }> | null;
-    /** Compat: copia JSON string de faqs para backends antiguos */
-    faqsText?: string | null;
+    faqsText?: string | null; // compat
     freeText?: string | null;
   };
 
-  // (otros campos pueden existir en el objeto original, pero no se usan aquí)
-  hours?: AppointmentDay[]; // no se edita aquí; se deja por compat si el hook lo trae
+  hours?: AppointmentDay[]; // ← se edita aquí
 };
 
 type Props = {
@@ -858,7 +851,7 @@ type Props = {
   onChange: (patch: Partial<AppointmentConfigValue>) => void;
 };
 
-/* ================= Helpers locales del Form ================= */
+/* ================= Helpers ================= */
 const ORDER: Weekday[] = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
 const DAY_LABEL: Record<Weekday, string> = {
   mon: "Lunes",
@@ -894,7 +887,7 @@ export function normalizeHours(rows?: AppointmentDay[] | null): AppointmentDay[]
   return ORDER.map((d) => base.get(d)!);
 }
 
-/* =============== UI helpers (solo estilo) =============== */
+/* =============== UI básicos =============== */
 function Section({
   title,
   subtitle,
@@ -936,8 +929,29 @@ function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {
 function Textarea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
   return <textarea {...props} className={`${baseControl} ${props.className || ""}`} />;
 }
-function Select(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
-  return <select {...props} className={`${baseControl} ${props.className || ""}`} />;
+
+function Toggle({ checked, onClick, sr }: { checked: boolean; onClick: () => void; sr?: string }) {
+  return (
+    <button
+      type="button"
+      aria-label={sr || "toggle"}
+      aria-pressed={checked}
+      onClick={onClick}
+      className={[
+        "relative inline-flex h-8 w-[68px] items-center rounded-full border transition-all",
+        checked
+          ? "bg-emerald-500/90 border-emerald-400 shadow-[0_0_0_4px_rgba(16,185,129,.18)]"
+          : "bg-slate-700/80 border-slate-600",
+      ].join(" ")}
+    >
+      <span
+        className={[
+          "inline-block h-7 w-7 rounded-full bg-white shadow-md transform transition",
+          checked ? "translate-x-[38px]" : "translate-x-[3px]",
+        ].join(" ")}
+      />
+    </button>
+  );
 }
 
 /* =============== Editor visual de FAQs =============== */
@@ -1042,9 +1056,9 @@ function FAQEditor({
   );
 }
 
-/* =================== FORM UI (presentacional) =================== */
+/* =================== FORM UI =================== */
 export function EsteticaForm({ value, onChange }: Props) {
-  const hours = useMemo(() => normalizeHours(value.hours), [value.hours]); // compat (no mostrado)
+  const hours = useMemo(() => normalizeHours(value.hours), [value.hours]);
 
   function patch<K extends keyof AppointmentConfigValue>(key: K, v: AppointmentConfigValue[K]) {
     onChange({ [key]: v } as Partial<AppointmentConfigValue>);
@@ -1053,27 +1067,43 @@ export function EsteticaForm({ value, onChange }: Props) {
     const current = ((value as any)[key] ?? {}) as T;
     onChange({ [key]: { ...(current as any), ...partial } } as any);
   }
+  function patchDay(day: Weekday, partial: Partial<AppointmentDay>) {
+    const next = hours.map((h) => (h.day === day ? { ...h, ...partial } : h));
+    onChange({ hours: next });
+  }
 
-  // ——— Normaliza FAQs al cargar (si existe faqsText pero no kb.faqs)
+  function toggleDay(d: Weekday) {
+    const current = hours.find((h) => h.day === d)!;
+    const nextOpen = !current.isOpen;
+    patchDay(d, {
+      isOpen: nextOpen,
+      start1: nextOpen ? current.start1 ?? "09:00" : null,
+      end1: nextOpen ? current.end1 ?? "13:00" : null,
+      start2: nextOpen ? current.start2 : null,
+      end2: nextOpen ? current.end2 : null,
+    });
+  }
+
+  function updateTime(d: Weekday, field: keyof AppointmentDay, val: string) {
+    const safe = val || "";
+    if (safe && !isHHMM(safe)) return;
+    patchDay(d, { [field]: safe ? safe : null } as any);
+  }
+
+  // Normaliza FAQs desde faqsText (compat)
   useEffect(() => {
     const kb = value.kb ?? {};
     if ((!kb.faqs || kb.faqs.length === 0) && kb.faqsText) {
       try {
         const parsed = JSON.parse(kb.faqsText);
-        if (Array.isArray(parsed)) {
-          patchNested("kb", { faqs: parsed as any });
-        }
+        if (Array.isArray(parsed)) patchNested("kb", { faqs: parsed as any });
       } catch {}
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ——— Mantiene sincronizado kb.faqs <-> kb.faqsText (compat)
   function setFAQs(next: Array<{ q: string; a: string }>) {
-    patchNested("kb", {
-      faqs: next,
-      faqsText: JSON.stringify(next ?? []),
-    });
+    patchNested("kb", { faqs: next, faqsText: JSON.stringify(next ?? []) });
   }
 
   return (
@@ -1091,7 +1121,7 @@ export function EsteticaForm({ value, onChange }: Props) {
       </Section>
 
       {/* ====== 2) Ubicación ====== */}
-      <Section title="Ubicación y logística" subtitle="La información práctica se envía junto a la confirmación.">
+      <Section title="Ubicación y logística" subtitle="Se enviará junto a la confirmación.">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Input
             type="text"
@@ -1119,13 +1149,6 @@ export function EsteticaForm({ value, onChange }: Props) {
             onChange={(e) => patchNested("location", { parkingInfo: e.target.value })}
             className="md:col-span-2"
           />
-          <Input
-            type="text"
-            placeholder="Link de videollamada (si aplica)"
-            value={value.location?.virtualLink ?? ""}
-            onChange={(e) => patchNested("location", { virtualLink: e.target.value })}
-            className="md:col-span-2"
-          />
           <Textarea
             rows={3}
             placeholder="Indicaciones de llegada para el cliente"
@@ -1137,10 +1160,7 @@ export function EsteticaForm({ value, onChange }: Props) {
       </Section>
 
       {/* ====== 3) Knowledge base ====== */}
-      <Section
-        title="Knowledge base"
-        subtitle="La IA usa esta información para dar respuestas precisas y con tu tono."
-      >
+      <Section title="Knowledge base" subtitle="La IA usa esta información para responder con tu tono.">
         <div className="grid grid-cols-1 gap-4">
           <Textarea
             rows={3}
@@ -1149,7 +1169,6 @@ export function EsteticaForm({ value, onChange }: Props) {
             onChange={(e) => patchNested("kb", { businessOverview: e.target.value })}
           />
 
-        {/* Editor visual de FAQs */}
           <div>
             <div className="mb-2 text-sm font-medium text-slate-200">FAQs</div>
             <FAQEditor items={value.kb?.faqs} onChange={setFAQs} />
@@ -1160,10 +1179,87 @@ export function EsteticaForm({ value, onChange }: Props) {
 
           <Textarea
             rows={4}
-            placeholder="Información libre adicional para la IA (casos especiales, excepciones, etc.)."
+            placeholder="Información libre adicional para la IA (excepciones, casos especiales, etc.)."
             value={value.kb?.freeText ?? ""}
             onChange={(e) => patchNested("kb", { freeText: e.target.value })}
           />
+        </div>
+      </Section>
+
+      {/* ====== 4) Horario semanal (AppointmentHour) ====== */}
+      <Section
+        title="Horario semanal"
+        subtitle="Define los tramos de atención. El bloque 1 es obligatorio; el bloque 2 es opcional."
+      >
+        <div className="divide-y divide-white/10">
+          {hours.map((h) => (
+            <div key={h.day} className="py-4 grid grid-cols-1 lg:grid-cols-12 gap-4 items-center">
+              {/* Día + toggle */}
+              <div className="lg:col-span-3 flex items-center justify-between lg:justify-start gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="h-8 w-8 rounded-xl bg-violet-500/15 border border-violet-400/20 grid place-items-center text-[12px] text-violet-300">
+                    {DAY_LABEL[h.day].slice(0, 2)}
+                  </div>
+                  <div>
+                    <div className="text-sm font-medium text-slate-200">{DAY_LABEL[h.day]}</div>
+                    <div className="text-[11px] text-slate-400">{h.isOpen ? "Abierto" : "Cerrado"}</div>
+                  </div>
+                </div>
+                <Toggle checked={h.isOpen} onClick={() => toggleDay(h.day)} sr={`Alternar ${DAY_LABEL[h.day]}`} />
+              </div>
+
+              {/* Rangos */}
+              <div className={`lg:col-span-9 grid grid-cols-2 md:grid-cols-8 gap-3 ${!h.isOpen ? "opacity-60" : ""}`}>
+                {/* Bloque 1 */}
+                <div className="col-span-2 md:col-span-2">
+                  <Field label="Inicio" help="Bloque 1">
+                    <Input
+                      type="time"
+                      value={h.start1 || ""}
+                      disabled={!h.isOpen}
+                      onChange={(e) => updateTime(h.day, "start1", e.target.value)}
+                    />
+                  </Field>
+                </div>
+                <div className="col-span-2 md:col-span-2">
+                  <Field label="Fin" help="Bloque 1">
+                    <Input
+                      type="time"
+                      value={h.end1 || ""}
+                      disabled={!h.isOpen}
+                      onChange={(e) => updateTime(h.day, "end1", e.target.value)}
+                    />
+                  </Field>
+                </div>
+
+                {/* Bloque 2 (opcional) */}
+                <div className="col-span-2 md:col-span-2">
+                  <Field label="Inicio" help="Bloque 2 (opcional)">
+                    <Input
+                      type="time"
+                      value={h.start2 || ""}
+                      disabled={!h.isOpen}
+                      onChange={(e) => updateTime(h.day, "start2", e.target.value)}
+                    />
+                  </Field>
+                </div>
+                <div className="col-span-2 md:col-span-2">
+                  <Field label="Fin" help="Bloque 2 (opcional)">
+                    <Input
+                      type="time"
+                      value={h.end2 || ""}
+                      disabled={!h.isOpen}
+                      onChange={(e) => updateTime(h.day, "end2", e.target.value)}
+                    />
+                  </Field>
+                </div>
+
+                <div className="col-span-2 md:col-span-8 text-[12px] text-slate-400">
+                  {h.isOpen ? "Bloque 1 obligatorio · Bloque 2 opcional" : "Cerrado"}
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
       </Section>
     </div>
@@ -1186,7 +1282,9 @@ export default function EsteticaFormSmart({ empresaId }: { empresaId?: number })
     <div className="space-y-6">
       <div>
         <h1 className="text-xl font-semibold tracking-tight">Estética — Configuración</h1>
-        <p className="text-[12px] text-slate-400">Ajusta zona horaria, ubicación y conocimiento base.</p>
+        <p className="text-[12px] text-slate-400">
+          Ajusta zona horaria, ubicación, knowledge base y horario semanal.
+        </p>
       </div>
 
       <EsteticaForm
@@ -1208,7 +1306,7 @@ export default function EsteticaFormSmart({ empresaId }: { empresaId?: number })
                 await save();
                 await Swal.fire({
                   title: "¡Guardado!",
-                  text: "Configuración guardada",
+                  text: "Configuración y horarios guardados",
                   icon: "success",
                   confirmButtonText: "Listo",
                   background: "#0f172a",
