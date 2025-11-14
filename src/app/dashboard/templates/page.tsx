@@ -20,17 +20,30 @@ interface MessageTemplate {
 
 type CategoriaMeta = 'UTILITY' | 'MARKETING' | 'AUTHENTICATION'
 
+// Etiquetas orientadas a citas (solo UI)
 const CATEGORIAS_UI: { label: string; value: CategoriaMeta }[] = [
-  { label: 'Operativa / Servicio', value: 'UTILITY' },
-  { label: 'Marketing', value: 'MARKETING' },
-  { label: 'Autenticación', value: 'AUTHENTICATION' },
+  { label: 'Operativa / Servicio de citas', value: 'UTILITY' },
+  { label: 'Marketing / Promociones', value: 'MARKETING' },
+  { label: 'Autenticación / Verificación', value: 'AUTHENTICATION' },
 ]
 
+/**
+ * Convención sugerida para tus plantillas de citas:
+ * {{1}} = Nombre del cliente
+ * {{2}} = Servicio o tipo de cita
+ * {{3}} = Fecha de la cita
+ * {{4}} = Hora de la cita
+ * {{5}} = Dirección / sede
+ */
 const EJEMPLOS: Record<string, string> = {
-  saludo_basico: 'Hola {{1}}, gracias por escribirnos.',
-  recordatorio_cita: 'Hola {{1}}, te recordamos tu cita el {{2}}.',
-  confirmacion_pedido: 'Hola {{1}}, tu pedido {{2}} ha sido confirmado.',
-  notificacion_estado: 'Hola {{1}}, el estado de tu solicitud es: {{2}}.',
+  saludo_basico:
+    'Hola {{1}}, gracias por escribirnos. ¿En qué podemos ayudarte con tu cita o tratamiento?',
+  recordatorio_cita:
+    'Hola {{1}}, te recordamos tu cita de {{2}} el {{3}} a las {{4}}. Si no puedes asistir, por favor avísanos para reprogramar. 💚',
+  confirmacion_pedido:
+    'Hola {{1}}, tu cita de {{2}} fue confirmada para el {{3}} a las {{4}} en {{5}}. Te esperamos. ✨',
+  notificacion_estado:
+    'Hola {{1}}, el estado de tu cita de {{2}} es: {{3}}. Si necesitas más información, respóndenos por este chat.',
 }
 
 // ────────── UI helpers
@@ -89,7 +102,7 @@ export default function TemplatesPage() {
   const [sendingId, setSendingId] = useState<number | null>(null)
   const [checkingId, setCheckingId] = useState<number | null>(null)
 
-  // ✅ NUEVO: plantilla marcada como recordatorio 24h
+  // plantilla marcada como recordatorio 24h
   const [reminder24hTemplateId, setReminder24hTemplateId] = useState<number | null>(null)
 
   // loader global unificado
@@ -136,7 +149,7 @@ export default function TemplatesPage() {
     }
   }
 
-  // ✅ NUEVO: obtener la regla de recordatorio 24h actual
+  // obtener la regla de recordatorio 24h actual
   const fetchReminderRule = async () => {
     try {
       const res = await api.get('/api/appointments/reminders')
@@ -164,7 +177,9 @@ export default function TemplatesPage() {
 
   const scrollToTop = () => topRef.current?.scrollIntoView({ behavior: 'smooth' })
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+  ) => {
     const { name, value, type } = e.target
     if (type === 'checkbox') {
       setForm((s) => ({ ...s, [name]: (e.target as HTMLInputElement).checked }))
@@ -247,7 +262,7 @@ export default function TemplatesPage() {
       .finally(() => setCheckingId(null))
   }
 
-  // ✅ NUEVO: marcar una plantilla como "recordatorio 24h"
+  // marcar una plantilla como "recordatorio 24h"
   const marcarComoRecordatorio24h = async (tpl: MessageTemplate) => {
     const confirm = await Swal.fire({
       title: '¿Usar como recordatorio 24h?',
@@ -339,10 +354,10 @@ export default function TemplatesPage() {
               disabled={busy}
             >
               <option value="">— Sin preset —</option>
-              <option value="saludo_basico">Saludo básico</option>
+              <option value="saludo_basico">Saludo para clientes</option>
               <option value="recordatorio_cita">Recordatorio de cita</option>
-              <option value="confirmacion_pedido">Confirmación de pedido</option>
-              <option value="notificacion_estado">Notificación de estado</option>
+              <option value="confirmacion_pedido">Confirmación de cita</option>
+              <option value="notificacion_estado">Estado / actualización de cita</option>
             </select>
           </div>
 
@@ -352,7 +367,7 @@ export default function TemplatesPage() {
               name="nombre"
               value={form.nombre}
               onChange={handleChange}
-              placeholder="saludo_basico"
+              placeholder="recordatorio_cita_24h"
               className="w-full bg-slate-900 text-white border border-slate-600 px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-600 disabled:opacity-60"
               required
               disabled={busy}
@@ -392,20 +407,36 @@ export default function TemplatesPage() {
           </div>
 
           <div className="sm:col-span-2">
-            <label className="block text-xs text-slate-400 mb-1">
-              {'Cuerpo (usa {{1}}, {{2}}, ... )'}
-            </label>
+          <label className="block text-xs text-slate-400 mb-1">
+  Cuerpo (usa <span className="font-mono">{'{{1}}'}</span>,{' '}
+  <span className="font-mono">{'{{2}}'}</span>,{' '}
+  <span className="font-mono">{'{{3}}'}</span>,{' '}
+  <span className="font-mono">{'{{4}}'}</span>,{' '}
+  <span className="font-mono">{'{{5}}'}</span>)
+</label>
+
 
             <textarea
               name="cuerpo"
               value={form.cuerpo}
               onChange={handleChange}
-              placeholder="Hola {{1}}, tu pedido {{2}} está listo"
+              placeholder="Hola {{1}}, te recordamos tu cita de {{2}} el {{3}} a las {{4}} en {{5}}."
               className="w-full bg-slate-900 text-white border border-slate-600 placeholder-slate-400 px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-600 disabled:opacity-60"
-              rows={3}
+              rows={4}
               required
               disabled={busy}
             />
+
+<p className="mt-2 text-[11px] text-slate-400 leading-relaxed">
+  Convención sugerida:{' '}
+  <span className="font-mono">{'{{1}}'}</span> para el nombre,{' '}
+  <span className="font-mono">{'{{2}}'}</span> para el servicio,{' '}
+  <span className="font-mono">{'{{3}}'}</span> para la fecha,{' '}
+  <span className="font-mono">{'{{4}}'}</span> para la hora y{' '}
+  <span className="font-mono">{'{{5}}'}</span> para la dirección.
+  Asegúrate de que el número de variables coincida con lo que envías desde el backend.
+</p>
+
           </div>
         </div>
 
@@ -508,7 +539,7 @@ export default function TemplatesPage() {
                     {checkingId === p.id && busy ? 'Consultando…' : 'Consultar estado'}
                   </button>
 
-                  {/* ✅ NUEVO: marcar como recordatorio 24h */}
+                  {/* marcar como recordatorio 24h */}
                   <button
                     onClick={() => marcarComoRecordatorio24h(p)}
                     disabled={busy}
