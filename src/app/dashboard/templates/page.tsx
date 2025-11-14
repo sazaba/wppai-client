@@ -28,7 +28,7 @@ const CATEGORIAS_UI: { label: string; value: CategoriaMeta }[] = [
 
 // Presets enfocados en CITAS (sin variables {{1}}, {{2}}, etc.)
 const EJEMPLOS: Record<string, string> = {
-  recordatorio_cita_12: 
+  recordatorio_cita_12:
     'Hola, te recordamos tu cita con nosotros. Responde 1 para confirmar tu asistencia o 2 si deseas cancelarla.',
   confirmacion_cita:
     'Tu cita ha sido agendada con éxito. Si necesitas hacer cambios o reprogramar, responde a este mensaje.',
@@ -96,6 +96,8 @@ export default function TemplatesPage() {
 
   // plantilla marcada como recordatorio 24h
   const [reminder24hTemplateId, setReminder24hTemplateId] = useState<number | null>(null)
+  // ⭐ NUEVO: guardamos también el ID de la regla en reminder_rule
+  const [reminder24hRuleId, setReminder24hRuleId] = useState<number | null>(null)
 
   // loader global unificado
   const [busy, setBusy] = useState(false)
@@ -148,9 +150,12 @@ export default function TemplatesPage() {
       const rules = (res.data || []) as any[]
       const r24 = rules.find((r) => r.active && r.offsetHours === 24)
       setReminder24hTemplateId(r24?.messageTemplateId ?? null)
+      setReminder24hRuleId(r24?.id ?? null) // ⭐ guardamos id de la regla
     } catch (error) {
       console.error('Error al cargar reglas de recordatorio', error)
       // no rompemos nada si falla, solo dejamos null
+      setReminder24hTemplateId(null)
+      setReminder24hRuleId(null)
     }
   }
 
@@ -290,6 +295,29 @@ export default function TemplatesPage() {
       })
       await fetchReminderRule()
       Swal.fire('Listo', 'Plantilla marcada como recordatorio 24h.', 'success')
+    })
+  }
+
+  // ⭐ NUEVO: desactivar y borrar la regla de recordatorio 24h
+  const desactivarRecordatorio24h = async () => {
+    if (!reminder24hRuleId) {
+      return Swal.fire('Sin regla', 'No hay una regla 24h activa para desactivar.', 'info')
+    }
+
+    const confirm = await Swal.fire({
+      title: '¿Desactivar recordatorio 24h?',
+      text: 'Se eliminará la regla de recordatorio 24 horas antes de la base de datos.',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Sí, desactivar',
+      cancelButtonText: 'Cancelar',
+    })
+    if (!confirm.isConfirmed) return
+
+    await withBusy('Eliminando regla de recordatorio…', async () => {
+      await api.delete(`/api/appointments/reminders/${reminder24hRuleId}`)
+      await fetchReminderRule()
+      Swal.fire('Listo', 'Recordatorio 24h desactivado.', 'success')
     })
   }
 
@@ -492,77 +520,84 @@ export default function TemplatesPage() {
           </>
         ) : (
           <>
-            {plantillas.map((p) => (
-              <div
-                key={p.id}
-                className="border border-slate-700 p-4 rounded flex justify-between items-start bg-slate-800 shadow-sm text-white"
-              >
-                <div className="pr-4">
-                  <p className="font-semibold">{p.nombre}</p>
-                  <p className="text-sm text-slate-400">
-                    {p.idioma} • {p.categoria}
-                  </p>
-                  {p.cuerpo && <p className="text-sm mt-1 whitespace-pre-line">{p.cuerpo}</p>}
-                  <div className="text-xs mt-2 text-slate-500 flex items-center gap-2">
-                    <span>Vars: {p.variables}</span>
-                    <span>•</span>
-                    {renderEstado(p.estado)}
+            {plantillas.map((p) => {
+              const esRecordatorioActivo = reminder24hTemplateId === p.id
+              return (
+                <div
+                  key={p.id}
+                  className="border border-slate-700 p-4 rounded flex justify-between items-start bg-slate-800 shadow-sm text-white"
+                >
+                  <div className="pr-4">
+                    <p className="font-semibold">{p.nombre}</p>
+                    <p className="text-sm text-slate-400">
+                      {p.idioma} • {p.categoria}
+                    </p>
+                    {p.cuerpo && <p className="text-sm mt-1 whitespace-pre-line">{p.cuerpo}</p>}
+                    <div className="text-xs mt-2 text-slate-500 flex items-center gap-2">
+                      <span>Vars: {p.variables}</span>
+                      <span>•</span>
+                      {renderEstado(p.estado)}
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col items-end space-y-2 min-w-[240px]">
+                    <button
+                      onClick={() => enviarAMeta(p.id)}
+                      disabled={busy}
+                      className="text-blue-400 hover:text-blue-500 text-sm underline disabled:opacity-50"
+                      title="Subir a Meta"
+                    >
+                      {sendingId === p.id && busy ? 'Enviando…' : 'Enviar a Meta'}
+                    </button>
+
+                    <button
+                      onClick={() => consultarEstado(p.id)}
+                      disabled={busy}
+                      className="text-slate-300 hover:text-white text-sm underline disabled:opacity-50 flex items-center gap-1"
+                      title="Consultar estado en Meta"
+                    >
+                      <RefreshCw size={14} />{' '}
+                      {checkingId === p.id && busy ? 'Consultando…' : 'Consultar estado'}
+                    </button>
+
+                    {/* marcar / mostrar recordatorio 24h */}
+                    {esRecordatorioActivo ? (
+                      <div className="flex flex-col items-end space-y-1">
+                        <span className="text-sm flex items-center gap-1 text-emerald-400 font-semibold">
+                          <CheckCircle size={16} /> Recordatorio 24h activo
+                        </span>
+                        <button
+                          onClick={desactivarRecordatorio24h}
+                          disabled={busy}
+                          className="text-sm flex items-center gap-1 text-red-400 hover:text-red-500 disabled:opacity-50"
+                          title="Desactivar recordatorio 24h"
+                        >
+                          <XCircle size={16} /> Desactivar recordatorio 24h
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => marcarComoRecordatorio24h(p)}
+                        disabled={busy}
+                        className="text-sm flex items-center gap-1 text-slate-300 hover:text-emerald-400"
+                        title="Usar esta plantilla como recordatorio 24h"
+                      >
+                        <Clock size={16} /> Usar como recordatorio 24h
+                      </button>
+                    )}
+
+                    <button
+                      onClick={() => handleDelete(p.id)}
+                      disabled={busy}
+                      className="text-red-400 hover:text-red-500 text-sm flex items-center gap-1 disabled:opacity-50"
+                      title="Eliminar (DB + Meta)"
+                    >
+                      <Trash2 size={18} /> Eliminar
+                    </button>
                   </div>
                 </div>
-
-                <div className="flex flex-col items-end space-y-2 min-w-[220px]">
-                  <button
-                    onClick={() => enviarAMeta(p.id)}
-                    disabled={busy}
-                    className="text-blue-400 hover:text-blue-500 text-sm underline disabled:opacity-50"
-                    title="Subir a Meta"
-                  >
-                    {sendingId === p.id && busy ? 'Enviando…' : 'Enviar a Meta'}
-                  </button>
-
-                  <button
-                    onClick={() => consultarEstado(p.id)}
-                    disabled={busy}
-                    className="text-slate-300 hover:text-white text-sm underline disabled:opacity-50 flex items-center gap-1"
-                    title="Consultar estado en Meta"
-                  >
-                    <RefreshCw size={14} />{' '}
-                    {checkingId === p.id && busy ? 'Consultando…' : 'Consultar estado'}
-                  </button>
-
-                  {/* marcar como recordatorio 24h */}
-                  <button
-                    onClick={() => marcarComoRecordatorio24h(p)}
-                    disabled={busy}
-                    className={`text-sm flex items-center gap-1 ${
-                      reminder24hTemplateId === p.id
-                        ? 'text-emerald-400 font-semibold'
-                        : 'text-slate-300 hover:text-emerald-400'
-                    }`}
-                    title="Usar esta plantilla como recordatorio 24h"
-                  >
-                    {reminder24hTemplateId === p.id ? (
-                      <>
-                        <CheckCircle size={16} /> Recordatorio 24h activo
-                      </>
-                    ) : (
-                      <>
-                        <Clock size={16} /> Usar como recordatorio 24h
-                      </>
-                    )}
-                  </button>
-
-                  <button
-                    onClick={() => handleDelete(p.id)}
-                    disabled={busy}
-                    className="text-red-400 hover:text-red-500 text-sm flex items-center gap-1 disabled:opacity-50"
-                    title="Eliminar (DB + Meta)"
-                  >
-                    <Trash2 size={18} /> Eliminar
-                  </button>
-                </div>
-              </div>
-            ))}
+              )
+            })}
 
             {!loading && plantillas.length === 0 && (
               <div className="text-slate-400 text-sm">Aún no hay plantillas.</div>
