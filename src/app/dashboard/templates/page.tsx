@@ -35,9 +35,27 @@ const EJEMPLOS: Record<string, string> = {
 
 // ────────── UI helpers
 const Spinner = ({ size = 16, className = '' }: { size?: number; className?: string }) => (
-  <svg className={`animate-spin ${className}`} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" width={size} height={size}>
-    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+  <svg
+    className={`animate-spin ${className}`}
+    xmlns="http://www.w3.org/2000/svg"
+    fill="none"
+    viewBox="0 0 24 24"
+    width={size}
+    height={size}
+  >
+    <circle
+      className="opacity-25"
+      cx="12"
+      cy="12"
+      r="10"
+      stroke="currentColor"
+      strokeWidth="4"
+    />
+    <path
+      className="opacity-75"
+      fill="currentColor"
+      d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+    />
   </svg>
 )
 
@@ -70,6 +88,9 @@ export default function TemplatesPage() {
   const [plantillas, setPlantillas] = useState<MessageTemplate[]>([])
   const [sendingId, setSendingId] = useState<number | null>(null)
   const [checkingId, setCheckingId] = useState<number | null>(null)
+
+  // ✅ NUEVO: plantilla marcada como recordatorio 24h
+  const [reminder24hTemplateId, setReminder24hTemplateId] = useState<number | null>(null)
 
   // loader global unificado
   const [busy, setBusy] = useState(false)
@@ -115,8 +136,24 @@ export default function TemplatesPage() {
     }
   }
 
+  // ✅ NUEVO: obtener la regla de recordatorio 24h actual
+  const fetchReminderRule = async () => {
+    try {
+      const res = await api.get('/api/appointments/reminders')
+      const rules = (res.data || []) as any[]
+      const r24 = rules.find((r) => r.active && r.offsetHours === 24)
+      setReminder24hTemplateId(r24?.messageTemplateId ?? null)
+    } catch (error) {
+      console.error('Error al cargar reglas de recordatorio', error)
+      // no rompemos nada si falla, solo dejamos null
+    }
+  }
+
   useEffect(() => {
-    if (token) fetchTemplates()
+    if (token) {
+      fetchTemplates()
+      fetchReminderRule()
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token])
 
@@ -175,6 +212,8 @@ export default function TemplatesPage() {
       await api.delete(`/api/templates/${id}?borrarMeta=true`)
       await fetchTemplates()
       Swal.fire('Eliminada', 'La plantilla fue eliminada.', 'success')
+      // Si la que se elimina era la de recordatorio 24h, limpiamos el estado
+      setReminder24hTemplateId((prev) => (prev === id ? null : prev))
     })
   }
 
@@ -192,7 +231,9 @@ export default function TemplatesPage() {
       await api.post(`/api/templates/${id}/enviar`)
       await fetchTemplates()
       Swal.fire('Enviado', 'La plantilla fue enviada a Meta', 'success')
-    }).catch(() => {}).finally(() => setSendingId(null))
+    })
+      .catch(() => {})
+      .finally(() => setSendingId(null))
   }
 
   const consultarEstado = async (id: number) => {
@@ -201,14 +242,60 @@ export default function TemplatesPage() {
       const res = await api.get(`/api/templates/${id}/estado`)
       await fetchTemplates()
       Swal.fire('Estado actualizado', `Meta devolvió: ${res.data?.estado}`, 'info')
-    }).catch(() => {}).finally(() => setCheckingId(null))
+    })
+      .catch(() => {})
+      .finally(() => setCheckingId(null))
+  }
+
+  // ✅ NUEVO: marcar una plantilla como "recordatorio 24h"
+  const marcarComoRecordatorio24h = async (tpl: MessageTemplate) => {
+    const confirm = await Swal.fire({
+      title: '¿Usar como recordatorio 24h?',
+      text: 'Esta plantilla se usará para recordar las citas 24 horas antes.',
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonText: 'Sí, usar esta',
+      cancelButtonText: 'Cancelar',
+    })
+    if (!confirm.isConfirmed) return
+
+    await withBusy('Guardando regla de recordatorio…', async () => {
+      await api.post('/api/appointments/reminders', {
+        active: true,
+        offsetHours: 24,
+        messageTemplateId: tpl.id,
+        templateName: tpl.nombre,
+        templateLang: tpl.idioma,
+        templateParams: null,
+      })
+      await fetchReminderRule()
+      Swal.fire('Listo', 'Plantilla marcada como recordatorio 24h.', 'success')
+    })
   }
 
   const renderEstado = (estado: string) => {
     const s = (estado || '').toLowerCase()
-    if (s.includes('approved')) return <span className="flex items-center gap-1 text-green-400 text-sm"><CheckCircle size={16} /> Aprobado</span>
-    if (s.includes('rejected')) return <span className="flex items-center gap-1 text-red-400 text-sm"><XCircle size={16} /> Rechazado</span>
-    if (s.includes('in_review') || s.includes('pending')) return <span className="flex items-center gap-1 text-yellow-400 text-sm"><Clock size={16} /> En revisión</span>
+    if (s.includes('approved')) {
+      return (
+        <span className="flex items-center gap-1 text-green-400 text-sm">
+          <CheckCircle size={16} /> Aprobado
+        </span>
+      )
+    }
+    if (s.includes('rejected')) {
+      return (
+        <span className="flex items-center gap-1 text-red-400 text-sm">
+          <XCircle size={16} /> Rechazado
+        </span>
+      )
+    }
+    if (s.includes('in_review') || s.includes('pending')) {
+      return (
+        <span className="flex items-center gap-1 text-yellow-400 text-sm">
+          <Clock size={16} /> En revisión
+        </span>
+      )
+    }
     return <span className="text-slate-400 text-sm capitalize">{estado || '—'}</span>
   }
 
@@ -238,7 +325,10 @@ export default function TemplatesPage() {
       </div>
 
       {/* Formulario */}
-      <form onSubmit={handleSubmit} className="space-y-4 bg-slate-800 border border-slate-700 p-6 rounded-xl shadow-md">
+      <form
+        onSubmit={handleSubmit}
+        className="space-y-4 bg-slate-800 border border-slate-700 p-6 rounded-xl shadow-md"
+      >
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="sm:col-span-2">
             <label className="block text-xs text-slate-400 mb-1">Tipo (preset opcional)</label>
@@ -294,14 +384,16 @@ export default function TemplatesPage() {
               disabled={busy}
             >
               {CATEGORIAS_UI.map((c) => (
-                <option key={c.value} value={c.value}>{c.label}</option>
+                <option key={c.value} value={c.value}>
+                  {c.label}
+                </option>
               ))}
             </select>
           </div>
 
           <div className="sm:col-span-2">
             <label className="block text-xs text-slate-400 mb-1">
-              {"Cuerpo (usa {{1}}, {{2}}, ...)"}
+              {'Cuerpo (usa {{1}}, {{2}}, ... )'}
             </label>
 
             <textarea
@@ -342,7 +434,12 @@ export default function TemplatesPage() {
               </>
             ) : (
               <>
-                Crear plantilla {form.publicar && <span className="inline-flex items-center gap-1 ml-1"><Send size={14} /> y publicar</span>}
+                Crear plantilla{' '}
+                {form.publicar && (
+                  <span className="inline-flex items-center gap-1 ml-1">
+                    <Send size={14} /> y publicar
+                  </span>
+                )}
               </>
             )}
           </button>
@@ -374,10 +471,15 @@ export default function TemplatesPage() {
         ) : (
           <>
             {plantillas.map((p) => (
-              <div key={p.id} className="border border-slate-700 p-4 rounded flex justify-between items-start bg-slate-800 shadow-sm text-white">
+              <div
+                key={p.id}
+                className="border border-slate-700 p-4 rounded flex justify-between items-start bg-slate-800 shadow-sm text-white"
+              >
                 <div className="pr-4">
                   <p className="font-semibold">{p.nombre}</p>
-                  <p className="text-sm text-slate-400">{p.idioma} • {p.categoria}</p>
+                  <p className="text-sm text-slate-400">
+                    {p.idioma} • {p.categoria}
+                  </p>
                   {p.cuerpo && <p className="text-sm mt-1">{p.cuerpo}</p>}
                   <div className="text-xs mt-2 text-slate-500 flex items-center gap-2">
                     <span>Vars: {p.variables}</span>
@@ -385,7 +487,8 @@ export default function TemplatesPage() {
                     {renderEstado(p.estado)}
                   </div>
                 </div>
-                <div className="flex flex-col items-end space-y-2 min-w-[180px]">
+
+                <div className="flex flex-col items-end space-y-2 min-w-[220px]">
                   <button
                     onClick={() => enviarAMeta(p.id)}
                     disabled={busy}
@@ -401,7 +504,30 @@ export default function TemplatesPage() {
                     className="text-slate-300 hover:text-white text-sm underline disabled:opacity-50 flex items-center gap-1"
                     title="Consultar estado en Meta"
                   >
-                    <RefreshCw size={14} /> {checkingId === p.id && busy ? 'Consultando…' : 'Consultar estado'}
+                    <RefreshCw size={14} />{' '}
+                    {checkingId === p.id && busy ? 'Consultando…' : 'Consultar estado'}
+                  </button>
+
+                  {/* ✅ NUEVO: marcar como recordatorio 24h */}
+                  <button
+                    onClick={() => marcarComoRecordatorio24h(p)}
+                    disabled={busy}
+                    className={`text-sm flex items-center gap-1 ${
+                      reminder24hTemplateId === p.id
+                        ? 'text-emerald-400 font-semibold'
+                        : 'text-slate-300 hover:text-emerald-400'
+                    }`}
+                    title="Usar esta plantilla como recordatorio 24h"
+                  >
+                    {reminder24hTemplateId === p.id ? (
+                      <>
+                        <CheckCircle size={16} /> Recordatorio 24h activo
+                      </>
+                    ) : (
+                      <>
+                        <Clock size={16} /> Usar como recordatorio 24h
+                      </>
+                    )}
                   </button>
 
                   <button

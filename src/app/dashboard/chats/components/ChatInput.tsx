@@ -40,7 +40,7 @@ const DarkSwal = Swal.mixin({
   customClass: {
     popup: 'rounded-2xl border border-white/10 shadow-2xl',
     title: 'text-lg font-semibold',
-    htmlContainer: 'text-sm text-gray-200',
+   htmlContainer: 'text-sm text-gray-200',
     confirmButton:
       'inline-flex items-center justify-center rounded-xl px-4 py-2 font-medium bg-gradient-to-r from-emerald-500 to-teal-600 text-white hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-emerald-400',
     cancelButton:
@@ -61,6 +61,25 @@ async function alertSuccess(title: string, text?: string) {
 }
 async function alertError(title: string, html?: string) {
   await DarkSwal.fire({ icon: 'error', title, html, confirmButtonText: 'Entendido' })
+}
+
+/** 🔔 Pregunta si quieres enviar recordatorio 24h antes para ESTA cita */
+async function confirmReminder24h(): Promise<boolean> {
+  const res = await DarkSwal.fire({
+    icon: 'question',
+    title: '¿Enviar recordatorio 24 horas antes?',
+    html: `
+      <p style="font-size:13px;line-height:1.4;">
+        Si aceptas, se enviará un mensaje automático 24 horas antes de la cita
+        para que el paciente confirme su asistencia.
+      </p>
+    `,
+    showCancelButton: true,
+    confirmButtonText: 'Sí, enviar recordatorio',
+    cancelButtonText: 'No, solo agendar',
+    reverseButtons: true,
+  })
+  return res.isConfirmed === true
 }
 
 function localToISOWithOffset(local: string, offsetMinutes = -300): { iso: string; dateLocal: Date } {
@@ -106,6 +125,8 @@ type CreateApptPayload = {
   startISO: string
   durationMin?: number
   notes?: string
+  /** Flag por cita: si se debe enviar recordatorio 24h antes */
+  sendReminder24h?: boolean
 }
 
 function extractAgendaFromState(state?: any): { nombre?: string; servicio?: string } {
@@ -300,12 +321,18 @@ export default function ChatInput({
   }
 
   async function createAppointmentFromChat(data: CreateApptPayload) {
-    if (!empresaId || !token) { await alertError('No se pudo agendar', '<span>Falta sesión o empresa seleccionada.</span>'); return }
+    if (!empresaId || !token) {
+      await alertError('No se pudo agendar', '<span>Falta sesión o empresa seleccionada.</span>')
+      return
+    }
     if (!data.name?.trim())  { await alertError('Falta el nombre'); return }
     if (!data.service?.trim()) { await alertError('Falta el servicio'); return }
     if (!data.phone?.trim()) { await alertError('Falta el teléfono'); return }
 
     try {
+      // 🔔 Preguntamos si queremos recordatorio 24h ANTES de construir el body
+      const sendReminder24h = await confirmReminder24h()
+
       const { iso: startAtISO, dateLocal } = localToISOWithOffset(data.startISO, -300)
       const durationMin = Number.isFinite(data.durationMin as number) ? (data.durationMin as number) : 30
       const endLocal = new Date(dateLocal.getTime() + durationMin * 60_000)
@@ -325,6 +352,8 @@ export default function ChatInput({
         startAt: startAtISO,
         endAt: endAtISO,
         timezone: 'America/Bogota',
+        // 👇 nuevo flag por cita
+        sendReminder24h,
       }
 
       const created = await api<{ id: number; customerName: string; startAt: string }>(
