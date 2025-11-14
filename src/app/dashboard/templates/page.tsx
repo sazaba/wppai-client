@@ -20,30 +20,22 @@ interface MessageTemplate {
 
 type CategoriaMeta = 'UTILITY' | 'MARKETING' | 'AUTHENTICATION'
 
-// Etiquetas orientadas a citas (solo UI)
 const CATEGORIAS_UI: { label: string; value: CategoriaMeta }[] = [
-  { label: 'Operativa / Servicio de citas', value: 'UTILITY' },
-  { label: 'Marketing / Promociones', value: 'MARKETING' },
-  { label: 'Autenticación / Verificación', value: 'AUTHENTICATION' },
+  { label: 'Operativa / Servicio', value: 'UTILITY' },
+  { label: 'Seguimiento / Fidelización', value: 'MARKETING' },
+  { label: 'Autenticación', value: 'AUTHENTICATION' },
 ]
 
-/**
- * Convención sugerida para tus plantillas de citas:
- * {{1}} = Nombre del cliente
- * {{2}} = Servicio o tipo de cita
- * {{3}} = Fecha de la cita
- * {{4}} = Hora de la cita
- * {{5}} = Dirección / sede
- */
+// Presets enfocados en CITAS (sin variables {{1}}, {{2}}, etc.)
 const EJEMPLOS: Record<string, string> = {
-  saludo_basico:
-    'Hola {{1}}, gracias por escribirnos. ¿En qué podemos ayudarte con tu cita o tratamiento?',
-  recordatorio_cita:
-    'Hola {{1}}, te recordamos tu cita de {{2}} el {{3}} a las {{4}}. Si no puedes asistir, por favor avísanos para reprogramar. 💚',
-  confirmacion_pedido:
-    'Hola {{1}}, tu cita de {{2}} fue confirmada para el {{3}} a las {{4}} en {{5}}. Te esperamos. ✨',
-  notificacion_estado:
-    'Hola {{1}}, el estado de tu cita de {{2}} es: {{3}}. Si necesitas más información, respóndenos por este chat.',
+  recordatorio_cita_12: 
+    'Hola, te recordamos tu cita con nosotros. Responde 1 para confirmar tu asistencia o 2 si deseas cancelarla.',
+  confirmacion_cita:
+    'Tu cita ha sido agendada con éxito. Si necesitas hacer cambios o reprogramar, responde a este mensaje.',
+  post_cita:
+    'Esperamos que tu cita haya ido muy bien. Si tienes alguna duda adicional o requieres otra valoración, respóndenos por este medio.',
+  saludo_bienvenida:
+    'Hola, gracias por comunicarte con nosotros. Te ayudaremos a gestionar tu cita y resolver tus dudas.',
 }
 
 // ────────── UI helpers
@@ -178,7 +170,7 @@ export default function TemplatesPage() {
   const scrollToTop = () => topRef.current?.scrollIntoView({ behavior: 'smooth' })
 
   const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>,
   ) => {
     const { name, value, type } = e.target
     if (type === 'checkbox') {
@@ -189,8 +181,12 @@ export default function TemplatesPage() {
   }
 
   const handleNombrePreset = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const nombre = e.target.value
-    setForm((s) => ({ ...s, nombre, cuerpo: EJEMPLOS[nombre] || '' }))
+    const preset = e.target.value
+    setForm((s) => ({
+      ...s,
+      nombre: preset || s.nombre,
+      cuerpo: EJEMPLOS[preset] || s.cuerpo,
+    }))
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -207,8 +203,18 @@ export default function TemplatesPage() {
         cuerpo: form.cuerpo,
       })
       await fetchTemplates()
-      setForm({ nombre: '', idioma: 'es', categoria: 'UTILITY', cuerpo: '', publicar: true })
-      Swal.fire('Éxito', `Plantilla creada${form.publicar ? ' y enviada a Meta' : ''}`, 'success')
+      setForm({
+        nombre: '',
+        idioma: 'es',
+        categoria: 'UTILITY',
+        cuerpo: '',
+        publicar: true,
+      })
+      Swal.fire(
+        'Éxito',
+        `Plantilla creada${form.publicar ? ' y enviada a Meta' : ''}`,
+        'success',
+      )
       setTimeout(scrollToTop, 100)
     })
   }
@@ -227,7 +233,6 @@ export default function TemplatesPage() {
       await api.delete(`/api/templates/${id}?borrarMeta=true`)
       await fetchTemplates()
       Swal.fire('Eliminada', 'La plantilla fue eliminada.', 'success')
-      // Si la que se elimina era la de recordatorio 24h, limpiamos el estado
       setReminder24hTemplateId((prev) => (prev === id ? null : prev))
     })
   }
@@ -346,7 +351,9 @@ export default function TemplatesPage() {
       >
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="sm:col-span-2">
-            <label className="block text-xs text-slate-400 mb-1">Tipo (preset opcional)</label>
+            <label className="block text-xs text-slate-400 mb-1">
+              Tipo de mensaje (preset opcional)
+            </label>
             <select
               name="preset"
               onChange={handleNombrePreset}
@@ -354,10 +361,12 @@ export default function TemplatesPage() {
               disabled={busy}
             >
               <option value="">— Sin preset —</option>
-              <option value="saludo_basico">Saludo para clientes</option>
-              <option value="recordatorio_cita">Recordatorio de cita</option>
-              <option value="confirmacion_pedido">Confirmación de cita</option>
-              <option value="notificacion_estado">Estado / actualización de cita</option>
+              <option value="recordatorio_cita_12">
+                Recordatorio de cita (1 = confirma / 2 = cancela)
+              </option>
+              <option value="confirmacion_cita">Confirmación de cita</option>
+              <option value="post_cita">Mensaje post cita / seguimiento</option>
+              <option value="saludo_bienvenida">Saludo de bienvenida</option>
             </select>
           </div>
 
@@ -367,7 +376,7 @@ export default function TemplatesPage() {
               name="nombre"
               value={form.nombre}
               onChange={handleChange}
-              placeholder="recordatorio_cita_24h"
+              placeholder="recordatorio_cita_12"
               className="w-full bg-slate-900 text-white border border-slate-600 px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-600 disabled:opacity-60"
               required
               disabled={busy}
@@ -407,36 +416,18 @@ export default function TemplatesPage() {
           </div>
 
           <div className="sm:col-span-2">
-          <label className="block text-xs text-slate-400 mb-1">
-  Cuerpo (usa <span className="font-mono">{'{{1}}'}</span>,{' '}
-  <span className="font-mono">{'{{2}}'}</span>,{' '}
-  <span className="font-mono">{'{{3}}'}</span>,{' '}
-  <span className="font-mono">{'{{4}}'}</span>,{' '}
-  <span className="font-mono">{'{{5}}'}</span>)
-</label>
-
+            <label className="block text-xs text-slate-400 mb-1">Cuerpo del mensaje</label>
 
             <textarea
               name="cuerpo"
               value={form.cuerpo}
               onChange={handleChange}
-              placeholder="Hola {{1}}, te recordamos tu cita de {{2}} el {{3}} a las {{4}} en {{5}}."
+              placeholder="Hola, te recordamos tu cita con nosotros. Responde 1 para confirmar o 2 si deseas cancelarla."
               className="w-full bg-slate-900 text-white border border-slate-600 placeholder-slate-400 px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-600 disabled:opacity-60"
-              rows={4}
+              rows={3}
               required
               disabled={busy}
             />
-
-<p className="mt-2 text-[11px] text-slate-400 leading-relaxed">
-  Convención sugerida:{' '}
-  <span className="font-mono">{'{{1}}'}</span> para el nombre,{' '}
-  <span className="font-mono">{'{{2}}'}</span> para el servicio,{' '}
-  <span className="font-mono">{'{{3}}'}</span> para la fecha,{' '}
-  <span className="font-mono">{'{{4}}'}</span> para la hora y{' '}
-  <span className="font-mono">{'{{5}}'}</span> para la dirección.
-  Asegúrate de que el número de variables coincida con lo que envías desde el backend.
-</p>
-
           </div>
         </div>
 
@@ -511,7 +502,7 @@ export default function TemplatesPage() {
                   <p className="text-sm text-slate-400">
                     {p.idioma} • {p.categoria}
                   </p>
-                  {p.cuerpo && <p className="text-sm mt-1">{p.cuerpo}</p>}
+                  {p.cuerpo && <p className="text-sm mt-1 whitespace-pre-line">{p.cuerpo}</p>}
                   <div className="text-xs mt-2 text-slate-500 flex items-center gap-2">
                     <span>Vars: {p.variables}</span>
                     <span>•</span>
