@@ -96,7 +96,7 @@ export default function TemplatesPage() {
 
   // plantilla marcada como recordatorio 24h
   const [reminder24hTemplateId, setReminder24hTemplateId] = useState<number | null>(null)
-  // ⭐ NUEVO: guardamos también el ID de la regla en reminder_rule
+  // también guardamos el ID de la regla en reminder_rule
   const [reminder24hRuleId, setReminder24hRuleId] = useState<number | null>(null)
 
   // loader global unificado
@@ -147,10 +147,15 @@ export default function TemplatesPage() {
   const fetchReminderRule = async () => {
     try {
       const res = await api.get('/api/appointments/reminders')
+      console.log('[TemplatesPage] reminder rules:', res.data)
+
       const rules = (res.data || []) as any[]
       const r24 = rules.find((r) => r.active && r.offsetHours === 24)
+
+      console.log('[TemplatesPage] r24 seleccionado:', r24)
+
       setReminder24hTemplateId(r24?.messageTemplateId ?? null)
-      setReminder24hRuleId(r24?.id ?? null) // ⭐ guardamos id de la regla
+      setReminder24hRuleId(r24?.id ?? null)
     } catch (error) {
       console.error('Error al cargar reglas de recordatorio', error)
       // no rompemos nada si falla, solo dejamos null
@@ -284,25 +289,34 @@ export default function TemplatesPage() {
     })
     if (!confirm.isConfirmed) return
 
-    await withBusy('Guardando regla de recordatorio…', async () => {
-      await api.post('/api/appointments/reminders', {
-        active: true,
-        offsetHours: 24,
-        messageTemplateId: tpl.id,
-        templateName: tpl.nombre,
-        templateLang: tpl.idioma,
-        templateParams: null,
+    try {
+      await withBusy('Guardando regla de recordatorio…', async () => {
+        await api.post('/api/appointments/reminders', {
+          active: true,
+          offsetHours: 24,
+          messageTemplateId: tpl.id,
+          templateName: tpl.nombre,
+          templateLang: tpl.idioma,
+          templateParams: null,
+        })
       })
+
       await fetchReminderRule()
       Swal.fire('Listo', 'Plantilla marcada como recordatorio 24h.', 'success')
-    })
+    } catch (error: any) {
+      const msg = error?.response?.data?.error || 'No se pudo guardar la regla de recordatorio.'
+      console.error('[TemplatesPage] error al marcar recordatorio 24h:', error)
+      Swal.fire('Error', msg, 'error')
+    }
   }
 
-  // ⭐ NUEVO: desactivar y borrar la regla de recordatorio 24h
+  // desactivar y borrar la regla de recordatorio 24h
   const desactivarRecordatorio24h = async () => {
     if (!reminder24hRuleId) {
       return Swal.fire('Sin regla', 'No hay una regla 24h activa para desactivar.', 'info')
     }
+
+    console.log('[TemplatesPage] intentando borrar regla ID:', reminder24hRuleId)
 
     const confirm = await Swal.fire({
       title: '¿Desactivar recordatorio 24h?',
@@ -314,11 +328,18 @@ export default function TemplatesPage() {
     })
     if (!confirm.isConfirmed) return
 
-    await withBusy('Eliminando regla de recordatorio…', async () => {
-      await api.delete(`/api/appointments/reminders/${reminder24hRuleId}`)
+    try {
+      await withBusy('Eliminando regla de recordatorio…', async () => {
+        await api.delete(`/api/appointments/reminders/${reminder24hRuleId}`)
+      })
+
       await fetchReminderRule()
       Swal.fire('Listo', 'Recordatorio 24h desactivado.', 'success')
-    })
+    } catch (error: any) {
+      const msg = error?.response?.data?.error || 'No se pudo eliminar la regla de recordatorio.'
+      console.error('[TemplatesPage] error al desactivar recordatorio 24h:', error)
+      Swal.fire('Error', msg, 'error')
+    }
   }
 
   const renderEstado = (estado: string) => {
