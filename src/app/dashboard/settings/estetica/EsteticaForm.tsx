@@ -317,7 +317,7 @@ export function EsteticaForm({ value, onChange }: Props) {
       </Section>
 
             {/* ====== 1.5) Confirmación de citas ====== */}
-      <Section
+      {/* <Section
         title="Confirmación de citas"
         subtitle="Define si la IA debe pedir '¿confirmas?' antes de crear una cita."
       >
@@ -340,7 +340,7 @@ export function EsteticaForm({ value, onChange }: Props) {
 />
 
         </div>
-      </Section>
+      </Section> */}
 
 
       {/* ====== 2) Ubicación ====== */}
