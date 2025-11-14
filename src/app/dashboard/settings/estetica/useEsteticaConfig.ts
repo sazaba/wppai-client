@@ -1,3 +1,4 @@
+// client/src/app/dashboard/settings/estetica/useEsteticaConfig.ts
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
@@ -18,9 +19,12 @@ export type AppointmentConfigValue = {
     appointmentVertical: "odontologica" | "estetica" | "spa" | "custom";
     appointmentVerticalCustom?: string | null;
     appointmentTimezone: string;
+    requireClientConfirmation?: boolean; // 🔹 NUEVO flag
+
     appointmentBufferMin: number;
     appointmentPolicies?: string;
     appointmentReminders: boolean;
+
     location?: {
         name?: string | null;
         address?: string | null;
@@ -29,6 +33,7 @@ export type AppointmentConfigValue = {
         virtualLink?: string | null;
         instructionsArrival?: string | null;
     };
+
     rules?: {
         bookingWindowDays?: number | null;
         maxDailyAppointments?: number | null;
@@ -39,16 +44,19 @@ export type AppointmentConfigValue = {
         blackoutDates?: string[] | null;
         overlapStrategy?: string | null;
     };
+
     reminders?: {
         schedule?: Array<{ offsetHours: number; channel: string }> | null;
         templateId?: string | null;
         postBookingMessage?: string | null;
     };
+
     kb?: {
         businessOverview?: string | null;
         faqsText?: string | null;
         freeText?: string | null;
     };
+
     hours?: AppointmentDay[];
 };
 
@@ -63,11 +71,12 @@ function getAuthHeaders(): Record<string, string> {
 const ORDER: Weekday[] = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
 export function normalizeDays(rows?: AppointmentDay[] | null): AppointmentDay[] {
     const base = new Map<Weekday, AppointmentDay>();
-    for (const d of ORDER) base.set(d, { day: d, isOpen: false, start1: null, end1: null, start2: null, end2: null });
+    for (const d of ORDER)
+        base.set(d, { day: d, isOpen: false, start1: null, end1: null, start2: null, end2: null });
     if (Array.isArray(rows)) {
         for (const r of rows) if (ORDER.includes(r.day)) base.set(r.day, { ...base.get(r.day)!, ...r });
     }
-    return ORDER.map(d => base.get(d)!);
+    return ORDER.map((d) => base.get(d)!);
 }
 
 function clampBuffer(n: number) {
@@ -81,6 +90,7 @@ export function useEsteticaConfig(empresaId?: number) {
         appointmentVertical: "custom",
         appointmentVerticalCustom: "",
         appointmentTimezone: "America/Bogota",
+        requireClientConfirmation: true, // 🔹 default: pide confirmación
         appointmentBufferMin: 10,
         appointmentPolicies: "",
         appointmentReminders: true,
@@ -115,7 +125,10 @@ export function useEsteticaConfig(empresaId?: number) {
                 appointmentVertical: cfg?.appointmentVertical ?? "custom",
                 appointmentVerticalCustom: cfg?.appointmentVerticalCustom ?? "",
                 appointmentTimezone: cfg?.appointmentTimezone ?? "America/Bogota",
-                appointmentBufferMin: Number.isFinite(cfg?.appointmentBufferMin) ? cfg.appointmentBufferMin : 10,
+                requireClientConfirmation: cfg?.requireClientConfirmation ?? true, // 🔹 leer de backend
+                appointmentBufferMin: Number.isFinite(cfg?.appointmentBufferMin)
+                    ? cfg.appointmentBufferMin
+                    : 10,
                 appointmentPolicies: cfg?.appointmentPolicies ?? "",
                 appointmentReminders: (cfg?.appointmentReminders ?? true) as boolean,
                 location: {
@@ -143,10 +156,17 @@ export function useEsteticaConfig(empresaId?: number) {
                 },
                 kb: {
                     businessOverview: cfg?.kbBusinessOverview ?? "",
-                    faqsText: typeof cfg?.kbFAQs === "string" ? cfg.kbFAQs : cfg?.kbFAQs ? JSON.stringify(cfg.kbFAQs) : "",
+                    faqsText:
+                        typeof cfg?.kbFAQs === "string"
+                            ? cfg.kbFAQs
+                            : cfg?.kbFAQs
+                                ? JSON.stringify(cfg.kbFAQs)
+                                : "",
                     freeText: cfg?.kbFreeText ?? "",
                 },
-                hours: normalizeDays(Array.isArray(hrsR?.data) ? hrsR.data : hrsR?.data?.data ?? []),
+                hours: normalizeDays(
+                    Array.isArray(hrsR?.data) ? hrsR.data : hrsR?.data?.data ?? []
+                ),
             });
         } finally {
             setLoading(false);
@@ -168,8 +188,10 @@ export function useEsteticaConfig(empresaId?: number) {
                 aiMode: "estetica",
                 appointmentEnabled: !!v.appointmentEnabled,
                 appointmentVertical: v.appointmentVertical,
-                appointmentVerticalCustom: v.appointmentVertical === "custom" ? (v.appointmentVerticalCustom ?? "") : null,
+                appointmentVerticalCustom:
+                    v.appointmentVertical === "custom" ? v.appointmentVerticalCustom ?? "" : null,
                 appointmentTimezone: v.appointmentTimezone,
+                requireClientConfirmation: v.requireClientConfirmation ?? true, // 🔹 enviar al backend
                 appointmentBufferMin: clampBuffer(v.appointmentBufferMin),
                 appointmentPolicies: v.appointmentPolicies ?? "",
                 appointmentReminders: !!v.appointmentReminders,
@@ -200,7 +222,9 @@ export function useEsteticaConfig(empresaId?: number) {
                 ...(empresaId ? { empresaId } : {}),
             };
 
-            await axios.post(`${API_URL}/api/estetica/config`, cfgPayload, { headers: getAuthHeaders() });
+            await axios.post(`${API_URL}/api/estetica/config`, cfgPayload, {
+                headers: getAuthHeaders(),
+            });
 
             // 2) Guardar horarios (bulk PUT) — normalizar HH:MM
             const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/;
@@ -210,7 +234,7 @@ export function useEsteticaConfig(empresaId?: number) {
                 return HHMM.test(s) ? s : null;
             };
 
-            const hours = normalizeDays(v.hours).map(d => ({
+            const hours = normalizeDays(v.hours).map((d) => ({
                 day: d.day,
                 isOpen: !!d.isOpen,
                 start1: d.isOpen ? asHHMM(d.start1) : null,
@@ -222,7 +246,7 @@ export function useEsteticaConfig(empresaId?: number) {
             await axios.put(
                 `${API_URL}/api/appointment-hours`,
                 { hours, ...(empresaId ? { empresaId } : {}) },
-                { headers: getAuthHeaders() },
+                { headers: getAuthHeaders() }
             );
 
             return true;
