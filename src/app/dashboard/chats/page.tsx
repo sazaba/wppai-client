@@ -339,17 +339,27 @@ export default function ChatsPage() {
 
     const aplicarOk = (created: any) => {
       const real = created?.message ?? created
+    
       setMensajes((prev) =>
-        ordenarMensajes(prev.map((m) => (m.id === tempId ? { ...m, ...real, id: real.id } : m)))
+        ordenarMensajes(
+          prev.map((m) => (m.id === tempId ? { ...m, ...real, id: real.id } : m))
+        )
       )
+    
+      // ⬇️ aquí quitamos el cambio de estado
       setChats((prev) =>
         prev.map((chat) => {
           if (chat.id !== activoId) return chat
-          if (chat.estado === 'agendado' || chat.estado === 'agendado_consulta') return chat
-          return { ...chat, estado: 'respondido' }
+          return {
+            ...chat,
+            mensaje: real.contenido || chat.mensaje,
+            fecha: real.timestamp ?? chat.fecha,
+            // ❌ NO tocamos chat.estado
+          }
         })
       )
     }
+    
 
     const aplicarError = async (err: any) => {
       console.error('Error al responder manualmente:', err)
