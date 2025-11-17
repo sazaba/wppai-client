@@ -136,7 +136,11 @@ function extractAgendaFromState(state?: any): { nombre?: string; servicio?: stri
   return { nombre, servicio }
 }
 
-function extractAgendaFromSummaryBlock(summary?: string): { nombre?: string; servicio?: string } {
+function extractAgendaFromSummaryBlock(summary?: string): {
+  nombre?: string;
+  servicio?: string;
+  telefono?: string;
+} {
   if (!summary) return {}
   const m = /=== AGENDA_COLECTADA ===([\s\S]*?)=== FIN_AGENDA ===/m.exec(summary)
   if (!m) return {}
@@ -147,8 +151,14 @@ function extractAgendaFromSummaryBlock(summary?: string): { nombre?: string; ser
     const v = (mm?.[1] || '').trim()
     return v && v !== '—' ? v : undefined
   }
-  return { servicio: take('tratamiento'), nombre: take('nombre') }
+
+  const nombre = take('nombre')
+  const servicio = take('tratamiento')
+  const telefono = take('telefono') || take('teléfono')
+
+  return { nombre, servicio, telefono }
 }
+
 
 function extractStaffFromSummaryText(summaryText?: string): Array<{ id: number; name: string }> {
   if (!summaryText) return []
@@ -217,15 +227,32 @@ export default function ChatInput({
   }, [token])
 
   useEffect(() => {
+    // Si cambió el summary, volvemos a leer todo y SOBREESCRIBIMOS
     if (summaryText) {
       const staffFromSummary = extractStaffFromSummaryText(summaryText)
-      if (staffFromSummary.length && !staffOpts.length) setStaffOpts(staffFromSummary)
+      if (staffFromSummary.length) {
+        setStaffOpts((prev) => (prev.length ? prev : staffFromSummary))
+      }
+  
       const agBlock = extractAgendaFromSummaryBlock(summaryText)
-      if (agBlock.nombre && !lockedName) setLockedName(agBlock.nombre)
-      if (agBlock.servicio && !lockedService) setLockedService(agBlock.servicio)
+  
+      if (agBlock.nombre) {
+        setLockedName(agBlock.nombre)
+      }
+      if (agBlock.servicio) {
+        setLockedService(agBlock.servicio)
+      }
+      if (agBlock.telefono) {
+        setLockedPhone(agBlock.telefono)
+      }
     }
-    if (chatPhone && !lockedPhone) setLockedPhone(chatPhone)
-  }, [summaryText, chatPhone]) // eslint-disable-line
+  
+    // Si cambia el teléfono del chat, también lo actualizamos
+    if (chatPhone) {
+      setLockedPhone(chatPhone)
+    }
+  }, [summaryText, chatPhone])
+  
 
   useEffect(() => {
     const prime = async () => {
@@ -241,11 +268,20 @@ export default function ChatInput({
         const summaryFromStateText = stateResp?.summary?.text || state?.summary?.text || null
         const staffFromSummary = extractStaffFromSummaryText(summaryFromStateText || '')
         if (staffFromSummary.length && !staffOpts.length) setStaffOpts(staffFromSummary)
-        if ((!nombre || !servicio) && summaryFromStateText) {
+        if (summaryFromStateText) {
           const agBlock = extractAgendaFromSummaryBlock(summaryFromStateText)
-          if (agBlock.nombre && !lockedName) setLockedName(agBlock.nombre)
-          if (agBlock.servicio && !lockedService) setLockedService(agBlock.servicio)
+        
+          if (agBlock.nombre) {
+            setLockedName(agBlock.nombre)
+          }
+          if (agBlock.servicio) {
+            setLockedService(agBlock.servicio)
+          }
+          if (agBlock.telefono) {
+            setLockedPhone(agBlock.telefono)
+          }
         }
+        
       } catch {
         try {
           const meta = await api<any>(CI.meta(conversationId), undefined, token)
