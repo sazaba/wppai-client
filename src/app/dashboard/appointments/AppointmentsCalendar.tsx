@@ -208,24 +208,39 @@ function spanLabel(a: Date, b: Date) {
 }
 
 /* ---------- Count styles (month view) ---------- */
+/* ---------- Count styles (month view) ---------- */
 function countTone(n: number) {
-  if (n === 0) return {
-    badge: "bg-zinc-800/80 text-zinc-300 ring-white/10",
-    glow: "from-transparent via-transparent to-transparent",
-  };
-  if (n <= 2) return {
-    badge: "bg-indigo-500/20 text-indigo-200 ring-indigo-400/30",
-    glow: "from-indigo-500/10 via-indigo-500/5 to-transparent",
-  };
-  if (n <= 5) return {
-    badge: "bg-fuchsia-500/20 text-fuchsia-200 ring-fuchsia-400/30",
-    glow: "from-fuchsia-500/10 via-fuchsia-500/5 to-transparent",
-  };
+  if (n === 0) {
+    return {
+      badge: "bg-zinc-900/90 text-zinc-300 ring-white/10",
+      glow: "from-transparent via-transparent to-transparent",
+      dot: "bg-zinc-500",
+    };
+  }
+  if (n <= 2) {
+    return {
+      badge:
+        "bg-gradient-to-r from-emerald-500 to-emerald-600 text-white ring-emerald-400/60 shadow-[0_0_18px_rgba(16,185,129,0.45)]",
+      glow: "from-emerald-500/35 via-emerald-500/15 to-transparent",
+      dot: "bg-emerald-400",
+    };
+  }
+  if (n <= 5) {
+    return {
+      badge:
+        "bg-gradient-to-r from-sky-500 to-indigo-500 text-white ring-sky-400/60 shadow-[0_0_22px_rgba(59,130,246,0.5)]",
+      glow: "from-sky-500/35 via-indigo-500/20 to-transparent",
+      dot: "bg-sky-400",
+    };
+  }
   return {
-    badge: "bg-rose-500/25 text-rose-200 ring-rose-400/30",
-    glow: "from-rose-500/15 via-rose-500/5 to-transparent",
+    badge:
+      "bg-gradient-to-r from-fuchsia-500 to-rose-500 text-white ring-fuchsia-400/60 shadow-[0_0_24px_rgba(236,72,153,0.55)]",
+    glow: "from-fuchsia-500/35 via-rose-500/18 to-transparent",
+    dot: "bg-rose-400",
   };
 }
+
 
 function getWeekStart(d: Date) {
   const w = d.getDay(); // 0=Dom..6=Sab
@@ -1193,31 +1208,40 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId?: number
                       )}
                     </div>
                     <div
-                      className={cx(
-                        "inline-flex items-center gap-1 rounded-full px-2.5 h-6 text-[11px] font-semibold",
-                        "backdrop-blur ring-1 shadow-lg",
-                        tone.badge
-                      )}
-                    >
-                      <span className="leading-none">{count}</span>
-                      <span className="hidden sm:inline leading-none opacity-80">citas</span>
-                    </div>
+  className={cx(
+    "inline-flex items-center gap-1.5 rounded-full px-3 h-7 text-[11px] font-semibold",
+    "backdrop-blur-md ring-1 shadow-lg shadow-black/40",
+    tone.badge
+  )}
+>
+  <span className={cx("h-2 w-2 rounded-full", tone.dot)} />
+  <span className="leading-none tabular-nums">{count}</span>
+  <span className="hidden sm:inline leading-none opacity-85">
+    {count === 1 ? "cita" : "citas"}
+  </span>
+</div>
+
                   </div>
                   <div className="relative z-10 mx-3 border-t border-white/10" />
                   <div className="relative z-10 p-3 pt-2 text-[11px] text-white/60">
                     <div className="flex items-center justify-between">
                       <span className="opacity-80">Doble clic para agendar</span>
-                      <div className="flex -space-x-1">
-                        {[...Array(Math.min(count, 6))].map((_, idx) => (
-                          <span
-                            key={idx}
-                            className={cx(
-                              "h-1.5 w-3 rounded-full",
-                              idx < 2 ? "bg-indigo-400/40" : idx < 5 ? "bg-fuchsia-400/40" : "bg-rose-400/50"
-                            )}
-                          />
-                        ))}
-                      </div>
+                      <div className="flex -space-x-1.5">
+  {[...Array(Math.min(count, 6))].map((_, idx) => (
+    <span
+      key={idx}
+      className={cx(
+        "h-2 w-2 rounded-full border border-white/40 shadow-sm",
+        count <= 2
+          ? "bg-emerald-400"
+          : count <= 5
+          ? "bg-sky-400"
+          : "bg-rose-400"
+      )}
+    />
+  ))}
+</div>
+
                     </div>
                   </div>
                   <div className="pointer-events-none absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition">
