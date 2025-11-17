@@ -256,48 +256,67 @@ export default function ChatInput({
 
   useEffect(() => {
     const prime = async () => {
-      if (!conversationId || !token) return
+      // 👈 Solo tiene sentido pedir el estado cuando voy a abrir el modal
+      if (!conversationId || !token || !showAppt) return
+  
       try {
         const stateResp = await api<any>(CI.state(conversationId), undefined, token)
-        const state = stateResp?.data ?? null
+  
+        // 🔎 En tu caso el estado viene como el JSON que pegaste (sin .data)
+        // pero dejamos compatibilidad por si en otro entorno viene con .data.
+        const state = (stateResp as any)?.data ?? stateResp ?? null
+  
+        // 1) Nombre y servicio desde draft del conversation_state
         const { nombre, servicio } = extractAgendaFromState(state)
-        if (nombre && !lockedName) setLockedName(nombre)
-        if (servicio && !lockedService) setLockedService(servicio)
-        const phoneFromState = stateResp?.phone || state?.phone || stateResp?.conversation?.phone
-        if (phoneFromState && !lockedPhone) setLockedPhone(String(phoneFromState))
-        const summaryFromStateText = stateResp?.summary?.text || state?.summary?.text || null
+        if (nombre) setLockedName(nombre)
+        if (servicio) setLockedService(servicio)
+  
+        // 2) Teléfono si el estado lo trae
+        const phoneFromState =
+          stateResp?.phone ||
+          state?.phone ||
+          stateResp?.conversation?.phone ||
+          state?.conversation?.phone
+        if (phoneFromState) setLockedPhone(String(phoneFromState))
+  
+        // 3) Summary del estado (por si luego agregas AGENDA_COLECTADA)
+        const summaryFromStateText =
+          stateResp?.summary?.text ||
+          state?.summary?.text ||
+          null
+  
         const staffFromSummary = extractStaffFromSummaryText(summaryFromStateText || '')
         if (staffFromSummary.length && !staffOpts.length) setStaffOpts(staffFromSummary)
+  
         if (summaryFromStateText) {
           const agBlock = extractAgendaFromSummaryBlock(summaryFromStateText)
-        
-          if (agBlock.nombre) {
-            setLockedName(agBlock.nombre)
-          }
-          if (agBlock.servicio) {
-            setLockedService(agBlock.servicio)
-          }
-          if (agBlock.telefono) {
-            setLockedPhone(agBlock.telefono)
-          }
+          if (agBlock.nombre) setLockedName(agBlock.nombre)
+          if (agBlock.servicio) setLockedService(agBlock.servicio)
+          if (agBlock.telefono) setLockedPhone(agBlock.telefono)
         }
-        
       } catch {
+        // 🔁 Fallback a /meta si /state falla
         try {
           const meta = await api<any>(CI.meta(conversationId), undefined, token)
-          const phoneFromConv = meta?.phone
-          if (phoneFromConv && !lockedPhone) setLockedPhone(String(phoneFromConv))
-          const summaryFromMetaText = meta?.summary?.text as string | undefined
-          const staffFromSummary = extractStaffFromSummaryText(summaryFromMetaText || '')
+  
+          const phoneFromConv = meta?.phone || meta?.conversation?.phone
+          if (phoneFromConv) setLockedPhone(String(phoneFromConv))
+  
+          const summaryFromMetaText = (meta?.summary?.text as string | undefined) || ''
+          const staffFromSummary = extractStaffFromSummaryText(summaryFromMetaText)
           if (staffFromSummary.length && !staffOpts.length) setStaffOpts(staffFromSummary)
-          const agBlock = extractAgendaFromSummaryBlock(summaryFromMetaText || '')
-          if (agBlock.nombre && !lockedName) setLockedName(agBlock.nombre)
-          if (agBlock.servicio && !lockedService) setLockedService(agBlock.servicio)
+  
+          const agBlock = extractAgendaFromSummaryBlock(summaryFromMetaText)
+          if (agBlock.nombre) setLockedName(agBlock.nombre)
+          if (agBlock.servicio) setLockedService(agBlock.servicio)
+          if (agBlock.telefono) setLockedPhone(agBlock.telefono)
         } catch {}
       }
     }
+  
     prime()
-  }, [conversationId, token]) // eslint-disable-line
+  }, [conversationId, token, showAppt])
+  
 
   const insertAtCursor = useCallback(
     (insertText: string) => {
