@@ -196,8 +196,8 @@ const qs = (params: Record<string, any>) => {
 
 /* ---------- Time & view helpers ---------- */
 type ViewMode = "month" | "week" | "day";
-const START_HOUR = 6;
-const END_HOUR = 21;
+const START_HOUR = 5;
+const END_HOUR = 23;
 const TOTAL_MIN = (END_HOUR - START_HOUR) * 60;
 const PX_PER_MIN = 1;
 const clamp = (n: number, a: number, b: number) => Math.max(a, Math.min(b, n));
@@ -1171,7 +1171,7 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId?: number
     const end = weekDays[6];
     const sameMonth = start.getMonth() === end.getMonth();
     const opts = { day:"numeric" } as const;
-    
+
     const s = start.toLocaleDateString("es-CO", sameMonth ? opts : { ...opts, month:"short" });
     const e = end.toLocaleDateString("es-CO", { day:"numeric", month:"short" });
     const y = end.getFullYear();
