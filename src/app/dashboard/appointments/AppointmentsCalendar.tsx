@@ -261,6 +261,52 @@ const renderConfirmIcon = (status?: ConfirmStatus | null, confirmAt?: string | n
 };
 
 
+/* ---------- Badge de estado de la cita (status) ---------- */
+function renderStatusBadge(status?: Appointment["status"]) {
+  switch (status) {
+    case "pending":
+      return (
+        <span className="px-2 py-0.5 text-[10px] rounded-full bg-yellow-500/15 text-yellow-300 border border-yellow-400/40">
+          Pendiente
+        </span>
+      );
+    case "confirmed":
+      return (
+        <span className="px-2 py-0.5 text-[10px] rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-400/40">
+          Confirmada
+        </span>
+      );
+    case "rescheduled":
+      return (
+        <span className="px-2 py-0.5 text-[10px] rounded-full bg-sky-500/15 text-sky-300 border border-sky-400/40">
+          Reagendada
+        </span>
+      );
+    case "cancelled":
+      return (
+        <span className="px-2 py-0.5 text-[10px] rounded-full bg-red-500/15 text-red-300 border border-red-400/40 line-through">
+          Cancelada
+        </span>
+      );
+    case "completed":
+      return (
+        <span className="px-2 py-0.5 text-[10px] rounded-full bg-emerald-500/25 text-emerald-200 border border-emerald-400/60">
+          Atendida
+        </span>
+      );
+    case "no_show":
+      return (
+        <span className="px-2 py-0.5 text-[10px] rounded-full bg-zinc-500/20 text-zinc-200 border border-zinc-400/50">
+          No llegó
+        </span>
+      );
+    default:
+      return null;
+  }
+}
+
+
+
 
 /* ---------- Count styles (month view) ---------- */
 /* ---------- Count styles (month view) ---------- */
@@ -1125,8 +1171,7 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId?: number
     const end = weekDays[6];
     const sameMonth = start.getMonth() === end.getMonth();
     const opts = { day:"numeric" } as const;
-    theStart: {
-    }
+    
     const s = start.toLocaleDateString("es-CO", sameMonth ? opts : { ...opts, month:"short" });
     const e = end.toLocaleDateString("es-CO", { day:"numeric", month:"short" });
     const y = end.getFullYear();
@@ -1454,6 +1499,11 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId?: number
         </>
       ) : null}
     </div>
+
+    {/* 🔹 Badge de estado (status) */}
+    <div className="mt-1">
+      {renderStatusBadge(ev.status)}
+    </div>
   </div>
 
   <div className="ml-2 shrink-0 flex gap-1">
@@ -1466,7 +1516,8 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId?: number
   </div>
 </div>
 
-                        {ev.notas && <div className="px-2 pb-1 pr-12 opacity-80 line-clamp-2">{ev.notas}</div>}
+{ev.notas && <div className="px-2 pb-1 pr-12 opacity-80 line-clamp-2">{ev.notas}</div>}
+
 
                         {/* Handle inferior (resize bottom) */}
                         <div
@@ -1600,14 +1651,22 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId?: number
 
                           <div className="flex items-center justify-between px-2 py-1">
   <div className="truncate">
-    <strong>{ev.customerName}</strong>
-    {ev.serviceName ? (
-      <>
-        {" "}
-        · <span className="opacity-90">{ev.serviceName}</span>
-      </>
-    ) : null}
+    <div className="text-[11px] font-semibold leading-tight">
+      {ev.customerName}
+      {ev.serviceName ? (
+        <>
+          {" "}
+          · <span className="opacity-90">{ev.serviceName}</span>
+        </>
+      ) : null}
+    </div>
+
+    {/* 🔹 Badge de estado debajo del nombre */}
+    <div className="mt-1">
+      {renderStatusBadge(ev.status)}
+    </div>
   </div>
+
   <div className="ml-1 shrink-0 flex gap-1">
     <button data-nodrag title="Editar" onClick={(evt)=>{ evt.stopPropagation(); setEditing(ev); }}>
       <Edit className="h-3.5 w-3.5 text-indigo-200"/>
@@ -1623,6 +1682,7 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId?: number
   {/* 🔹 Icono de confirmación */}
   {renderConfirmIcon(ev.confirmStatus ?? null, ev.confirmAt ?? null)}
 </div>
+
 
 
                           {/* Handle inferior (resize bottom) */}
