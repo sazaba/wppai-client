@@ -197,7 +197,7 @@ const qs = (params: Record<string, any>) => {
 /* ---------- Time & view helpers ---------- */
 type ViewMode = "month" | "week" | "day";
 const START_HOUR = 5;
-const END_HOUR = 23;
+const END_HOUR = 23.59;
 const TOTAL_MIN = (END_HOUR - START_HOUR) * 60;
 const PX_PER_MIN = 1;
 const clamp = (n: number, a: number, b: number) => Math.max(a, Math.min(b, n));
