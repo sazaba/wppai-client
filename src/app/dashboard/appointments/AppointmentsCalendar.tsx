@@ -199,7 +199,7 @@ const qs = (params: Record<string, any>) => {
 
 /* ---------- Time & view helpers ---------- */
 type ViewMode = "month" | "week" | "day";
-const START_HOUR = 5;
+const START_HOUR = 0;
 const END_HOUR = 24;
 const TOTAL_MIN = (END_HOUR - START_HOUR) * 60;
 const PX_PER_MIN = 1;
@@ -1709,7 +1709,6 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId?: number
     ev.summary?.confirmAt ?? null
   )}
 </div>
-
 
 
 

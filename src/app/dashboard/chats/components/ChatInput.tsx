@@ -398,6 +398,7 @@ export default function ChatInput({
 
       const body = {
         empresaId,
+        conversationId: conversationId ?? null,
         customerName: data.name,
         customerPhone: data.phone,
         serviceName: data.service,
