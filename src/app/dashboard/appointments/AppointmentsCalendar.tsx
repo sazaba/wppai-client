@@ -149,7 +149,7 @@ function TextArea(
 }
 
 /* ---------- Types ---------- */
-type ConfirmStatus = "confirmed" | "reschedule" | "unconfirmed";
+type ConfirmStatus = "confirmed" | "reschedule" | "pending" | "cancelled";
 
 export type Appointment = {
   id: number;
@@ -165,7 +165,7 @@ export type Appointment = {
   status?: "pending" | "confirmed" | "rescheduled" | "cancelled" | "completed" | "no_show";
 
   // 🔹 NUEVOS CAMPOS (vendrán del backend)
-  confirmStatus?: ConfirmStatus | null;  // confirmed / reschedule / unconfirmed
+  statusConfirm?: ConfirmStatus | null;  // pending / confirmed / cancelled / reschedule
   confirmAt?: string | null;             // fecha/hora de la última confirmación
 };
 
@@ -217,7 +217,8 @@ function spanLabel(a: Date, b: Date) {
 
 /* ---------- Icono de confirmación ---------- */
 const renderConfirmIcon = (status?: ConfirmStatus | null, confirmAt?: string | null) => {
-  if (!status || status === "unconfirmed") {
+  // 🟡 Sin confirmación (o en estado "pending")
+  if (!status || status === "pending") {
     return (
       <span
         className="inline-flex h-4 w-4 items-center justify-center rounded-full border border-yellow-300/60 text-[10px] text-yellow-200"
@@ -228,6 +229,7 @@ const renderConfirmIcon = (status?: ConfirmStatus | null, confirmAt?: string | n
     );
   }
 
+  // ✅ Confirmada
   if (status === "confirmed") {
     const tooltip = confirmAt
       ? `Cita confirmada por el paciente\n${new Date(confirmAt).toLocaleString("es-CO", {
@@ -246,6 +248,7 @@ const renderConfirmIcon = (status?: ConfirmStatus | null, confirmAt?: string | n
     );
   }
 
+  // 🕒 Reprogramando
   if (status === "reschedule") {
     return (
       <div
@@ -253,6 +256,18 @@ const renderConfirmIcon = (status?: ConfirmStatus | null, confirmAt?: string | n
         title="Paciente en proceso de reprogramar la cita"
       >
         <Clock className="h-3 w-3" />
+      </div>
+    );
+  }
+
+  // ❌ Cancelada (opcional, ya que añadimos 'cancelled' al tipo)
+  if (status === "cancelled") {
+    return (
+      <div
+        className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-red-500/90 text-[10px] text-white shadow"
+        title="Cita cancelada por el paciente o la clínica"
+      >
+        <X className="h-3 w-3" />
       </div>
     );
   }
@@ -1487,7 +1502,8 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId?: number
         {spanLabel(startForLabel, endForLabel)}
       </span>
       {/* 🔹 Icono de confirmación */}
-      {renderConfirmIcon(ev.confirmStatus ?? null, ev.confirmAt ?? null)}
+      {renderConfirmIcon(ev.statusConfirm ?? null, ev.confirmAt ?? null)}
+
     </div>
 
     <div className="mt-0.5">
@@ -1680,7 +1696,7 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId?: number
 <div className="px-2 pb-1 opacity-80 flex items-center justify-between text-[11px]">
   <span>{spanLabel(startForLabel, endForLabel)}</span>
   {/* 🔹 Icono de confirmación */}
-  {renderConfirmIcon(ev.confirmStatus ?? null, ev.confirmAt ?? null)}
+  {renderConfirmIcon(ev.statusConfirm ?? null, ev.confirmAt ?? null)}
 </div>
 
 
