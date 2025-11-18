@@ -149,6 +149,8 @@ function TextArea(
 }
 
 /* ---------- Types ---------- */
+type ConfirmStatus = "confirmed" | "reschedule" | "unconfirmed";
+
 export type Appointment = {
   id: number;
   empresaId: number;
@@ -161,7 +163,13 @@ export type Appointment = {
   endAt: string;
   notas?: string | null;
   status?: "pending" | "confirmed" | "rescheduled" | "cancelled" | "completed" | "no_show";
+
+  // 🔹 NUEVOS CAMPOS (vendrán del backend)
+  confirmStatus?: ConfirmStatus | null;  // confirmed / reschedule / unconfirmed
+  confirmAt?: string | null;             // fecha/hora de la última confirmación
 };
+
+
 
 /* ---------- API helpers ---------- */
 async function api<T>(path: string, init?: RequestInit, token?: string): Promise<T> {
@@ -206,6 +214,53 @@ function spanLabel(a: Date, b: Date) {
   const fmt = new Intl.DateTimeFormat("es-CO",{hour:"2-digit",minute:"2-digit",hour12:false});
   return `${fmt.format(a)}–${fmt.format(b)}`;
 }
+
+/* ---------- Icono de confirmación ---------- */
+const renderConfirmIcon = (status?: ConfirmStatus | null, confirmAt?: string | null) => {
+  if (!status || status === "unconfirmed") {
+    return (
+      <span
+        className="inline-flex h-4 w-4 items-center justify-center rounded-full border border-yellow-300/60 text-[10px] text-yellow-200"
+        title="Cita sin confirmación del paciente"
+      >
+        ?
+      </span>
+    );
+  }
+
+  if (status === "confirmed") {
+    const tooltip = confirmAt
+      ? `Cita confirmada por el paciente\n${new Date(confirmAt).toLocaleString("es-CO", {
+          dateStyle: "short",
+          timeStyle: "short",
+        })}`
+      : "Cita confirmada por el paciente";
+
+    return (
+      <div
+        className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-emerald-500/90 text-[10px] text-white shadow"
+        title={tooltip}
+      >
+        <Check className="h-3 w-3" />
+      </div>
+    );
+  }
+
+  if (status === "reschedule") {
+    return (
+      <div
+        className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-sky-500/90 text-[10px] text-white shadow"
+        title="Paciente en proceso de reprogramar la cita"
+      >
+        <Clock className="h-3 w-3" />
+      </div>
+    );
+  }
+
+  return null;
+};
+
+
 
 /* ---------- Count styles (month view) ---------- */
 /* ---------- Count styles (month view) ---------- */
@@ -1380,23 +1435,37 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId?: number
                         </div>
 
                         <div className="flex items-center justify-between px-2 py-1">
-                          <div className="truncate">
-                            <span className="mr-2 inline-flex items-center gap-1 text-[11px] opacity-90">
-                              <Clock className="h-3 w-3"/>{spanLabel(startForLabel, endForLabel)}
-                            </span>
-                            <strong>{ev.customerName}</strong>
-                            {ev.serviceName ? <> · <span className="opacity-90">{ev.serviceName}</span></> : null}
-                          </div>
-                          <div className="ml-2 shrink-0 flex gap-1">
-                          <button data-nodrag title="Editar" onClick={(evt)=>{ evt.stopPropagation(); setEditing(ev); }}>
-  <Edit className="h-3.5 w-3.5 text-indigo-300"/>
-</button>
-<button data-nodrag title="Eliminar" onClick={(evt)=>{ evt.stopPropagation(); deleteAppointment(ev.id); }}>
-  <Trash className="h-3.5 w-3.5 text-red-300"/>
-</button>
+  <div className="truncate">
+    <div className="flex items-center gap-1 text-[11px] opacity-90">
+      <span className="inline-flex items-center gap-1">
+        <Clock className="h-3 w-3" />
+        {spanLabel(startForLabel, endForLabel)}
+      </span>
+      {/* 🔹 Icono de confirmación */}
+      {renderConfirmIcon(ev.confirmStatus ?? null, ev.confirmAt ?? null)}
+    </div>
 
-                          </div>
-                        </div>
+    <div className="mt-0.5">
+      <strong>{ev.customerName}</strong>
+      {ev.serviceName ? (
+        <>
+          {" "}
+          · <span className="opacity-90">{ev.serviceName}</span>
+        </>
+      ) : null}
+    </div>
+  </div>
+
+  <div className="ml-2 shrink-0 flex gap-1">
+    <button data-nodrag title="Editar" onClick={(evt)=>{ evt.stopPropagation(); setEditing(ev); }}>
+      <Edit className="h-3.5 w-3.5 text-indigo-300"/>
+    </button>
+    <button data-nodrag title="Eliminar" onClick={(evt)=>{ evt.stopPropagation(); deleteAppointment(ev.id); }}>
+      <Trash className="h-3.5 w-3.5 text-red-300"/>
+    </button>
+  </div>
+</div>
+
                         {ev.notas && <div className="px-2 pb-1 pr-12 opacity-80 line-clamp-2">{ev.notas}</div>}
 
                         {/* Handle inferior (resize bottom) */}
@@ -1530,21 +1599,31 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId?: number
                           </div>
 
                           <div className="flex items-center justify-between px-2 py-1">
-                            <div className="truncate">
-                              <strong>{ev.customerName}</strong>
-                              {ev.serviceName ? <> · <span className="opacity-90">{ev.serviceName}</span></> : null}
-                            </div>
-                            <div className="ml-1 shrink-0 flex gap-1">
-                            <button data-nodrag title="Editar" onClick={(evt)=>{ evt.stopPropagation(); setEditing(ev); }}>
-  <Edit className="h-3.5 w-3.5 text-indigo-200"/>
-</button>
-<button data-nodrag title="Eliminar" onClick={(evt)=>{ evt.stopPropagation(); deleteAppointment(ev.id); }}>
-  <Trash className="h-3.5 w-3.5 text-red-300"/>
-</button>
+  <div className="truncate">
+    <strong>{ev.customerName}</strong>
+    {ev.serviceName ? (
+      <>
+        {" "}
+        · <span className="opacity-90">{ev.serviceName}</span>
+      </>
+    ) : null}
+  </div>
+  <div className="ml-1 shrink-0 flex gap-1">
+    <button data-nodrag title="Editar" onClick={(evt)=>{ evt.stopPropagation(); setEditing(ev); }}>
+      <Edit className="h-3.5 w-3.5 text-indigo-200"/>
+    </button>
+    <button data-nodrag title="Eliminar" onClick={(evt)=>{ evt.stopPropagation(); deleteAppointment(ev.id); }}>
+      <Trash className="h-3.5 w-3.5 text-red-300"/>
+    </button>
+  </div>
+</div>
 
-                            </div>
-                          </div>
-                          <div className="px-2 pb-1 opacity-80">{spanLabel(startForLabel, endForLabel)}</div>
+<div className="px-2 pb-1 opacity-80 flex items-center justify-between text-[11px]">
+  <span>{spanLabel(startForLabel, endForLabel)}</span>
+  {/* 🔹 Icono de confirmación */}
+  {renderConfirmIcon(ev.confirmStatus ?? null, ev.confirmAt ?? null)}
+</div>
+
 
                           {/* Handle inferior (resize bottom) */}
                           <div
