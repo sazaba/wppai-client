@@ -164,10 +164,13 @@ export type Appointment = {
   notas?: string | null;
   status?: "pending" | "confirmed" | "rescheduled" | "cancelled" | "completed" | "no_show";
 
-  // 🔹 NUEVOS CAMPOS (vendrán del backend)
-  statusConfirm?: ConfirmStatus | null;  // pending / confirmed / cancelled / reschedule
-  confirmAt?: string | null;             // fecha/hora de la última confirmación
+  // 🔹 Resumen que viene de conversation_state.summary
+  summary?: {
+    statusConfirm?: ConfirmStatus | null;  // pending / confirmed / cancelled / reschedule
+    confirmAt?: string | null;            // fecha/hora de la última confirmación
+  } | null;
 };
+
 
 
 
@@ -1502,7 +1505,12 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId?: number
         {spanLabel(startForLabel, endForLabel)}
       </span>
       {/* 🔹 Icono de confirmación */}
-      {renderConfirmIcon(ev.statusConfirm ?? null, ev.confirmAt ?? null)}
+           {/* 🔹 Icono de confirmación desde conversation_state.summary */}
+           {renderConfirmIcon(
+        ev.summary?.statusConfirm ?? null,
+        ev.summary?.confirmAt ?? null
+      )}
+
 
     </div>
 
@@ -1695,9 +1703,13 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId?: number
 
 <div className="px-2 pb-1 opacity-80 flex items-center justify-between text-[11px]">
   <span>{spanLabel(startForLabel, endForLabel)}</span>
-  {/* 🔹 Icono de confirmación */}
-  {renderConfirmIcon(ev.statusConfirm ?? null, ev.confirmAt ?? null)}
+  {/* 🔹 Icono de confirmación desde conversation_state.summary */}
+  {renderConfirmIcon(
+    ev.summary?.statusConfirm ?? null,
+    ev.summary?.confirmAt ?? null
+  )}
 </div>
+
 
 
 
