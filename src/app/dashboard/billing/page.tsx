@@ -100,8 +100,9 @@ export default function BillingPage() {
     setLog("");
 
     try {
-      appendLog("Iniciando creación de método de pago...");
+      appendLog("Iniciando guardado de método de pago...");
 
+      // 1) Crear método de pago en el backend (Wompi token)
       const pmRes = await axios.post("/api/billing/payment-method", {
         number: form.number,
         cvc: form.cvc,
@@ -110,25 +111,28 @@ export default function BillingPage() {
         card_holder: form.cardHolder,
       });
 
-      appendLog("Método de pago creado:", pmRes.data);
+      appendLog("Método de pago guardado correctamente:", pmRes.data);
 
       if (form.autoSubscribe) {
-        appendLog(`Creando suscripción ${form.plan.toUpperCase()}...`);
+        appendLog(`Creando/actualizando suscripción ${form.plan.toUpperCase()}...`);
 
         if (form.plan === "basic") {
           const subRes = await axios.post("/api/billing/subscription/basic", {});
-          appendLog("Suscripción BASIC creada:", subRes.data);
+          appendLog("Suscripción BASIC configurada:", subRes.data);
         } else {
           appendLog(
-            "⚠️ Plan PRO seleccionado, pero el backend solo soporta BASIC por ahora."
+            "⚠️ Plan PRO seleccionado, pero el backend solo soporta BASIC por ahora. Usa BASIC para probar un cobro real."
           );
         }
       }
 
-      appendLog("✅ Proceso completado correctamente.");
+      // Refrescamos panel de estado
+      await loadStatus();
+
+      appendLog("✅ Método de pago listo. Ahora puedes pagar tu suscripción con el botón «Pagar suscripción ahora».");
     } catch (err: any) {
       console.error(err);
-      appendLog("❌ Error en el proceso:", err?.response?.data || err?.message);
+      appendLog("❌ Error guardando método de pago:", err?.response?.data || err?.message);
     } finally {
       setLoading(false);
     }
@@ -137,12 +141,16 @@ export default function BillingPage() {
   const handleTestCharge = async () => {
     setLoading(true);
     try {
-      appendLog("Lanzando cobro manual de suscripción...");
+      appendLog("Procesando pago de suscripción...");
+
       const res = await axios.post("/api/billing/subscription/charge", {});
-      appendLog("Respuesta de cobro:", res.data);
+      appendLog("Resultado del pago de suscripción:", res.data);
+
+      // Refrescamos panel de estado
+      await loadStatus();
     } catch (err: any) {
       console.error(err);
-      appendLog("❌ Error en cobro:", err?.response?.data || err?.message);
+      appendLog("❌ Error al pagar suscripción:", err?.response?.data || err?.message);
     } finally {
       setLoading(false);
     }
@@ -372,14 +380,14 @@ export default function BillingPage() {
 
           <div>
             <label className="block text-sm font-medium mb-1">
-              Año (YYYY)
+              Año (YY)
             </label>
             <input
               type="text"
               name="expYear"
               value={form.expYear}
               onChange={handleChange}
-              placeholder="2030"
+              placeholder="30"
               className="w-full rounded-lg bg-slate-800 border border-slate-700 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
               required
             />
@@ -425,8 +433,8 @@ export default function BillingPage() {
               className="h-4 w-4 rounded border-slate-600 bg-slate-800"
             />
             <label htmlFor="autoSubscribe" className="text-sm text-slate-300">
-              Crear suscripción {form.plan.toUpperCase()} automáticamente después
-              de guardar la tarjeta
+              Crear/actualizar suscripción {form.plan.toUpperCase()} al guardar
+              la tarjeta
             </label>
           </div>
 
@@ -436,9 +444,7 @@ export default function BillingPage() {
               disabled={loading}
               className="inline-flex items-center justify-center rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-sm font-medium px-4 py-2 disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              {loading
-                ? "Procesando..."
-                : "Guardar método de pago + (opcional) Suscripción"}
+              {loading ? "Procesando..." : "Guardar método de pago"}
             </button>
 
             <button
@@ -447,7 +453,7 @@ export default function BillingPage() {
               disabled={loading}
               className="inline-flex items-center justify-center rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-100 text-sm font-medium px-4 py-2 border border-slate-600 disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              Testear cobro manual de suscripción
+              {loading ? "Procesando..." : "Pagar suscripción ahora"}
             </button>
           </div>
         </form>
@@ -457,7 +463,7 @@ export default function BillingPage() {
             Log / Respuesta
           </h2>
           <pre className="w-full min-h-[160px] max-h-80 overflow-auto bg-black/60 border border-slate-800 rounded-lg text-xs p-3 whitespace-pre-wrap">
-{log || "Aquí se mostrará el resultado de las peticiones a /api/billing..."}
+            {log || "Aquí se mostrará el resultado de las peticiones a /api/billing..."}
           </pre>
         </div>
       </div>
