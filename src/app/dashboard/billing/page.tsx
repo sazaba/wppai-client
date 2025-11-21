@@ -1,8 +1,10 @@
 "use client";
 
 import React, { useState } from "react";
-import axios from "axios"; // tu wrapper centralizado
-// Si no tienes '@/lib/axios', usa: import axios from "axios";
+import axios from "@/lib/axios";
+// o si en tu proyecto es otro path:
+// import axios from "../api/axios"
+
 
 type BillingState = {
   number: string;
