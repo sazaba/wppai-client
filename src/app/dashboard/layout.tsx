@@ -3,8 +3,8 @@
 import Link from "next/link"
 import {
   BrainCircuit, MessageSquareText, Settings2,
-  ChevronLeft, ChevronRight, Home, FileText, ShoppingCart,
-  Calendar // 🆕
+  ChevronLeft, ChevronRight, Home, FileText,
+  Calendar, CreditCard, // 🆕
 } from "lucide-react"
 import { useState, useEffect } from "react"
 import { useRouter, usePathname } from "next/navigation"
@@ -49,16 +49,24 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <div className={clsx("flex flex-col", sidebarOpen ? "p-4 gap-6 items-start" : "pt-6 gap-4 items-center")}>
           {sidebarOpen && <h2 className="text-2xl font-semibold tracking-tight flex items-center gap-2">🚀 Mi Panel</h2>}
           <nav className={clsx("flex flex-col w-full", sidebarOpen ? "gap-4" : "gap-6 items-center")}>
-            <Link href="/"                    className={navCls(sidebarOpen)} title={!sidebarOpen ? "Inicio" : ""}><Home className={icoCls(sidebarOpen)} />{sidebarOpen && <span>Inicio</span>}</Link>
-            <Link href="/dashboard"           className={navCls(sidebarOpen)} title={!sidebarOpen ? "Resumen" : ""}><BrainCircuit className={icoCls(sidebarOpen)} />{sidebarOpen && <span>Resumen</span>}</Link>
-            <Link href="/dashboard/chats"     className={navCls(sidebarOpen)} title={!sidebarOpen ? "Conversaciones" : ""}><MessageSquareText className={icoCls(sidebarOpen)} />{sidebarOpen && <span>Conversaciones</span>}</Link>
-            {/* 🆕 Órdenes
-            <Link href="/dashboard/orders"    className={navCls(sidebarOpen)} title={!sidebarOpen ? "Órdenes" : ""}><ShoppingCart className={icoCls(sidebarOpen)} />{sidebarOpen && <span>Órdenes</span>}</Link> */}
-            {/* 🆕 Citas */}
-            <Link href="/dashboard/appointments" className={navCls(sidebarOpen)} title={!sidebarOpen ? "Citas" : ""}><Calendar className={icoCls(sidebarOpen)} />{sidebarOpen && <span>Citas</span>}</Link>
-            <Link href="/dashboard/settings"  className={navCls(sidebarOpen)} title={!sidebarOpen ? "Configuración" : ""}><Settings2 className={icoCls(sidebarOpen)} />{sidebarOpen && <span>Configuración</span>}</Link>
-            <Link href="/dashboard/templates" className={navCls(sidebarOpen)} title={!sidebarOpen ? "Plantillas" : ""}><FileText className={icoCls(sidebarOpen)} />{sidebarOpen && <span>Plantillas</span>}</Link>
-          </nav>
+  <Link href="/"                    className={navCls(sidebarOpen)} title={!sidebarOpen ? "Inicio" : ""}><Home className={icoCls(sidebarOpen)} />{sidebarOpen && <span>Inicio</span>}</Link>
+  <Link href="/dashboard"           className={navCls(sidebarOpen)} title={!sidebarOpen ? "Resumen" : ""}><BrainCircuit className={icoCls(sidebarOpen)} />{sidebarOpen && <span>Resumen</span>}</Link>
+  <Link href="/dashboard/chats"     className={navCls(sidebarOpen)} title={!sidebarOpen ? "Conversaciones" : ""}><MessageSquareText className={icoCls(sidebarOpen)} />{sidebarOpen && <span>Conversaciones</span>}</Link>
+  {/* 🆕 Órdenes
+  <Link href="/dashboard/orders"    className={navCls(sidebarOpen)} title={!sidebarOpen ? "Órdenes" : ""}><ShoppingCart className={icoCls(sidebarOpen)} />{sidebarOpen && <span>Órdenes</span>}</Link> */}
+  {/* 🆕 Citas */}
+  <Link href="/dashboard/appointments" className={navCls(sidebarOpen)} title={!sidebarOpen ? "Citas" : ""}><Calendar className={icoCls(sidebarOpen)} />{sidebarOpen && <span>Citas</span>}</Link>
+
+  {/* 🆕 Billing / Facturación */}
+  <Link href="/dashboard/billing"   className={navCls(sidebarOpen)} title={!sidebarOpen ? "Facturación" : ""}>
+    <CreditCard className={icoCls(sidebarOpen)} />
+    {sidebarOpen && <span>Facturación</span>}
+  </Link>
+
+  <Link href="/dashboard/settings"  className={navCls(sidebarOpen)} title={!sidebarOpen ? "Configuración" : ""}><Settings2 className={icoCls(sidebarOpen)} />{sidebarOpen && <span>Configuración</span>}</Link>
+  <Link href="/dashboard/templates" className={navCls(sidebarOpen)} title={!sidebarOpen ? "Plantillas" : ""}><FileText className={icoCls(sidebarOpen)} />{sidebarOpen && <span>Plantillas</span>}</Link>
+</nav>
+
         </div>
 
         <div className="hidden md:flex justify-end p-2 border-t border-slate-700">
