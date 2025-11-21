@@ -103,29 +103,44 @@ export default function BillingPage() {
   };
 
   // Helper para obtener deviceFingerprint desde el SDK de Wompi
-  const getDeviceFingerprintSafe = async (): Promise<string | null> => {
-    try {
+ // Helper para obtener deviceFingerprint desde el SDK de Wompi
+const getDeviceFingerprintSafe = async (): Promise<string | null> => {
+  try {
+    let attempts = 0;
+    const maxAttempts = 5;          // por ejemplo, 5 intentos
+    const delayMs = 1000;           // 1 segundo entre intentos
+
+    while (attempts < maxAttempts) {
       const w = (window as any).wompi;
-      if (!w || typeof w.getDeviceFingerprint !== "function") {
-        appendLog(
-          '⚠️ Wompi SDK no está disponible todavía. Revisa que el <Script src="https://cdn.wompi.co/v1/sdk.js" /> se esté cargando en el layout.'
-        );
-        return null;
+
+      if (w && typeof w.getDeviceFingerprint === "function") {
+        appendLog("Obteniendo deviceFingerprint de Wompi...");
+        const fp = await w.getDeviceFingerprint();
+        appendLog("✅ deviceFingerprint obtenido correctamente.");
+        return fp;
       }
 
-      appendLog("Obteniendo deviceFingerprint de Wompi...");
-      const fp = await w.getDeviceFingerprint();
-      appendLog("✅ deviceFingerprint obtenido correctamente.");
-      return fp;
-    } catch (err: any) {
-      console.error(err);
+      attempts++;
       appendLog(
-        "❌ Error obteniendo deviceFingerprint:",
-        err?.message || err
+        `⚠️ Wompi SDK aún no está disponible (intento ${attempts}/${maxAttempts}). Reintentando...`
       );
-      return null;
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
     }
-  };
+
+    appendLog(
+      "❌ Wompi SDK no se cargó después de varios intentos. Verifica el <Script src=\"https://cdn.wompi.co/v1/sdk.js\" /> en el layout y que no esté siendo bloqueado."
+    );
+    return null;
+  } catch (err: any) {
+    console.error(err);
+    appendLog(
+      "❌ Error obteniendo deviceFingerprint:",
+      err?.message || err
+    );
+    return null;
+  }
+};
+
 
   const handleSavePaymentMethod = async (e: React.FormEvent) => {
     e.preventDefault();
