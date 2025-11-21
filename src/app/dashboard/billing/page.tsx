@@ -11,6 +11,7 @@ type BillingState = {
   expYear: string;
   cvc: string;
   cardHolder: string;
+  email: string;        // 👈 NUEVO
   autoSubscribe: boolean;
   plan: PlanCode;
 };
@@ -53,6 +54,7 @@ export default function BillingPage() {
     expYear: "",
     cvc: "",
     cardHolder: "",
+    email: "",          // 👈 NUEVO
     autoSubscribe: true,
     plan: "basic",
   });
@@ -76,7 +78,6 @@ export default function BillingPage() {
     loadStatus();
   }, []);
 
-  // Cuando cambia el status, decidimos si mostrar o no el formulario
   useEffect(() => {
     if (status) {
       setShowCardForm(!status.paymentMethod); // si no hay método → mostrar form
@@ -101,27 +102,79 @@ export default function BillingPage() {
     );
   };
 
+  // Helper para obtener deviceFingerprint desde el SDK de Wompi
+  const getDeviceFingerprintSafe = async (): Promise<string | null> => {
+    try {
+      const w = (window as any).wompi;
+      if (!w || typeof w.getDeviceFingerprint !== "function") {
+        appendLog(
+          '⚠️ Wompi SDK no está disponible todavía. Revisa que el <Script src="https://cdn.wompi.co/v1/sdk.js" /> se esté cargando en el layout.'
+        );
+        return null;
+      }
+
+      appendLog("Obteniendo deviceFingerprint de Wompi...");
+      const fp = await w.getDeviceFingerprint();
+      appendLog("✅ deviceFingerprint obtenido correctamente.");
+      return fp;
+    } catch (err: any) {
+      console.error(err);
+      appendLog(
+        "❌ Error obteniendo deviceFingerprint:",
+        err?.message || err
+      );
+      return null;
+    }
+  };
+
   const handleSavePaymentMethod = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setLog("");
-
+  
     try {
       appendLog("Iniciando guardado de método de pago...");
-
+  
+      const deviceFingerprint = await getDeviceFingerprintSafe();
+      if (!deviceFingerprint) {
+        appendLog(
+          "❌ No se pudo obtener el deviceFingerprint. No se enviará el método de pago."
+        );
+        setLoading(false);
+        return;
+      }
+  
       const pmRes = await axios.post("/api/billing/payment-method", {
         number: form.number,
         cvc: form.cvc,
         exp_month: form.expMonth,
         exp_year: form.expYear,
         card_holder: form.cardHolder,
+        email: form.email,
+        deviceFingerprint,
       });
-
+  
       appendLog("Método de pago guardado correctamente:", pmRes.data);
-
+  
+      // 👉 USAR redirect_url PARA LANZAR 3DS (popup / pantalla del banco)
+      const redirectUrl = pmRes.data?.wompiSource?.redirect_url;
+  
+      if (redirectUrl) {
+        appendLog("Redirigiendo a autenticación bancaria 3DS...");
+        window.location.href = redirectUrl;
+        // Nota: todo lo que esté después de esta línea puede no ejecutarse
+        // porque el navegador cambia de página. Lo dejamos por compatibilidad.
+      } else {
+        appendLog(
+          "⚠️ No se recibió redirect_url desde Wompi. Revisa la respuesta de createPaymentMethod."
+        );
+      }
+  
       if (form.autoSubscribe) {
-        appendLog(`Creando/actualizando suscripción ${form.plan.toUpperCase()}...`);
-
+        appendLog(
+          `Creando/actualizando suscripción ${form.plan.toUpperCase()}...`
+        );
+  
         if (form.plan === "basic") {
           const subRes = await axios.post("/api/billing/subscription/basic", {});
           appendLog("Suscripción BASIC configurada:", subRes.data);
@@ -131,10 +184,10 @@ export default function BillingPage() {
           );
         }
       }
-
+  
       await loadStatus();
       appendLog(
-        "✅ Método de pago listo. Ahora puedes pagar tu suscripción con el botón «Pagar suscripción ahora»."
+        "✅ Método de pago listo. Después de la autenticación bancaria podrás pagar tu suscripción con el botón «Pagar suscripción ahora»."
       );
     } catch (err: any) {
       console.error(err);
@@ -146,7 +199,7 @@ export default function BillingPage() {
       setLoading(false);
     }
   };
-
+  
   const handleCharge = async () => {
     setLoading(true);
     try {
@@ -201,7 +254,7 @@ export default function BillingPage() {
             <h1 className="text-2xl md:text-3xl font-semibold mb-1 flex items-center gap-2">
               Billing & Wompi
               <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/50 text-emerald-300">
-                Sandbox
+                Producción
               </span>
             </h1>
             <p className="text-sm text-slate-400">
@@ -234,7 +287,7 @@ export default function BillingPage() {
           )}
         </header>
 
-        {/* Layout principal: izquierda status/planes, derecha tarjeta + acciones + log */}
+        {/* Layout principal */}
         <div className="grid gap-6 lg:grid-cols-[1.2fr_1fr]">
           {/* Columna izquierda */}
           <div className="space-y-6">
@@ -441,7 +494,7 @@ export default function BillingPage() {
 
           {/* Columna derecha: formulario + acción de pago + log */}
           <div className="space-y-4">
-            {/* Formulario tarjeta (solo si showCardForm == true) */}
+            {/* Formulario tarjeta */}
             {showCardForm && (
               <section className="rounded-xl border border-slate-800 bg-slate-900/70 p-5">
                 <div className="flex items-center justify-between mb-3">
@@ -467,14 +520,14 @@ export default function BillingPage() {
                 >
                   <div className="md:col-span-2">
                     <label className="block text-xs font-medium mb-1">
-                      Número de tarjeta (Sandbox)
+                      Número de tarjeta
                     </label>
                     <input
                       type="text"
                       name="number"
                       value={form.number}
                       onChange={handleChange}
-                      placeholder="4242 4242 4242 4242"
+                      placeholder="•••• •••• •••• ••••"
                       className="w-full rounded-lg bg-slate-800 border border-slate-700 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
                       required
                     />
@@ -534,7 +587,22 @@ export default function BillingPage() {
                       name="cardHolder"
                       value={form.cardHolder}
                       onChange={handleChange}
-                      placeholder="TEST USER"
+                      placeholder="Nombre del titular"
+                      className="w-full rounded-lg bg-slate-800 border border-slate-700 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      required
+                    />
+                  </div>
+
+                  <div className="md:col-span-2">
+                    <label className="block text-xs font-medium mb-1">
+                      Correo electrónico para facturación
+                    </label>
+                    <input
+                      type="email"
+                      name="email"
+                      value={form.email}
+                      onChange={handleChange}
+                      placeholder="correo@ejemplo.com"
                       className="w-full rounded-lg bg-slate-800 border border-slate-700 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
                       required
                     />
