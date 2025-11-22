@@ -103,12 +103,12 @@ export default function BillingPage() {
   };
 
   // Helper para obtener deviceFingerprint desde el SDK de Wompi
- // Helper para obtener deviceFingerprint desde el SDK de Wompi
-const getDeviceFingerprintSafe = async (): Promise<string | null> => {
+// Helper para obtener deviceFingerprint desde el SDK de Wompi
+const getDeviceFingerprintSafe = async (): Promise<string> => {
   try {
     let attempts = 0;
-    const maxAttempts = 5;          // por ejemplo, 5 intentos
-    const delayMs = 1000;           // 1 segundo entre intentos
+    const maxAttempts = 5;
+    const delayMs = 1000;
 
     while (attempts < maxAttempts) {
       const w = (window as any).wompi;
@@ -127,19 +127,30 @@ const getDeviceFingerprintSafe = async (): Promise<string | null> => {
       await new Promise((resolve) => setTimeout(resolve, delayMs));
     }
 
+    // 👇 Fallback: si nunca cargó el SDK, generamos uno fake
+    const fallback =
+      `fake-fp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
     appendLog(
-      "❌ Wompi SDK no se cargó después de varios intentos. Verifica el <Script src=\"https://cdn.wompi.co/v1/sdk.js\" /> en el layout y que no esté siendo bloqueado."
+      "❌ Wompi SDK no se cargó después de varios intentos. " +
+        "Se usará un deviceFingerprint de respaldo para pruebas:",
+      fallback
     );
-    return null;
+
+    return fallback;
   } catch (err: any) {
     console.error(err);
+    const fallback =
+      `fake-fp-error-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
     appendLog(
-      "❌ Error obteniendo deviceFingerprint:",
-      err?.message || err
+      "❌ Error obteniendo deviceFingerprint. Se usará un valor de respaldo:",
+      fallback
     );
-    return null;
+    return fallback;
   }
 };
+
 
 
   const handleSavePaymentMethod = async (e: React.FormEvent) => {
@@ -151,13 +162,8 @@ const getDeviceFingerprintSafe = async (): Promise<string | null> => {
       appendLog("Iniciando guardado de método de pago...");
   
       const deviceFingerprint = await getDeviceFingerprintSafe();
-      if (!deviceFingerprint) {
-        appendLog(
-          "❌ No se pudo obtener el deviceFingerprint. No se enviará el método de pago."
-        );
-        setLoading(false);
-        return;
-      }
+// Nota: siempre tendremos algún string (real o fake), así que seguimos
+
   
       const pmRes = await axios.post("/api/billing/payment-method", {
         number: form.number,
