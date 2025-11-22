@@ -1459,13 +1459,15 @@ const PLANS: {
   {
     code: "basic",
     name: "Plan Basic",
-    price: 49000,
-    desc: "Ideal para clínicas que están arrancando con WASAAA.",
+    price: 250000,
+    desc: "Ideal para negocios que desean automatizar su WhatsApp con IA.",
     features: [
       "Hasta 1 número de WhatsApp",
-      "Respuestas con IA básicas",
+      "300 conversaciones al mes",
+      "Respuestas con IA premium",
       "Agenda y recordatorios",
     ],
+    
   },
 ];
 
