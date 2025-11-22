@@ -1432,8 +1432,6 @@
 // }
 
 
-
-
 "use client";
 
 import React, { useEffect, useState, useCallback } from "react";
@@ -1613,9 +1611,7 @@ export default function BillingPage() {
       }
 
       if (form.autoSubscribe) {
-        console.log(
-          "[Billing] Creando/actualizando suscripción BASIC..."
-        );
+        console.log("[Billing] Creando/actualizando suscripción BASIC...");
 
         const subRes = await axios.post(
           "/api/billing/subscription/basic",
@@ -1685,12 +1681,33 @@ export default function BillingPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-slate-50 flex items-center justify-center px-4 py-8">
-      <div className="w-full max-w-5xl bg-slate-900/80 border border-slate-800 rounded-2xl shadow-[0_20px_80px_rgba(0,0,0,0.6)] p-6 md:p-8 space-y-8">
+      <div className="w-full max-w-5xl bg-slate-900/80 border border-slate-800 rounded-2xl shadow-[0_20px_80px_rgba(0,0,0,0.6)] p-6 md:p-8 space-y-8 relative overflow-hidden">
+        {/* Glow premium de fondo */}
+        <div className="pointer-events-none absolute inset-0 opacity-40">
+          <div className="absolute -top-32 -right-10 h-64 w-64 rounded-full bg-emerald-500/20 blur-3xl" />
+          <div className="absolute -bottom-32 -left-10 h-64 w-64 rounded-full bg-emerald-400/10 blur-3xl" />
+        </div>
+
+        {/* Overlay de loader global */}
+        {loading && (
+          <div className="absolute inset-0 z-20 flex items-center justify-center bg-slate-950/50 backdrop-blur-sm">
+            <div className="flex flex-col items-center gap-3">
+              <div className="h-9 w-9 rounded-full border-2 border-emerald-400 border-t-transparent animate-spin shadow-[0_0_20px_rgba(16,185,129,0.6)]" />
+              <p className="text-xs text-slate-200 tracking-wide uppercase">
+                Procesando pago...
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Header */}
-        <header className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <header className="relative flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
             <h1 className="text-2xl md:text-3xl font-semibold mb-1 flex items-center gap-2">
               Billing &amp; Wompi
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-400/70 text-emerald-200 tracking-wide uppercase">
+                Suscripción activa
+              </span>
             </h1>
             <p className="text-sm text-slate-400">
               Gestiona tu suscripción de WASAAA. Debes estar autenticado para
@@ -1699,17 +1716,18 @@ export default function BillingPage() {
           </div>
 
           {status && (
-            <div className="flex flex-col items-end text-right space-y-1 text-xs">
+            <div className="flex flex-col items-end text-right space-y-1 text-xs relative">
               <span className="text-slate-400">Plan actual</span>
               <span
-                className={`px-2 py-1 rounded-full text-[11px] font-medium ${
+                className={`px-2 py-1 rounded-full text-[11px] font-medium flex items-center gap-1 shadow-sm ${
                   empresaPlan === "basic"
-                    ? "bg-sky-500/15 text-sky-300 border border-sky-500/50"
+                    ? "bg-emerald-600/20 text-emerald-200 border border-emerald-400/70"
                     : empresaPlan === "pro"
-                    ? "bg-indigo-500/15 text-indigo-300 border border-indigo-500/50"
+                    ? "bg-emerald-700/25 text-emerald-100 border border-emerald-500/70"
                     : "bg-slate-700/40 text-slate-200 border border-slate-600"
                 }`}
               >
+                <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.9)]" />
                 {empresaPlan.toUpperCase()}
               </span>
               {status.nextBillingDate && (
@@ -1723,17 +1741,26 @@ export default function BillingPage() {
         </header>
 
         {/* Layout principal */}
-        <div className="grid gap-6 lg:grid-cols-[1.2fr_1fr]">
+        <div className="relative grid gap-6 lg:grid-cols-[1.2fr_1fr]">
           {/* Columna izquierda */}
           <div className="space-y-6">
             {/* Panel de estado */}
-            <section className="rounded-xl border border-slate-800 bg-slate-900/60 p-5 space-y-4">
-              <h2 className="text-sm font-semibold text-slate-200 mb-1">
+            <section className="rounded-xl border border-slate-800 bg-slate-900/60 p-5 space-y-4 backdrop-blur-sm">
+              <h2 className="text-sm font-semibold text-slate-200 mb-1 flex items-center gap-2">
+                <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.9)]" />
                 Estado de facturación
               </h2>
 
               {!status && (
-                <p className="text-slate-400 text-sm">Cargando información...</p>
+                <div className="space-y-3">
+                  {/* Skeleton premium */}
+                  <div className="h-3 w-32 bg-slate-800/70 rounded-full animate-pulse" />
+                  <div className="space-y-2">
+                    <div className="h-3 w-full bg-slate-800/60 rounded-md animate-pulse" />
+                    <div className="h-3 w-2/3 bg-slate-800/60 rounded-md animate-pulse" />
+                    <div className="h-3 w-1/2 bg-slate-800/60 rounded-md animate-pulse" />
+                  </div>
+                </div>
               )}
 
               {status && (
@@ -1743,7 +1770,7 @@ export default function BillingPage() {
                     <div className="flex items-center justify-between mb-1">
                       <h3 className="font-semibold">Método de pago</h3>
                       {hasPaymentMethod && (
-                        <span className="text-[11px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700">
+                        <span className="text-[11px] px-2 py-0.5 rounded-full bg-slate-900/80 text-slate-200 border border-slate-700">
                           Default
                         </span>
                       )}
@@ -1765,7 +1792,7 @@ export default function BillingPage() {
                           <button
                             type="button"
                             onClick={() => setShowCardForm(true)}
-                            className="text-xs px-3 py-1 rounded-full border border-sky-500/60 text-sky-300 hover:bg-sky-500/10 transition"
+                            className="text-xs px-3 py-1 rounded-full border border-emerald-400/70 text-emerald-200 hover:bg-emerald-500/10 transition shadow-sm"
                             disabled={loading}
                           >
                             Cambiar método de pago
@@ -1795,7 +1822,7 @@ export default function BillingPage() {
                       <div className="text-slate-300 space-y-1 text-sm">
                         <p>
                           Plan:{" "}
-                          <span className="text-sky-400 font-medium">
+                          <span className="text-emerald-400 font-medium">
                             {status.subscription.plan.code.toUpperCase()}
                           </span>
                         </p>
@@ -1829,11 +1856,11 @@ export default function BillingPage() {
                   <div>
                     <h3 className="font-semibold mb-1">Historial de cobros</h3>
                     {status.payments?.length ? (
-                      <ul className="text-slate-300 text-xs space-y-2 max-h-40 overflow-y-auto">
+                      <ul className="text-slate-300 text-xs space-y-2 max-h-40 overflow-y-auto pr-1">
                         {status.payments.map((p: any) => (
                           <li
                             key={p.id}
-                            className="border border-slate-800 rounded-lg p-2 flex justify-between items-center bg-slate-900/60"
+                            className="border border-slate-800 rounded-lg p-2 flex justify-between items-center bg-slate-900/70"
                           >
                             <span>
                               {new Date(p.createdAt).toLocaleDateString()} — $
@@ -1842,7 +1869,7 @@ export default function BillingPage() {
                             <span
                               className={
                                 p.status === "paid"
-                                  ? "text-sky-400"
+                                  ? "text-emerald-400"
                                   : p.status === "pending"
                                   ? "text-yellow-400"
                                   : "text-red-500"
@@ -1864,7 +1891,7 @@ export default function BillingPage() {
             </section>
 
             {/* Plan Basic (único plan visible) */}
-            <section className="rounded-xl border border-slate-800 bg-slate-900/60 p-5">
+            <section className="rounded-xl border border-slate-800 bg-slate-900/60 p-5 backdrop-blur-sm">
               <h2 className="text-sm font-semibold text-slate-200 mb-3">
                 Tu plan
               </h2>
@@ -1872,22 +1899,26 @@ export default function BillingPage() {
               <div className="grid gap-4 md:grid-cols-2">
                 <div
                   className={[
-                    "text-left rounded-xl border px-4 py-3",
-                    "bg-slate-950/40 border-sky-500 shadow-[0_0_0_1px_rgba(56,189,248,0.5)]",
+                    "text-left rounded-xl border px-4 py-3 relative overflow-hidden",
+                    "bg-slate-950/60 border-emerald-400 shadow-[0_0_0_1px_rgba(16,185,129,0.5),0_20px_40px_rgba(0,0,0,0.8)]",
                   ].join(" ")}
                 >
-                  <div className="flex items-baseline justify-between mb-1">
+                  <div className="pointer-events-none absolute inset-0 opacity-30">
+                    <div className="absolute -top-10 right-0 h-24 w-24 rounded-full bg-emerald-500/20 blur-2xl" />
+                  </div>
+
+                  <div className="flex items-baseline justify-between mb-1 relative">
                     <span className="font-semibold">{basicPlan.name}</span>
-                    <span className="text-sm font-semibold text-sky-400">
+                    <span className="text-sm font-semibold text-emerald-300">
                       ${basicPlan.price.toLocaleString("es-CO")} COP / mes
                     </span>
                   </div>
 
-                  <p className="text-xs text-slate-400 mb-2">
+                  <p className="text-xs text-slate-400 mb-2 relative">
                     {basicPlan.desc}
                   </p>
 
-                  <ul className="text-[11px] text-slate-300 space-y-1">
+                  <ul className="text-[11px] text-slate-300 space-y-1 relative">
                     {basicPlan.features.map((f) => (
                       <li key={f}>• {f}</li>
                     ))}
@@ -1897,7 +1928,7 @@ export default function BillingPage() {
 
               <div className="mt-3 text-xs text-slate-400">
                 Plan disponible en este momento:{" "}
-                <span className="text-sky-400 font-medium">
+                <span className="text-emerald-300 font-medium">
                   {basicPlan.name} ($
                   {basicPlan.price.toLocaleString("es-CO")} COP / mes)
                 </span>
@@ -1909,7 +1940,7 @@ export default function BillingPage() {
           <div className="space-y-4">
             {/* Formulario tarjeta */}
             {showCardForm && (
-              <section className="rounded-xl border border-slate-800 bg-slate-900/70 p-5">
+              <section className="rounded-xl border border-slate-800 bg-slate-900/80 p-5 backdrop-blur-sm">
                 <div className="flex items-center justify-between mb-3">
                   <h2 className="text-sm font-semibold text-slate-200">
                     {status?.paymentMethod
@@ -1941,7 +1972,7 @@ export default function BillingPage() {
                       value={form.number}
                       onChange={handleChange}
                       placeholder="•••• •••• •••• ••••"
-                      className="w-full rounded-lg bg-slate-800 border border-slate-700 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500"
+                      className="w-full rounded-lg bg-slate-800 border border-slate-700 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
                       required
                     />
                   </div>
@@ -1956,7 +1987,7 @@ export default function BillingPage() {
                       value={form.expMonth}
                       onChange={handleChange}
                       placeholder="08"
-                      className="w-full rounded-lg bg-slate-800 border border-slate-700 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500"
+                      className="w-full rounded-lg bg-slate-800 border border-slate-700 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
                       required
                     />
                   </div>
@@ -1971,7 +2002,7 @@ export default function BillingPage() {
                       value={form.expYear}
                       onChange={handleChange}
                       placeholder="30"
-                      className="w-full rounded-lg bg-slate-800 border border-slate-700 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500"
+                      className="w-full rounded-lg bg-slate-800 border border-slate-700 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
                       required
                     />
                   </div>
@@ -1986,7 +2017,7 @@ export default function BillingPage() {
                       value={form.cvc}
                       onChange={handleChange}
                       placeholder="123"
-                      className="w-full rounded-lg bg-slate-800 border border-slate-700 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500"
+                      className="w-full rounded-lg bg-slate-800 border border-slate-700 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
                       required
                     />
                   </div>
@@ -2001,7 +2032,7 @@ export default function BillingPage() {
                       value={form.cardHolder}
                       onChange={handleChange}
                       placeholder="Nombre del titular"
-                      className="w-full rounded-lg bg-slate-800 border border-slate-700 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500"
+                      className="w-full rounded-lg bg-slate-800 border border-slate-700 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
                       required
                     />
                   </div>
@@ -2016,7 +2047,7 @@ export default function BillingPage() {
                       value={form.email}
                       onChange={handleChange}
                       placeholder="correo@ejemplo.com"
-                      className="w-full rounded-lg bg-slate-800 border border-slate-700 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500"
+                      className="w-full rounded-lg bg-slate-800 border border-slate-700 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
                       required
                     />
                   </div>
@@ -2042,8 +2073,11 @@ export default function BillingPage() {
                     <button
                       type="submit"
                       disabled={loading}
-                      className="inline-flex items-center justify-center rounded-lg bg-sky-500 hover:bg-sky-400 text-slate-950 text-xs font-medium px-4 py-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                      className="inline-flex items-center justify-center rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-medium px-4 py-2 disabled:opacity-60 disabled:cursor-not-allowed shadow-[0_10px_30px_rgba(16,185,129,0.35)]"
                     >
+                      {loading && (
+                        <span className="mr-2 h-3 w-3 rounded-full border-2 border-emerald-900 border-t-transparent animate-spin" />
+                      )}
                       {loading ? "Procesando..." : "Guardar método de pago"}
                     </button>
                   </div>
@@ -2052,7 +2086,7 @@ export default function BillingPage() {
             )}
 
             {/* Botón de pagar suscripción */}
-            <section className="rounded-xl border border-slate-800 bg-slate-900/70 p-4 flex flex-col gap-2">
+            <section className="rounded-xl border border-slate-800 bg-slate-900/80 p-4 flex flex-col gap-2 backdrop-blur-sm">
               <div className="flex items-center justify-between">
                 <div className="text-xs text-slate-300">
                   <p className="font-medium">Pago de suscripción</p>
@@ -2064,12 +2098,15 @@ export default function BillingPage() {
                   type="button"
                   onClick={handleCharge}
                   disabled={loading || !hasPaymentMethod}
-                  className={`inline-flex items-center justify-center rounded-lg px-4 py-2 text-xs font-medium transition ${
+                  className={`inline-flex items-center justify-center rounded-lg px-4 py-2 text-xs font-medium transition shadow-sm ${
                     hasPaymentMethod
-                      ? "bg-sky-500 hover:bg-sky-400 text-slate-950"
+                      ? "bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-[0_10px_30px_rgba(16,185,129,0.35)]"
                       : "bg-slate-700 text-slate-400 cursor-not-allowed"
                   } disabled:opacity-60`}
                 >
+                  {loading && (
+                    <span className="mr-2 h-3 w-3 rounded-full border-2 border-emerald-900 border-t-transparent animate-spin" />
+                  )}
                   {loading ? "Procesando..." : "Pagar suscripción ahora"}
                 </button>
               </div>
