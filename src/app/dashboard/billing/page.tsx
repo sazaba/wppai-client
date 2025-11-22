@@ -1481,6 +1481,7 @@ export default function BillingPage() {
   });
 
   const [loading, setLoading] = useState(false);
+  const [loadingMessage, setLoadingMessage] = useState<string | null>(null);
   const [status, setStatus] = useState<any>(null);
   const [showCardForm, setShowCardForm] = useState(false);
 
@@ -1579,6 +1580,7 @@ export default function BillingPage() {
   const handleSavePaymentMethod = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setLoadingMessage("Guardando método de pago...");
 
     try {
       console.log("[Billing] Iniciando guardado de método de pago...");
@@ -1631,11 +1633,14 @@ export default function BillingPage() {
       );
     } finally {
       setLoading(false);
+      setLoadingMessage(null);
     }
   };
 
   const handleCharge = async () => {
     setLoading(true);
+    setLoadingMessage("Procesando pago de suscripción...");
+
     try {
       console.log("[Billing] Procesando pago de suscripción...");
 
@@ -1650,11 +1655,14 @@ export default function BillingPage() {
       );
     } finally {
       setLoading(false);
+      setLoadingMessage(null);
     }
   };
 
   const handleDeletePaymentMethod = async () => {
     setLoading(true);
+    setLoadingMessage("Cargando...");
+
     try {
       console.log("[Billing] Eliminando método de pago...");
 
@@ -1672,6 +1680,7 @@ export default function BillingPage() {
       );
     } finally {
       setLoading(false);
+      setLoadingMessage(null);
     }
   };
 
@@ -1694,7 +1703,7 @@ export default function BillingPage() {
             <div className="flex flex-col items-center gap-3">
               <div className="h-9 w-9 rounded-full border-2 border-emerald-400 border-t-transparent animate-spin shadow-[0_0_20px_rgba(16,185,129,0.6)]" />
               <p className="text-xs text-slate-200 tracking-wide uppercase">
-                Procesando pago...
+                {loadingMessage ?? "Procesando..."}
               </p>
             </div>
           </div>
@@ -1709,7 +1718,7 @@ export default function BillingPage() {
                 Suscripción activa
               </span>
             </h1>
-          
+            
           </div>
 
           {status && (
