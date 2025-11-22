@@ -1709,10 +1709,7 @@ export default function BillingPage() {
                 Suscripción activa
               </span>
             </h1>
-            <p className="text-sm text-slate-400">
-              Gestiona tu suscripción de WASAAA. Debes estar autenticado para
-              que el backend tome tu <code>empresaId</code> del JWT.
-            </p>
+          
           </div>
 
           {status && (
