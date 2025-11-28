@@ -1,10 +1,11 @@
 'use client'
 
 import { useEffect, useRef, useState, useCallback } from 'react'
-import { FiClock, FiAlertTriangle } from 'react-icons/fi'
+import { FiClock, FiAlertTriangle, FiLock } from 'react-icons/fi' // ➕ Agregamos FiLock
 import socket from '@/lib/socket'
 import axios from '@/lib/axios'
 import Swal from 'sweetalert2'
+import Link from 'next/link' // ➕ Para el botón de ir a pagar
 
 import ChatSidebar from './components/ChatSidebar'
 import ChatHeader from './components/ChatHeader'
@@ -17,7 +18,7 @@ import ChatModalCrear from './components/ChatModalCrear'
 import { useAuth } from '../../context/AuthContext'
 
 // ——————————————————————————————
-// Config de estados (incluye los NUEVOS)
+// Config de estados
 // ——————————————————————————————
 const estadoIconos = {
   pendiente: <FiClock className="inline mr-1 animate-spin" />,
@@ -25,7 +26,7 @@ const estadoIconos = {
   en_proceso: <span className="inline-block w-2 h-2 bg-blue-400 rounded-full" />,
   requiere_agente: <span className="inline-block w-2 h-2 bg-red-400 rounded-full" />,
   agendado: <span className="inline-block w-2 h-2 bg-indigo-400 rounded-full" />,
-  agendado_consulta: <span className="inline-block w-2 h-2 bg-indigo-400 rounded-full" />, // ← NUEVO
+  agendado_consulta: <span className="inline-block w-2 h-2 bg-indigo-400 rounded-full" />,
   cerrado: <span className="inline-block w-2 h-2 bg-gray-400 rounded-full" />,
   todos: <span className="inline-block w-2 h-2 bg-slate-400 rounded-full" />,
 }
@@ -36,7 +37,7 @@ const estadoEstilos = {
   en_proceso: 'bg-blue-100 text-blue-700',
   requiere_agente: 'bg-red-100 text-red-700',
   agendado: 'bg-indigo-100 text-indigo-700',
-  agendado_consulta: 'bg-indigo-100 text-indigo-700', // ← NUEVO
+  agendado_consulta: 'bg-indigo-100 text-indigo-700',
   cerrado: 'bg-gray-100 text-gray-600',
   todos: 'bg-slate-100 text-slate-700',
 }
@@ -46,20 +47,43 @@ export default function ChatsPage() {
   const [busqueda, setBusqueda] = useState('')
   const [activoId, setActivoId] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
-  const [loadingMsgs, setLoadingMsgs] = useState(false)     // ⬅️ loader premium mensajes
+  const [loadingMsgs, setLoadingMsgs] = useState(false)
   const [mensajes, setMensajes] = useState<any[]>([])
   const [respuesta, setRespuesta] = useState('')
   const [page, setPage] = useState(1)
   const [hasMore, setHasMore] = useState(true)
   const [estadoFiltro, setEstadoFiltro] = useState('todos')
-  const audioRef = useRef<HTMLAudioElement | null>(null)
   const [mostrarModalCerrar, setMostrarModalCerrar] = useState(false)
   const [mostrarModalCrear, setMostrarModalCrear] = useState(false)
+
+  // 🔒 Estado de Bloqueo por Billing
+  const [isBillingLocked, setIsBillingLocked] = useState(false)
 
   // 🚨 Errores de política (24h)
   const [policyErrors, setPolicyErrors] = useState<Record<number, { code?: number; message: string }>>({})
 
   const { token }: { token?: string } = useAuth() as any
+
+  // ——————————————————————————————
+  // 1. Verificar Estado de Billing (Bloqueo) 🛑
+  // ——————————————————————————————
+  useEffect(() => {
+    if (!token) return
+    const checkBilling = async () => {
+        try {
+            const res = await axios.get('/api/billing/status', {
+                headers: { Authorization: `Bearer ${token}` }
+            })
+            // Si isActiveForUse es false, bloqueamos el chat
+            const locked = res.data?.meta?.isActiveForUse === false
+            setIsBillingLocked(locked)
+        } catch (error) {
+            console.error('Error verificando billing:', error)
+        }
+    }
+    checkBilling()
+  }, [token])
+
 
   // —————————————————————————————— 
   // Dedupe / Orden
@@ -188,6 +212,12 @@ export default function ChatsPage() {
   const handlePolicyError = useCallback((payload: any) => {
     const { conversationId, code, message } = payload || {}
     if (!conversationId) return
+    
+    // Si el error es por LÍMITE ALCANZADO (viene del webhook)
+    if (code === 'limit_reached') {
+        setIsBillingLocked(true); // Bloqueamos la interfaz inmediatamente
+    }
+
     setPolicyErrors((prev) => ({
       ...prev,
       [conversationId]: {
@@ -234,7 +264,7 @@ export default function ChatsPage() {
     setActivoId(chatId)
     setMensajes([])
     setPage(1)
-    setLoadingMsgs(true) // ⬅️ ON loader premium
+    setLoadingMsgs(true)
     try {
       const chatActual = chats.find((c) => c.id === chatId)
 
@@ -270,7 +300,7 @@ export default function ChatsPage() {
     } catch (err) {
       console.error('Error al cargar mensajes:', err)
     } finally {
-      setLoadingMsgs(false) // ⬅️ OFF loader premium
+      setLoadingMsgs(false)
     }
   }
 
@@ -309,11 +339,25 @@ export default function ChatsPage() {
   }
 
   // ——————————————————————————————
-  // Enviar TEXTO (tolerante a ruta/payload)
+  // Enviar TEXTO
   // ——————————————————————————————
   const handleSendMessage = async () => {
     const body = respuesta.trim()
     if (!body || !activoId) return
+
+    // 🔒 Doble check de seguridad en frontend
+    if (isBillingLocked) {
+        await Swal.fire({
+            icon: 'error',
+            title: 'Servicio Suspendido',
+            text: 'Tu plan ha finalizado o alcanzaste el límite. No puedes enviar mensajes.',
+            confirmButtonText: 'Ir a Facturación',
+            confirmButtonColor: '#10b981',
+        }).then((res) => {
+            if(res.isConfirmed) window.location.href = '/dashboard/billing';
+        });
+        return;
+    }
 
     const chatActual = chats.find((c) => c.id === activoId)
     const tempId = `temp-${Date.now()}`
@@ -323,7 +367,6 @@ export default function ChatsPage() {
     setRespuesta('')
     setMensajes((prev) => mergeUnique(prev, [msgOptimista]))
 
-    // Si está cerrado, no intentes enviar
     if (chatActual?.estado === 'cerrado') {
       setMensajes((prev) => prev.map((m) => (m.id === tempId ? { ...m, error: true } : m)))
       await Swal.fire({
@@ -339,14 +382,11 @@ export default function ChatsPage() {
 
     const aplicarOk = (created: any) => {
       const real = created?.message ?? created
-    
       setMensajes((prev) =>
         ordenarMensajes(
           prev.map((m) => (m.id === tempId ? { ...m, ...real, id: real.id } : m))
         )
       )
-    
-      // ⬇️ aquí quitamos el cambio de estado
       setChats((prev) =>
         prev.map((chat) => {
           if (chat.id !== activoId) return chat
@@ -354,12 +394,10 @@ export default function ChatsPage() {
             ...chat,
             mensaje: real.contenido || chat.mensaje,
             fecha: real.timestamp ?? chat.fecha,
-            // ❌ NO tocamos chat.estado
           }
         })
       )
     }
-    
 
     const aplicarError = async (err: any) => {
       console.error('Error al responder manualmente:', err)
@@ -383,7 +421,6 @@ export default function ChatsPage() {
     }
 
     try {
-      // 1) Ruta actual personalizada
       const { data } = await axios.post(
         `/api/chats/${activoId}/responder-manual`,
         { text: body, body, contenido: body, from: 'agent' },
@@ -400,7 +437,6 @@ export default function ChatsPage() {
     }
 
     try {
-      // 2) Fallback estándar
       const { data } = await axios.post(
         `/api/chats/${activoId}/messages`,
         { text: body, body, contenido: body, from: 'agent' },
@@ -412,9 +448,6 @@ export default function ChatsPage() {
     }
   }
 
-  // ——————————————————————————————
-  // Enviar MEDIA por LINK
-  // ——————————————————————————————
   const handleSendMedia = async ({ url, type }: { url: string; type: 'image' | 'video' }) => {
     if (!activoId || !token) return
     try {
@@ -439,9 +472,6 @@ export default function ChatsPage() {
     }
   }
 
-  // ——————————————————————————————
-  // Enviar ARCHIVO subido
-  // ——————————————————————————————
   const handleUploadFile = async (
     file: File,
     type: 'image' | 'video' | 'audio' | 'document',
@@ -518,7 +548,6 @@ export default function ChatsPage() {
     }
   }
 
-  // ✅ marcar como "agendado" cuando el ChatInput cree la cita
   const handleAppointmentCreated = async (created: { id: number; startAt: string }) => {
     if (!activoId || !token) return
     try {
@@ -533,9 +562,6 @@ export default function ChatsPage() {
     }
   }
 
-  // ——————————————————————————————
-  // Eliminar conversación (solo si cerrada)
-  // ——————————————————————————————
   const handleEliminarConversacion = async () => {
     if (!activoId) return
     const chatActual = chats.find((c) => c.id === activoId)
@@ -665,34 +691,56 @@ export default function ChatsPage() {
               mensajes={mensajes}
               onLoadMore={handleLoadMore}
               hasMore={hasMore}
-              loading={loadingMsgs} /* ⬅️ skeleton premium */
+              loading={loadingMsgs}
             />
 
-<ChatInput
-  key={activoId || 'none'}
-  value={respuesta}
-  onChange={setRespuesta}
-  onSend={handleSendMessage}
-  onSendGif={(url, isMp4) => handleSendMedia({ url, type: isMp4 ? 'video' : 'image' })}
-  onUploadFile={(file, type) => handleUploadFile(file, type)}
-  disabled={chats.find((c) => c.id === activoId)?.estado === 'cerrado'}
-  onAppointmentCreated={handleAppointmentCreated}
-
-  /* ✅ claves para que se llenen los campos y el dropdown del staff */
-  conversationId={activoId}
-  chatPhone={
-    chats.find((c) => c.id === activoId)?.telefono ||
-    chats.find((c) => c.id === activoId)?.phone ||
-    ''
-  }
-  summaryText={
-    chats.find((c) => c.id === activoId)?.summaryText ||
-    chats.find((c) => c.id === activoId)?.summary?.text ||
-    ''
-  }
-/>
-
-
+            {/* 🔥 AQUÍ ESTÁ LA LÓGICA DEL BANNER PREMIUM */}
+            {isBillingLocked ? (
+                <div className="p-4 bg-[#202c33] border-t border-[#374248]">
+                    <div className="rounded-xl bg-gradient-to-r from-red-900/40 to-red-800/20 border border-red-500/30 p-4 flex flex-col md:flex-row items-center justify-between gap-4">
+                        <div className="flex items-start gap-3">
+                            <div className="p-2 rounded-full bg-red-500/20 text-red-400">
+                                <FiLock className="w-5 h-5" />
+                            </div>
+                            <div>
+                                <h3 className="font-bold text-red-100 text-sm">Servicio Suspendido</h3>
+                                <p className="text-xs text-red-200/80 mt-1 max-w-lg">
+                                    Tu plan o periodo de prueba ha finalizado, o alcanzaste el límite de mensajes.
+                                    No se enviarán ni recibirán mensajes hasta que regularices tu cuenta.
+                                </p>
+                            </div>
+                        </div>
+                        <Link 
+                            href="/dashboard/billing"
+                            className="whitespace-nowrap px-4 py-2 bg-red-600 hover:bg-red-500 text-white text-xs font-bold rounded-lg shadow-lg shadow-red-900/30 transition-all transform hover:scale-105"
+                        >
+                            Reactivar Servicio
+                        </Link>
+                    </div>
+                </div>
+            ) : (
+                <ChatInput
+                  key={activoId || 'none'}
+                  value={respuesta}
+                  onChange={setRespuesta}
+                  onSend={handleSendMessage}
+                  onSendGif={(url, isMp4) => handleSendMedia({ url, type: isMp4 ? 'video' : 'image' })}
+                  onUploadFile={(file, type) => handleUploadFile(file, type)}
+                  disabled={chats.find((c) => c.id === activoId)?.estado === 'cerrado'}
+                  onAppointmentCreated={handleAppointmentCreated}
+                  conversationId={activoId}
+                  chatPhone={
+                    chats.find((c) => c.id === activoId)?.telefono ||
+                    chats.find((c) => c.id === activoId)?.phone ||
+                    ''
+                  }
+                  summaryText={
+                    chats.find((c) => c.id === activoId)?.summaryText ||
+                    chats.find((c) => c.id === activoId)?.summary?.text ||
+                    ''
+                  }
+                />
+            )}
 
           </>
         ) : (
