@@ -1,11 +1,11 @@
 'use client'
 
 import { useEffect, useRef, useState, useCallback } from 'react'
-import { FiClock, FiAlertTriangle, FiLock } from 'react-icons/fi' // ➕ Agregamos FiLock
+import { FiClock, FiAlertTriangle, FiLock } from 'react-icons/fi'
 import socket from '@/lib/socket'
 import axios from '@/lib/axios'
 import Swal from 'sweetalert2'
-import Link from 'next/link' // ➕ Para el botón de ir a pagar
+import Link from 'next/link'
 
 import ChatSidebar from './components/ChatSidebar'
 import ChatHeader from './components/ChatHeader'
@@ -14,7 +14,6 @@ import ChatInput from './components/ChatInput'
 import ChatModalCerrar from './components/ChatModalCerrar'
 import ChatModalCrear from './components/ChatModalCrear'
 
-// ✅ contexto de auth (token)
 import { useAuth } from '../../context/AuthContext'
 
 // ——————————————————————————————
@@ -64,9 +63,7 @@ export default function ChatsPage() {
 
   const { token }: { token?: string } = useAuth() as any
 
-  // ——————————————————————————————
-  // 1. Verificar Estado de Billing (Bloqueo) 🛑
-  // ——————————————————————————————
+  // 1. Verificar Estado de Billing (Bloqueo)
   useEffect(() => {
     if (!token) return
     const checkBilling = async () => {
@@ -74,7 +71,7 @@ export default function ChatsPage() {
             const res = await axios.get('/api/billing/status', {
                 headers: { Authorization: `Bearer ${token}` }
             })
-            // Si isActiveForUse es false, bloqueamos el chat
+            // Si isActiveForUse es false, bloqueamos
             const locked = res.data?.meta?.isActiveForUse === false
             setIsBillingLocked(locked)
         } catch (error) {
@@ -84,10 +81,7 @@ export default function ChatsPage() {
     checkBilling()
   }, [token])
 
-
-  // —————————————————————————————— 
   // Dedupe / Orden
-  // ——————————————————————————————
   const keyOf = useCallback(
     (m: any) =>
       m.id ??
@@ -116,9 +110,7 @@ export default function ChatsPage() {
     [keyOf, ordenarMensajes]
   )
 
-  // ——————————————————————————————
   // Cargar lista de chats
-  // ——————————————————————————————
   useEffect(() => {
     if (!token) return
     const fetchChats = async () => {
@@ -134,9 +126,7 @@ export default function ChatsPage() {
     fetchChats()
   }, [token])
 
-  // ——————————————————————————————
   // Sockets
-  // ——————————————————————————————
   const handleNuevoMensaje = useCallback(
     (msg: any) => {
       const payload = msg.message ?? msg
@@ -257,9 +247,7 @@ export default function ChatsPage() {
     }
   }, [handleNuevoMensaje, handleChatActualizado, handlePolicyError, activoId])
 
-  // ——————————————————————————————
-  // Seleccionar chat / historial
-  // ——————————————————————————————
+  // Handlers de selección y carga (sin cambios)
   const handleSelectChat = async (chatId: number) => {
     setActivoId(chatId)
     setMensajes([])
@@ -267,7 +255,6 @@ export default function ChatsPage() {
     setLoadingMsgs(true)
     try {
       const chatActual = chats.find((c) => c.id === chatId)
-
       if (chatActual?.estado === 'pendiente') {
         await axios.put(
           `/api/chats/${chatId}/estado`,
@@ -275,11 +262,9 @@ export default function ChatsPage() {
           { headers: { Authorization: `Bearer ${token}` } }
         )
       }
-
       const res = await axios.get(`/api/chats/${chatId}/messages?page=1&limit=20`, {
         headers: { Authorization: `Bearer ${token}` },
       })
-
       const mapped = res.data.messages.map((m: any) => ({
         id: m.id,
         externalId: m.externalId,
@@ -294,7 +279,6 @@ export default function ChatsPage() {
         transcription: m.transcription,
         isVoiceNote: m.isVoiceNote,
       }))
-
       setMensajes(ordenarMensajes(mapped))
       setHasMore(res.data.pagination.hasMore)
     } catch (err) {
@@ -304,9 +288,6 @@ export default function ChatsPage() {
     }
   }
 
-  // ——————————————————————————————
-  // Paginación
-  // ——————————————————————————————
   const handleLoadMore = async () => {
     if (!activoId) return
     const nextPage = page + 1
@@ -314,7 +295,6 @@ export default function ChatsPage() {
       const res = await axios.get(`/api/chats/${activoId}/messages?page=${nextPage}&limit=20`, {
         headers: { Authorization: `Bearer ${token}` },
       })
-
       const mapped = res.data.messages.map((m: any) => ({
         id: m.id,
         externalId: m.externalId,
@@ -329,7 +309,6 @@ export default function ChatsPage() {
         transcription: m.transcription,
         isVoiceNote: m.isVoiceNote,
       }))
-
       setMensajes((prev) => mergeUnique(mapped, prev))
       setPage(nextPage)
       setHasMore(res.data.pagination.hasMore)
@@ -338,21 +317,21 @@ export default function ChatsPage() {
     }
   }
 
-  // ——————————————————————————————
-  // Enviar TEXTO
-  // ——————————————————————————————
+  // Enviar mensaje (protegido con isBillingLocked)
   const handleSendMessage = async () => {
     const body = respuesta.trim()
     if (!body || !activoId) return
 
-    // 🔒 Doble check de seguridad en frontend
+    // 🔒 Bloqueo en Frontend
     if (isBillingLocked) {
         await Swal.fire({
             icon: 'error',
             title: 'Servicio Suspendido',
-            text: 'Tu plan ha finalizado o alcanzaste el límite. No puedes enviar mensajes.',
+            text: 'Tu plan ha finalizado o alcanzaste el límite. Reactiva tu cuenta para enviar mensajes.',
             confirmButtonText: 'Ir a Facturación',
-            confirmButtonColor: '#10b981',
+            confirmButtonColor: '#ef4444',
+            background: '#0B141A',
+            color: '#fff'
         }).then((res) => {
             if(res.isConfirmed) window.location.href = '/dashboard/billing';
         });
@@ -402,7 +381,6 @@ export default function ChatsPage() {
     const aplicarError = async (err: any) => {
       console.error('Error al responder manualmente:', err)
       setMensajes((prev) => prev.map((m) => (m.id === tempId ? { ...m, error: true } : m)))
-
       let msg = ''
       try {
         const raw = err?.response?.data || err?.message || err
@@ -657,7 +635,8 @@ export default function ChatsPage() {
               mostrarBotonCerrar={true}
             />
 
-            {policyErrors[activoId] && (
+            {/* ⚠️ Banner de "Sesión Vencida (24h)" --> SOLO SI NO ESTÁ BLOQUEADO POR BILLING */}
+            {!isBillingLocked && policyErrors[activoId] && (
               <div className="mx-6 mt-3 mb-1 rounded-lg border border-yellow-500/40 bg-yellow-500/10 text-yellow-200 px-4 py-3 text-sm">
                 <div className="flex items-start gap-2">
                   <FiAlertTriangle className="mt-0.5 shrink-0" />
@@ -694,13 +673,13 @@ export default function ChatsPage() {
               loading={loadingMsgs}
             />
 
-            {/* 🔥 AQUÍ ESTÁ LA LÓGICA DEL BANNER PREMIUM */}
+            {/* 🔒 BANNER DE BLOQUEO DE SERVICIO (Reemplaza al ChatInput) */}
             {isBillingLocked ? (
                 <div className="p-4 bg-[#202c33] border-t border-[#374248]">
                     <div className="rounded-xl bg-gradient-to-r from-red-900/40 to-red-800/20 border border-red-500/30 p-4 flex flex-col md:flex-row items-center justify-between gap-4">
                         <div className="flex items-start gap-3">
                             <div className="p-2 rounded-full bg-red-500/20 text-red-400">
-                                <FiLock className="w-5 h-5" />
+                                <FiLock className="w-6 h-6" />
                             </div>
                             <div>
                                 <h3 className="font-bold text-red-100 text-sm">Servicio Suspendido</h3>
@@ -712,9 +691,10 @@ export default function ChatsPage() {
                         </div>
                         <Link 
                             href="/dashboard/billing"
-                            className="whitespace-nowrap px-4 py-2 bg-red-600 hover:bg-red-500 text-white text-xs font-bold rounded-lg shadow-lg shadow-red-900/30 transition-all transform hover:scale-105"
+                            className="whitespace-nowrap px-6 py-2.5 bg-red-600 hover:bg-red-500 text-white text-xs font-bold rounded-lg shadow-lg shadow-red-900/30 transition-all transform hover:scale-105 flex items-center gap-2"
                         >
-                            Reactivar Servicio
+                            <span>Reactivar Servicio</span>
+                            <span className="text-red-200">→</span>
                         </Link>
                     </div>
                 </div>
