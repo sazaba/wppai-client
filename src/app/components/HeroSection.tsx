@@ -5,9 +5,8 @@ import { Sparkles, ChevronRight } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
 import mockup from "../images/mockup-3.webp"
-import { motion, Variants } from "framer-motion" // 1. Importamos 'Variants'
+import { motion, Variants } from "framer-motion"
 
-// 2. Tipamos explícitamente las constantes como 'Variants'
 const containerVariants: Variants = {
   hidden: { opacity: 0 },
   visible: {
@@ -90,21 +89,32 @@ export default function HeroSection() {
           </motion.div>
         </div>
 
-        {/* Lado Derecho: Imagen (Mockup) */}
+        {/* Lado Derecho: Imagen (Mockup) con Efecto Glow */}
         <motion.div 
           initial={{ opacity: 0, scale: 0.8, x: 50 }}
           animate={{ opacity: 1, scale: 1, x: 0 }}
           transition={{ delay: 0.6, type: "spring", stiffness: 80 }}
-          className="md:col-span-5 relative w-full h-[350px] md:h-[600px] mt-10 md:mt-0"
+          className="md:col-span-5 relative w-full h-[300px] md:h-[550px] mt-12 md:mt-0 flex items-center justify-center"
         >
-          <div className="absolute inset-0 shadow-2xl shadow-indigo-500/20 dark:shadow-indigo-900/40 rounded-3xl backdrop-blur-sm transform rotate-3 scale-105 opacity-50 translate-x-3 translate-y-3 transition-all duration-700 hover:rotate-0 hover:scale-100" />
+          {/* 1. Glow Ambiental (Luz difusa de fondo) */}
+          <div className="absolute w-[120%] h-[120%] bg-gradient-to-tr from-indigo-500/20 via-purple-500/20 to-pink-500/20 blur-[60px] rounded-full pointer-events-none -z-10" />
           
-          <Image
-            src={mockup}
-            alt="Ilustración de chat automático de Wasaaa"
-            fill
-            className="object-contain relative z-10 rounded-xl"
-            priority
+          {/* 2. Imagen con Drop Shadow real */}
+          <div className="relative w-full h-full">
+            <Image
+              src={mockup}
+              alt="Ilustración de chat automático de Wasaaa"
+              fill
+              className="object-contain z-10 drop-shadow-2xl"
+              priority
+            />
+          </div>
+
+          {/* 3. Decoración flotante opcional (Círculo difuminado) */}
+          <motion.div 
+            animate={{ y: [0, -20, 0] }}
+            transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+            className="absolute -top-10 -right-10 w-24 h-24 bg-indigo-500/10 rounded-full blur-2xl hidden md:block"
           />
         </motion.div>
         
