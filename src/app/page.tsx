@@ -8,23 +8,20 @@ import LandingFAQ from "./components/LandingFAQ"
 
 export default function HomePage() {
   return (
-    // CAMBIO: Quitamos bg-white/dark:bg-zinc-900. 
-    // Ahora es transparente para dejar ver el fondo global del Layout.
-    <div className="w-full flex flex-col gap-12 md:gap-24 pb-20"> 
+    // CAMBIO: Redujimos gap-12/gap-24 a gap-8/gap-16
+    <div className="w-full flex flex-col gap-8 md:gap-16 pb-16 overflow-x-hidden"> 
       
-      {/* El HeroSection debe ser transparente también para lucir los gradientes superiores */}
       <HeroSection />
 
-      <section id="features" className="relative scroll-mt-24">
+      <section id="features" className="relative scroll-mt-20">
         <FeaturesSection />
       </section>
 
-      <section id="how" className="relative scroll-mt-24">
-        {/* Podríamos agregar un separador visual aquí si es necesario */}
+      <section id="how" className="relative scroll-mt-20">
         <HowItWorksSection />
       </section>
 
-      <section id="pricing" className="relative scroll-mt-24">
+      <section id="pricing" className="relative scroll-mt-20">
         <PricingSection />
       </section>
 
@@ -32,13 +29,9 @@ export default function HomePage() {
       
       <KeyBenefits />
 
-      <section id="faqs" className="relative scroll-mt-24">
+      <section id="faqs" className="relative scroll-mt-20">
         <LandingFAQ />
       </section>
-
-      {/* <section id="contact" className="relative scroll-mt-24">
-        <ContactSection />
-      </section> */}
     </div>
   )
 }

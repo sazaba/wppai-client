@@ -81,16 +81,23 @@ export default function Navbar() {
       >
         <div className="max-w-7xl mx-auto px-4 md:px-6 h-20 flex items-center justify-between">
           
-          {/* Logo con efecto hover sutil */}
-          <Link href="/" className="relative group z-50">
-            <div className="absolute inset-0 bg-indigo-500/20 blur-xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-            <Image
-              src={logo}
-              alt="Wasaaa Logo"
-              width={50}
-              height={50}
-              className="relative h-12 w-12 md:h-14 md:w-14 object-contain transition-transform duration-300 group-hover:scale-105"
-            />
+          {/* Logo con efecto hover sutil y Texto de Marca */}
+          <Link href="/" className="relative group z-50 flex items-center gap-3">
+            <div className="relative">
+                <div className="absolute inset-0 bg-indigo-500/20 blur-xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                <Image
+                src={logo}
+                alt="Wasaaa Logo"
+                width={80} // Aumentado para mejor resolución
+                height={80}
+                // CAMBIO: Tamaños aumentados (h-14 móvil, h-16 desktop)
+                className="relative h-14 w-14 md:h-16 md:w-16 object-contain transition-transform duration-300 group-hover:scale-105"
+                />
+            </div>
+            {/* Texto de marca añadido para mayor presencia */}
+            <span className="font-bold text-2xl tracking-tight text-gray-900 dark:text-white hidden sm:block">
+                Wasaaa
+            </span>
           </Link>
 
           {/* Navegación Desktop - Minimalista */}
@@ -158,9 +165,10 @@ export default function Navbar() {
               </SheetTrigger>
               <SheetContent side="right" className="w-[300px] sm:w-[350px] bg-white/95 dark:bg-zinc-950/95 backdrop-blur-xl border-l border-gray-200 dark:border-white/10 p-0">
                 <SheetHeader className="p-6 border-b border-gray-100 dark:border-white/5">
-                    <SheetTitle className="flex items-center gap-2">
-                        <Image src={logo} alt="logo" width={32} height={32} />
-                        <span className="font-bold text-xl tracking-tight">Wasaaa</span>
+                    <SheetTitle className="flex items-center gap-3">
+                        {/* Logo en menú móvil también más grande */}
+                        <Image src={logo} alt="logo" width={48} height={48} className="w-12 h-12 object-contain" />
+                        <span className="font-bold text-2xl tracking-tight">Wasaaa</span>
                     </SheetTitle>
                 </SheetHeader>
                 

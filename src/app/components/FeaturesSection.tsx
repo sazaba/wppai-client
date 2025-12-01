@@ -1,6 +1,6 @@
 'use client'
 
-import { motion, Variants } from 'framer-motion' // <--- 1. Importa Variants
+import { motion, Variants } from 'framer-motion'
 import {
   Bot,
   Zap,
@@ -17,10 +17,32 @@ interface Feature {
 }
 
 const features: Feature[] = [
-  // ... (tu lista de features sigue igual)
+  {
+    title: 'Respuestas automáticas con IA',
+    description: 'Conversaciones en tiempo real que entienden al cliente gracias al entrenamiento personalizado.',
+    icon: Bot,
+    color: "from-blue-500 to-indigo-500"
+  },
+  {
+    title: 'Escalado inteligente',
+    description: 'Detecta dudas, quejas o frustración y transfiere la conversación a un agente humano al instante.',
+    icon: ShieldCheck,
+    color: "from-emerald-400 to-teal-500"
+  },
+  {
+    title: 'Integración con Facebook Ads',
+    description: 'Conecta tu CRM con leads de campañas y responde de inmediato para aumentar la conversión.',
+    icon: Zap,
+    color: "from-amber-400 to-orange-500"
+  },
+  {
+    title: 'Entrenamiento por negocio',
+    description: 'Configura tu IA con tus servicios, productos, horarios y preguntas frecuentes específicas.',
+    icon: CheckCircle,
+    color: "from-purple-500 to-pink-500"
+  },
 ]
 
-// 2. Agrega ": Variants" aquí abajo 👇
 const containerVariants: Variants = {
   hidden: { opacity: 0 },
   visible: {
@@ -31,7 +53,6 @@ const containerVariants: Variants = {
   }
 }
 
-// 3. Y agrega ": Variants" aquí también 👇
 const itemVariants: Variants = {
   hidden: { opacity: 0, y: 30 },
   visible: { 
@@ -42,20 +63,19 @@ const itemVariants: Variants = {
 }
 
 export default function FeaturesSection() {
-    // ... el resto del componente sigue igual
   return (
-    // Quitamos bg-gradient sólido para dejar ver el Layout. Agregamos relative z-10.
-    <section id="features" className="py-24 px-4 sm:px-6 lg:px-8 relative z-10">
+    // CAMBIO: py-24 a py-12 md:py-16 (Menos altura vertical)
+    <section id="features" className="py-12 md:py-16 px-4 sm:px-6 lg:px-8 relative z-10">
       <div className="max-w-7xl mx-auto">
         
-        {/* Header de Sección */}
-        <div className="text-center max-w-3xl mx-auto mb-20">
+        {/* CAMBIO: mb-20 a mb-10 (Acercamos el título a las tarjetas) */}
+        <div className="text-center max-w-3xl mx-auto mb-10 md:mb-12">
           <motion.h2
             initial={{ opacity: 0, y: -20 }}
             whileInView={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
             viewport={{ once: true }}
-            className="text-4xl md:text-5xl font-extrabold text-gray-900 dark:text-white mb-6 tracking-tight"
+            className="text-3xl md:text-4xl font-extrabold text-gray-900 dark:text-white mb-4 tracking-tight"
           >
             Automatiza sin perder el <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-500 to-purple-500">toque humano</span>
           </motion.h2>
@@ -70,13 +90,12 @@ export default function FeaturesSection() {
           </motion.p>
         </div>
 
-        {/* Grid de Tarjetas */}
         <motion.div 
           variants={containerVariants}
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true }}
-          className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-4"
+          className="grid gap-5 grid-cols-1 md:grid-cols-2 lg:grid-cols-4"
         >
           {features.map((feature, index) => {
             const Icon = feature.icon
@@ -84,22 +103,16 @@ export default function FeaturesSection() {
               <motion.div
                 key={index}
                 variants={itemVariants}
-                // Estilos Glassmorphism Premium:
-                // 1. bg-white/50 dark:bg-zinc-900/40 (Translucidez)
-                // 2. backdrop-blur-md (Desenfoque del fondo)
-                // 3. border-white/10 (Borde sutil)
                 className="group relative bg-white/60 dark:bg-zinc-900/40 backdrop-blur-xl border border-gray-200/50 dark:border-white/5 rounded-3xl p-6 hover:bg-white/80 dark:hover:bg-zinc-800/60 transition-all duration-300 hover:shadow-2xl hover:shadow-indigo-500/10 hover:-translate-y-1"
               >
-                {/* Glow Effect en Hover (Luz interior) */}
                 <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent dark:from-white/5 opacity-0 group-hover:opacity-100 transition-opacity rounded-3xl pointer-events-none" />
 
                 <div className="relative z-10 flex flex-col h-full">
-                  {/* Icono con gradiente personalizado */}
-                  <div className={`w-14 h-14 mb-6 rounded-2xl flex items-center justify-center bg-gradient-to-br ${feature.color} shadow-lg group-hover:scale-110 transition-transform duration-300`}>
-                    <Icon className="h-7 w-7 text-white" />
+                  <div className={`w-12 h-12 mb-4 rounded-2xl flex items-center justify-center bg-gradient-to-br ${feature.color} shadow-lg group-hover:scale-110 transition-transform duration-300`}>
+                    <Icon className="h-6 w-6 text-white" />
                   </div>
                   
-                  <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-3">
+                  <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">
                     {feature.title}
                   </h3>
                   

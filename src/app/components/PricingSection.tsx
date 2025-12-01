@@ -8,7 +8,7 @@ import Link from 'next/link'
 export default function PricingSection() {
   return (
     <section id="pricing" className="py-24 relative z-10 overflow-hidden">
-      <div className="max-w-7xl mx-auto px-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6">
         
         {/* Encabezado */}
         <div className="text-center max-w-3xl mx-auto mb-16">
@@ -44,12 +44,13 @@ export default function PricingSection() {
           <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 rounded-[2.5rem] blur-xl opacity-30 dark:opacity-40 animate-pulse-slow" />
 
           {/* Tarjeta Principal */}
-          <div className="relative bg-white/80 dark:bg-zinc-900/80 backdrop-blur-2xl border border-white/20 dark:border-white/10 rounded-[2rem] p-8 md:p-12 shadow-2xl overflow-hidden">
+          {/* CAMBIO: p-6 en móvil para ganar espacio, md:p-12 en desktop */}
+          <div className="relative bg-white/80 dark:bg-zinc-900/80 backdrop-blur-2xl border border-white/20 dark:border-white/10 rounded-[2rem] p-6 md:p-12 shadow-2xl overflow-hidden">
             
             {/* Decoración de fondo interna */}
             <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl -mr-32 -mt-32 pointer-events-none" />
 
-            <div className="grid md:grid-cols-2 gap-12 items-center">
+            <div className="grid md:grid-cols-2 gap-8 md:gap-12 items-center">
               
               {/* Columna Izquierda: Precio y Título */}
               <div className="space-y-6 text-center md:text-left">
@@ -59,12 +60,13 @@ export default function PricingSection() {
                 </div>
 
                 <div>
-                  <div className="flex items-baseline justify-center md:justify-start gap-1">
-                    <span className="text-sm font-medium text-gray-500 dark:text-gray-400 -mb-4">$</span>
-                    <span className="text-6xl md:text-7xl font-black text-gray-900 dark:text-white tracking-tight">250.000</span>
-                    <span className="text-xl font-medium text-gray-500 dark:text-gray-400">COP/mes</span>
+                  {/* CAMBIO: flex-wrap para seguridad y tamaños de fuente responsivos (text-4xl -> sm:text-6xl -> md:text-7xl) */}
+                  <div className="flex items-baseline justify-center md:justify-start gap-1 flex-wrap">
+                    <span className="text-sm font-medium text-gray-500 dark:text-gray-400 -mb-2 md:-mb-4">$</span>
+                    <span className="text-5xl sm:text-6xl md:text-7xl font-black text-gray-900 dark:text-white tracking-tight">250.000</span>
+                    <span className="text-lg md:text-xl font-medium text-gray-500 dark:text-gray-400">COP/mes</span>
                   </div>
-                  <p className="mt-4 text-gray-600 dark:text-gray-300 leading-relaxed">
+                  <p className="mt-4 text-gray-600 dark:text-gray-300 leading-relaxed text-sm md:text-base">
                     Diseñado para clínicas estéticas y negocios de alto flujo que no pueden perder ni un solo cliente.
                   </p>
                 </div>
@@ -80,7 +82,7 @@ export default function PricingSection() {
               </div>
 
               {/* Columna Derecha: Beneficios */}
-              <div className="bg-gray-50/50 dark:bg-white/5 rounded-3xl p-6 md:p-8 border border-gray-100 dark:border-white/5">
+              <div className="bg-gray-50/50 dark:bg-white/5 rounded-3xl p-6 md:p-8 border border-gray-100 dark:border-white/5 text-left">
                 <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-6 flex items-center gap-2">
                   <Zap className="w-5 h-5 text-amber-500 fill-amber-500" />
                   Lo que incluye tu membresía:
@@ -105,7 +107,7 @@ export default function PricingSection() {
                       <Check className="w-4 h-4 text-green-600 dark:text-green-400" strokeWidth={3} />
                     </div>
                     <div>
-                      <span className="font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                      <span className="font-bold text-gray-900 dark:text-white flex items-center flex-wrap gap-2">
                         Recargas con 80% OFF
                         <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300 uppercase tracking-wider">Ahorro</span>
                       </span>
@@ -142,9 +144,10 @@ export default function PricingSection() {
         
         {/* FAQ Trigger o texto de confianza */}
         <div className="text-center mt-12">
-            <p className="text-sm text-gray-500 dark:text-gray-400 flex items-center justify-center gap-2">
-                <HelpCircle className="w-4 h-4" />
-                ¿Tienes un volumen mayor a 5.000 chats? <a href="#contact" className="text-indigo-600 dark:text-indigo-400 font-semibold hover:underline">Contáctanos para un plan Enterprise</a>
+            <p className="text-sm text-gray-500 dark:text-gray-400 flex items-center justify-center gap-2 flex-wrap px-4">
+                <HelpCircle className="w-4 h-4 flex-shrink-0" />
+                <span>¿Tienes un volumen mayor a 5.000 chats?</span>
+                <a href="#contact" className="text-indigo-600 dark:text-indigo-400 font-semibold hover:underline whitespace-nowrap">Contáctanos para un plan Enterprise</a>
             </p>
         </div>
 
