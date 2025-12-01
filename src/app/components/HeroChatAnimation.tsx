@@ -3,20 +3,21 @@
 import { motion } from 'framer-motion'
 import { useEffect, useState } from 'react'
 import { Sparkles, Send, Mic, Phone, Video, MoreVertical, ChevronLeft } from 'lucide-react'
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+// Asegúrate de tener estos componentes o quita la importación si no usas Avatar en el header
+// import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 
 export default function HeroChatAnimation() {
   // Estado para controlar la secuencia de mensajes
   const [step, setStep] = useState(0)
 
-  // Secuencia de animación automática
+  // Secuencia de animación automática (Tiempos ajustados para lectura en español)
   useEffect(() => {
     const timer1 = setTimeout(() => setStep(1), 1000) // Aparece mensaje usuario 1
-    const timer2 = setTimeout(() => setStep(2), 2500) // Escribiendo...
-    const timer3 = setTimeout(() => setStep(3), 4000) // Aparece respuesta IA
-    const timer4 = setTimeout(() => setStep(4), 5500) // Aparece mensaje usuario 2
-    const timer5 = setTimeout(() => setStep(5), 7000) // Escribiendo...
-    const timer6 = setTimeout(() => setStep(6), 8500) // Aparece respuesta IA final
+    const timer2 = setTimeout(() => setStep(2), 2800) // Escribiendo...
+    const timer3 = setTimeout(() => setStep(3), 4500) // Aparece respuesta IA
+    const timer4 = setTimeout(() => setStep(4), 6500) // Aparece mensaje usuario 2
+    const timer5 = setTimeout(() => setStep(5), 8500) // Escribiendo...
+    const timer6 = setTimeout(() => setStep(6), 10500) // Aparece respuesta IA final
 
     return () => {
       clearTimeout(timer1); clearTimeout(timer2); clearTimeout(timer3);
@@ -47,9 +48,10 @@ export default function HeroChatAnimation() {
               <div className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 border-2 border-zinc-900 rounded-full"></div>
             </div>
             <div>
-              <h3 className="text-sm font-semibold text-white leading-none">Wasaaa AI</h3>
+              <h3 className="text-sm font-semibold text-white leading-none">Clínica Estética IA</h3>
               <p className="text-xs text-indigo-400 font-medium mt-0.5">
-                {(step === 2 || step === 5) ? 'Typing...' : 'Online 24/7'}
+                {/* Traducción del estado */}
+                {(step === 2 || step === 5) ? 'Escribiendo...' : 'En línea 24/7'}
               </p>
             </div>
           </div>
@@ -64,16 +66,16 @@ export default function HeroChatAnimation() {
           {/* Fondo de patrón de chat sutil */}
           <div className="absolute inset-0 bg-[url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png')] opacity-[0.03] pointer-events-none" />
 
-          {/* Fecha */}
+          {/* Fecha traducida */}
           <div className="flex justify-center">
-            <span className="bg-zinc-800/50 text-zinc-400 text-[10px] px-2 py-1 rounded-full uppercase tracking-wide font-medium">Today</span>
+            <span className="bg-zinc-800/50 text-zinc-400 text-[10px] px-2 py-1 rounded-full uppercase tracking-wide font-medium">Hoy</span>
           </div>
 
           {/* Mensaje 1: Usuario */}
           <ChatMessage 
             isUser={true} 
             show={step >= 1} 
-            text="Hi! I want to know more about the Premium Plan 🚀" 
+            text="Hola, quisiera agendar una valoración para un tratamiento facial." 
             time="10:42 AM" 
           />
 
@@ -84,7 +86,7 @@ export default function HeroChatAnimation() {
           <ChatMessage 
             isUser={false} 
             show={step >= 3} 
-            text="Hello! 👋 Great choice. The Premium Plan includes unlimited automated chats, 24/7 priority support, and custom AI training." 
+            text="¡Hola! 👋 Claro que sí, será un gusto atenderte. Somos expertos en armonización facial. ¿Para qué sede te gustaría agendar: Norte o Sur?" 
             time="10:42 AM" 
           />
 
@@ -92,19 +94,19 @@ export default function HeroChatAnimation() {
           <ChatMessage 
             isUser={true} 
             show={step >= 4} 
-            text="Sounds perfect! Does it include WhatsApp API integration?" 
+            text="En la Sede Norte, por favor. Preferiblemente mañana en la tarde." 
             time="10:43 AM" 
           />
 
           {/* Indicador Escribiendo 2 */}
           {step === 5 && <TypingIndicator />}
 
-          {/* Mensaje 4: IA */}
+          {/* Mensaje 4: IA - Cierre de venta */}
           <ChatMessage 
             isUser={false} 
             show={step >= 6} 
-            text="Yes! It includes full API integration and a dedicated account manager to help you set it up in minutes. ✅" 
-            time="10:43 AM" 
+            text="Perfecto. Para mañana en Sede Norte tengo estos cupos disponibles: 3:00 PM o 5:30 PM. 🗓️ ¿Cuál horario prefieres para asegurar tu cita?" 
+            time="10:44 AM" 
           />
 
         </div>
@@ -114,8 +116,9 @@ export default function HeroChatAnimation() {
           <div className="p-2 rounded-full bg-zinc-800 text-zinc-400">
             <MoreVertical className="w-5 h-5" />
           </div>
+          {/* Placeholder traducido */}
           <div className="flex-1 bg-zinc-800 rounded-full h-9 px-4 flex items-center text-sm text-zinc-500">
-            Message...
+            Escribe un mensaje...
           </div>
           <div className="p-2 rounded-full bg-indigo-600 text-white shadow-lg shadow-indigo-500/20">
             {step === 0 || step === 3 ? <Send className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
@@ -130,7 +133,7 @@ export default function HeroChatAnimation() {
   )
 }
 
-// Componente para burbujas de chat
+// Componente para burbujas de chat (Sin cambios, funciona igual)
 function ChatMessage({ isUser, text, time, show }: { isUser: boolean, text: string, time: string, show: boolean }) {
   if (!show) return null;
   
@@ -162,7 +165,7 @@ function ChatMessage({ isUser, text, time, show }: { isUser: boolean, text: stri
   )
 }
 
-// Componente para los 3 puntos escribiendo
+// Componente para los 3 puntos escribiendo (Sin cambios)
 function TypingIndicator() {
   return (
     <motion.div 
