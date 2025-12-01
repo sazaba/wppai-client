@@ -88,14 +88,13 @@ export default function Navbar() {
                 <Image
                 src={logo}
                 alt="Wasaaa Logo"
-                width={80} // Aumentado para mejor resolución
+                width={80} 
                 height={80}
-                // CAMBIO: Tamaños aumentados (h-14 móvil, h-16 desktop)
                 className="relative h-14 w-14 md:h-16 md:w-16 object-contain transition-transform duration-300 group-hover:scale-105"
                 />
             </div>
-            {/* Texto de marca añadido para mayor presencia */}
-            <span className="font-bold text-2xl tracking-tight text-gray-900 dark:text-white hidden sm:block">
+            {/* CAMBIO: Eliminada la clase 'hidden sm:block' para que se vea siempre */}
+            <span className="font-bold text-2xl tracking-tight text-gray-900 dark:text-white block">
                 Wasaaa
             </span>
           </Link>
@@ -159,27 +158,27 @@ export default function Navbar() {
           <div className="md:hidden">
             <Sheet open={openSheet} onOpenChange={setOpenSheet}>
               <SheetTrigger asChild>
-                <Button variant="ghost" size="icon" className="rounded-full hover:bg-gray-100 dark:hover:bg-white/10">
+                <Button variant="ghost" size="icon" className="rounded-full w-10 h-10 shrink-0 hover:bg-gray-100 dark:hover:bg-white/10">
                   <Menu className="h-6 w-6 text-gray-700 dark:text-white" />
                 </Button>
               </SheetTrigger>
               <SheetContent side="right" className="w-[300px] sm:w-[350px] bg-white/95 dark:bg-zinc-950/95 backdrop-blur-xl border-l border-gray-200 dark:border-white/10 p-0">
                 <SheetHeader className="p-6 border-b border-gray-100 dark:border-white/5">
                     <SheetTitle className="flex items-center gap-3">
-                        {/* Logo en menú móvil también más grande */}
                         <Image src={logo} alt="logo" width={48} height={48} className="w-12 h-12 object-contain" />
                         <span className="font-bold text-2xl tracking-tight">Wasaaa</span>
                     </SheetTitle>
                 </SheetHeader>
                 
-                <div className="flex flex-col h-[calc(100vh-80px)] justify-between p-6">
+                <div className="flex flex-col h-[calc(100vh-80px)] justify-between p-6 overflow-y-auto">
                   <nav className="flex flex-col gap-2">
                     {navLinks.map((link, i) => (
                       <motion.a
                         key={link.name}
-                        initial={{ opacity: 0, x: -20 }}
+                        initial={{ opacity: 0, x: -10 }}
                         animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: i * 0.05 + 0.1 }}
+                        // CAMBIO: Delay aumentado y transición más suave para evitar el "brinco"
+                        transition={{ delay: 0.2 + (i * 0.05), duration: 0.3, ease: "easeOut" }}
                         href={link.href}
                         onClick={handleNavClick}
                         className="flex items-center justify-between p-3 rounded-xl text-lg font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all"
@@ -188,12 +187,19 @@ export default function Navbar() {
                         <ChevronRight className="h-4 w-4 opacity-30" />
                       </motion.a>
                     ))}
-                    <div className="h-px bg-gray-100 dark:bg-white/5 my-4" />
-                    <a href="/politica" className="text-sm text-muted-foreground px-3">Privacidad</a>
-                    <a href="/terminos" className="text-sm text-muted-foreground px-3">Términos</a>
+                    <motion.div 
+                        initial={{ opacity: 0 }} 
+                        animate={{ opacity: 1 }} 
+                        transition={{ delay: 0.5 }}
+                        className="my-4"
+                    >
+                        <div className="h-px bg-gray-100 dark:bg-white/5 mb-4" />
+                        <a href="/politica" className="block text-sm text-muted-foreground px-3 mb-2">Privacidad</a>
+                        <a href="/terminos" className="block text-sm text-muted-foreground px-3">Términos</a>
+                    </motion.div>
                   </nav>
 
-                  <div className="flex flex-col gap-3">
+                  <div className="flex flex-col gap-3 mt-4">
                     {!loading && empresa ? (
                         <>
                             <div className="flex items-center gap-3 px-3 mb-2">
