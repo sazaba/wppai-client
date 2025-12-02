@@ -3,6 +3,7 @@
 import React, { useMemo, useState } from 'react';
 import clsx from 'clsx';
 import { FiFile, FiPlay, FiImage, FiMic } from 'react-icons/fi';
+import { motion, Variants } from 'framer-motion'; // 1. Importamos Variants
 
 export type ChatMessage = {
   id?: number | string | null;
@@ -73,7 +74,7 @@ function BubbleTail({ side, color }: { side: 'left' | 'right'; color: string }) 
   );
 }
 
-/* --------- Contenedor de burbuja --------- */
+/* --------- Contenedor de burbuja ANIMADO --------- */
 function BubbleBox({
   children,
   isMine,
@@ -83,25 +84,51 @@ function BubbleBox({
   isMine: boolean;
   withTail?: boolean;
 }) {
-  // 🎨 COLORES SOBRIOS & PREMIUM (Menos llamativos)
-  // Mine: Un verde azulado oscuro o índigo muy desaturado (más elegante)
-  const bgMine = '#374151'; // Zinc-700 (Opcional: '#005C4B' para verde WhatsApp Dark clásico)
-  
-  // Other: Un gris oscuro casi negro para contraste sutil
+  // 🎨 COLORES SOBRIOS & PREMIUM
+  const bgMine = '#374151'; // Zinc-700
   const bgOther = '#27272a'; // Zinc-800
 
   // Clases base con proporciones ajustadas (50% en desktop)
   const bubbleBase = clsx(
     'relative inline-flex flex-col',
-    'min-w-0 max-w-[85%] sm:max-w-[60%] md:max-w-[50%]', // <-- Proporciones ajustadas (50%)
+    'min-w-0 max-w-[85%] sm:max-w-[60%] md:max-w-[50%]', 
     'px-3.5 py-2 rounded-xl shadow-sm border border-white/5 transition-all', 
     isMine 
         ? 'bg-zinc-700 text-white self-end rounded-tr-none' 
         : 'bg-zinc-800 text-zinc-100 self-start rounded-tl-none'
   );
 
+  // ANIMACIÓN PREMIUM CON FRAMER MOTION
+  // 2. Asignamos el tipo Variants explícitamente
+  const variants: Variants = {
+    hidden: { 
+        opacity: 0, 
+        y: 20, 
+        scale: 0.95,
+        x: isMine ? 20 : -20 // Desde la derecha o izquierda
+    },
+    visible: { 
+        opacity: 1, 
+        y: 0, 
+        scale: 1,
+        x: 0,
+        transition: { 
+            type: "spring", // Efecto elástico suave
+            stiffness: 300, 
+            damping: 25,
+            mass: 1
+        }
+    },
+  };
+
   return (
-    <div className={bubbleBase}>
+    <motion.div
+        className={bubbleBase}
+        initial="hidden"
+        animate="visible"
+        variants={variants}
+        layout // Permite animar cambios de posición si se borran mensajes anteriores
+    >
       {children}
       {withTail ? (
         <BubbleTail
@@ -109,7 +136,7 @@ function BubbleBox({
           color={isMine ? bgMine : bgOther}
         />
       ) : null}
-    </div>
+    </motion.div>
   );
 }
 
