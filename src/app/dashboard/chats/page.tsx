@@ -2,12 +2,12 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { FiClock, FiAlertTriangle, FiLock, FiMessageSquare } from 'react-icons/fi'
-import { HiSparkles } from 'react-icons/hi' // Icono extra para el empty state
+import { HiSparkles } from 'react-icons/hi'
 import socket from '@/lib/socket'
 import axios from '@/lib/axios'
 import Swal from 'sweetalert2'
 import Link from 'next/link'
-import { motion, AnimatePresence } from 'framer-motion' // Agregamos framer-motion
+import { motion, AnimatePresence } from 'framer-motion'
 
 import ChatSidebar from './components/ChatSidebar'
 import ChatHeader from './components/ChatHeader'
@@ -27,7 +27,7 @@ const estadoIconos = {
   en_proceso: <span className="inline-block w-2.5 h-2.5 bg-blue-400 rounded-full shadow-[0_0_8px_rgba(96,165,250,0.6)]" />,
   requiere_agente: <span className="inline-block w-2.5 h-2.5 bg-rose-500 rounded-full shadow-[0_0_8px_rgba(244,63,94,0.6)] animate-pulse" />,
   agendado: <span className="inline-block w-2.5 h-2.5 bg-indigo-400 rounded-full shadow-[0_0_8px_rgba(129,140,248,0.6)]" />,
-  agendado_consulta: <span className="inline-block w-2.5 h-2.5 bg-indigo-400 rounded-full shadow-[0_0_8px_rgba(129,140,248,0.6)]" />,
+  agendado_consulta: <span className="inline-block w-2.5 h-2.5 bg-purple-400 rounded-full shadow-[0_0_8px_rgba(192,132,252,0.6)]" />,
   cerrado: <span className="inline-block w-2.5 h-2.5 bg-zinc-600 rounded-full" />,
   todos: <span className="inline-block w-2.5 h-2.5 bg-zinc-500 rounded-full" />,
 }
@@ -39,7 +39,7 @@ const estadoEstilos = {
   en_proceso: 'bg-blue-500/10 text-blue-300 border border-blue-500/20',
   requiere_agente: 'bg-rose-500/10 text-rose-300 border border-rose-500/20',
   agendado: 'bg-indigo-500/10 text-indigo-300 border border-indigo-500/20',
-  agendado_consulta: 'bg-indigo-500/10 text-indigo-300 border border-indigo-500/20',
+  agendado_consulta: 'bg-purple-500/10 text-purple-300 border border-purple-500/20',
   cerrado: 'bg-zinc-800 text-zinc-400 border border-zinc-700',
   todos: 'bg-zinc-800 text-zinc-300 border border-zinc-700',
 }
@@ -162,16 +162,34 @@ export default function ChatsPage() {
       setChats((prev) => {
         const existe = prev.find((c) => c.id === msg.conversationId)
         if (existe) {
-          return prev.map((chat) =>
-            chat.id === msg.conversationId
-              ? {
-                  ...chat,
-                  mensaje: nuevo.contenido || '[media]',
-                  estado: msg.estado ?? chat.estado,
-                  fecha: nuevo.timestamp,
+          return prev.map((chat) => {
+            if (chat.id !== msg.conversationId) return chat;
+
+            // Determinar estado base
+            let nuevoEstado = msg.estado ?? chat.estado;
+
+            // ——————————————————————————————————————————————————
+            // LÓGICA PUNTO 2: Si cliente escribe y estaba 'agendado' -> 'agendado_consulta'
+            // ——————————————————————————————————————————————————
+            if (payload.from === 'client' && chat.estado === 'agendado') {
+                nuevoEstado = 'agendado_consulta';
+                // Disparamos la actualización al backend para persistirlo
+                if(token) {
+                    axios.put(
+                        `/api/chats/${chat.id}/estado`, 
+                        { estado: 'agendado_consulta' },
+                        { headers: { Authorization: `Bearer ${token}` } }
+                    ).catch(console.error);
                 }
-              : chat
-          )
+            }
+
+            return {
+                ...chat,
+                mensaje: nuevo.contenido || '[media]',
+                estado: nuevoEstado,
+                fecha: nuevo.timestamp,
+            }
+          })
         }
         return [
           {
@@ -185,7 +203,7 @@ export default function ChatsPage() {
         ]
       })
     },
-    [activoId, mergeUnique]
+    [activoId, mergeUnique, token] // Agregamos 'token' a las dependencias
   )
 
   const handleChatActualizado = useCallback(
@@ -619,7 +637,7 @@ export default function ChatsPage() {
         <div className="absolute top-[40%] right-[-10%] w-[400px] h-[400px] bg-purple-600/5 rounded-full blur-[100px]" />
       </div>
 
-      {/* SIDEBAR - Restaurando estructura original para evitar daños de layout */}
+      {/* SIDEBAR - Restaurando estructura original */}
       <ChatSidebar
         chats={chats}
         loading={loading}
