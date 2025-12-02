@@ -9,18 +9,19 @@ import clsx from 'clsx'
 import { useAuth } from '../context/AuthContext'
 import logo from '../images/Logo-Wasaaa.webp'
 import Image from 'next/image'
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation' // 1. Importamos usePathname
 import { Dialog } from '@headlessui/react'
 import { motion, AnimatePresence } from 'framer-motion'
 // @ts-ignore
 import confetti from 'canvas-confetti'
 
+// 2. Ajustamos links para que funcionen desde /login (rutas absolutas)
 const navLinks = [
-  { name: 'Funcionalidades', href: '#features' },
-  { name: 'Cómo funciona', href: '#how' },
-  { name: 'Precios', href: '#pricing' },
-  { name: 'FAQs', href: '#faqs' },
-  { name: 'Contacto', href: '#contact' },
+  { name: 'Funcionalidades', href: '/#features' },
+  { name: 'Cómo funciona', href: '/#how' },
+  { name: 'Precios', href: '/#pricing' },
+  { name: 'FAQs', href: '/#faqs' },
+  { name: 'Contacto', href: '/#contact' },
 ]
 
 export default function Navbar() {
@@ -30,6 +31,10 @@ export default function Navbar() {
 
   const { empresa, loading, logout } = useAuth()
   const router = useRouter()
+  const pathname = usePathname() // 3. Obtenemos la ruta actual
+
+  // 4. Detectamos si estamos en una página con fondo oscuro
+  const isDarkPage = pathname === '/login' || pathname === '/register' || pathname === '/forgot-password' || pathname === '/delete-my-data'
 
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 20)
@@ -37,7 +42,6 @@ export default function Navbar() {
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
 
-  // 🎉 Confeti y lógica de logout
   useEffect(() => {
     if (showLogoutModal) {
       const duration = 2.5 * 1000
@@ -61,13 +65,30 @@ export default function Navbar() {
 
   const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
     const href = e.currentTarget.getAttribute('href')
-    if (href?.startsWith('#')) {
+    // Si estamos en home, hacemos scroll suave. Si no, dejamos que Link navegue.
+    if (pathname === '/' && href?.startsWith('/#')) {
       e.preventDefault()
-      const target = document.querySelector(href)
+      const id = href.replace('/#', '')
+      const target = document.getElementById(id)
       if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' })
     }
     setOpenSheet(false)
   }
+
+  // 5. Lógica de colores dinámica
+  // Si hay scroll: Texto oscuro (o claro si hay dark mode del sistema).
+  // Si es página oscura (Login) y NO hay scroll: Texto BLANCO forzado.
+  const textColorClass = isScrolled 
+    ? "text-gray-600 dark:text-gray-300" 
+    : isDarkPage 
+      ? "text-white/90 hover:text-white" 
+      : "text-gray-600 dark:text-gray-300"
+
+  const logoTextClass = isScrolled
+    ? "text-gray-900 dark:text-white"
+    : isDarkPage
+      ? "text-white"
+      : "text-gray-900 dark:text-white"
 
   return (
     <>
@@ -81,7 +102,7 @@ export default function Navbar() {
       >
         <div className="max-w-7xl mx-auto px-4 md:px-6 h-20 flex items-center justify-between">
           
-          {/* Logo con efecto hover sutil y Texto de Marca */}
+          {/* Logo */}
           <Link href="/" className="relative group z-50 flex items-center gap-3">
             <div className="relative">
                 <div className="absolute inset-0 bg-indigo-500/20 blur-xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
@@ -93,23 +114,37 @@ export default function Navbar() {
                 className="relative h-14 w-14 md:h-16 md:w-16 object-contain transition-transform duration-300 group-hover:scale-105"
                 />
             </div>
-            {/* CAMBIO: Eliminada la clase 'hidden sm:block' para que se vea siempre */}
-            <span className="font-bold text-2xl tracking-tight text-gray-900 dark:text-white block">
+            {/* Texto Wasaaa con color dinámico */}
+            <span className={clsx("font-bold text-2xl tracking-tight block transition-colors", logoTextClass)}>
                 Wasaaa
             </span>
           </Link>
 
           {/* Navegación Desktop - Minimalista */}
-          <nav className="hidden md:flex items-center gap-1 bg-white/5 dark:bg-white/5 px-2 py-1.5 rounded-full border border-transparent dark:border-white/5 backdrop-blur-sm">
+          <nav className={clsx(
+              "hidden md:flex items-center gap-1 px-2 py-1.5 rounded-full border transition-all",
+              // Si hay scroll, usamos el fondo suave. Si es Login (sin scroll), transparente total.
+              isScrolled ? "bg-white/5 dark:bg-white/5 border-transparent" : "border-transparent"
+          )}>
             {navLinks.map((link) => (
-              <a
+              <Link
                 key={link.name}
                 href={link.href}
-                onClick={handleNavClick}
-                className="px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors rounded-full hover:bg-gray-100/50 dark:hover:bg-white/5"
+                onClick={(e) => {
+                    // Manejo manual del click para scroll si estamos en home
+                    if (pathname === '/' && link.href.startsWith('/#')) {
+                        e.preventDefault()
+                        const id = link.href.replace('/#', '')
+                        document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' })
+                    }
+                }}
+                className={clsx(
+                    "px-4 py-2 text-sm font-medium transition-colors rounded-full hover:bg-white/10",
+                    textColorClass
+                )}
               >
                 {link.name}
-              </a>
+              </Link>
             ))}
           </nav>
 
@@ -119,7 +154,7 @@ export default function Navbar() {
               <>
                 {empresa ? (
                   <div className="flex items-center gap-3 animate-in fade-in duration-500">
-                    <span className="text-sm font-medium text-gray-600 dark:text-gray-300 hidden lg:block">
+                    <span className={clsx("text-sm font-medium hidden lg:block", textColorClass)}>
                       Hola, {empresa.nombre.split(' ')[0]}
                     </span>
                     <Link href="/dashboard">
@@ -131,7 +166,11 @@ export default function Navbar() {
                       variant="ghost"
                       size="icon"
                       onClick={() => setShowLogoutModal(true)}
-                      className="rounded-full text-gray-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                      className={clsx(
+                          "rounded-full transition-colors",
+                          // Color del icono logout dinámico
+                          isDarkPage && !isScrolled ? "text-white/70 hover:text-white hover:bg-white/10" : "text-gray-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20"
+                      )}
                     >
                       <LogOut className="h-5 w-5" />
                     </Button>
@@ -139,7 +178,14 @@ export default function Navbar() {
                 ) : (
                   <div className="flex items-center gap-3">
                     <Link href="/login">
-                      <Button variant="ghost" className="rounded-full text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/10">
+                      <Button 
+                        variant="ghost" 
+                        className={clsx(
+                            "rounded-full hover:bg-white/10",
+                            // Botón "Ingresar" blanco en páginas oscuras
+                            isDarkPage && !isScrolled ? "text-white" : "text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/10"
+                        )}
+                      >
                         Ingresar
                       </Button>
                     </Link>
@@ -158,15 +204,19 @@ export default function Navbar() {
           <div className="md:hidden">
             <Sheet open={openSheet} onOpenChange={setOpenSheet}>
               <SheetTrigger asChild>
-                <Button variant="ghost" size="icon" className="rounded-full w-10 h-10 shrink-0 hover:bg-gray-100 dark:hover:bg-white/10">
-                  <Menu className="h-6 w-6 text-gray-700 dark:text-white" />
+                <Button variant="ghost" size="icon" className={clsx(
+                    "rounded-full w-10 h-10 shrink-0 hover:bg-white/10",
+                    // Icono hamburguesa blanco en páginas oscuras
+                    isDarkPage && !isScrolled ? "text-white" : "hover:bg-gray-100 dark:hover:bg-white/10 text-gray-700 dark:text-white"
+                )}>
+                  <Menu className="h-6 w-6" />
                 </Button>
               </SheetTrigger>
               <SheetContent side="right" className="w-[300px] sm:w-[350px] bg-white/95 dark:bg-zinc-950/95 backdrop-blur-xl border-l border-gray-200 dark:border-white/10 p-0">
                 <SheetHeader className="p-6 border-b border-gray-100 dark:border-white/5">
                     <SheetTitle className="flex items-center gap-3">
                         <Image src={logo} alt="logo" width={48} height={48} className="w-12 h-12 object-contain" />
-                        <span className="font-bold text-2xl tracking-tight">Wasaaa</span>
+                        <span className="font-bold text-2xl tracking-tight text-gray-900 dark:text-white">Wasaaa</span>
                     </SheetTitle>
                 </SheetHeader>
                 
@@ -177,10 +227,17 @@ export default function Navbar() {
                         key={link.name}
                         initial={{ opacity: 0, x: -10 }}
                         animate={{ opacity: 1, x: 0 }}
-                        // CAMBIO: Delay aumentado y transición más suave para evitar el "brinco"
                         transition={{ delay: 0.2 + (i * 0.05), duration: 0.3, ease: "easeOut" }}
                         href={link.href}
-                        onClick={handleNavClick}
+                        // En el menú móvil (sheet) usamos href directo porque el Link de next a veces cierra el sheet antes de navegar
+                        onClick={(e) => {
+                             if (pathname === '/' && link.href.startsWith('/#')) {
+                                e.preventDefault()
+                                const id = link.href.replace('/#', '')
+                                document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' })
+                            }
+                            setOpenSheet(false)
+                        }}
                         className="flex items-center justify-between p-3 rounded-xl text-lg font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all"
                       >
                         {link.name}
@@ -194,8 +251,8 @@ export default function Navbar() {
                         className="my-4"
                     >
                         <div className="h-px bg-gray-100 dark:bg-white/5 mb-4" />
-                        <a href="/politica" className="block text-sm text-muted-foreground px-3 mb-2">Privacidad</a>
-                        <a href="/terminos" className="block text-sm text-muted-foreground px-3">Términos</a>
+                        <Link href="/politica" onClick={() => setOpenSheet(false)} className="block text-sm text-muted-foreground px-3 mb-2">Privacidad</Link>
+                        <Link href="/terminos" onClick={() => setOpenSheet(false)} className="block text-sm text-muted-foreground px-3">Términos</Link>
                     </motion.div>
                   </nav>
 
