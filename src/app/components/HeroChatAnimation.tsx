@@ -6,7 +6,7 @@ import { Sparkles, Send, Mic, Phone, Video, MoreVertical, ChevronLeft, Paperclip
 
 export default function HeroChatAnimation() {
   const [step, setStep] = useState(0)
-  // CAMBIO: Referencia al contenedor del chat en lugar de un elemento dummy
+  // Referencia al contenedor del chat
   const chatContainerRef = useRef<HTMLDivElement>(null)
 
   // Auto-scroll corregido: Solo mueve el scroll interno del contenedor
@@ -42,8 +42,7 @@ export default function HeroChatAnimation() {
   }, [])
 
   return (
-    // CAMBIO: Aumentado el ancho base de 270px a 290px para que no se vea tan estrecho
-    // xs pasa de 290px a 310px
+    // Ancho base aumentado ligeramente para mejor lectura en móviles
     <div className="relative mx-auto w-full max-w-[290px] xs:max-w-[310px] sm:max-w-[330px] md:max-w-[350px]">
       
       {/* Glow Ambiental Detrás */}
@@ -105,9 +104,10 @@ export default function HeroChatAnimation() {
             }}
           />
 
-          {/* CAMBIO: ref asignado al contenedor scrolleable */}
+          {/* Ref asignado al contenedor scrolleable */}
           <div ref={chatContainerRef} className="flex-1 overflow-y-auto p-3 space-y-3 relative z-10 scrollbar-hide pb-20">
-            {/* CAMBIO: Eliminado 'sticky top-0 z-10' para que la fecha haga scroll y no se monte */}
+            
+            {/* Fecha (Sin sticky para que no se superponga) */}
             <div className="flex justify-center py-2 mb-2">
                 <span className="bg-zinc-800/80 backdrop-blur text-zinc-400 text-[10px] px-2.5 py-1 rounded-lg font-medium shadow-sm border border-white/5">
                 Hoy
@@ -180,7 +180,6 @@ export default function HeroChatAnimation() {
                 time="09:45" 
             />
             
-            {/* CAMBIO: Eliminado el div dummy, el scroll ahora es manejado por el contenedor */}
           </div>
 
           {/* --- FOOTER INPUT --- */}
@@ -198,7 +197,6 @@ export default function HeroChatAnimation() {
             </div>
 
             <div className="w-10 h-10 rounded-full bg-[#00A884] flex items-center justify-center text-white shadow-md flex-shrink-0 hover:bg-[#008f6f] transition-colors">
-                {/* Cambiar icono según si está escribiendo usuario o no (simulado) */}
                 {(step === 0 || step === 3 || step === 6 || step === 9 || step === 12) ? <Send className="w-5 h-5 ml-0.5" /> : <Mic className="w-5 h-5" />}
             </div>
           </div>
@@ -260,8 +258,8 @@ function TypingIndicator() {
       animate={{ opacity: 1, scale: 1 }}
       className="flex justify-start w-full relative z-10 pl-2"
     >
-      {/* CAMBIO: Usamos rounded-[18px] para igualar la curvatura de los mensajes normales */}
-      <div className="bg-[#202C33] rounded-[18px] rounded-tl-none px-3 py-2.5 flex gap-1 items-center w-fit shadow-sm relative">
+      {/* CAMBIO: rounded-3xl para suavizar al máximo los bordes inferiores y px-4 py-3 para más cuerpo */}
+      <div className="bg-[#202C33] rounded-3xl rounded-tl-none px-4 py-3 flex gap-1 items-center w-fit shadow-sm relative">
         <svg className="absolute top-0 -left-[8px] w-[8px] h-[13px] fill-[#202C33]" viewBox="0 0 8 13">
             <path d="M-1.188 1H4v11.193l-6.467-8.625C-3.526 2.156 -2.958 1 -1.188 1z" transform="scale(-1, 1) translate(-4, 0)"/>
         </svg>
