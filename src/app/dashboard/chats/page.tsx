@@ -619,24 +619,22 @@ export default function ChatsPage() {
         <div className="absolute top-[40%] right-[-10%] w-[400px] h-[400px] bg-purple-600/5 rounded-full blur-[100px]" />
       </div>
 
-      {/* SIDEBAR con Glassmorphism */}
-      <div className="w-[380px] bg-zinc-900/40 backdrop-blur-xl border-r border-white/5 flex flex-col z-10 shrink-0">
-        <ChatSidebar
-          chats={chats}
-          loading={loading}
-          busqueda={busqueda}
-          setBusqueda={setBusqueda}
-          estadoFiltro={estadoFiltro}
-          setEstadoFiltro={setEstadoFiltro}
-          onSelectChat={handleSelectChat}
-          activoId={activoId}
-          estadoIconos={estadoIconos}
-          estadoEstilos={estadoEstilos}
-        />
-      </div>
+      {/* SIDEBAR - Restaurando estructura original para evitar daños de layout */}
+      <ChatSidebar
+        chats={chats}
+        loading={loading}
+        busqueda={busqueda}
+        setBusqueda={setBusqueda}
+        estadoFiltro={estadoFiltro}
+        setEstadoFiltro={setEstadoFiltro}
+        onSelectChat={handleSelectChat}
+        activoId={activoId}
+        estadoIconos={estadoIconos}
+        estadoEstilos={estadoEstilos}
+      />
 
       {/* ÁREA PRINCIPAL */}
-      <section className="flex-1 flex flex-col h-full bg-transparent relative z-10">
+      <section className="flex-1 flex flex-col h-full bg-transparent relative z-10 overflow-hidden">
         {activoId ? (
           <>
             {/* Header Glass */}
