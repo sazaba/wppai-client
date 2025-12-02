@@ -6,10 +6,8 @@ import { Sparkles, Send, Mic, Phone, Video, MoreVertical, ChevronLeft, Paperclip
 
 export default function HeroChatAnimation() {
   const [step, setStep] = useState(0)
-  // Referencia al contenedor del chat
   const chatContainerRef = useRef<HTMLDivElement>(null)
 
-  // Auto-scroll corregido: Solo mueve el scroll interno del contenedor
   useEffect(() => {
     if (chatContainerRef.current) {
       const container = chatContainerRef.current
@@ -23,39 +21,40 @@ export default function HeroChatAnimation() {
   useEffect(() => {
     const timers: NodeJS.Timeout[] = []
     
-    // Secuencia extendida
-    timers.push(setTimeout(() => setStep(1), 800))   // User: Hola...
-    timers.push(setTimeout(() => setStep(2), 2500))  // Typing
-    timers.push(setTimeout(() => setStep(3), 4000))  // IA: Hola, sedes?
-    timers.push(setTimeout(() => setStep(4), 6000))  // User: Norte
-    timers.push(setTimeout(() => setStep(5), 7500))  // Typing
-    timers.push(setTimeout(() => setStep(6), 9500))  // IA: Horarios
-    // Nuevos pasos
-    timers.push(setTimeout(() => setStep(7), 11500)) // User: 5:30 PM
-    timers.push(setTimeout(() => setStep(8), 13000)) // Typing
-    timers.push(setTimeout(() => setStep(9), 15000)) // IA: Confirmado
-    timers.push(setTimeout(() => setStep(10), 17000)) // User: Gracias
-    timers.push(setTimeout(() => setStep(11), 18500)) // Typing
-    timers.push(setTimeout(() => setStep(12), 20000)) // IA: Despedida
+    timers.push(setTimeout(() => setStep(1), 800))   
+    timers.push(setTimeout(() => setStep(2), 2500))  
+    timers.push(setTimeout(() => setStep(3), 4000))  
+    timers.push(setTimeout(() => setStep(4), 6000))  
+    timers.push(setTimeout(() => setStep(5), 7500))  
+    timers.push(setTimeout(() => setStep(6), 9500))  
+    timers.push(setTimeout(() => setStep(7), 11500)) 
+    timers.push(setTimeout(() => setStep(8), 13000)) 
+    timers.push(setTimeout(() => setStep(9), 15000)) 
+    timers.push(setTimeout(() => setStep(10), 17000)) 
+    timers.push(setTimeout(() => setStep(11), 18500)) 
+    timers.push(setTimeout(() => setStep(12), 20000)) 
 
     return () => timers.forEach(t => clearTimeout(t))
   }, [])
 
   return (
-    // Ancho base aumentado ligeramente para mejor lectura en móviles
     <div className="relative mx-auto w-full max-w-[290px] xs:max-w-[310px] sm:max-w-[330px] md:max-w-[350px]">
       
       {/* Glow Ambiental Detrás */}
       <div className="absolute -inset-4 bg-gradient-to-tr from-indigo-500/30 via-purple-500/30 to-pink-500/30 rounded-[4rem] blur-3xl opacity-50 animate-pulse-slow pointer-events-none" />
       
-      {/* --- BOTONES FÍSICOS DEL IPHONE --- */}
+      {/* --- BOTONES FÍSICOS --- */}
       <div className="absolute top-24 -left-[9px] h-6 w-[9px] bg-zinc-800 rounded-l-md border-l border-zinc-700" />
       <div className="absolute top-36 -left-[9px] h-10 w-[9px] bg-zinc-800 rounded-l-md border-l border-zinc-700 shadow-sm" />
       <div className="absolute top-52 -left-[9px] h-10 w-[9px] bg-zinc-800 rounded-l-md border-l border-zinc-700 shadow-sm" />
       <div className="absolute top-40 -right-[9px] h-16 w-[9px] bg-zinc-800 rounded-r-md border-r border-zinc-700 shadow-sm" />
 
       {/* --- CHASIS PRINCIPAL --- */}
-      <div className="relative bg-black rounded-[3.5rem] shadow-2xl overflow-hidden h-[580px] xs:h-[620px] sm:h-[680px] md:h-[720px] flex flex-col ring-8 ring-zinc-900 ring-opacity-90 border-[4px] border-zinc-800 z-10 transition-all duration-500">
+      {/* CORRECCIÓN 1: 'transform-gpu' para forzar renderizado estricto y el style WebkitMaskImage */}
+      <div 
+        className="relative bg-black rounded-[3.5rem] shadow-2xl overflow-hidden h-[580px] xs:h-[620px] sm:h-[680px] md:h-[720px] flex flex-col ring-8 ring-zinc-900 ring-opacity-90 border-[4px] border-zinc-800 z-10 transition-all duration-500 transform-gpu"
+        style={{ WebkitMaskImage: '-webkit-radial-gradient(white, black)' }} 
+      >
         
         {/* --- STATUS BAR --- */}
         <div className="absolute top-0 w-full h-12 z-40 flex items-center justify-between px-7 pt-3.5 text-white">
@@ -94,7 +93,8 @@ export default function HeroChatAnimation() {
         </div>
 
         {/* --- BODY CHAT --- */}
-        <div className="flex-1 bg-[#0B141A] relative overflow-hidden flex flex-col">
+        {/* CORRECCIÓN 2: Asegurar que este contenedor también tenga overflow-hidden y rounded para seguir la forma */}
+        <div className="flex-1 bg-[#0B141A] relative overflow-hidden flex flex-col rounded-b-[3.2rem]">
           
           <div 
             className="absolute inset-0 opacity-[0.06] pointer-events-none"
@@ -104,10 +104,8 @@ export default function HeroChatAnimation() {
             }}
           />
 
-          {/* Ref asignado al contenedor scrolleable */}
           <div ref={chatContainerRef} className="flex-1 overflow-y-auto p-3 space-y-3 relative z-10 scrollbar-hide pb-20">
             
-            {/* Fecha */}
             <div className="flex justify-center py-2 mb-2">
                 <span className="bg-zinc-800/80 backdrop-blur text-zinc-400 text-[10px] px-2.5 py-1 rounded-lg font-medium shadow-sm border border-white/5">
                 Hoy
@@ -145,8 +143,6 @@ export default function HeroChatAnimation() {
                 text="Perfecto. Tengo cupo a las 3:00 PM o 5:30 PM. 🗓️ ¿Cuál te reservo?" 
                 time="09:43" 
             />
-
-            {/* --- NUEVA CONVERSACIÓN EXTENDIDA --- */}
             
             <ChatMessage 
                 isUser={true} 
@@ -183,7 +179,8 @@ export default function HeroChatAnimation() {
           </div>
 
           {/* --- FOOTER INPUT --- */}
-          <div className="absolute bottom-0 w-full bg-[#202C33] px-3 py-3 flex items-end gap-2.5 z-20 pb-7 border-t border-white/5">
+          {/* CORRECCIÓN 3: Agregado rounded-b-[3rem] para que la barra gris tenga físicamente la forma curva del celular */}
+          <div className="absolute bottom-0 w-full bg-[#202C33] px-3 py-3 flex items-end gap-2.5 z-20 pb-7 border-t border-white/5 rounded-b-[3rem]">
             <div className="p-1.5 text-zinc-400">
                 <MoreVertical className="w-6 h-6" />
             </div>
@@ -204,7 +201,7 @@ export default function HeroChatAnimation() {
         </div>
         
         {/* Home Indicator */}
-        <div className="absolute bottom-2 left-1/2 -translate-x-1/2 w-[120px] h-[4px] bg-white/20 rounded-full z-50" />
+        <div className="absolute bottom-2 left-1/2 -translate-x-1/2 w-[120px] h-[4px] bg-white/20 rounded-full z-50 pointer-events-none" />
 
       </div>
     </div>
@@ -258,7 +255,6 @@ function TypingIndicator() {
       animate={{ opacity: 1, scale: 1 }}
       className="flex justify-start w-full relative z-10 pl-2"
     >
-      {/* CAMBIO: Usamos rounded-[18px] para que coincida exactamente con las burbujas de mensaje y se vea uniforme */}
       <div className="bg-[#202C33] rounded-[18px] rounded-tl-none px-4 py-3 flex gap-1 items-center w-fit shadow-sm relative">
         <svg className="absolute top-0 -left-[8px] w-[8px] h-[13px] fill-[#202C33]" viewBox="0 0 8 13">
             <path d="M-1.188 1H4v11.193l-6.467-8.625C-3.526 2.156 -2.958 1 -1.188 1z" transform="scale(-1, 1) translate(-4, 0)"/>
