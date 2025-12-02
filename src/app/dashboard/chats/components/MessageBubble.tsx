@@ -6,6 +6,7 @@ import { FiFile, FiPlay, FiImage, FiMic, FiLoader } from 'react-icons/fi';
 
 export type ChatMessage = {
   id?: number | string | null;
+  externalId?: string | null; // ✅ Agregado para corregir el error de tipado
   from: 'client' | 'bot' | 'agent';
   contenido: string;
   timestamp?: string;
@@ -58,7 +59,6 @@ function sanitizeAggressive(raw: string) {
 
 /* ----------------- COLA CON BORDE (Tail) ------------------ */
 function BubbleTail({ side, color, borderColor }: { side: 'left' | 'right'; color: string; borderColor: string }) {
-  // Ajuste fino: usamos el color exacto para que se fusione con la burbuja
   if (side === 'right') {
     return (
       <svg className="absolute -right-[8px] top-0 w-[8px] h-[13px]" viewBox="0 0 8 13" aria-hidden="true">
@@ -84,18 +84,15 @@ function BubbleBox({
   withTail?: boolean;
 }) {
   // 🎨 COLORES PREMIUM
-  // Mine: Indigo-600 (para match con el dashboard)
   const bgMine = '#4f46e5'; 
-  const borderMine = '#4338ca'; // Indigo-700
-  
-  // Other: Zinc-800 (Glassy dark)
+  const borderMine = '#4338ca'; 
   const bgOther = '#27272a'; 
-  const borderOther = '#3f3f46'; // Zinc-700
+  const borderOther = '#3f3f46'; 
 
   const bubbleBase = clsx(
     'relative inline-flex flex-col',
     'min-w-0 max-w-[92%] sm:max-w-[72%] md:max-w-[65%]',
-    'px-4 py-2.5 rounded-2xl shadow-md transition-all', // rounded-2xl para suavidad
+    'px-4 py-2.5 rounded-2xl shadow-md transition-all',
     isMine 
         ? 'bg-indigo-600 text-white self-end rounded-tr-none shadow-indigo-900/20' 
         : 'bg-zinc-800 text-zinc-100 self-start rounded-tl-none border border-white/5 shadow-black/20'
@@ -181,7 +178,6 @@ export default function MessageBubble({ message, isMine = false }: Props) {
           <BubbleBox isMine={isMine} withTail>
             {contenido ? <p className={textClass}>{sanitizeAggressive(contenido)}</p> : null}
 
-            {/* Línea de estado + hora */}
             <div className="flex items-center justify-end gap-1.5 mt-1 -mb-1">
               {time ? <span className={timeClass}>{time}</span> : null}
               
@@ -193,7 +189,6 @@ export default function MessageBubble({ message, isMine = false }: Props) {
                 <span className="text-[10px] text-red-400 font-bold bg-red-500/10 px-1 rounded">Error</span>
               )}
               
-              {/* Check de enviado (si es mío y no falló ni está enviando) */}
               {isMine && !isSending && !isFailed && (
                  <svg viewBox="0 0 16 11" className="w-3.5 h-3.5 text-indigo-300 fill-current opacity-80"><path d="M11.5 0L4.5 7L2.5 5L0 7.5L4.5 11L16 2L11.5 0Z"/></svg>
               )}
@@ -233,7 +228,6 @@ function MediaRenderer({
   const mediaBox = 'relative overflow-hidden rounded-xl border border-white/10';
   const phBase = 'rounded-xl bg-zinc-900/50 flex flex-col gap-2 items-center justify-center text-xs text-zinc-500 w-full animate-pulse border border-white/5';
   
-  // Placeholders mejorados
   const imgPh = clsx(phBase, 'min-h-[200px]');
   const vidPh = clsx(phBase, 'min-h-[200px]');
 
