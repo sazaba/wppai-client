@@ -2,11 +2,11 @@
 
 import React, { useMemo, useState } from 'react';
 import clsx from 'clsx';
-import { FiFile, FiPlay, FiImage, FiMic, FiLoader } from 'react-icons/fi';
+import { FiFile, FiPlay, FiImage, FiMic } from 'react-icons/fi';
 
 export type ChatMessage = {
   id?: number | string | null;
-  externalId?: string | null; // ✅ Agregado para corregir el error de tipado
+  externalId?: string | null;
   from: 'client' | 'bot' | 'agent';
   contenido: string;
   timestamp?: string;
@@ -58,7 +58,7 @@ function sanitizeAggressive(raw: string) {
 }
 
 /* ----------------- COLA CON BORDE (Tail) ------------------ */
-function BubbleTail({ side, color, borderColor }: { side: 'left' | 'right'; color: string; borderColor: string }) {
+function BubbleTail({ side, color }: { side: 'left' | 'right'; color: string }) {
   if (side === 'right') {
     return (
       <svg className="absolute -right-[8px] top-0 w-[8px] h-[13px]" viewBox="0 0 8 13" aria-hidden="true">
@@ -83,19 +83,21 @@ function BubbleBox({
   isMine: boolean;
   withTail?: boolean;
 }) {
-  // 🎨 COLORES PREMIUM
-  const bgMine = '#4f46e5'; 
-  const borderMine = '#4338ca'; 
-  const bgOther = '#27272a'; 
-  const borderOther = '#3f3f46'; 
+  // 🎨 COLORES SOBRIOS & PREMIUM (Menos llamativos)
+  // Mine: Un verde azulado oscuro o índigo muy desaturado (más elegante)
+  const bgMine = '#374151'; // Zinc-700 (Opcional: '#005C4B' para verde WhatsApp Dark clásico)
+  
+  // Other: Un gris oscuro casi negro para contraste sutil
+  const bgOther = '#27272a'; // Zinc-800
 
+  // Clases base con proporciones ajustadas (50% en desktop)
   const bubbleBase = clsx(
     'relative inline-flex flex-col',
-    'min-w-0 max-w-[92%] sm:max-w-[72%] md:max-w-[65%]',
-    'px-4 py-2.5 rounded-2xl shadow-md transition-all',
+    'min-w-0 max-w-[85%] sm:max-w-[60%] md:max-w-[50%]', // <-- Proporciones ajustadas (50%)
+    'px-3.5 py-2 rounded-xl shadow-sm border border-white/5 transition-all', 
     isMine 
-        ? 'bg-indigo-600 text-white self-end rounded-tr-none shadow-indigo-900/20' 
-        : 'bg-zinc-800 text-zinc-100 self-start rounded-tl-none border border-white/5 shadow-black/20'
+        ? 'bg-zinc-700 text-white self-end rounded-tr-none' 
+        : 'bg-zinc-800 text-zinc-100 self-start rounded-tl-none'
   );
 
   return (
@@ -105,7 +107,6 @@ function BubbleBox({
         <BubbleTail
           side={isMine ? 'right' : 'left'}
           color={isMine ? bgMine : bgOther}
-          borderColor={isMine ? borderMine : borderOther}
         />
       ) : null}
     </div>
@@ -129,13 +130,13 @@ export default function MessageBubble({ message, isMine = false }: Props) {
   const itsMedia = isMedia(mediaType);
 
   const textClass = clsx(
-    'text-[14px] leading-relaxed antialiased font-light tracking-wide',
+    'text-[14px] leading-relaxed antialiased font-normal',
     'whitespace-pre-wrap break-words [overflow-wrap:anywhere]'
   );
 
   const timeClass = clsx(
-    'text-[10px] whitespace-nowrap select-none mt-1 self-end font-medium',
-    isMine ? 'text-indigo-200/70' : 'text-zinc-500'
+    'text-[10px] whitespace-nowrap select-none mt-1 self-end font-medium opacity-60',
+    isMine ? 'text-white' : 'text-zinc-400'
   );
 
   const showText =
@@ -158,7 +159,7 @@ export default function MessageBubble({ message, isMine = false }: Props) {
 
   return (
     <div className={clsx('w-full flex mb-2', isMine ? 'justify-end' : 'justify-start')}>
-      <div className="max-w-full flex flex-col gap-1">
+      <div className="w-full flex flex-col gap-1">
         {willRenderMedia && (
           <BubbleBox isMine={isMine} withTail={!willRenderText}>
             <MediaRenderer
@@ -178,19 +179,20 @@ export default function MessageBubble({ message, isMine = false }: Props) {
           <BubbleBox isMine={isMine} withTail>
             {contenido ? <p className={textClass}>{sanitizeAggressive(contenido)}</p> : null}
 
-            <div className="flex items-center justify-end gap-1.5 mt-1 -mb-1">
+            {/* Línea de estado + hora */}
+            <div className="flex items-center justify-end gap-1.5 mt-1 -mb-0.5">
               {time ? <span className={timeClass}>{time}</span> : null}
               
               {isSending && (
-                <DotsLoader className={clsx('w-3 h-3', isMine ? 'text-indigo-200' : 'text-zinc-400')} />
+                <DotsLoader className={clsx('w-3 h-3', isMine ? 'text-white/60' : 'text-zinc-500')} />
               )}
               
               {isFailed && (
-                <span className="text-[10px] text-red-400 font-bold bg-red-500/10 px-1 rounded">Error</span>
+                <span className="text-[9px] text-red-300 font-bold bg-red-500/20 px-1 rounded">!</span>
               )}
               
               {isMine && !isSending && !isFailed && (
-                 <svg viewBox="0 0 16 11" className="w-3.5 h-3.5 text-indigo-300 fill-current opacity-80"><path d="M11.5 0L4.5 7L2.5 5L0 7.5L4.5 11L16 2L11.5 0Z"/></svg>
+                 <svg viewBox="0 0 16 11" className="w-3.5 h-3.5 text-emerald-400 fill-current opacity-90"><path d="M11.5 0L4.5 7L2.5 5L0 7.5L4.5 11L16 2L11.5 0Z"/></svg>
               )}
             </div>
           </BubbleBox>
@@ -225,26 +227,26 @@ function MediaRenderer({
   const [loaded, setLoaded] = useState(false);
 
   const mediaWrap = 'w-full min-w-[200px]';
-  const mediaBox = 'relative overflow-hidden rounded-xl border border-white/10';
-  const phBase = 'rounded-xl bg-zinc-900/50 flex flex-col gap-2 items-center justify-center text-xs text-zinc-500 w-full animate-pulse border border-white/5';
+  const mediaBox = 'relative overflow-hidden rounded-lg border border-white/5';
+  const phBase = 'rounded-lg bg-black/20 flex flex-col gap-2 items-center justify-center text-xs text-zinc-500 w-full animate-pulse';
   
-  const imgPh = clsx(phBase, 'min-h-[200px]');
-  const vidPh = clsx(phBase, 'min-h-[200px]');
+  const imgPh = clsx(phBase, 'min-h-[180px]');
+  const vidPh = clsx(phBase, 'min-h-[180px]');
 
   if (type === 'audio') {
     return (
-      <div className="w-full flex flex-col gap-2 min-w-[240px]">
-        <div className="flex items-center gap-3 bg-black/20 p-2 rounded-lg">
-            <div className={clsx("p-2 rounded-full", isMine ? "bg-white/20 text-white" : "bg-indigo-500 text-white")}>
+      <div className="w-full flex flex-col gap-2 min-w-[220px]">
+        <div className="flex items-center gap-3 bg-black/20 p-2.5 rounded-lg border border-white/5">
+            <div className={clsx("p-2 rounded-full", isMine ? "bg-zinc-600 text-white" : "bg-indigo-500 text-white")}>
                 <FiMic />
             </div>
-            <div className="h-1 flex-1 bg-white/20 rounded-full overflow-hidden">
-                <div className="h-full w-1/3 bg-white/60 rounded-full" />
+            <div className="h-1 flex-1 bg-white/10 rounded-full overflow-hidden">
+                <div className="h-full w-1/3 bg-white/40 rounded-full" />
             </div>
         </div>
-        <p className="text-[13px] leading-snug italic opacity-80">
-          <span className="font-semibold text-xs uppercase tracking-wide opacity-60 block mb-1">Transcripción:</span>
-          {transcription?.trim() || 'Nota de voz sin transcripción'}
+        <p className="text-[13px] leading-snug italic opacity-70">
+          <span className="font-semibold text-[10px] uppercase tracking-wide opacity-60 block mb-1">Transcripción</span>
+          {transcription?.trim() || 'Nota de voz'}
         </p>
         {time ? <span className={timeClass}>{time}</span> : null}
       </div>
@@ -256,8 +258,8 @@ function MediaRenderer({
       return (
         <div className={mediaWrap}>
           <div className={imgPh}>
-            <FiImage className="w-6 h-6 opacity-50" />
-            <span>Imagen no disponible</span>
+            <FiImage className="w-5 h-5 opacity-40" />
+            <span className="text-[10px]">Imagen</span>
           </div>
           {time ? <span className={timeClass}>{time}</span> : null}
         </div>
@@ -265,11 +267,11 @@ function MediaRenderer({
     }
 
     return (
-      <figure className="flex flex-col gap-2 max-w-full">
+      <figure className="flex flex-col gap-1.5 max-w-full">
         <div className={clsx(mediaWrap, mediaBox)}>
           {!loaded && (
             <div className={imgPh}>
-                <FiImage className="w-6 h-6 opacity-50" />
+                <FiImage className="w-5 h-5 opacity-40" />
             </div>
           )}
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -277,7 +279,7 @@ function MediaRenderer({
             src={url}
             alt={caption || 'imagen'}
             className={clsx(
-              'block w-full h-auto max-h-[400px] object-cover transition-opacity duration-500',
+              'block w-full h-auto max-h-[350px] object-cover transition-opacity duration-300',
               loaded ? 'opacity-100' : 'opacity-0 absolute top-0 left-0'
             )}
             onLoad={() => setLoaded(true)}
@@ -286,7 +288,7 @@ function MediaRenderer({
           />
         </div>
         {caption ? (
-          <figcaption className={clsx('text-[13px] opacity-90 mt-1', isMine ? 'text-white' : 'text-zinc-200')}>
+          <figcaption className={clsx('text-[13px] opacity-90 mt-0.5', isMine ? 'text-white' : 'text-zinc-200')}>
             {caption}
           </figcaption>
         ) : null}
@@ -300,8 +302,8 @@ function MediaRenderer({
       return (
         <div className={mediaWrap}>
           <div className={vidPh}>
-            <FiPlay className="w-6 h-6 opacity-50" />
-            <span>Video no disponible</span>
+            <FiPlay className="w-5 h-5 opacity-40" />
+            <span className="text-[10px]">Video</span>
           </div>
           {time ? <span className={timeClass}>{time}</span> : null}
         </div>
@@ -309,12 +311,10 @@ function MediaRenderer({
     }
 
     return (
-      <div className="flex flex-col gap-2 max-w-full">
+      <div className="flex flex-col gap-1.5 max-w-full">
         <div className={clsx(mediaWrap, mediaBox)}>
           {!loaded && (
-             <div className={vidPh}>
-                <FiLoader className="w-6 h-6 opacity-50 animate-spin" />
-             </div>
+             <div className={vidPh} />
           )}
           <video
             src={url}
@@ -322,11 +322,11 @@ function MediaRenderer({
             onLoadedData={() => setLoaded(true)}
             controls
             preload="metadata"
-            className={clsx('block w-full h-auto max-h-[400px] rounded-lg', loaded ? 'opacity-100' : 'opacity-0')}
+            className={clsx('block w-full h-auto max-h-[350px]', loaded ? 'opacity-100' : 'opacity-0')}
           />
         </div>
         {caption ? (
-          <p className={clsx('text-[13px] opacity-90 mt-1', isMine ? 'text-white' : 'text-zinc-200')}>{caption}</p>
+          <p className={clsx('text-[13px] opacity-90 mt-0.5', isMine ? 'text-white' : 'text-zinc-200')}>{caption}</p>
         ) : null}
         {time ? <span className={timeClass}>{time}</span> : null}
       </div>
@@ -335,27 +335,27 @@ function MediaRenderer({
 
   // Documento
   return (
-    <div className="flex flex-col gap-1 max-w-full min-w-[220px]">
+    <div className="flex flex-col gap-1 max-w-full min-w-[200px]">
       <div className={clsx(
-          "flex items-center gap-3 p-3 rounded-xl border transition-colors",
+          "flex items-center gap-3 p-2.5 rounded-lg border transition-colors",
           isMine 
-            ? "bg-indigo-700/30 border-indigo-500/30 hover:bg-indigo-700/50" 
-            : "bg-zinc-900/50 border-white/5 hover:bg-zinc-900/80"
+            ? "bg-zinc-800 border-white/5 hover:bg-zinc-900" 
+            : "bg-zinc-900 border-white/5 hover:bg-black/40"
       )}>
-        <div className={clsx("p-2.5 rounded-lg shrink-0", isMine ? "bg-white/20 text-white" : "bg-zinc-800 text-zinc-400")}>
-            <FiFile className="w-5 h-5" />
+        <div className={clsx("p-2 rounded-md shrink-0", isMine ? "bg-white/10 text-white" : "bg-zinc-800 text-zinc-400")}>
+            <FiFile className="w-4 h-4" />
         </div>
         <div className="flex-1 min-w-0">
             <a
                 href={url}
                 target="_blank"
                 rel="noreferrer"
-                className={clsx('text-sm font-medium truncate block hover:underline', isMine ? 'text-white' : 'text-indigo-400')}
+                className={clsx('text-[13px] font-medium truncate block hover:underline', isMine ? 'text-white' : 'text-indigo-400')}
                 title={mime || 'documento'}
             >
-                {caption || 'Documento adjunto'}
+                {caption || 'Documento'}
             </a>
-            <span className={clsx("text-[10px] uppercase", isMine ? "text-indigo-200" : "text-zinc-500")}>
+            <span className={clsx("text-[9px] uppercase tracking-wide opacity-60", isMine ? "text-white" : "text-zinc-500")}>
                 {mime ? mime.split('/')[1] : 'FILE'}
             </span>
         </div>
