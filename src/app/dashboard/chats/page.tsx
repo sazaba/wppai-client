@@ -1,11 +1,13 @@
 'use client'
 
 import { useEffect, useRef, useState, useCallback } from 'react'
-import { FiClock, FiAlertTriangle, FiLock } from 'react-icons/fi'
+import { FiClock, FiAlertTriangle, FiLock, FiMessageSquare } from 'react-icons/fi'
+import { HiSparkles } from 'react-icons/hi' // Icono extra para el empty state
 import socket from '@/lib/socket'
 import axios from '@/lib/axios'
 import Swal from 'sweetalert2'
 import Link from 'next/link'
+import { motion, AnimatePresence } from 'framer-motion' // Agregamos framer-motion
 
 import ChatSidebar from './components/ChatSidebar'
 import ChatHeader from './components/ChatHeader'
@@ -17,28 +19,29 @@ import ChatModalCrear from './components/ChatModalCrear'
 import { useAuth } from '../../context/AuthContext'
 
 // ——————————————————————————————
-// Config de estados
+// Config de estados (Iconos)
 // ——————————————————————————————
 const estadoIconos = {
-  pendiente: <FiClock className="inline mr-1 animate-spin" />,
-  respondido: <span className="inline-block w-2 h-2 bg-green-400 rounded-full" />,
-  en_proceso: <span className="inline-block w-2 h-2 bg-blue-400 rounded-full" />,
-  requiere_agente: <span className="inline-block w-2 h-2 bg-red-400 rounded-full" />,
-  agendado: <span className="inline-block w-2 h-2 bg-indigo-400 rounded-full" />,
-  agendado_consulta: <span className="inline-block w-2 h-2 bg-indigo-400 rounded-full" />,
-  cerrado: <span className="inline-block w-2 h-2 bg-gray-400 rounded-full" />,
-  todos: <span className="inline-block w-2 h-2 bg-slate-400 rounded-full" />,
+  pendiente: <FiClock className="inline mr-1 animate-spin text-amber-400" />,
+  respondido: <span className="inline-block w-2.5 h-2.5 bg-emerald-400 rounded-full shadow-[0_0_8px_rgba(52,211,153,0.6)]" />,
+  en_proceso: <span className="inline-block w-2.5 h-2.5 bg-blue-400 rounded-full shadow-[0_0_8px_rgba(96,165,250,0.6)]" />,
+  requiere_agente: <span className="inline-block w-2.5 h-2.5 bg-rose-500 rounded-full shadow-[0_0_8px_rgba(244,63,94,0.6)] animate-pulse" />,
+  agendado: <span className="inline-block w-2.5 h-2.5 bg-indigo-400 rounded-full shadow-[0_0_8px_rgba(129,140,248,0.6)]" />,
+  agendado_consulta: <span className="inline-block w-2.5 h-2.5 bg-indigo-400 rounded-full shadow-[0_0_8px_rgba(129,140,248,0.6)]" />,
+  cerrado: <span className="inline-block w-2.5 h-2.5 bg-zinc-600 rounded-full" />,
+  todos: <span className="inline-block w-2.5 h-2.5 bg-zinc-500 rounded-full" />,
 }
 
+// Estilos de badge modernizados
 const estadoEstilos = {
-  pendiente: 'bg-yellow-100 text-yellow-700',
-  respondido: 'bg-green-100 text-green-700',
-  en_proceso: 'bg-blue-100 text-blue-700',
-  requiere_agente: 'bg-red-100 text-red-700',
-  agendado: 'bg-indigo-100 text-indigo-700',
-  agendado_consulta: 'bg-indigo-100 text-indigo-700',
-  cerrado: 'bg-gray-100 text-gray-600',
-  todos: 'bg-slate-100 text-slate-700',
+  pendiente: 'bg-amber-500/10 text-amber-300 border border-amber-500/20',
+  respondido: 'bg-emerald-500/10 text-emerald-300 border border-emerald-500/20',
+  en_proceso: 'bg-blue-500/10 text-blue-300 border border-blue-500/20',
+  requiere_agente: 'bg-rose-500/10 text-rose-300 border border-rose-500/20',
+  agendado: 'bg-indigo-500/10 text-indigo-300 border border-indigo-500/20',
+  agendado_consulta: 'bg-indigo-500/10 text-indigo-300 border border-indigo-500/20',
+  cerrado: 'bg-zinc-800 text-zinc-400 border border-zinc-700',
+  todos: 'bg-zinc-800 text-zinc-300 border border-zinc-700',
 }
 
 export default function ChatsPage() {
@@ -330,7 +333,7 @@ export default function ChatsPage() {
             text: 'Tu plan ha finalizado o alcanzaste el límite. Reactiva tu cuenta para enviar mensajes.',
             confirmButtonText: 'Ir a Facturación',
             confirmButtonColor: '#ef4444',
-            background: '#0B141A',
+            background: '#09090b',
             color: '#fff'
         }).then((res) => {
             if(res.isConfirmed) window.location.href = '/dashboard/billing';
@@ -352,7 +355,7 @@ export default function ChatsPage() {
         icon: 'info',
         title: 'Conversación cerrada',
         text: 'Debes reabrir la conversación antes de enviar un mensaje.',
-        background: '#0B141A',
+        background: '#09090b',
         color: '#e5e7eb',
         confirmButtonColor: '#10b981',
       })
@@ -392,7 +395,7 @@ export default function ChatsPage() {
         icon: 'error',
         title: 'No se pudo enviar',
         html: `<pre style="text-align:left;white-space:pre-wrap;">${msg}</pre>`,
-        background: '#0B141A',
+        background: '#09090b',
         color: '#e5e7eb',
         confirmButtonColor: '#ef4444',
       })
@@ -548,7 +551,7 @@ export default function ChatsPage() {
         title: 'No disponible',
         text: 'Solo puedes eliminar conversaciones que estén cerradas.',
         icon: 'info',
-        background: '#0B141A',
+        background: '#09090b',
         color: '#e5e7eb',
         confirmButtonText: 'Entendido',
         confirmButtonColor: '#10b981',
@@ -564,10 +567,10 @@ export default function ChatsPage() {
       confirmButtonText: 'Eliminar',
       cancelButtonText: 'Cancelar',
       reverseButtons: true,
-      background: '#0B141A',
+      background: '#09090b',
       color: '#e5e7eb',
       confirmButtonColor: '#ef4444',
-      cancelButtonColor: '#374151',
+      cancelButtonColor: '#27272a',
     })
 
     if (!resp.isConfirmed) return
@@ -588,7 +591,7 @@ export default function ChatsPage() {
         title: 'Eliminado',
         text: 'La conversación fue eliminada correctamente.',
         icon: 'success',
-        background: '#0B141A',
+        background: '#09090b',
         color: '#e5e7eb',
         confirmButtonText: 'Ok',
         confirmButtonColor: '#10b981',
@@ -599,7 +602,7 @@ export default function ChatsPage() {
         title: 'Error',
         text: 'No se pudo eliminar la conversación.',
         icon: 'error',
-        background: '#0B141A',
+        background: '#09090b',
         color: '#e5e7eb',
         confirmButtonText: 'Cerrar',
         confirmButtonColor: '#ef4444',
@@ -608,47 +611,66 @@ export default function ChatsPage() {
   }
 
   return (
-    <div className="flex h-full max-h-screen bg-[#111b21] text-white overflow-visible">
-      <ChatSidebar
-        chats={chats}
-        loading={loading}
-        busqueda={busqueda}
-        setBusqueda={setBusqueda}
-        estadoFiltro={estadoFiltro}
-        setEstadoFiltro={setEstadoFiltro}
-        onSelectChat={handleSelectChat}
-        activoId={activoId}
-        estadoIconos={estadoIconos}
-        estadoEstilos={estadoEstilos}
-      />
+    <div className="flex h-screen bg-zinc-950 text-white overflow-hidden relative">
+      
+      {/* 🔮 Fondo ambiental con luces (Cyberpunk Vibe) */}
+      <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none z-0">
+        <div className="absolute -top-[10%] -left-[10%] w-[500px] h-[500px] bg-indigo-600/5 rounded-full blur-[120px]" />
+        <div className="absolute top-[40%] right-[-10%] w-[400px] h-[400px] bg-purple-600/5 rounded-full blur-[100px]" />
+      </div>
 
-      <section className="flex-1 flex flex-col h-full bg-[#0B141A] overflow-visible relative">
+      {/* SIDEBAR con Glassmorphism */}
+      <div className="w-[380px] bg-zinc-900/40 backdrop-blur-xl border-r border-white/5 flex flex-col z-10 shrink-0">
+        <ChatSidebar
+          chats={chats}
+          loading={loading}
+          busqueda={busqueda}
+          setBusqueda={setBusqueda}
+          estadoFiltro={estadoFiltro}
+          setEstadoFiltro={setEstadoFiltro}
+          onSelectChat={handleSelectChat}
+          activoId={activoId}
+          estadoIconos={estadoIconos}
+          estadoEstilos={estadoEstilos}
+        />
+      </div>
+
+      {/* ÁREA PRINCIPAL */}
+      <section className="flex-1 flex flex-col h-full bg-transparent relative z-10">
         {activoId ? (
           <>
-            <ChatHeader
-              chatId={activoId!}
-              nombre={chats.find((c) => c.id === activoId)?.nombre || ''}
-              estado={chats.find((c) => c.id === activoId)?.estado || ''}
-              onCerrar={() => setMostrarModalCerrar(true)}
-              onReabrir={handleReabrirConversacion}
-              onEliminar={handleEliminarConversacion}
-              mostrarBotonCerrar={true}
-            />
+            {/* Header Glass */}
+            <div className="bg-zinc-900/60 backdrop-blur-md border-b border-white/5">
+                <ChatHeader
+                chatId={activoId!}
+                nombre={chats.find((c) => c.id === activoId)?.nombre || ''}
+                estado={chats.find((c) => c.id === activoId)?.estado || ''}
+                onCerrar={() => setMostrarModalCerrar(true)}
+                onReabrir={handleReabrirConversacion}
+                onEliminar={handleEliminarConversacion}
+                mostrarBotonCerrar={true}
+                />
+            </div>
 
-            {/* ⚠️ Banner de "Sesión Vencida (24h)" --> SOLO SI NO ESTÁ BLOQUEADO POR BILLING */}
+            {/* ⚠️ Banner de "Sesión Vencida (24h)" - Diseño Alerta Premium */}
             {!isBillingLocked && policyErrors[activoId] && (
-              <div className="mx-6 mt-3 mb-1 rounded-lg border border-yellow-500/40 bg-yellow-500/10 text-yellow-200 px-4 py-3 text-sm">
-                <div className="flex items-start gap-2">
-                  <FiAlertTriangle className="mt-0.5 shrink-0" />
+              <motion.div 
+                initial={{ opacity: 0, y: -10 }} 
+                animate={{ opacity: 1, y: 0 }}
+                className="mx-6 mt-4 rounded-xl border border-amber-500/20 bg-amber-500/10 backdrop-blur-sm p-4 shadow-lg shadow-amber-900/10"
+              >
+                <div className="flex items-start gap-3">
+                  <div className="p-2 rounded-full bg-amber-500/20 text-amber-400">
+                    <FiAlertTriangle className="w-5 h-5" />
+                  </div>
                   <div className="flex-1">
-                    <div className="font-medium">Sesión de 24 h vencida</div>
-                    <div className="opacity-90">
+                    <div className="font-semibold text-amber-200">Sesión de 24h finalizada</div>
+                    <div className="text-sm text-amber-200/70 mt-1">
                       {policyErrors[activoId].message}
                       {policyErrors[activoId].code ? ` (código ${policyErrors[activoId].code})` : null}
                     </div>
-                    <div className="mt-1 text-xs opacity-80">
-                      La ventana de 24 h está cerrada para respuestas automáticas.
-                      Puedes <b>reabrir el chat</b> o usar una <b>plantilla aprobada</b>.
+                    <div className="mt-2 text-xs text-amber-200/50">
+                      La ventana de respuesta gratuita se ha cerrado. Usa una plantilla para reactivarla.
                     </div>
                   </div>
                   <button
@@ -658,74 +680,102 @@ export default function ChatsPage() {
                         return rest
                       })
                     }}
-                    className="text-yellow-200/80 hover:text-yellow-100 text-xs"
+                    className="text-amber-200/60 hover:text-amber-100 hover:bg-amber-500/20 px-3 py-1 rounded-lg transition-colors text-xs font-medium"
                   >
-                    Cerrar
+                    Ignorar
                   </button>
                 </div>
-              </div>
+              </motion.div>
             )}
 
-            <ChatMessages
-              mensajes={mensajes}
-              onLoadMore={handleLoadMore}
-              hasMore={hasMore}
-              loading={loadingMsgs}
-            />
+            {/* Área de Mensajes */}
+            <div className="flex-1 overflow-hidden relative">
+                {/* Patrón de fondo sutil estilo tech */}
+                <div className="absolute inset-0 bg-[url('/grid-pattern.svg')] opacity-[0.02] pointer-events-none" />
+                <ChatMessages
+                mensajes={mensajes}
+                onLoadMore={handleLoadMore}
+                hasMore={hasMore}
+                loading={loadingMsgs}
+                />
+            </div>
 
-            {/* 🔒 BANNER DE BLOQUEO DE SERVICIO (Reemplaza al ChatInput) */}
+            {/* 🔒 BANNER DE BLOQUEO DE SERVICIO (Ultra Premium Alert) */}
             {isBillingLocked ? (
-                <div className="p-4 bg-[#202c33] border-t border-[#374248]">
-                    <div className="rounded-xl bg-gradient-to-r from-red-900/40 to-red-800/20 border border-red-500/30 p-4 flex flex-col md:flex-row items-center justify-between gap-4">
-                        <div className="flex items-start gap-3">
-                            <div className="p-2 rounded-full bg-red-500/20 text-red-400">
+                <div className="p-6 bg-zinc-900/80 backdrop-blur-lg border-t border-white/5">
+                    <div className="rounded-2xl bg-gradient-to-r from-red-500/10 to-orange-500/10 border border-red-500/20 p-5 flex flex-col md:flex-row items-center justify-between gap-6 shadow-2xl">
+                        <div className="flex items-center gap-4">
+                            <div className="p-3 rounded-full bg-gradient-to-br from-red-500 to-orange-600 text-white shadow-lg shadow-red-500/30">
                                 <FiLock className="w-6 h-6" />
                             </div>
                             <div>
-                                <h3 className="font-bold text-red-100 text-sm">Servicio Suspendido</h3>
-                                <p className="text-xs text-red-200/80 mt-1 max-w-lg">
-                                    Tu plan o periodo de prueba ha finalizado, o alcanzaste el límite de mensajes.
-                                    No se enviarán ni recibirán mensajes hasta que regularices tu cuenta.
+                                <h3 className="font-bold text-white text-lg tracking-tight">Servicio Suspendido</h3>
+                                <p className="text-zinc-400 text-sm mt-1 max-w-lg">
+                                    Has alcanzado el límite de tu plan o tu periodo de prueba ha finalizado. 
+                                    <br/><span className="text-red-300/80 text-xs">No se enviarán ni recibirán mensajes hasta regularizar.</span>
                                 </p>
                             </div>
                         </div>
                         <Link 
                             href="/dashboard/billing"
-                            className="whitespace-nowrap px-6 py-2.5 bg-red-600 hover:bg-red-500 text-white text-xs font-bold rounded-lg shadow-lg shadow-red-900/30 transition-all transform hover:scale-105 flex items-center gap-2"
+                            className="whitespace-nowrap px-8 py-3 bg-red-600 hover:bg-red-500 text-white font-bold rounded-xl shadow-lg shadow-red-600/20 transition-all transform hover:scale-[1.02] flex items-center gap-2"
                         >
-                            <span>Reactivar Servicio</span>
-                            <span className="text-red-200">→</span>
+                            <span>Reactivar Ahora</span>
+                            <span className="text-white/60">→</span>
                         </Link>
                     </div>
                 </div>
             ) : (
-                <ChatInput
-                  key={activoId || 'none'}
-                  value={respuesta}
-                  onChange={setRespuesta}
-                  onSend={handleSendMessage}
-                  onSendGif={(url, isMp4) => handleSendMedia({ url, type: isMp4 ? 'video' : 'image' })}
-                  onUploadFile={(file, type) => handleUploadFile(file, type)}
-                  disabled={chats.find((c) => c.id === activoId)?.estado === 'cerrado'}
-                  onAppointmentCreated={handleAppointmentCreated}
-                  conversationId={activoId}
-                  chatPhone={
-                    chats.find((c) => c.id === activoId)?.telefono ||
-                    chats.find((c) => c.id === activoId)?.phone ||
-                    ''
-                  }
-                  summaryText={
-                    chats.find((c) => c.id === activoId)?.summaryText ||
-                    chats.find((c) => c.id === activoId)?.summary?.text ||
-                    ''
-                  }
-                />
+                <div className="bg-zinc-900/60 backdrop-blur-md border-t border-white/5 p-4">
+                    <ChatInput
+                    key={activoId || 'none'}
+                    value={respuesta}
+                    onChange={setRespuesta}
+                    onSend={handleSendMessage}
+                    onSendGif={(url, isMp4) => handleSendMedia({ url, type: isMp4 ? 'video' : 'image' })}
+                    onUploadFile={(file, type) => handleUploadFile(file, type)}
+                    disabled={chats.find((c) => c.id === activoId)?.estado === 'cerrado'}
+                    onAppointmentCreated={handleAppointmentCreated}
+                    conversationId={activoId}
+                    chatPhone={
+                        chats.find((c) => c.id === activoId)?.telefono ||
+                        chats.find((c) => c.id === activoId)?.phone ||
+                        ''
+                    }
+                    summaryText={
+                        chats.find((c) => c.id === activoId)?.summaryText ||
+                        chats.find((c) => c.id === activoId)?.summary?.text ||
+                        ''
+                    }
+                    />
+                </div>
             )}
 
           </>
         ) : (
-          <div className="h-full flex items-center justify-center text-gray-400 text-sm">
-            <FiClock className="w-5 h-5 mr-2" /> Selecciona una conversación para comenzar
+          /* EMPTY STATE - Diseño Central "No hay chat" */
+          <div className="h-full flex flex-col items-center justify-center p-8 text-center relative overflow-hidden">
+            {/* Círculo decorativo de fondo */}
+            <div className="absolute w-[400px] h-[400px] bg-indigo-500/5 rounded-full blur-[80px] pointer-events-none" />
+            
+            <motion.div 
+                initial={{ scale: 0.8, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ duration: 0.5 }}
+                className="relative z-10"
+            >
+                <div className="w-24 h-24 bg-zinc-800/50 rounded-3xl flex items-center justify-center mx-auto mb-6 border border-white/5 shadow-2xl shadow-black/50 rotate-3">
+                    <FiMessageSquare className="w-10 h-10 text-indigo-400" />
+                </div>
+                <h2 className="text-2xl font-bold text-white mb-2 tracking-tight">Centro de Conversaciones</h2>
+                <p className="text-zinc-400 max-w-sm mx-auto mb-8">
+                    Selecciona un chat de la barra lateral para ver el historial, gestionar respuestas o agendar citas.
+                </p>
+                <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-zinc-900 border border-zinc-700 text-xs text-zinc-500">
+                    <HiSparkles className="text-yellow-500" />
+                    <span>IA Activa y lista para responder</span>
+                </div>
+            </motion.div>
           </div>
         )}
       </section>
