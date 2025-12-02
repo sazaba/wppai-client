@@ -59,8 +59,9 @@ export default function ChatSidebar({
   )
 
   return (
-    // CAMBIO: Quitamos anchos fijos y bg sólido. Usamos h-full y transparente para heredar el glassmorphism del padre.
-    <aside className="w-full h-full flex flex-col bg-transparent overflow-hidden">
+    // CAMBIO: Restauramos las proporciones originales (md:w-[30%] max-w-[400px]) para que se fije a la izquierda
+    // Agregamos bg-zinc-900/40 y backdrop-blur para mantener el estilo glassmorphism sin depender del padre
+    <aside className="w-full md:w-[30%] max-w-[400px] h-full flex flex-col shrink-0 bg-zinc-900/40 backdrop-blur-xl border-r border-white/5 overflow-hidden">
       
       {/* --- HEADER SIDEBAR --- */}
       <div className="p-5 pb-2 shrink-0">
