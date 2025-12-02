@@ -1,12 +1,13 @@
 'use client'
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { FiSend, FiSmile, FiImage, FiCalendar, FiChevronUp, FiChevronDown, FiLoader } from 'react-icons/fi'
+import { FiSend, FiSmile, FiImage, FiCalendar, FiChevronUp, FiChevronDown, FiLoader, FiPaperclip } from 'react-icons/fi'
 import EmojiPicker, { EmojiClickData, EmojiStyle, Theme } from 'emoji-picker-react'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import Swal from 'sweetalert2'
 import 'sweetalert2/dist/sweetalert2.min.css'
 import { useAuth } from '../../../context/AuthContext'
+import clsx from 'clsx'
 
 type MediaKind = 'image' | 'video' | 'audio' | 'document'
 
@@ -32,19 +33,20 @@ const CI = {
   services: `/api/chat-input/services`,
 }
 
+// Estilos de SweetAlert2 adaptados al tema Zinc-950
 const DarkSwal = Swal.mixin({
-  background: '#0B0C14',
-  color: '#E5E7EB',
-  iconColor: '#A78BFA',
+  background: '#09090b', // zinc-950
+  color: '#e4e4e7', // zinc-200
+  iconColor: '#6366f1', // indigo-500
   buttonsStyling: false,
   customClass: {
-    popup: 'rounded-2xl border border-white/10 shadow-2xl',
-    title: 'text-lg font-semibold',
-   htmlContainer: 'text-sm text-gray-200',
+    popup: 'rounded-[2rem] border border-white/10 shadow-2xl bg-zinc-900/95 backdrop-blur-xl',
+    title: 'text-xl font-bold text-white',
+    htmlContainer: 'text-sm text-zinc-400',
     confirmButton:
-      'inline-flex items-center justify-center rounded-xl px-4 py-2 font-medium bg-gradient-to-r from-emerald-500 to-teal-600 text-white hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-emerald-400',
+      'inline-flex items-center justify-center rounded-xl px-6 py-3 font-medium bg-indigo-600 hover:bg-indigo-500 text-white transition-all shadow-lg shadow-indigo-500/20 mx-2',
     cancelButton:
-      'inline-flex items-center justify-center rounded-xl px-4 py-2 font-medium border border-white/15 text-white/90 hover:bg-white/5 ml-2',
+      'inline-flex items-center justify-center rounded-xl px-6 py-3 font-medium border border-white/10 text-zinc-300 hover:bg-white/5 transition-all mx-2',
   },
 })
 
@@ -69,13 +71,13 @@ async function confirmReminder24h(): Promise<boolean> {
     icon: 'question',
     title: '¿Enviar recordatorio 24 horas antes?',
     html: `
-      <p style="font-size:13px;line-height:1.4;">
+      <p style="font-size:14px;line-height:1.6;color:#a1a1aa;">
         Si aceptas, se enviará un mensaje automático 24 horas antes de la cita
         para que el paciente confirme su asistencia.
       </p>
     `,
     showCancelButton: true,
-    confirmButtonText: 'Sí, enviar recordatorio',
+    confirmButtonText: 'Sí, enviar',
     cancelButtonText: 'No, solo agendar',
     reverseButtons: true,
   })
@@ -113,8 +115,6 @@ async function api<T>(path: string, init?: RequestInit, token?: string): Promise
   if (!res.ok) throw new Error(await res.text())
   return res.json()
 }
-
-function cx(...c: (string | false | undefined)[]) { return c.filter(Boolean).join(' ') }
 
 type CreateApptPayload = {
   name: string
@@ -227,7 +227,6 @@ export default function ChatInput({
   }, [token])
 
   useEffect(() => {
-    // Si cambió el summary, volvemos a leer todo y SOBREESCRIBIMOS
     if (summaryText) {
       const staffFromSummary = extractStaffFromSummaryText(summaryText)
       if (staffFromSummary.length) {
@@ -247,7 +246,6 @@ export default function ChatInput({
       }
     }
   
-    // Si cambia el teléfono del chat, también lo actualizamos
     if (chatPhone) {
       setLockedPhone(chatPhone)
     }
@@ -256,22 +254,16 @@ export default function ChatInput({
 
   useEffect(() => {
     const prime = async () => {
-      // 👈 Solo tiene sentido pedir el estado cuando voy a abrir el modal
       if (!conversationId || !token || !showAppt) return
   
       try {
         const stateResp = await api<any>(CI.state(conversationId), undefined, token)
-  
-        // 🔎 En tu caso el estado viene como el JSON que pegaste (sin .data)
-        // pero dejamos compatibilidad por si en otro entorno viene con .data.
         const state = (stateResp as any)?.data ?? stateResp ?? null
   
-        // 1) Nombre y servicio desde draft del conversation_state
         const { nombre, servicio } = extractAgendaFromState(state)
         if (nombre) setLockedName(nombre)
         if (servicio) setLockedService(servicio)
   
-        // 2) Teléfono si el estado lo trae
         const phoneFromState =
           stateResp?.phone ||
           state?.phone ||
@@ -279,7 +271,6 @@ export default function ChatInput({
           state?.conversation?.phone
         if (phoneFromState) setLockedPhone(String(phoneFromState))
   
-        // 3) Summary del estado (por si luego agregas AGENDA_COLECTADA)
         const summaryFromStateText =
           stateResp?.summary?.text ||
           state?.summary?.text ||
@@ -295,7 +286,6 @@ export default function ChatInput({
           if (agBlock.telefono) setLockedPhone(agBlock.telefono)
         }
       } catch {
-        // 🔁 Fallback a /meta si /state falla
         try {
           const meta = await api<any>(CI.meta(conversationId), undefined, token)
   
@@ -385,7 +375,6 @@ export default function ChatInput({
     if (!data.phone?.trim()) { await alertError('Falta el teléfono'); return }
 
     try {
-      // 🔔 Preguntamos si queremos recordatorio 24h ANTES de construir el body
       const sendReminder24h = await confirmReminder24h()
 
       const { iso: startAtISO, dateLocal } = localToISOWithOffset(data.startISO, -300)
@@ -408,7 +397,6 @@ export default function ChatInput({
         startAt: startAtISO,
         endAt: endAtISO,
         timezone: 'America/Bogota',
-        // 👇 nuevo flag por cita
         sendReminder24h,
       }
 
@@ -435,52 +423,58 @@ export default function ChatInput({
   }
 
   return (
-    <div className="relative border-t border-white/10 bg-[#202C33] p-2">
-      <div className="flex items-center gap-2">
-        <button
-          type="button"
-          onClick={() => setShowEmoji((v) => !v)}
-          className="p-2 rounded-full hover:bg-white/10 disabled:opacity-50"
-          disabled={disabled}
-          aria-label="Emoji"
-          title="Emoji"
-        >
-          <FiSmile className="w-5 h-5 text-[#D1D7DB]" />
-        </button>
+    // CAMBIO: Contenedor con Glassmorphism y padding mejorado
+    <div className="relative border-t border-white/5 bg-zinc-900/60 backdrop-blur-md p-4">
+      <div className="flex items-end gap-3 max-w-5xl mx-auto">
+        
+        {/* Grupo de Botones Izquierda */}
+        <div className="flex items-center gap-1 bg-zinc-800/50 rounded-xl p-1 border border-white/5">
+            <button
+            type="button"
+            onClick={() => setShowEmoji((v) => !v)}
+            className="p-2.5 rounded-lg hover:bg-white/10 disabled:opacity-50 text-zinc-400 hover:text-yellow-400 transition-colors"
+            disabled={disabled}
+            aria-label="Emoji"
+            title="Emoji"
+            >
+            <FiSmile className="w-5 h-5" />
+            </button>
 
-        {showEmoji && (
-          <div className="absolute bottom-14 left-2 z-50">
-            <EmojiPicker
-              onEmojiClick={handleEmojiClick}
-              theme={Theme.DARK}
-              emojiStyle={EmojiStyle.NATIVE}
-              searchDisabled
-              previewConfig={{ showPreview: false }}
-            />
-          </div>
-        )}
+            {showEmoji && (
+            <div className="absolute bottom-20 left-4 z-50 shadow-2xl rounded-2xl overflow-hidden ring-1 ring-white/10">
+                <EmojiPicker
+                onEmojiClick={handleEmojiClick}
+                theme={Theme.DARK}
+                emojiStyle={EmojiStyle.NATIVE}
+                searchDisabled
+                previewConfig={{ showPreview: false }}
+                />
+            </div>
+            )}
 
-        <button
-          type="button"
-          onClick={() => setShowAppt(true)}
-          className="p-2 rounded-full hover:bg-white/10 disabled:opacity-50"
-          disabled={disabled}
-          aria-label="Crear cita"
-          title="Crear cita"
-        >
-          <FiCalendar className="w-5 h-5 text-[#D1D7DB]" />
-        </button>
+            <button
+            type="button"
+            onClick={() => setShowAppt(true)}
+            className="p-2.5 rounded-lg hover:bg-white/10 disabled:opacity-50 text-zinc-400 hover:text-indigo-400 transition-colors"
+            disabled={disabled}
+            aria-label="Crear cita"
+            title="Crear cita"
+            >
+            <FiCalendar className="w-5 h-5" />
+            </button>
 
-        <button
-          type="button"
-          onClick={() => fileRef.current?.click()}
-          className="p-2 rounded-full hover:bg-white/10 disabled:opacity-50"
-          disabled={disabled}
-          aria-label="Adjuntar archivo"
-          title="Adjuntar archivo"
-        >
-          <FiImage className="w-5 h-5 text-[#D1D7DB]" />
-        </button>
+            <button
+            type="button"
+            onClick={() => fileRef.current?.click()}
+            className="p-2.5 rounded-lg hover:bg-white/10 disabled:opacity-50 text-zinc-400 hover:text-emerald-400 transition-colors"
+            disabled={disabled}
+            aria-label="Adjuntar archivo"
+            title="Adjuntar archivo"
+            >
+            <FiPaperclip className="w-5 h-5" />
+            </button>
+        </div>
+
         <input
           ref={fileRef}
           type="file"
@@ -489,27 +483,31 @@ export default function ChatInput({
           accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx"
         />
 
-        <input
-          ref={inputRef}
-          type="text"
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          onKeyDown={handleKeyDown}
-          onPaste={handlePaste}
-          placeholder="Escribe un mensaje"
-          className="flex-1 bg-[#2A3942] text-white placeholder:text-[#8696A0] px-3 py-2 rounded-2xl outline-none border border-transparent focus:border-emerald-500"
-          disabled={disabled}
-        />
+        {/* Input Principal */}
+        <div className="flex-1 relative">
+            <input
+            ref={inputRef}
+            type="text"
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            onKeyDown={handleKeyDown}
+            onPaste={handlePaste}
+            placeholder="Escribe un mensaje..."
+            className="w-full bg-zinc-950/50 text-white placeholder:text-zinc-600 px-5 py-3 rounded-2xl outline-none border border-white/5 focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/50 transition-all shadow-inner"
+            disabled={disabled}
+            />
+        </div>
 
+        {/* Botón Enviar */}
         <button
           type="button"
           onClick={onSend}
           disabled={disabled || !value.trim()}
-          className="p-2 rounded-full bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="p-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-indigo-900/20 transition-all active:scale-95 text-white"
           aria-label="Enviar"
           title="Enviar"
         >
-          <FiSend className="w-5 h-5 text-white" />
+          <FiSend className="w-5 h-5" />
         </button>
       </div>
 
@@ -531,18 +529,17 @@ export default function ChatInput({
       <style jsx global>{`
         .whatsapp-scroll {
           scrollbar-width: thin;
-          scrollbar-color: rgba(255,255,255,.18) transparent;
+          scrollbar-color: rgba(255,255,255,.1) transparent;
         }
         .whatsapp-scroll::-webkit-scrollbar {
-          width: 8px;
+          width: 6px;
         }
         .whatsapp-scroll::-webkit-scrollbar-track { background: transparent; }
         .whatsapp-scroll::-webkit-scrollbar-thumb {
-          background: rgba(255,255,255,.14);
+          background: rgba(255,255,255,.1);
           border-radius: 9999px;
-          border: 2px solid transparent;
         }
-        .whatsapp-scroll:hover::-webkit-scrollbar-thumb { background: rgba(255,255,255,.22); }
+        .whatsapp-scroll:hover::-webkit-scrollbar-thumb { background: rgba(255,255,255,.2); }
 
         .no-native-spin::-webkit-outer-spin-button,
         .no-native-spin::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
@@ -552,32 +549,41 @@ export default function ChatInput({
   )
 }
 
+// Botones mejorados
 function Button(
   props: React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: 'primary' | 'ghost' | 'outline' | 'danger' }
 ) {
   const { className, variant = 'primary', ...rest } = props
   const base =
-    'inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium transition focus:outline-none focus:ring-2'
+    'inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-zinc-900 active:scale-95'
   const variants = {
-    primary: 'text-white bg-emerald-600 hover:bg-emerald-700 focus:ring-emerald-400',
-    ghost: 'text-white/90 hover:bg-white/10',
-    outline: 'border border-white/15 text-white hover:bg-white/5',
-    danger: 'bg-red-600 text-white hover:bg-red-700 focus:ring-red-400',
+    primary: 'text-white bg-indigo-600 hover:bg-indigo-500 focus:ring-indigo-500 shadow-lg shadow-indigo-900/20',
+    ghost: 'text-zinc-400 hover:text-white hover:bg-white/10',
+    outline: 'border border-white/10 text-zinc-300 hover:bg-white/5 hover:border-white/20',
+    danger: 'bg-red-600 text-white hover:bg-red-500 focus:ring-red-500 shadow-lg shadow-red-900/20',
   } as const
-  return <button className={cx(base, variants[variant], className)} {...rest} />
+  return <button className={clsx(base, variants[variant], className)} {...rest} />
 }
 
+// Dialog (Modal) Ultra Premium
 function Dialog({ open, onClose, children }: { open: boolean; onClose: () => void; children: React.ReactNode }) {
   if (!open) return null
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center">
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+    <div className="fixed inset-0 z-[100] grid place-items-center px-4">
+      <motion.div 
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="absolute inset-0 bg-black/70 backdrop-blur-sm" 
+        onClick={onClose} 
+      />
       <motion.div
-        initial={{ opacity: 0, y: 8, scale: 0.98 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        className="relative z-10 w-full max-w-xl rounded-2xl border border-white/10 bg-zinc-900 p-0 text-white shadow-2xl"
+        initial={{ opacity: 0, scale: 0.95, y: 10 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: 10 }}
+        className="relative z-10 w-full max-w-2xl rounded-[2rem] border border-white/10 bg-zinc-900/95 p-0 text-white shadow-2xl overflow-hidden"
       >
-        <div className="max-h-[75vh] overflow-y-auto whatsapp-scroll p-6">
+        <div className="max-h-[85vh] overflow-y-auto whatsapp-scroll p-8">
           {children}
         </div>
       </motion.div>
@@ -585,6 +591,7 @@ function Dialog({ open, onClose, children }: { open: boolean; onClose: () => voi
   )
 }
 
+// Inputs de Formulario (Dark Deep)
 function Input({
   label,
   type = 'text',
@@ -607,24 +614,24 @@ function Input({
   helpText?: string
 }) {
   return (
-    <label className="space-y-1">
-      <span className="text-xs text-white/80">{label}</span>
+    <label className="space-y-1.5 block">
+      <span className="text-xs font-semibold text-zinc-400 uppercase tracking-wider ml-1">{label}</span>
       <div className="relative">
         <input
           type={type}
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
-          className={cx(
-            'w-full rounded-xl border border-white/15 bg-zinc-900 px-3 py-3 pr-10 text-sm text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-emerald-500',
-            disabled && 'opacity-60 cursor-not-allowed'
+          className={clsx(
+            'w-full rounded-xl border border-white/5 bg-zinc-950/50 px-4 py-3 text-sm text-white placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition-all',
+            disabled && 'opacity-50 cursor-not-allowed bg-zinc-900'
           )}
           disabled={disabled}
           readOnly={readOnly}
         />
-        {rightIcon && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-white/60">{rightIcon}</span>}
+        {rightIcon && <span className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-500">{rightIcon}</span>}
       </div>
-      {helpText && <span className="text-[11px] text-white/50">{helpText}</span>}
+      {helpText && <span className="text-[11px] text-zinc-500 ml-1">{helpText}</span>}
     </label>
   )
 }
@@ -647,21 +654,21 @@ function TextArea({
   helpText?: string
 }) {
   return (
-    <label className="space-y-1 w-full">
-      <span className="text-xs text-white/80">{label}</span>
+    <label className="space-y-1.5 w-full block">
+      <span className="text-xs font-semibold text-zinc-400 uppercase tracking-wider ml-1">{label}</span>
       <textarea
-        rows={4}
+        rows={3}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className={cx(
-          'w-full rounded-xl border border-white/15 bg-zinc-900 px-3 py-3 text-sm text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-emerald-500',
-          disabled && 'opacity-60 cursor-not-allowed'
+        className={clsx(
+          'w-full rounded-xl border border-white/5 bg-zinc-950/50 px-4 py-3 text-sm text-white placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition-all resize-none',
+          disabled && 'opacity-50 cursor-not-allowed bg-zinc-900'
         )}
         disabled={disabled}
         readOnly={readOnly}
       />
-      {helpText && <span className="text-[11px] text-white/50">{helpText}</span>}
+      {helpText && <span className="text-[11px] text-zinc-500 ml-1">{helpText}</span>}
     </label>
   )
 }
@@ -727,7 +734,7 @@ function CreateApptForm({
 
   const suggestedMsg = useMemo(() => {
     const d = serviceOptions.find(s => s.name === service)?.defaultDuration
-    return d ? `Sugerido por servicio: ${d} min` : ''
+    return d ? `Sugerido: ${d} min` : ''
   }, [serviceOptions, service])
 
   return (
@@ -747,133 +754,136 @@ function CreateApptForm({
           setSaving(false)
         }
       }}
-      className="space-y-6 text-white"
+      className="space-y-8"
     >
-      <h2 className="text-xl font-semibold flex items-center gap-2">
-        <FiCalendar className="h-5 w-5" /> Crear nueva cita
-      </h2>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 rounded-2xl border border-white/10 bg-zinc-900/60 p-4">
-        <Input label="Nombre cliente" value={name} onChange={setName} />
-        <Input label="Teléfono (chat)" value={phone} onChange={setPhone} />
-        <label className="space-y-1">
-          <span className="text-xs text-white/80">Servicio</span>
-          <select
-            value={service}
-            onChange={(e) => {
-              const v = e.target.value
-              setService(v)
-              const opt = serviceOptions.find(s => s.name === v)
-              if (opt?.defaultDuration && Number.isFinite(opt.defaultDuration)) {
-                setDurationMin(opt.defaultDuration as number)
-              }
-            }}
-            className="w-full rounded-xl border border-white/15 bg-zinc-900 px-3 py-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
-          >
-            <option value="">{service ? `(Mantener: ${service})` : '(Selecciona un servicio)'}</option>
-            {serviceOptions.map((s) => (
-              <option key={s.id} value={s.name}>
-                {s.name}{s.defaultDuration ? ` — ${s.defaultDuration} min` : ''}
-              </option>
-            ))}
-          </select>
-          {suggestedMsg && <span className="text-[11px] text-emerald-300">{suggestedMsg}</span>}
-        </label>
-        <Input label="Sede (opcional)" value={sede} onChange={setSede} placeholder="Ej. Sede Centro" />
+      <div className="flex items-center gap-3 pb-4 border-b border-white/5">
+        <div className="p-3 rounded-full bg-indigo-500/10 text-indigo-400">
+            <FiCalendar className="h-6 w-6" />
+        </div>
+        <div>
+            <h2 className="text-2xl font-bold text-white">Agendar Cita</h2>
+            <p className="text-sm text-zinc-400">Completa los detalles para crear la reserva.</p>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 rounded-2xl border border-white/10 bg-zinc-900/60 p-4 items-start">
-        <label className="space-y-1">
-          <span className="text-xs text-white/80">Profesional (staff)</span>
-          <select
-            value={provider || ''}
-            onChange={(e) => setProvider(e.target.value)}
-            className="w-full rounded-xl border border-white/15 bg-zinc-900 px-3 py-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
-          >
-            <option value="">(Sin preferencia)</option>
-            {staffOptions.map((s) => (
-              <option key={s.id} value={s.name}>{s.name}</option>
-            ))}
-          </select>
-          <span className="text-[11px] text-white/50">Se carga por API o desde summary STAFF</span>
-        </label>
-
-        <label className="space-y-1">
-          <span className="text-xs text-white/80">Fecha y hora</span>
-          <input
-            type="datetime-local"
-            value={dateTime}
-            onChange={(e) => setDateTime(e.target.value)}
-            className="w-full rounded-xl border border-white/15 bg-zinc-900 px-3 py-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
-          />
-        </label>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 rounded-2xl border border-white/10 bg-zinc-900/60 p-4 items-start">
-        <div className="space-y-2">
-          <span className="text-xs text-white/80">Duración (min)</span>
-          <div className="relative">
-            <input
-              type="number"
-              inputMode="numeric"
-              value={String(durationMin)}
-              onChange={(e) => {
-                const n = Number((e.target.value || '').replace(/[^\d]/g, '')) || 1
-                setDurationMin(Math.max(1, n))
-              }}
-              className="no-native-spin w-full rounded-xl border border-white/15 bg-zinc-900 px-3 py-3 pr-12 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
-              placeholder="30"
-              min={1}
-            />
-            <div className="absolute right-1 top-1/2 -translate-y-1/2 flex flex-col">
-              <button type="button" onClick={() => bump(+5)} className="rounded-lg p-1 hover:bg-white/10" title="+5">
-                <FiChevronUp />
-              </button>
-              <button type="button" onClick={() => bump(-5)} className="rounded-lg p-1 hover:bg-white/10" title="-5">
-                <FiChevronDown />
-              </button>
-            </div>
-          </div>
-
-          <div className="flex flex-wrap gap-2 pt-1">
-            {suggestedChips.map((m) => (
-              <button
-                key={m}
-                type="button"
-                onClick={() => setDurationMin(m)}
-                className={cx(
-                  'rounded-lg px-2 py-1 text-xs border border-white/15 hover:bg-white/5',
-                  durationMin === m && 'border-emerald-400 bg-emerald-500/10'
-                )}
-              >
-                {m} min
-              </button>
-            ))}
-          </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="space-y-6">
+            <Input label="Nombre del cliente" value={name} onChange={setName} placeholder="Ej. Juan Pérez" />
+            <Input label="Teléfono (WhatsApp)" value={phone} onChange={setPhone} placeholder="+57..." />
+            
+            <label className="space-y-1.5 block">
+                <div className="flex justify-between">
+                    <span className="text-xs font-semibold text-zinc-400 uppercase tracking-wider ml-1">Servicio</span>
+                    {suggestedMsg && <span className="text-[10px] text-emerald-400 font-medium">{suggestedMsg}</span>}
+                </div>
+                <select
+                    value={service}
+                    onChange={(e) => {
+                    const v = e.target.value
+                    setService(v)
+                    const opt = serviceOptions.find(s => s.name === v)
+                    if (opt?.defaultDuration && Number.isFinite(opt.defaultDuration)) {
+                        setDurationMin(opt.defaultDuration as number)
+                    }
+                    }}
+                    className="w-full rounded-xl border border-white/5 bg-zinc-950/50 px-4 py-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50 appearance-none transition-colors hover:bg-zinc-900"
+                >
+                    <option value="">{service ? `(Mantener: ${service})` : '(Selecciona un servicio)'}</option>
+                    {serviceOptions.map((s) => (
+                    <option key={s.id} value={s.name}>
+                        {s.name}
+                    </option>
+                    ))}
+                </select>
+            </label>
         </div>
 
-        <div className="w-full">
-          <TextArea
-            label="Notas (opcional)"
+        <div className="space-y-6">
+            <label className="space-y-1.5 block">
+                <span className="text-xs font-semibold text-zinc-400 uppercase tracking-wider ml-1">Profesional</span>
+                <select
+                    value={provider || ''}
+                    onChange={(e) => setProvider(e.target.value)}
+                    className="w-full rounded-xl border border-white/5 bg-zinc-950/50 px-4 py-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50 appearance-none transition-colors hover:bg-zinc-900"
+                >
+                    <option value="">(Sin preferencia)</option>
+                    {staffOptions.map((s) => (
+                    <option key={s.id} value={s.name}>{s.name}</option>
+                    ))}
+                </select>
+            </label>
+
+            <Input label="Fecha y Hora" type="datetime-local" value={dateTime} onChange={setDateTime} />
+            
+            <div className="space-y-2">
+                <span className="text-xs font-semibold text-zinc-400 uppercase tracking-wider ml-1">Duración (min)</span>
+                <div className="flex items-center gap-2">
+                    <button type="button" onClick={() => bump(-5)} className="p-3 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-400 transition-colors">
+                        <FiChevronDown />
+                    </button>
+                    <div className="relative flex-1">
+                        <input
+                        type="number"
+                        inputMode="numeric"
+                        value={String(durationMin)}
+                        onChange={(e) => {
+                            const n = Number((e.target.value || '').replace(/[^\d]/g, '')) || 1
+                            setDurationMin(Math.max(1, n))
+                        }}
+                        className="no-native-spin w-full text-center rounded-xl border border-white/5 bg-zinc-950/50 px-3 py-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50 font-mono"
+                        min={1}
+                        />
+                    </div>
+                    <button type="button" onClick={() => bump(+5)} className="p-3 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-400 transition-colors">
+                        <FiChevronUp />
+                    </button>
+                </div>
+                <div className="flex flex-wrap gap-2 pt-1 justify-center">
+                    {suggestedChips.map((m) => (
+                    <button
+                        key={m}
+                        type="button"
+                        onClick={() => setDurationMin(m)}
+                        className={clsx(
+                        'rounded-full px-3 py-1 text-[10px] font-medium border transition-all',
+                        durationMin === m 
+                            ? 'border-indigo-500 bg-indigo-500/10 text-indigo-300' 
+                            : 'border-zinc-800 bg-zinc-900 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300'
+                        )}
+                    >
+                        {m} min
+                    </button>
+                    ))}
+                </div>
+            </div>
+        </div>
+      </div>
+
+      <div className="pt-2 border-t border-white/5">
+        <TextArea
+            label="Notas Adicionales"
             value={notes}
             onChange={setNotes}
-            placeholder="Observaciones, indicaciones…"
-          />
-        </div>
+            placeholder="Detalles importantes sobre la cita..."
+        />
       </div>
 
-      <div className="flex justify-end gap-2">
-        <Button variant="outline" type="button" onClick={onCancel} disabled={saving}>
+      <div className="flex justify-end gap-3 pt-4">
+        <Button variant="ghost" type="button" onClick={onCancel} disabled={saving} className="px-6">
           Cancelar
         </Button>
         <button
           type="submit"
           disabled={!canSave}
-          className={cx(
-            'inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-400 disabled:opacity-60 disabled:cursor-not-allowed'
+          className={clsx(
+            'inline-flex items-center gap-2 rounded-xl px-8 py-3 text-sm font-bold text-white shadow-lg transition-all',
+            canSave 
+                ? 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 shadow-indigo-900/20 transform hover:-translate-y-0.5' 
+                : 'bg-zinc-800 text-zinc-500 cursor-not-allowed'
           )}
         >
-          {saving && <FiLoader className="h-4 w-4 animate-spin" />} Guardar
+          {saving ? <FiLoader className="h-4 w-4 animate-spin" /> : <FiCalendar className="w-4 h-4" />}
+          {saving ? 'Agendando...' : 'Confirmar Cita'}
         </button>
       </div>
     </form>
