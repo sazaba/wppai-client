@@ -91,7 +91,8 @@ export default function LoginPage() {
   return (
     <>
       {/* Contenedor Principal con Fondo Ambiental */}
-      <div className="min-h-screen bg-zinc-950 flex items-center justify-center px-4 py-12 sm:px-6 lg:px-8 relative overflow-hidden">
+      {/* CAMBIO: Se ajustó el padding (pt-28) para evitar superposición con el Navbar */}
+      <div className="min-h-screen bg-zinc-950 flex items-center justify-center px-4 pt-28 pb-12 sm:px-6 lg:px-8 relative overflow-hidden">
         
         {/* Luces de Fondo (Ambient Glows) */}
         <div className="absolute top-[-10%] left-[-10%] w-[300px] md:w-[500px] h-[300px] md:h-[500px] rounded-full bg-indigo-500/20 blur-[80px] md:blur-[120px] mix-blend-screen animate-pulse-slow pointer-events-none" />
