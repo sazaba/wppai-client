@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom' // Importamos createPortal
 import { FiSend, FiSmile, FiImage, FiCalendar, FiChevronUp, FiChevronDown, FiLoader, FiPaperclip } from 'react-icons/fi'
 import EmojiPicker, { EmojiClickData, EmojiStyle, Theme } from 'emoji-picker-react'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -565,29 +566,36 @@ function Button(
   return <button className={clsx(base, variants[variant], className)} {...rest} />
 }
 
-// Dialog (Modal) Ultra Premium
+// Dialog (Modal) Ultra Premium - MODIFICADO: Usando createPortal para centrado correcto
 function Dialog({ open, onClose, children }: { open: boolean; onClose: () => void; children: React.ReactNode }) {
-  if (!open) return null
-  return (
-    <div className="fixed inset-0 z-[100] grid place-items-center px-4">
-      <motion.div 
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => setMounted(true), [])
+
+  if (!open || !mounted) return null
+
+  // CAMBIO: Usamos createPortal para que el modal se renderice en el body
+  // y no quede atrapado por el stacking context del ChatInput
+  return createPortal(
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+      <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="absolute inset-0 bg-black/70 backdrop-blur-sm" 
-        onClick={onClose} 
+        className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+        onClick={onClose}
       />
       <motion.div
-        initial={{ opacity: 0, scale: 0.95, y: 10 }}
+        initial={{ opacity: 0, scale: 0.95, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.95, y: 10 }}
+        exit={{ opacity: 0, scale: 0.95, y: 20 }}
         className="relative z-10 w-full max-w-2xl rounded-[2rem] border border-white/10 bg-zinc-900/95 p-0 text-white shadow-2xl overflow-hidden"
       >
         <div className="max-h-[85vh] overflow-y-auto whatsapp-scroll p-8">
           {children}
         </div>
       </motion.div>
-    </div>
+    </div>,
+    document.body
   )
 }
 
