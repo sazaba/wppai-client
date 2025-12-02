@@ -1,43 +1,57 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { Sparkles, Send, Mic, Phone, Video, MoreVertical, ChevronLeft, Paperclip, Smile, Battery, Wifi, Signal } from 'lucide-react'
 
 export default function HeroChatAnimation() {
   const [step, setStep] = useState(0)
+  const scrollRef = useRef<HTMLDivElement>(null)
+
+  // Auto-scroll cada vez que avanza la conversación
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollIntoView({ behavior: 'smooth' })
+    }
+  }, [step])
 
   useEffect(() => {
-    // Tiempos ajustados para flujo rápido
-    const timer1 = setTimeout(() => setStep(1), 800)
-    const timer2 = setTimeout(() => setStep(2), 2500)
-    const timer3 = setTimeout(() => setStep(3), 4000)
-    const timer4 = setTimeout(() => setStep(4), 6000)
-    const timer5 = setTimeout(() => setStep(5), 7500)
-    const timer6 = setTimeout(() => setStep(6), 9500)
+    const timers: NodeJS.Timeout[] = []
+    
+    // Secuencia extendida
+    timers.push(setTimeout(() => setStep(1), 800))   // User: Hola...
+    timers.push(setTimeout(() => setStep(2), 2500))  // Typing
+    timers.push(setTimeout(() => setStep(3), 4000))  // IA: Hola, sedes?
+    timers.push(setTimeout(() => setStep(4), 6000))  // User: Norte
+    timers.push(setTimeout(() => setStep(5), 7500))  // Typing
+    timers.push(setTimeout(() => setStep(6), 9500))  // IA: Horarios
+    // Nuevos pasos
+    timers.push(setTimeout(() => setStep(7), 11500)) // User: 5:30 PM
+    timers.push(setTimeout(() => setStep(8), 13000)) // Typing
+    timers.push(setTimeout(() => setStep(9), 15000)) // IA: Confirmado
+    timers.push(setTimeout(() => setStep(10), 17000)) // User: Gracias
+    timers.push(setTimeout(() => setStep(11), 18500)) // Typing
+    timers.push(setTimeout(() => setStep(12), 20000)) // IA: Despedida
 
-    return () => {
-      clearTimeout(timer1); clearTimeout(timer2); clearTimeout(timer3);
-      clearTimeout(timer4); clearTimeout(timer5); clearTimeout(timer6);
-    }
+    return () => timers.forEach(t => clearTimeout(t))
   }, [])
 
   return (
-    // CAMBIO: Ancho más controlado (max-w-[270px] en móvil) para mantener la esbeltez
-    <div className="relative mx-auto w-full max-w-[270px] xs:max-w-[290px] sm:max-w-[320px] md:max-w-[350px]">
+    // CAMBIO: Aumentado el ancho base de 270px a 290px para que no se vea tan estrecho
+    // xs pasa de 290px a 310px
+    <div className="relative mx-auto w-full max-w-[290px] xs:max-w-[310px] sm:max-w-[330px] md:max-w-[350px]">
       
       {/* Glow Ambiental Detrás */}
       <div className="absolute -inset-4 bg-gradient-to-tr from-indigo-500/30 via-purple-500/30 to-pink-500/30 rounded-[4rem] blur-3xl opacity-50 animate-pulse-slow pointer-events-none" />
       
-      {/* --- BOTONES FÍSICOS DEL IPHONE (Ajustados a nuevas proporciones) --- */}
+      {/* --- BOTONES FÍSICOS DEL IPHONE --- */}
       <div className="absolute top-24 -left-[9px] h-6 w-[9px] bg-zinc-800 rounded-l-md border-l border-zinc-700" />
       <div className="absolute top-36 -left-[9px] h-10 w-[9px] bg-zinc-800 rounded-l-md border-l border-zinc-700 shadow-sm" />
       <div className="absolute top-52 -left-[9px] h-10 w-[9px] bg-zinc-800 rounded-l-md border-l border-zinc-700 shadow-sm" />
       <div className="absolute top-40 -right-[9px] h-16 w-[9px] bg-zinc-800 rounded-r-md border-r border-zinc-700 shadow-sm" />
 
-      {/* --- CHASIS PRINCIPAL (Relación de aspecto 19.5:9 real) --- */}
-      {/* Alturas ajustadas: h-[560px] en móvil vs ancho de 270px da un ratio de ~2.07 (iPhone real) */}
-      <div className="relative bg-black rounded-[3.5rem] shadow-2xl overflow-hidden h-[560px] xs:h-[600px] sm:h-[680px] md:h-[720px] flex flex-col ring-8 ring-zinc-900 ring-opacity-90 border-[4px] border-zinc-800 z-10 transition-all duration-500">
+      {/* --- CHASIS PRINCIPAL --- */}
+      <div className="relative bg-black rounded-[3.5rem] shadow-2xl overflow-hidden h-[580px] xs:h-[620px] sm:h-[680px] md:h-[720px] flex flex-col ring-8 ring-zinc-900 ring-opacity-90 border-[4px] border-zinc-800 z-10 transition-all duration-500">
         
         {/* --- STATUS BAR --- */}
         <div className="absolute top-0 w-full h-12 z-40 flex items-center justify-between px-7 pt-3.5 text-white">
@@ -49,7 +63,7 @@ export default function HeroChatAnimation() {
             </div>
         </div>
 
-        {/* Dynamic Island (Más estilizada) */}
+        {/* Dynamic Island */}
         <div className="absolute top-3 left-1/2 -translate-x-1/2 h-[26px] w-[90px] bg-black rounded-full z-40 border border-zinc-800/50" />
 
         {/* --- HEADER CHAT --- */}
@@ -65,7 +79,7 @@ export default function HeroChatAnimation() {
             <div className="flex flex-col">
               <h3 className="text-[15px] font-semibold text-white leading-none tracking-tight">Clínica Estética IA</h3>
               <p className="text-[11px] text-indigo-400 font-medium mt-0.5 animate-pulse">
-                {(step === 2 || step === 5) ? 'Escribiendo...' : 'En línea'}
+                {(step === 2 || step === 5 || step === 8 || step === 11) ? 'Escribiendo...' : 'En línea'}
               </p>
             </div>
           </div>
@@ -124,6 +138,43 @@ export default function HeroChatAnimation() {
                 text="Perfecto. Tengo cupo a las 3:00 PM o 5:30 PM. 🗓️ ¿Cuál te reservo?" 
                 time="09:43" 
             />
+
+            {/* --- NUEVA CONVERSACIÓN EXTENDIDA --- */}
+            
+            <ChatMessage 
+                isUser={true} 
+                show={step >= 7} 
+                text="5:30 PM me queda perfecto." 
+                time="09:44" 
+            />
+
+            {step === 8 && <TypingIndicator />}
+
+            <ChatMessage 
+                isUser={false} 
+                show={step >= 9} 
+                text="¡Listo! ✅ Tu valoración quedó agendada para mañana a las 5:30 PM en Sede Norte. Te envié la confirmación a tu correo." 
+                time="09:44" 
+            />
+
+            <ChatMessage 
+                isUser={true} 
+                show={step >= 10} 
+                text="Excelente, muchas gracias!" 
+                time="09:45" 
+            />
+
+            {step === 11 && <TypingIndicator />}
+
+            <ChatMessage 
+                isUser={false} 
+                show={step >= 12} 
+                text="¡A ti! Nos vemos mañana. ✨" 
+                time="09:45" 
+            />
+
+            {/* Div invisible para el auto-scroll */}
+            <div ref={scrollRef} />
           </div>
 
           {/* --- FOOTER INPUT --- */}
@@ -141,7 +192,8 @@ export default function HeroChatAnimation() {
             </div>
 
             <div className="w-10 h-10 rounded-full bg-[#00A884] flex items-center justify-center text-white shadow-md flex-shrink-0 hover:bg-[#008f6f] transition-colors">
-                {step === 0 || step === 3 ? <Send className="w-5 h-5 ml-0.5" /> : <Mic className="w-5 h-5" />}
+                {/* Cambiar icono según si está escribiendo usuario o no (simulado) */}
+                {(step === 0 || step === 3 || step === 6 || step === 9 || step === 12) ? <Send className="w-5 h-5 ml-0.5" /> : <Mic className="w-5 h-5" />}
             </div>
           </div>
         
