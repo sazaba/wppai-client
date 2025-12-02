@@ -6,12 +6,17 @@ import { Sparkles, Send, Mic, Phone, Video, MoreVertical, ChevronLeft, Paperclip
 
 export default function HeroChatAnimation() {
   const [step, setStep] = useState(0)
-  const scrollRef = useRef<HTMLDivElement>(null)
+  // CAMBIO: Referencia al contenedor del chat en lugar de un elemento dummy
+  const chatContainerRef = useRef<HTMLDivElement>(null)
 
-  // Auto-scroll cada vez que avanza la conversación
+  // Auto-scroll corregido: Solo mueve el scroll interno del contenedor
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollIntoView({ behavior: 'smooth' })
+    if (chatContainerRef.current) {
+      const container = chatContainerRef.current
+      container.scrollTo({
+        top: container.scrollHeight,
+        behavior: 'smooth'
+      })
     }
   }, [step])
 
@@ -100,7 +105,8 @@ export default function HeroChatAnimation() {
             }}
           />
 
-          <div className="flex-1 overflow-y-auto p-3 space-y-3 relative z-10 scrollbar-hide pb-20">
+          {/* CAMBIO: ref asignado al contenedor scrolleable */}
+          <div ref={chatContainerRef} className="flex-1 overflow-y-auto p-3 space-y-3 relative z-10 scrollbar-hide pb-20">
             <div className="flex justify-center sticky top-0 z-10 py-2">
                 <span className="bg-zinc-800/80 backdrop-blur text-zinc-400 text-[10px] px-2.5 py-1 rounded-lg font-medium shadow-sm border border-white/5">
                 Hoy
@@ -172,9 +178,8 @@ export default function HeroChatAnimation() {
                 text="¡A ti! Nos vemos mañana. ✨" 
                 time="09:45" 
             />
-
-            {/* Div invisible para el auto-scroll */}
-            <div ref={scrollRef} />
+            
+            {/* CAMBIO: Eliminado el div dummy, el scroll ahora es manejado por el contenedor */}
           </div>
 
           {/* --- FOOTER INPUT --- */}
