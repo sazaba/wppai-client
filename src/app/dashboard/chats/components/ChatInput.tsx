@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { createPortal } from 'react-dom' // Importamos createPortal
+import { createPortal } from 'react-dom'
 import { FiSend, FiSmile, FiImage, FiCalendar, FiChevronUp, FiChevronDown, FiLoader, FiPaperclip } from 'react-icons/fi'
 import EmojiPicker, { EmojiClickData, EmojiStyle, Theme } from 'emoji-picker-react'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -40,6 +40,11 @@ const DarkSwal = Swal.mixin({
   color: '#e4e4e7', // zinc-200
   iconColor: '#6366f1', // indigo-500
   buttonsStyling: false,
+  // CAMBIO: Aseguramos que el z-index de Swal sea superior al del modal (que ahora es 100)
+  didOpen: (popup) => {
+     const container = Swal.getContainer()
+     if (container) container.style.zIndex = '10000'
+  },
   customClass: {
     popup: 'rounded-[2rem] border border-white/10 shadow-2xl bg-zinc-900/95 backdrop-blur-xl',
     title: 'text-xl font-bold text-white',
@@ -566,17 +571,16 @@ function Button(
   return <button className={clsx(base, variants[variant], className)} {...rest} />
 }
 
-// Dialog (Modal) Ultra Premium - MODIFICADO: Usando createPortal para centrado correcto
+// Dialog (Modal) Ultra Premium - MODIFICADO: Usando createPortal y z-index 100
 function Dialog({ open, onClose, children }: { open: boolean; onClose: () => void; children: React.ReactNode }) {
   const [mounted, setMounted] = useState(false)
   useEffect(() => setMounted(true), [])
 
   if (!open || !mounted) return null
 
-  // CAMBIO: Usamos createPortal para que el modal se renderice en el body
-  // y no quede atrapado por el stacking context del ChatInput
+  // CAMBIO: z-index ajustado a 100 para permitir que Swal (z-1060+) se muestre encima
   return createPortal(
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
