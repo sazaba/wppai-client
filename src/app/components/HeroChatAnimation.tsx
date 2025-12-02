@@ -107,7 +107,8 @@ export default function HeroChatAnimation() {
 
           {/* CAMBIO: ref asignado al contenedor scrolleable */}
           <div ref={chatContainerRef} className="flex-1 overflow-y-auto p-3 space-y-3 relative z-10 scrollbar-hide pb-20">
-            <div className="flex justify-center sticky top-0 z-10 py-2">
+            {/* CAMBIO: Eliminado 'sticky top-0 z-10' para que la fecha haga scroll y no se monte */}
+            <div className="flex justify-center py-2 mb-2">
                 <span className="bg-zinc-800/80 backdrop-blur text-zinc-400 text-[10px] px-2.5 py-1 rounded-lg font-medium shadow-sm border border-white/5">
                 Hoy
                 </span>
@@ -259,7 +260,8 @@ function TypingIndicator() {
       animate={{ opacity: 1, scale: 1 }}
       className="flex justify-start w-full relative z-10 pl-2"
     >
-      <div className="bg-[#202C33] rounded-2xl rounded-tl-none px-3 py-2.5 flex gap-1 items-center w-fit shadow-sm relative">
+      {/* CAMBIO: Usamos rounded-[18px] para igualar la curvatura de los mensajes normales */}
+      <div className="bg-[#202C33] rounded-[18px] rounded-tl-none px-3 py-2.5 flex gap-1 items-center w-fit shadow-sm relative">
         <svg className="absolute top-0 -left-[8px] w-[8px] h-[13px] fill-[#202C33]" viewBox="0 0 8 13">
             <path d="M-1.188 1H4v11.193l-6.467-8.625C-3.526 2.156 -2.958 1 -1.188 1z" transform="scale(-1, 1) translate(-4, 0)"/>
         </svg>
