@@ -23,80 +23,72 @@ export default function HeroChatAnimation() {
   }, [])
 
   return (
-    // CAMBIO: Altura reducida en móvil (h-[480px]) para no invadir la pantalla
-    <div className="relative mx-auto w-full max-w-[300px] xs:max-w-[320px] sm:max-w-[350px]">
+    // CAMBIO: Ancho más controlado (max-w-[270px] en móvil) para mantener la esbeltez
+    <div className="relative mx-auto w-full max-w-[270px] xs:max-w-[290px] sm:max-w-[320px] md:max-w-[350px]">
       
       {/* Glow Ambiental Detrás */}
       <div className="absolute -inset-4 bg-gradient-to-tr from-indigo-500/30 via-purple-500/30 to-pink-500/30 rounded-[4rem] blur-3xl opacity-50 animate-pulse-slow pointer-events-none" />
       
-      {/* --- BOTONES FÍSICOS DEL IPHONE --- */}
-      {/* Botón Silencio */}
-      <div className="absolute top-24 -left-[10px] h-6 w-[10px] bg-zinc-800 rounded-l-md border-l border-zinc-700" />
-      {/* Subir Volumen */}
-      <div className="absolute top-36 -left-[10px] h-10 w-[10px] bg-zinc-800 rounded-l-md border-l border-zinc-700 shadow-sm" />
-      {/* Bajar Volumen */}
-      <div className="absolute top-52 -left-[10px] h-10 w-[10px] bg-zinc-800 rounded-l-md border-l border-zinc-700 shadow-sm" />
-      {/* Botón Encendido */}
-      <div className="absolute top-40 -right-[10px] h-16 w-[10px] bg-zinc-800 rounded-r-md border-r border-zinc-700 shadow-sm" />
+      {/* --- BOTONES FÍSICOS DEL IPHONE (Ajustados a nuevas proporciones) --- */}
+      <div className="absolute top-24 -left-[9px] h-6 w-[9px] bg-zinc-800 rounded-l-md border-l border-zinc-700" />
+      <div className="absolute top-36 -left-[9px] h-10 w-[9px] bg-zinc-800 rounded-l-md border-l border-zinc-700 shadow-sm" />
+      <div className="absolute top-52 -left-[9px] h-10 w-[9px] bg-zinc-800 rounded-l-md border-l border-zinc-700 shadow-sm" />
+      <div className="absolute top-40 -right-[9px] h-16 w-[9px] bg-zinc-800 rounded-r-md border-r border-zinc-700 shadow-sm" />
 
-      {/* --- CHASIS PRINCIPAL (Titanium Look) --- */}
-      {/* Borde exterior brillante + Borde interior negro */}
-      <div className="relative bg-black rounded-[3rem] shadow-2xl overflow-hidden h-[480px] md:h-[620px] flex flex-col ring-8 ring-zinc-900 ring-opacity-90 border-[4px] border-zinc-800 z-10 transition-all duration-500">
+      {/* --- CHASIS PRINCIPAL (Relación de aspecto 19.5:9 real) --- */}
+      {/* Alturas ajustadas: h-[560px] en móvil vs ancho de 270px da un ratio de ~2.07 (iPhone real) */}
+      <div className="relative bg-black rounded-[3.5rem] shadow-2xl overflow-hidden h-[560px] xs:h-[600px] sm:h-[680px] md:h-[720px] flex flex-col ring-8 ring-zinc-900 ring-opacity-90 border-[4px] border-zinc-800 z-10 transition-all duration-500">
         
-        {/* --- STATUS BAR (Hora y Batería) --- */}
-        <div className="absolute top-0 w-full h-12 z-40 flex items-center justify-between px-6 pt-2 text-white">
-            <span className="text-[12px] font-semibold">9:41</span>
+        {/* --- STATUS BAR --- */}
+        <div className="absolute top-0 w-full h-12 z-40 flex items-center justify-between px-7 pt-3.5 text-white">
+            <span className="text-[13px] font-semibold tracking-wide">9:41</span>
             <div className="flex items-center gap-1.5">
                 <Signal className="w-3.5 h-3.5 fill-current" />
                 <Wifi className="w-3.5 h-3.5" />
-                <Battery className="w-4 h-4" />
+                <Battery className="w-4.5 h-4.5" />
             </div>
         </div>
 
-        {/* Dynamic Island */}
-        <div className="absolute top-3 left-1/2 -translate-x-1/2 h-7 w-28 bg-black rounded-full z-40 border border-zinc-800/50" />
+        {/* Dynamic Island (Más estilizada) */}
+        <div className="absolute top-3 left-1/2 -translate-x-1/2 h-[26px] w-[90px] bg-black rounded-full z-40 border border-zinc-800/50" />
 
         {/* --- HEADER CHAT --- */}
-        <div className="bg-[#F4F5F7]/95 backdrop-blur-md pt-12 pb-3 px-3 flex items-center justify-between border-b border-gray-200/60 z-30 shadow-sm">
-          <div className="flex items-center gap-2">
-            <ChevronLeft className="w-6 h-6 text-[#007AFF]" />
+        <div className="bg-zinc-900/90 backdrop-blur-md pt-14 pb-3 px-4 flex items-center justify-between border-b border-white/5 z-30 shadow-sm">
+          <div className="flex items-center gap-2.5">
+            <ChevronLeft className="w-6 h-6 text-indigo-400 -ml-2" />
             <div className="relative">
-              {/* Avatar Wasaaa */}
-              <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-600 flex items-center justify-center text-white shadow-sm ring-2 ring-white">
+              <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-600 flex items-center justify-center text-white shadow-sm ring-2 ring-zinc-900">
                 <Sparkles className="w-5 h-5 fill-white" />
               </div>
-              <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white rounded-full"></div>
+              <div className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 border-2 border-zinc-900 rounded-full"></div>
             </div>
-            <div className="ml-1.5 flex flex-col">
-              <h3 className="text-[15px] font-semibold text-gray-900 leading-none">Clínica Estética IA</h3>
-              <p className="text-[11px] text-[#007AFF] font-medium mt-0.5 animate-pulse">
+            <div className="flex flex-col">
+              <h3 className="text-[15px] font-semibold text-white leading-none tracking-tight">Clínica Estética IA</h3>
+              <p className="text-[11px] text-indigo-400 font-medium mt-0.5 animate-pulse">
                 {(step === 2 || step === 5) ? 'Escribiendo...' : 'En línea'}
               </p>
             </div>
           </div>
-          <div className="flex gap-4 text-[#007AFF] pr-2">
+          <div className="flex gap-5 text-indigo-400 pr-1">
             <Video className="w-5 h-5" />
             <Phone className="w-5 h-5" />
           </div>
         </div>
 
-        {/* --- BODY CHAT (Fondo WhatsApp Realista) --- */}
-        <div className="flex-1 bg-[#EFEAE2] relative overflow-hidden flex flex-col">
+        {/* --- BODY CHAT --- */}
+        <div className="flex-1 bg-[#0B141A] relative overflow-hidden flex flex-col">
           
-          {/* Patrón de fondo (Doodles) con mix-blend correcto */}
           <div 
-            className="absolute inset-0 opacity-[0.6]"
+            className="absolute inset-0 opacity-[0.06] pointer-events-none"
             style={{
                 backgroundImage: "url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png')",
                 backgroundSize: "400px",
-                mixBlendMode: "multiply" 
             }}
           />
 
-          <div className="flex-1 overflow-y-auto p-3 space-y-4 relative z-10 scrollbar-hide pb-20">
-            {/* Fecha */}
+          <div className="flex-1 overflow-y-auto p-3 space-y-3 relative z-10 scrollbar-hide pb-20">
             <div className="flex justify-center sticky top-0 z-10 py-2">
-                <span className="bg-[#E7E7ED]/90 backdrop-blur text-gray-500 text-[10px] px-2.5 py-1 rounded-lg font-medium shadow-sm">
+                <span className="bg-zinc-800/80 backdrop-blur text-zinc-400 text-[10px] px-2.5 py-1 rounded-lg font-medium shadow-sm border border-white/5">
                 Hoy
                 </span>
             </div>
@@ -135,20 +127,20 @@ export default function HeroChatAnimation() {
           </div>
 
           {/* --- FOOTER INPUT --- */}
-          <div className="absolute bottom-0 w-full bg-[#F0F2F5] px-2 py-2 flex items-end gap-2 z-20 pb-6 border-t border-gray-200">
-            <div className="p-2 text-[#007AFF]">
+          <div className="absolute bottom-0 w-full bg-[#202C33] px-3 py-3 flex items-end gap-2.5 z-20 pb-7 border-t border-white/5">
+            <div className="p-1.5 text-zinc-400">
                 <MoreVertical className="w-6 h-6" />
             </div>
             
-            <div className="flex-1 bg-white rounded-[20px] min-h-[36px] px-3 py-2 flex items-center justify-between text-[15px] text-gray-400 border border-gray-100 shadow-sm">
+            <div className="flex-1 bg-[#2A3942] rounded-[24px] min-h-[40px] px-4 py-2 flex items-center justify-between text-[15px] text-zinc-400 border border-transparent">
                 <span>Mensaje...</span>
-                <div className="flex gap-3 text-gray-400">
+                <div className="flex gap-3 text-zinc-400">
                     <Paperclip className="w-5 h-5" />
                     <Smile className="w-5 h-5" />
                 </div>
             </div>
 
-            <div className="w-10 h-10 rounded-full bg-[#00A884] flex items-center justify-center text-white shadow-md flex-shrink-0 mb-1">
+            <div className="w-10 h-10 rounded-full bg-[#00A884] flex items-center justify-center text-white shadow-md flex-shrink-0 hover:bg-[#008f6f] transition-colors">
                 {step === 0 || step === 3 ? <Send className="w-5 h-5 ml-0.5" /> : <Mic className="w-5 h-5" />}
             </div>
           </div>
@@ -156,14 +148,13 @@ export default function HeroChatAnimation() {
         </div>
         
         {/* Home Indicator */}
-        <div className="absolute bottom-1.5 left-1/2 -translate-x-1/2 w-36 h-1 bg-black rounded-full z-50 opacity-90" />
+        <div className="absolute bottom-2 left-1/2 -translate-x-1/2 w-[120px] h-[4px] bg-white/20 rounded-full z-50" />
 
       </div>
     </div>
   )
 }
 
-// --- BURBUJA DE MENSAJE (Ultra Premium) ---
 function ChatMessage({ isUser, text, time, show }: { isUser: boolean, text: string, time: string, show: boolean }) {
   if (!show) return null;
   
@@ -175,14 +166,14 @@ function ChatMessage({ isUser, text, time, show }: { isUser: boolean, text: stri
       className={`flex w-full relative z-10 ${isUser ? 'justify-end' : 'justify-start'}`}
     >
       <div className={`
-        max-w-[85%] rounded-[18px] px-3 py-1.5 shadow-[0_1px_2px_rgba(0,0,0,0.1)] text-[14px] leading-snug relative group
+        max-w-[85%] rounded-[18px] px-3 py-1.5 shadow-[0_1px_2px_rgba(0,0,0,0.2)] text-[14px] leading-snug relative group
         ${isUser 
-          ? 'bg-[#E7FFDB] text-[#111B21] rounded-tr-none' // Verde WhatsApp exacto
-          : 'bg-white text-[#111B21] rounded-tl-none'}
+          ? 'bg-[#005C4B] text-[#E9EDEF] rounded-tr-none' 
+          : 'bg-[#202C33] text-[#E9EDEF] rounded-tl-none'} 
       `}>
         {text}
         <div className="flex justify-end items-end gap-1 mt-0.5 select-none">
-            <span className="text-[10px] text-gray-500 font-normal">{time}</span>
+            <span className="text-[10px] text-white/60 font-normal">{time}</span>
             {isUser && (
                 <span className="text-[#53bdeb]">
                 <svg viewBox="0 0 16 11" className="w-[14px] h-[10px] fill-current"><path d="M11.5 0L4.5 7L2.5 5L0 7.5L4.5 11L16 2L11.5 0Z"/></svg>
@@ -190,13 +181,12 @@ function ChatMessage({ isUser, text, time, show }: { isUser: boolean, text: stri
             )}
         </div>
         
-        {/* Cola de burbuja vectorial (SVG) para realismo máximo */}
         {isUser ? (
-            <svg className="absolute top-0 -right-[8px] w-[8px] h-[13px] fill-[#E7FFDB]" viewBox="0 0 8 13">
+            <svg className="absolute top-0 -right-[8px] w-[8px] h-[13px] fill-[#005C4B]" viewBox="0 0 8 13">
                 <path d="M5.188 1H0v11.193l6.467-8.625C7.526 2.156 6.958 1 5.188 1z"/>
             </svg>
         ) : (
-            <svg className="absolute top-0 -left-[8px] w-[8px] h-[13px] fill-white" viewBox="0 0 8 13">
+            <svg className="absolute top-0 -left-[8px] w-[8px] h-[13px] fill-[#202C33]" viewBox="0 0 8 13">
                 <path d="M-1.188 1H4v11.193l-6.467-8.625C-3.526 2.156 -2.958 1 -1.188 1z" transform="scale(-1, 1) translate(-4, 0)"/>
             </svg>
         )}
@@ -212,14 +202,13 @@ function TypingIndicator() {
       animate={{ opacity: 1, scale: 1 }}
       className="flex justify-start w-full relative z-10 pl-2"
     >
-      <div className="bg-white rounded-2xl rounded-tl-none px-3 py-2.5 flex gap-1 items-center w-fit shadow-sm relative">
-        {/* Cola blanca */}
-        <svg className="absolute top-0 -left-[8px] w-[8px] h-[13px] fill-white" viewBox="0 0 8 13">
+      <div className="bg-[#202C33] rounded-2xl rounded-tl-none px-3 py-2.5 flex gap-1 items-center w-fit shadow-sm relative">
+        <svg className="absolute top-0 -left-[8px] w-[8px] h-[13px] fill-[#202C33]" viewBox="0 0 8 13">
             <path d="M-1.188 1H4v11.193l-6.467-8.625C-3.526 2.156 -2.958 1 -1.188 1z" transform="scale(-1, 1) translate(-4, 0)"/>
         </svg>
-        <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce [animation-delay:-0.3s]"></span>
-        <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce [animation-delay:-0.15s]"></span>
-        <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce"></span>
+        <span className="w-1.5 h-1.5 bg-zinc-500 rounded-full animate-bounce [animation-delay:-0.3s]"></span>
+        <span className="w-1.5 h-1.5 bg-zinc-500 rounded-full animate-bounce [animation-delay:-0.15s]"></span>
+        <span className="w-1.5 h-1.5 bg-zinc-500 rounded-full animate-bounce"></span>
       </div>
     </motion.div>
   )
