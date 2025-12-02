@@ -3,7 +3,7 @@
 import React, { useMemo, useState } from 'react';
 import clsx from 'clsx';
 import { FiFile, FiPlay, FiImage, FiMic } from 'react-icons/fi';
-import { motion, Variants } from 'framer-motion'; // 1. Importamos Variants
+import { motion, Variants } from 'framer-motion'; 
 
 export type ChatMessage = {
   id?: number | string | null;
@@ -58,54 +58,34 @@ function sanitizeAggressive(raw: string) {
   return s.trim();
 }
 
-/* ----------------- COLA CON BORDE (Tail) ------------------ */
-function BubbleTail({ side, color }: { side: 'left' | 'right'; color: string }) {
-  if (side === 'right') {
-    return (
-      <svg className="absolute -right-[8px] top-0 w-[8px] h-[13px]" viewBox="0 0 8 13" aria-hidden="true">
-         <path d="M5.188 1H0v11.193l6.467-8.625C7.526 2.156 6.958 1 5.188 1z" fill={color} />
-      </svg>
-    );
-  }
-  return (
-    <svg className="absolute -left-[8px] top-0 w-[8px] h-[13px]" viewBox="0 0 8 13" aria-hidden="true">
-        <path d="M-1.188 1H4v11.193l-6.467-8.625C-3.526 2.156 -2.958 1 -1.188 1z" transform="scale(-1, 1) translate(-4, 0)" fill={color} />
-    </svg>
-  );
-}
-
-/* --------- Contenedor de burbuja ANIMADO --------- */
+/* --------- Contenedor de burbuja ANIMADO (Sin SVG Tails) --------- */
 function BubbleBox({
   children,
   isMine,
-  withTail,
 }: {
   children: React.ReactNode;
   isMine: boolean;
-  withTail?: boolean;
+  withTail?: boolean; // Prop mantenida por compatibilidad pero no usada visualmente
 }) {
-  // 🎨 COLORES SOBRIOS & PREMIUM
-  const bgMine = '#374151'; // Zinc-700
-  const bgOther = '#27272a'; // Zinc-800
-
   // Clases base con proporciones ajustadas (50% en desktop)
   const bubbleBase = clsx(
     'relative inline-flex flex-col',
     'min-w-0 max-w-[85%] sm:max-w-[60%] md:max-w-[50%]', 
-    'px-3.5 py-2 rounded-xl shadow-sm border border-white/5 transition-all', 
+    'px-4 py-2.5 shadow-sm border border-white/5 transition-all', 
+    // Estilo "Bocadillo Moderno": Muy redondo (2xl) excepto la esquina de origen (sm)
+    'rounded-2xl',
     isMine 
-        ? 'bg-zinc-700 text-white self-end rounded-tr-none' 
-        : 'bg-zinc-800 text-zinc-100 self-start rounded-tl-none'
+        ? 'bg-zinc-700 text-white self-end rounded-tr-sm' // Esquina superior derecha sutil
+        : 'bg-zinc-800 text-zinc-100 self-start rounded-tl-sm' // Esquina superior izquierda sutil
   );
 
   // ANIMACIÓN PREMIUM CON FRAMER MOTION
-  // 2. Asignamos el tipo Variants explícitamente
   const variants: Variants = {
     hidden: { 
         opacity: 0, 
-        y: 20, 
+        y: 10, 
         scale: 0.95,
-        x: isMine ? 20 : -20 // Desde la derecha o izquierda
+        x: isMine ? 10 : -10 
     },
     visible: { 
         opacity: 1, 
@@ -113,10 +93,9 @@ function BubbleBox({
         scale: 1,
         x: 0,
         transition: { 
-            type: "spring", // Efecto elástico suave
-            stiffness: 300, 
-            damping: 25,
-            mass: 1
+            type: "spring", 
+            stiffness: 400, 
+            damping: 30,
         }
     },
   };
@@ -127,15 +106,9 @@ function BubbleBox({
         initial="hidden"
         animate="visible"
         variants={variants}
-        layout // Permite animar cambios de posición si se borran mensajes anteriores
+        layout
     >
       {children}
-      {withTail ? (
-        <BubbleTail
-          side={isMine ? 'right' : 'left'}
-          color={isMine ? bgMine : bgOther}
-        />
-      ) : null}
     </motion.div>
   );
 }
