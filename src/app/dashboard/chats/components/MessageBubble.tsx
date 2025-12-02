@@ -2,6 +2,7 @@
 
 import React, { useMemo, useState } from 'react';
 import clsx from 'clsx';
+import { FiFile, FiPlay, FiImage, FiMic, FiLoader } from 'react-icons/fi';
 
 export type ChatMessage = {
   id?: number | string | null;
@@ -15,7 +16,7 @@ export type ChatMessage = {
   transcription?: string | null;
   isVoiceNote?: boolean;
   mediaId?: string | null;
-  status?: 'sending' | 'sent' | 'failed'; // ← OPCIONAL
+  status?: 'sending' | 'sent' | 'failed';
 };
 
 type Props = { message: ChatMessage; isMine?: boolean };
@@ -55,53 +56,24 @@ function sanitizeAggressive(raw: string) {
   return s.trim();
 }
 
-/* ----------------- COLA CON BORDE ------------------ */
+/* ----------------- COLA CON BORDE (Tail) ------------------ */
 function BubbleTail({ side, color, borderColor }: { side: 'left' | 'right'; color: string; borderColor: string }) {
+  // Ajuste fino: usamos el color exacto para que se fusione con la burbuja
   if (side === 'right') {
     return (
-      <>
-        <span
-          className="absolute -right-[7px] bottom-[7px] w-0 h-0"
-          style={{
-            borderTop: '8px solid transparent',
-            borderBottom: '8px solid transparent',
-            borderLeft: `10px solid ${borderColor}`,
-          }}
-        />
-        <span
-          className="absolute -right-[6px] bottom-[7px] w-0 h-0"
-          style={{
-            borderTop: '8px solid transparent',
-            borderBottom: '8px solid transparent',
-            borderLeft: `10px solid ${color}`,
-          }}
-        />
-      </>
+      <svg className="absolute -right-[8px] top-0 w-[8px] h-[13px]" viewBox="0 0 8 13" aria-hidden="true">
+         <path d="M5.188 1H0v11.193l6.467-8.625C7.526 2.156 6.958 1 5.188 1z" fill={color} />
+      </svg>
     );
   }
   return (
-    <>
-      <span
-        className="absolute -left-[7px] bottom-[7px] w-0 h-0"
-        style={{
-          borderTop: '8px solid transparent',
-          borderBottom: '8px solid transparent',
-          borderRight: `10px solid ${borderColor}`,
-        }}
-      />
-      <span
-        className="absolute -left-[6px] bottom-[7px] w-0 h-0"
-        style={{
-          borderTop: '8px solid transparent',
-          borderBottom: '8px solid transparent',
-          borderRight: `10px solid ${color}`,
-        }}
-      />
-    </>
+    <svg className="absolute -left-[8px] top-0 w-[8px] h-[13px]" viewBox="0 0 8 13" aria-hidden="true">
+        <path d="M-1.188 1H4v11.193l-6.467-8.625C-3.526 2.156 -2.958 1 -1.188 1z" transform="scale(-1, 1) translate(-4, 0)" fill={color} />
+    </svg>
   );
 }
 
-/* --------- Contenedor de burbuja con cola opcional --------- */
+/* --------- Contenedor de burbuja --------- */
 function BubbleBox({
   children,
   isMine,
@@ -111,16 +83,22 @@ function BubbleBox({
   isMine: boolean;
   withTail?: boolean;
 }) {
-  const bgMine = '#005C4B';
-  const bgOther = '#1F2C34';     // ← gris WhatsApp dark (más claro que #202C33)
-  const borderMine = '#004137';
-  const borderOther = '#111B21';
+  // 🎨 COLORES PREMIUM
+  // Mine: Indigo-600 (para match con el dashboard)
+  const bgMine = '#4f46e5'; 
+  const borderMine = '#4338ca'; // Indigo-700
+  
+  // Other: Zinc-800 (Glassy dark)
+  const bgOther = '#27272a'; 
+  const borderOther = '#3f3f46'; // Zinc-700
 
   const bubbleBase = clsx(
     'relative inline-flex flex-col',
     'min-w-0 max-w-[92%] sm:max-w-[72%] md:max-w-[65%]',
-    'px-3.5 py-2.5 rounded-2xl shadow-sm',
-    isMine ? 'bg-[#005C4B] text-white self-end' : 'bg-[#1F2C34] text-[#E9EDEF] self-start'
+    'px-4 py-2.5 rounded-2xl shadow-md transition-all', // rounded-2xl para suavidad
+    isMine 
+        ? 'bg-indigo-600 text-white self-end rounded-tr-none shadow-indigo-900/20' 
+        : 'bg-zinc-800 text-zinc-100 self-start rounded-tl-none border border-white/5 shadow-black/20'
   );
 
   return (
@@ -137,13 +115,13 @@ function BubbleBox({
   );
 }
 
-/* --------- Loader de 3 puntitos estilo WhatsApp --------- */
+/* --------- Loader de 3 puntitos --------- */
 function DotsLoader({ className = '' }: { className?: string }) {
   return (
     <span className={clsx('flex items-center gap-1', className)}>
-      <span className="w-1.5 h-1.5 rounded-full bg-white/70 animate-bounce [animation-delay:-.2s]" />
-      <span className="w-1.5 h-1.5 rounded-full bg-white/70 animate-bounce [animation-delay:-.1s]" />
-      <span className="w-1.5 h-1.5 rounded-full bg-white/70 animate-bounce" />
+      <span className="w-1 h-1 rounded-full bg-current animate-bounce [animation-delay:-.2s]" />
+      <span className="w-1 h-1 rounded-full bg-current animate-bounce [animation-delay:-.1s]" />
+      <span className="w-1 h-1 rounded-full bg-current animate-bounce" />
     </span>
   );
 }
@@ -154,13 +132,13 @@ export default function MessageBubble({ message, isMine = false }: Props) {
   const itsMedia = isMedia(mediaType);
 
   const textClass = clsx(
-    'text-[14px] leading-[1.45] antialiased',
+    'text-[14px] leading-relaxed antialiased font-light tracking-wide',
     'whitespace-pre-wrap break-words [overflow-wrap:anywhere]'
   );
 
   const timeClass = clsx(
-    'text-[11px] opacity-75 whitespace-nowrap select-none mt-1 self-end',
-    isMine ? 'text-[#cfe5df]' : 'text-[#8696a0]'
+    'text-[10px] whitespace-nowrap select-none mt-1 self-end font-medium',
+    isMine ? 'text-indigo-200/70' : 'text-zinc-500'
   );
 
   const showText =
@@ -182,7 +160,7 @@ export default function MessageBubble({ message, isMine = false }: Props) {
   const isFailed = status === 'failed';
 
   return (
-    <div className={clsx('w-full flex', isMine ? 'justify-end' : 'justify-start')}>
+    <div className={clsx('w-full flex mb-2', isMine ? 'justify-end' : 'justify-start')}>
       <div className="max-w-full flex flex-col gap-1">
         {willRenderMedia && (
           <BubbleBox isMine={isMine} withTail={!willRenderText}>
@@ -204,13 +182,20 @@ export default function MessageBubble({ message, isMine = false }: Props) {
             {contenido ? <p className={textClass}>{sanitizeAggressive(contenido)}</p> : null}
 
             {/* Línea de estado + hora */}
-            <div className="mt-1 flex items-center gap-2 self-end">
+            <div className="flex items-center justify-end gap-1.5 mt-1 -mb-1">
               {time ? <span className={timeClass}>{time}</span> : null}
+              
               {isSending && (
-                <DotsLoader className={clsx(isMine ? 'text-white/80' : 'text-[#E9EDEF]/80')} />
+                <DotsLoader className={clsx('w-3 h-3', isMine ? 'text-indigo-200' : 'text-zinc-400')} />
               )}
+              
               {isFailed && (
-                <span className="text-[11px] text-red-400">Error</span>
+                <span className="text-[10px] text-red-400 font-bold bg-red-500/10 px-1 rounded">Error</span>
+              )}
+              
+              {/* Check de enviado (si es mío y no falló ni está enviando) */}
+              {isMine && !isSending && !isFailed && (
+                 <svg viewBox="0 0 16 11" className="w-3.5 h-3.5 text-indigo-300 fill-current opacity-80"><path d="M11.5 0L4.5 7L2.5 5L0 7.5L4.5 11L16 2L11.5 0Z"/></svg>
               )}
             </div>
           </BubbleBox>
@@ -220,7 +205,7 @@ export default function MessageBubble({ message, isMine = false }: Props) {
   );
 }
 
-/* =================== MEDIA =================== */
+/* =================== MEDIA RENDERER =================== */
 
 function MediaRenderer({
   type,
@@ -244,18 +229,28 @@ function MediaRenderer({
   const [errored, setErrored] = useState(false);
   const [loaded, setLoaded] = useState(false);
 
-  const mediaWrap = 'w-full';
-  const mediaBox = 'relative overflow-hidden rounded-xl';
-  const phBase = 'rounded-xl bg-black/20 flex items-center justify-center text-[12px] text-gray-400 w-full';
-  const imgPh = clsx(phBase, 'min-h-[180px] sm:min-h-[220px]');
-  const vidPh = clsx(phBase, 'min-h-[160px] sm:min-h-[200px]');
+  const mediaWrap = 'w-full min-w-[200px]';
+  const mediaBox = 'relative overflow-hidden rounded-xl border border-white/10';
+  const phBase = 'rounded-xl bg-zinc-900/50 flex flex-col gap-2 items-center justify-center text-xs text-zinc-500 w-full animate-pulse border border-white/5';
+  
+  // Placeholders mejorados
+  const imgPh = clsx(phBase, 'min-h-[200px]');
+  const vidPh = clsx(phBase, 'min-h-[200px]');
 
   if (type === 'audio') {
     return (
-      <div className="w-full flex flex-col">
-        <p className="text-[14px] leading-[1.45]">
-          <span className="font-medium">Transcripción: </span>
-          {transcription?.trim() || 'Nota de voz (sin transcripción)'}
+      <div className="w-full flex flex-col gap-2 min-w-[240px]">
+        <div className="flex items-center gap-3 bg-black/20 p-2 rounded-lg">
+            <div className={clsx("p-2 rounded-full", isMine ? "bg-white/20 text-white" : "bg-indigo-500 text-white")}>
+                <FiMic />
+            </div>
+            <div className="h-1 flex-1 bg-white/20 rounded-full overflow-hidden">
+                <div className="h-full w-1/3 bg-white/60 rounded-full" />
+            </div>
+        </div>
+        <p className="text-[13px] leading-snug italic opacity-80">
+          <span className="font-semibold text-xs uppercase tracking-wide opacity-60 block mb-1">Transcripción:</span>
+          {transcription?.trim() || 'Nota de voz sin transcripción'}
         </p>
         {time ? <span className={timeClass}>{time}</span> : null}
       </div>
@@ -266,7 +261,10 @@ function MediaRenderer({
     if (!url || errored) {
       return (
         <div className={mediaWrap}>
-          <div className={imgPh}>imagen</div>
+          <div className={imgPh}>
+            <FiImage className="w-6 h-6 opacity-50" />
+            <span>Imagen no disponible</span>
+          </div>
           {time ? <span className={timeClass}>{time}</span> : null}
         </div>
       );
@@ -275,14 +273,18 @@ function MediaRenderer({
     return (
       <figure className="flex flex-col gap-2 max-w-full">
         <div className={clsx(mediaWrap, mediaBox)}>
-          {!loaded && <div className={clsx(imgPh, 'animate-pulse')} />}
+          {!loaded && (
+            <div className={imgPh}>
+                <FiImage className="w-6 h-6 opacity-50" />
+            </div>
+          )}
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={url}
             alt={caption || 'imagen'}
             className={clsx(
-              'block w-full h-auto max-h-[70vh] object-contain select-none',
-              loaded ? 'opacity-100' : 'opacity-0'
+              'block w-full h-auto max-h-[400px] object-cover transition-opacity duration-500',
+              loaded ? 'opacity-100' : 'opacity-0 absolute top-0 left-0'
             )}
             onLoad={() => setLoaded(true)}
             onError={() => setErrored(true)}
@@ -290,7 +292,7 @@ function MediaRenderer({
           />
         </div>
         {caption ? (
-          <figcaption className={clsx('text-[12px] opacity-90', isMine ? 'text-white/90' : 'text-[#E9EDEF]/90')}>
+          <figcaption className={clsx('text-[13px] opacity-90 mt-1', isMine ? 'text-white' : 'text-zinc-200')}>
             {caption}
           </figcaption>
         ) : null}
@@ -303,7 +305,10 @@ function MediaRenderer({
     if (!url || errored) {
       return (
         <div className={mediaWrap}>
-          <div className={vidPh}>video</div>
+          <div className={vidPh}>
+            <FiPlay className="w-6 h-6 opacity-50" />
+            <span>Video no disponible</span>
+          </div>
           {time ? <span className={timeClass}>{time}</span> : null}
         </div>
       );
@@ -312,41 +317,54 @@ function MediaRenderer({
     return (
       <div className="flex flex-col gap-2 max-w-full">
         <div className={clsx(mediaWrap, mediaBox)}>
-          {!loaded && <div className={clsx(vidPh, 'animate-pulse')} />}
+          {!loaded && (
+             <div className={vidPh}>
+                <FiLoader className="w-6 h-6 opacity-50 animate-spin" />
+             </div>
+          )}
           <video
             src={url}
             onError={() => setErrored(true)}
             onLoadedData={() => setLoaded(true)}
             controls
             preload="metadata"
-            className={clsx('block w-full h-auto max-h-[70vh] rounded-xl', loaded ? 'opacity-100' : 'opacity-0')}
+            className={clsx('block w-full h-auto max-h-[400px] rounded-lg', loaded ? 'opacity-100' : 'opacity-0')}
           />
         </div>
         {caption ? (
-          <p className={clsx('text-[12px] opacity-90', isMine ? 'text-white/90' : 'text-[#E9EDEF]/90')}>{caption}</p>
+          <p className={clsx('text-[13px] opacity-90 mt-1', isMine ? 'text-white' : 'text-zinc-200')}>{caption}</p>
         ) : null}
         {time ? <span className={timeClass}>{time}</span> : null}
       </div>
     );
   }
 
+  // Documento
   return (
-    <div className="flex flex-col gap-1 max-w-full">
-      <div className="flex items-center gap-2 min-w-0">
-        <a
-          href={url}
-          target="_blank"
-          rel="noreferrer"
-          className={clsx('underline hover:opacity-90 text-[13px] truncate', isMine ? 'text-white' : 'text-[#9DE1FE]')}
-          title={mime || 'documento'}
-        >
-          Descargar documento
-        </a>
-        {caption ? (
-          <span className={clsx('text-[12px] opacity-90 truncate', isMine ? 'text-white/90' : 'text-[#E9EDEF]/90')}>
-            — {caption}
-          </span>
-        ) : null}
+    <div className="flex flex-col gap-1 max-w-full min-w-[220px]">
+      <div className={clsx(
+          "flex items-center gap-3 p-3 rounded-xl border transition-colors",
+          isMine 
+            ? "bg-indigo-700/30 border-indigo-500/30 hover:bg-indigo-700/50" 
+            : "bg-zinc-900/50 border-white/5 hover:bg-zinc-900/80"
+      )}>
+        <div className={clsx("p-2.5 rounded-lg shrink-0", isMine ? "bg-white/20 text-white" : "bg-zinc-800 text-zinc-400")}>
+            <FiFile className="w-5 h-5" />
+        </div>
+        <div className="flex-1 min-w-0">
+            <a
+                href={url}
+                target="_blank"
+                rel="noreferrer"
+                className={clsx('text-sm font-medium truncate block hover:underline', isMine ? 'text-white' : 'text-indigo-400')}
+                title={mime || 'documento'}
+            >
+                {caption || 'Documento adjunto'}
+            </a>
+            <span className={clsx("text-[10px] uppercase", isMine ? "text-indigo-200" : "text-zinc-500")}>
+                {mime ? mime.split('/')[1] : 'FILE'}
+            </span>
+        </div>
       </div>
       {time ? <span className={timeClass}>{time}</span> : null}
     </div>
