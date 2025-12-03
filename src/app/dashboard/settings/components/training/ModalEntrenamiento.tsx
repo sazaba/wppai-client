@@ -5,7 +5,8 @@ import { Dialog } from '@headlessui/react'
 import { AnimatePresence, motion } from 'framer-motion'
 import axios from 'axios'
 import { useRouter } from 'next/navigation'
-import { X, Lock, Calendar, Bot, RotateCcw, Pencil } from 'lucide-react'
+import { X, Lock, Calendar, Bot, RotateCcw, Pencil, Sparkles, AlertTriangle, CheckCircle2 } from 'lucide-react'
+import clsx from 'clsx'
 
 import AgentForm from './AgentForm'
 
@@ -276,28 +277,34 @@ export default function ModalEntrenamiento({
     }
   }
 
-  /* =================== UI =================== */
+  /* =================== UI PREMIUM =================== */
 
   const lockBanner = useMemo(() => {
     const text =
       lockedBy === 'agente'
-        ? 'Entrenamiento bloqueado por configuración de Agente (bloqueo frontend).'
+        ? 'Entrenamiento bloqueado por configuración de Agente.'
         : lockedBy === 'estetica'
-        ? 'Entrenamiento bloqueado por configuración de Estética (bloqueo frontend).'
+        ? 'Entrenamiento bloqueado por configuración de Estética.'
         : null
     if (!text) return null
     return (
-      <div className="mb-3 flex items-center justify-between gap-3 rounded-xl border border-amber-600/40 bg-amber-900/20 px-3 py-2 text-amber-200">
-        <span className="text-sm flex items-center gap-2">
-          <Lock className="w-4 h-4" /> {text}
-        </span>
+      <div className="mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 rounded-2xl border border-amber-500/20 bg-amber-500/10 p-4 shadow-lg shadow-amber-900/10">
+        <div className="flex items-center gap-3">
+            <div className="p-2 rounded-full bg-amber-500/20 text-amber-400 shrink-0">
+                <Lock className="w-5 h-5" />
+            </div>
+            <div>
+                <p className="text-sm font-semibold text-amber-200">Modo Restringido</p>
+                <p className="text-xs text-amber-200/70">{text}</p>
+            </div>
+        </div>
         <button
           type="button"
           onClick={reiniciarEntrenamiento}
-          className="px-3 py-1.5 rounded-lg text-sm bg-amber-600 hover:bg-amber-700 text-white"
+          className="whitespace-nowrap px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wide bg-amber-600 hover:bg-amber-500 text-white shadow-md transition-all"
           disabled={saving}
         >
-          {saving ? 'Reiniciando…' : 'Reiniciar entrenamiento'}
+          {saving ? 'Reiniciando…' : 'Reiniciar Todo'}
         </button>
       </div>
     )
@@ -305,33 +312,37 @@ export default function ModalEntrenamiento({
 
   // Barra de acciones rápidas para Estética ya configurada
   const esteticaActionBar = esteticaConfigured ? (
-    <div className="mb-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 rounded-xl border border-emerald-700/40 bg-emerald-900/15 px-3 py-3">
-      <div className="text-sm text-emerald-200">
-        Estética ya está configurado. Puedes editar o reiniciar esta configuración.
+    <div className="mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-4 shadow-lg">
+      <div className="flex items-center gap-3">
+         <div className="p-2 rounded-full bg-emerald-500/20 text-emerald-400 shrink-0">
+             <CheckCircle2 className="w-5 h-5" />
+         </div>
+         <div>
+            <p className="text-sm font-semibold text-emerald-200">Estética Configurada</p>
+            <p className="text-xs text-emerald-200/70">El módulo de citas está activo y funcionando.</p>
+         </div>
       </div>
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 w-full sm:w-auto">
         <button
           type="button"
           onClick={() => {
             router.push('/dashboard/settings/estetica')
             close()
           }}
-          className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm bg-slate-700 hover:bg-slate-600 text-white border border-slate-600"
+          className="flex-1 sm:flex-none inline-flex justify-center items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wide bg-zinc-800 hover:bg-zinc-700 text-white border border-white/10 transition-all"
           disabled={saving}
-          aria-label="Editar Estética"
         >
-          <Pencil className="w-4 h-4" />
+          <Pencil className="w-3.5 h-3.5" />
           Editar
         </button>
         <button
           type="button"
           onClick={resetEsteticaOnly}
-          className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm bg-emerald-700 hover:bg-emerald-800 text-white"
+          className="flex-1 sm:flex-none inline-flex justify-center items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wide bg-emerald-600 hover:bg-emerald-500 text-white shadow-md transition-all"
           disabled={saving}
-          aria-label="Reiniciar Estética"
         >
-          <RotateCcw className="w-4 h-4" />
-          {saving ? 'Reiniciando…' : 'Reiniciar'}
+          <RotateCcw className="w-3.5 h-3.5" />
+          {saving ? '...' : 'Reiniciar'}
         </button>
       </div>
     </div>
@@ -345,121 +356,167 @@ export default function ModalEntrenamiento({
     desc,
     disabled,
     onOpen,
+    colorClass = "text-indigo-400 bg-indigo-500/10 border-indigo-500/20"
   }: {
     icon: React.ReactNode
     title: string
     desc: string
     disabled?: boolean
     onOpen: () => void
+    colorClass?: string
   }) => (
     <button
       type="button"
       onClick={onOpen}
       disabled={!!disabled}
-      className={[
-        'group rounded-2xl border p-5 text-left transition',
+      className={clsx(
+        'group relative overflow-hidden rounded-[2rem] border p-6 text-left transition-all duration-300 h-full flex flex-col justify-between',
         disabled
-          ? 'border-slate-800 bg-slate-800/30 text-slate-400 cursor-not-allowed'
-          : 'border-slate-800 bg-slate-800/40 hover:bg-slate-800/70',
-      ].join(' ')}
+          ? 'border-white/5 bg-zinc-900/30 opacity-50 cursor-not-allowed'
+          : 'border-white/10 bg-zinc-900/60 hover:bg-zinc-800/80 hover:border-indigo-500/30 hover:shadow-2xl hover:-translate-y-1'
+      )}
     >
-      <div className="flex items-center gap-3 mb-2">
-        <div className="p-2 rounded-xl bg-slate-700/30 border border-slate-700">{icon}</div>
-        <div className="text-lg font-medium">{title}</div>
+      {/* Gradiente Hover */}
+      {!disabled && <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />}
+      
+      <div>
+        <div className={clsx("w-12 h-12 rounded-2xl flex items-center justify-center mb-4 border transition-transform group-hover:scale-110 duration-300", colorClass)}>
+            {icon}
+        </div>
+        <h3 className="text-lg font-bold text-white mb-2 tracking-tight">{title}</h3>
+        <p className="text-sm text-zinc-400 leading-relaxed">{desc}</p>
       </div>
-      <p className="text-sm text-slate-300">{desc}</p>
+
+      <div className="mt-6 flex items-center text-xs font-bold uppercase tracking-widest text-zinc-500 group-hover:text-white transition-colors">
+         Configurar <span className="ml-2 transition-transform group-hover:translate-x-1">→</span>
+      </div>
     </button>
   )
 
   return (
     <AnimatePresence>
       {open && (
-        <Dialog open={open} onClose={() => {}} className="relative z-50">
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" aria-hidden="true" />
-          <div className="fixed inset-0 flex items-center justify-center px-3 sm:px-6">
-            <Dialog.Panel
-              as={motion.div}
-              initial={{ opacity: 0, scale: 0.98, y: 8 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.98, y: 8 }}
-              className="w-full max-w-3xl bg-slate-900 text-white rounded-2xl p-4 sm:p-6 border border-slate-800 shadow-2xl overflow-y-auto max-h-[92vh]"
-            >
-              {/* header */}
-              <div className="flex items-center justify-between gap-3 mb-4">
-                <div className="px-2 py-1 rounded-lg bg-slate-800 text-xs font-medium border border-slate-700">
-                  Entrenamiento de IA
+        <Dialog open={open} onClose={() => {}} className="relative z-[100]">
+          
+          {/* Fondo Oscuro Blur */}
+          <motion.div 
+            initial={{ opacity: 0 }} 
+            animate={{ opacity: 1 }} 
+            exit={{ opacity: 0 }} 
+            className="fixed inset-0 bg-black/80 backdrop-blur-sm" 
+            aria-hidden="true" 
+          />
+
+          <div className="fixed inset-0 flex items-center justify-center p-4">
+            {/* CORRECCIÓN: Panel sin props de animación directa para evitar error de tipos */}
+            <Dialog.Panel className="w-full max-w-4xl rounded-[2.5rem]">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                className="bg-zinc-950 border border-white/10 rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col max-h-[90vh] relative"
+              >
+                {/* Header Modal */}
+                <div className="flex items-center justify-between px-8 py-6 border-b border-white/5 bg-zinc-900/50 backdrop-blur-md">
+                  <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-xl bg-indigo-600 text-white shadow-lg shadow-indigo-500/20">
+                          <Bot className="w-6 h-6" />
+                      </div>
+                      <div>
+                          <h2 className="text-xl font-bold text-white tracking-tight">Entrenamiento de IA</h2>
+                          <p className="text-xs text-zinc-400">Configura el comportamiento de tu asistente</p>
+                      </div>
+                  </div>
+                  <button
+                    onClick={close}
+                    className="p-2 rounded-full hover:bg-white/10 text-zinc-500 hover:text-white transition-colors"
+                  >
+                    <X className="w-6 h-6" />
+                  </button>
                 </div>
-                <button
-                  onClick={close}
-                  className="p-2 rounded-lg hover:bg-slate-800 border border-transparent hover:border-slate-700 transition"
-                  aria-label="Cerrar"
-                  type="button"
-                >
-                  <X className="w-5 h-5 text-slate-300" />
-                </button>
-              </div>
 
-              {lockBanner}
-              {esteticaActionBar}
+                {/* Contenido Scrollable */}
+                <div className="flex-1 overflow-y-auto p-6 md:p-8 relative">
+                  
+                  {/* Luces ambientales internas */}
+                  <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-[300px] bg-indigo-500/5 blur-[100px] pointer-events-none" />
 
-              {/* Cards internas solo si no se fuerza panel */}
-              {shouldShowCards && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-                  <Card
-                    icon={<Calendar className="w-5 h-5 text-emerald-300" />}
-                    title={esteticaConfigured ? 'Estética configurada' : 'Configurar Estética'}
-                    desc={
-                      esteticaConfigured
-                        ? 'Ya tienes Estética configurado. Usa los botones de arriba para editar o reiniciar.'
-                        : 'Define horarios, políticas, recordatorios y servicios.'
-                    }
-                    disabled={esteticaConfigured || lockedBy === 'agente' || saving}
-                    onOpen={() => {
-                      if (esteticaConfigured) return
-                      router.push('/dashboard/settings/estetica')
-                      close()
-                    }}
-                  />
-                  <Card
-                    icon={<Bot className="w-5 h-5 text-violet-300" />}
-                    title="Configurar Agente"
-                    desc="Define el modo, especialidad y prompts del agente."
-                    disabled={lockedBy === 'estetica' || saving}
-                    onOpen={() => setInternalPanel('agente')}
-                  />
-                </div>
-              )}
+                  <div className="relative z-10">
+                      {lockBanner}
+                      {esteticaActionBar}
 
-              {/* Formulario AGENTE */}
-              {effectivePanel === 'agente' && (
-                <div className={lockedBy === 'estetica' ? 'pointer-events-none opacity-50' : ''}>
-                  <AgentForm
-                    key={`agent-${uiEpoch}`}
-                    value={{
-                      aiMode: form.aiMode,
-                      agentSpecialty: form.agentSpecialty,
-                      agentPrompt: form.agentPrompt,
-                      agentScope: form.agentScope,
-                      agentDisclaimers: form.agentDisclaimers,
-                    }}
-                    onChange={(patch) => setForm((prev) => ({ ...prev, ...patch }))}
-                  />
+                      {/* Cards de Selección */}
+                      {shouldShowCards && (
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+                              <Card
+                                  icon={<Calendar className="w-6 h-6" />}
+                                  title={esteticaConfigured ? 'Estética (Activa)' : 'Módulo de Estética'}
+                                  desc={esteticaConfigured ? 'Gestiona configuraciones avanzadas.' : 'Especializado para clínicas: Citas, recordatorios y catálogo de servicios.'}
+                                  disabled={esteticaConfigured || lockedBy === 'agente' || saving}
+                                  colorClass="bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                                  onOpen={() => {
+                                  if (esteticaConfigured) return
+                                  router.push('/dashboard/settings/estetica')
+                                  close()
+                                  }}
+                              />
+                              <Card
+                                  icon={<Sparkles className="w-6 h-6" />}
+                                  title="Agente Personalizado"
+                                  desc="Crea un asistente a medida con tus propias instrucciones, alcance y personalidad."
+                                  disabled={lockedBy === 'estetica' || saving}
+                                  colorClass="bg-violet-500/10 text-violet-400 border-violet-500/20"
+                                  onOpen={() => setInternalPanel('agente')}
+                              />
+                          </div>
+                      )}
 
-                  <div className="mt-6 flex items-center justify-end">
-                    <button
-                      onClick={async () => {
-                        await guardarAgente()
-                        close()
-                      }}
-                      disabled={saving || lockedBy === 'estetica'}
-                      className="px-4 py-2 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-sm disabled:opacity-60"
-                      type="button"
-                    >
-                      {saving ? 'Guardando…' : lockedBy === 'estetica' ? 'Bloqueado' : 'Guardar'}
-                    </button>
+                      {/* Formulario AGENTE (Incrustado) */}
+                      {effectivePanel === 'agente' && (
+                          <motion.div 
+                              initial={{ opacity: 0, y: 20 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              className={clsx(
+                                  "rounded-3xl border border-white/5 bg-zinc-900/40 p-6 md:p-8",
+                                  lockedBy === 'estetica' ? 'pointer-events-none opacity-50 grayscale' : ''
+                              )}
+                          >
+                              <AgentForm
+                                  key={`agent-${uiEpoch}`}
+                                  value={{
+                                      aiMode: form.aiMode,
+                                      agentSpecialty: form.agentSpecialty,
+                                      agentPrompt: form.agentPrompt,
+                                      agentScope: form.agentScope,
+                                      agentDisclaimers: form.agentDisclaimers,
+                                  }}
+                                  onChange={(patch) => setForm((prev) => ({ ...prev, ...patch }))}
+                              />
+
+                              <div className="mt-8 flex items-center justify-end gap-4 pt-6 border-t border-white/5">
+                                  <button 
+                                      onClick={close}
+                                      className="text-sm text-zinc-400 hover:text-white px-4 py-2 transition-colors"
+                                  >
+                                      Cancelar
+                                  </button>
+                                  <button
+                                      onClick={async () => {
+                                          await guardarAgente()
+                                          close()
+                                      }}
+                                      disabled={saving || lockedBy === 'estetica'}
+                                      className="px-8 py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white text-sm font-bold shadow-lg shadow-indigo-900/20 transition-all transform hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed"
+                                  >
+                                      {saving ? 'Guardando...' : lockedBy === 'estetica' ? 'Bloqueado' : 'Guardar Agente'}
+                                  </button>
+                              </div>
+                          </motion.div>
+                      )}
                   </div>
                 </div>
-              )}
+              </motion.div>
             </Dialog.Panel>
           </div>
         </Dialog>
