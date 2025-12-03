@@ -5,14 +5,15 @@ import { useRouter } from 'next/navigation'
 import axios from 'axios'
 import { 
   Search, ShieldAlert, CreditCard, Users, MessageSquare, 
-  Calendar, MoreVertical, KeyRound, RefreshCw, 
-  CheckCircle2, XCircle, AlertTriangle, ArrowUpRight
+  Calendar, KeyRound, RefreshCw, 
+  CheckCircle2, XCircle, AlertTriangle, Trash2, ArrowUpRight
 } from 'lucide-react'
 import Swal from 'sweetalert2'
 import clsx from 'clsx'
 import { useAuth } from '../../context/AuthContext'
 
-// 🔒 CONFIGURACIÓN DE SEGURIDAD MAESTRA
+// 🔒 LISTA MAESTRA DE CORREOS AUTORIZADOS
+// Asegúrate de que tu correo esté aquí tal cual como te logueas (minúsculas)
 const SUPER_ADMIN_EMAILS = [
     'tu_correo_real@gmail.com', 
     'administrador@gmail.com'
@@ -20,16 +21,20 @@ const SUPER_ADMIN_EMAILS = [
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL
 
-// Estilos Dark para SweetAlert
+// --- Estilos Dark Premium para SweetAlert ---
 const DarkSwal = Swal.mixin({
-  background: '#09090b',
-  color: '#e4e4e7',
-  iconColor: '#6366f1',
+  background: '#09090b', // zinc-950
+  color: '#e4e4e7',      // zinc-200
+  iconColor: '#6366f1',  // indigo-500
+  buttonsStyling: false,
   customClass: {
     popup: 'rounded-2xl border border-white/10 shadow-2xl bg-zinc-900/95 backdrop-blur-xl',
     title: 'text-xl font-bold text-white',
-    confirmButton: 'bg-indigo-600 text-white px-4 py-2 rounded-lg font-bold',
-    cancelButton: 'bg-zinc-700 text-white px-4 py-2 rounded-lg'
+    htmlContainer: 'text-sm text-zinc-400',
+    input: 'bg-black border border-zinc-700 text-white rounded-xl focus:ring-2 focus:ring-indigo-500',
+    confirmButton: 'bg-indigo-600 hover:bg-indigo-500 text-white px-6 py-2.5 rounded-xl font-bold mx-2 transition-all',
+    cancelButton: 'bg-zinc-800 hover:bg-zinc-700 border border-white/10 text-white px-6 py-2.5 rounded-xl mx-2 transition-all',
+    actions: 'mt-4'
   }
 })
 
@@ -66,7 +71,7 @@ export default function SuperAdminPage() {
     if (authLoading) return 
 
     // Si no hay usuario o el email no está en la lista blanca -> Echar fuera
-    if (!usuario || !SUPER_ADMIN_EMAILS.includes(usuario.email)) {
+    if (!usuario || !SUPER_ADMIN_EMAILS.includes(usuario.email.toLowerCase())) {
       router.replace('/dashboard') 
     }
   }, [usuario, authLoading, router])
@@ -85,7 +90,7 @@ export default function SuperAdminPage() {
       DarkSwal.fire({
         icon: 'error',
         title: 'Acceso Denegado',
-        text: 'No tienes permisos de SuperAdmin.',
+        text: 'No tienes permisos de SuperAdmin o falló la conexión.',
         iconColor: '#ef4444'
       })
     } finally {
@@ -94,8 +99,8 @@ export default function SuperAdminPage() {
   }
 
   useEffect(() => {
-    // Solo cargar datos si es el superadmin
-    if (usuario && SUPER_ADMIN_EMAILS.includes(usuario.email)) {
+    // Solo cargar datos si es el superadmin confirmado
+    if (usuario && SUPER_ADMIN_EMAILS.includes(usuario.email.toLowerCase())) {
         refreshData()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -110,7 +115,7 @@ export default function SuperAdminPage() {
     )
   }, [companies, search])
 
-  // 🛠️ Handler para resetear contraseña DIRECTAMENTE
+  // 🛠️ Handler: Resetear contraseña
   const handleResetPassword = async (company: CompanyData) => {
     if (!company.adminUser) {
       return DarkSwal.fire({ icon: 'warning', title: 'Sin Admin', text: 'Esta empresa no tiene usuario admin.' })
@@ -119,23 +124,25 @@ export default function SuperAdminPage() {
     const { value: newPass } = await DarkSwal.fire({
       title: 'Cambio Directo de Contraseña',
       html: `
-        <div class="text-left text-sm text-zinc-400 mb-4">
+        <div class="text-left text-sm text-zinc-400 mb-6">
           Estás cambiando la contraseña maestra para: <br/>
-          <strong class="text-white text-lg">${company.nombre}</strong>
-          <div class="mt-2 p-2 bg-indigo-500/10 border border-indigo-500/20 rounded-lg flex items-center gap-2 text-indigo-300 font-mono text-xs">
-             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          <strong class="text-white text-lg block mt-1">${company.nombre}</strong>
+          <div class="mt-3 p-3 bg-indigo-500/10 border border-indigo-500/20 rounded-xl flex items-center gap-2 text-indigo-300 font-mono text-xs">
+             <span class="p-1 bg-indigo-500/20 rounded">User</span>
              ${company.adminUser.email}
           </div>
         </div>
-        <label class="block text-xs text-zinc-500 mb-1 text-left uppercase tracking-wide font-bold">Nueva Contraseña</label>
-        <input 
-            id="swal-input1" 
-            type="text" 
-            class="w-full bg-black border border-zinc-700 text-white text-center text-lg py-3 rounded-xl focus:outline-none focus:border-indigo-500 transition-colors font-mono" 
-            placeholder="Ingresa nueva clave" 
-            value="Wasaaa${new Date().getFullYear()}!" 
-        />
-        <p class="text-[10px] text-zinc-500 mt-2 text-right">El usuario podrá entrar con esta clave inmediatamente.</p>
+        <div class="text-left">
+            <label class="block text-[10px] uppercase tracking-widest text-zinc-500 font-bold mb-1 ml-1">Nueva Contraseña</label>
+            <input 
+                id="swal-input1" 
+                type="text" 
+                class="w-full bg-zinc-950 border border-zinc-800 text-white text-center text-lg py-3 rounded-xl focus:outline-none focus:border-indigo-500 transition-colors font-mono shadow-inner" 
+                placeholder="Ingresa nueva clave" 
+                value="Wasaaa${new Date().getFullYear()}!" 
+            />
+        </div>
+        <p class="text-[10px] text-zinc-500 mt-3 text-center">El usuario podrá entrar con esta clave inmediatamente.</p>
       `,
       focusConfirm: false,
       showCancelButton: true,
@@ -155,19 +162,90 @@ export default function SuperAdminPage() {
             { headers: { Authorization: `Bearer ${token}` } }
         )
         
-        // Confirmación visual con la clave para copiarla
         DarkSwal.fire({
            title: '¡Contraseña Actualizada!', 
            html: `
-             <p class="text-zinc-400 text-sm mb-2">Copia y envía esta clave al cliente:</p>
-             <div class="bg-zinc-950 p-3 rounded-xl border border-zinc-800 font-mono text-xl text-white select-all cursor-pointer">
+             <p class="text-zinc-400 text-sm mb-4">Copia y envía esta clave al cliente:</p>
+             <div class="bg-black/50 p-4 rounded-2xl border border-white/10 font-mono text-xl text-white select-all cursor-pointer hover:border-emerald-500/50 transition-colors relative group">
                 ${newPass}
+                <span class="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-zinc-600 uppercase font-bold group-hover:text-emerald-500">Copiar</span>
              </div>
            `,
-           icon: 'success'
+           icon: 'success',
+           confirmButtonColor: '#10b981'
         })
       } catch (e) {
         DarkSwal.fire('Error', 'No se pudo actualizar en la base de datos.', 'error')
+      }
+    }
+  }
+
+  // 🧨 Handler: ELIMINAR EMPRESA (Destrucción total)
+  const handleDeleteCompany = async (company: CompanyData) => {
+    const confirmText = "BORRAR"
+    
+    const { value } = await DarkSwal.fire({
+      title: '¿ELIMINAR EMPRESA?',
+      icon: 'warning',
+      iconColor: '#ef4444',
+      html: `
+        <div class="text-sm text-zinc-400 mb-6 bg-red-950/20 border border-red-500/20 p-4 rounded-xl">
+          <p class="mb-2">Estás a punto de eliminar permanentemente a:</p>
+          <strong class="text-white text-xl block mb-4">${company.nombre}</strong>
+          <ul class="text-left text-xs text-red-300 space-y-1 list-disc list-inside opacity-80">
+            <li>Se borrarán todos los usuarios y chats.</li>
+            <li>Se eliminarán historial de citas y pagos.</li>
+            <li>Se perderá la configuración de IA.</li>
+          </ul>
+        </div>
+        <p class="text-xs mb-2 text-zinc-500 uppercase font-bold">Escribe <strong>"${confirmText}"</strong> para confirmar:</p>
+        <input id="swal-confirm" type="text" class="w-full bg-black/50 border border-red-900/50 text-red-500 font-bold text-center py-3 rounded-xl focus:outline-none focus:border-red-500 transition-all uppercase placeholder-red-900/30" placeholder="${confirmText}" />
+      `,
+      showCancelButton: true,
+      confirmButtonText: 'SÍ, ELIMINAR TODO',
+      confirmButtonColor: '#ef4444',
+      cancelButtonText: 'Cancelar, es muy peligroso',
+      focusCancel: true,
+      preConfirm: () => {
+        const val = (document.getElementById('swal-confirm') as HTMLInputElement).value
+        if (val !== confirmText) {
+          Swal.showValidationMessage(`Debes escribir ${confirmText} exactamente.`)
+        }
+        return val
+      }
+    })
+
+    if (value) {
+      try {
+        // Loader mientras borra
+        DarkSwal.fire({ 
+            title: 'Eliminando...', 
+            html: '<p class="text-sm text-zinc-400">Limpiando base de datos y desconectando servicios...</p>', 
+            allowOutsideClick: false,
+            showConfirmButton: false,
+            didOpen: () => Swal.showLoading() 
+        })
+
+        await axios.delete(`${API_URL}/api/superadmin/companies/${company.id}`, {
+            headers: { Authorization: `Bearer ${token}` }
+        })
+
+        await refreshData() // Recargar tabla
+        
+        DarkSwal.fire({ 
+            title: 'Eliminado', 
+            text: 'La empresa y todos sus datos han sido purgados del sistema.', 
+            icon: 'success',
+            confirmButtonColor: '#10b981'
+        })
+      } catch (e) {
+        console.error(e)
+        DarkSwal.fire({
+            icon: 'error', 
+            title: 'Error Crítico', 
+            text: 'No se pudo completar la eliminación. Revisa los logs del servidor.',
+            confirmButtonColor: '#ef4444'
+        })
       }
     }
   }
@@ -191,8 +269,15 @@ export default function SuperAdminPage() {
   const totalMsgs = companies.reduce((acc, curr) => acc + (curr.totalConversations || 0), 0)
 
   // 🔒 Bloqueo de renderizado
-  if (authLoading || !usuario || !SUPER_ADMIN_EMAILS.includes(usuario.email)) {
-    return null 
+  if (authLoading || !usuario || !SUPER_ADMIN_EMAILS.includes(usuario.email.toLowerCase())) {
+    return (
+        <div className="min-h-screen bg-zinc-950 flex items-center justify-center">
+            <div className="animate-pulse flex flex-col items-center gap-4">
+                <div className="h-12 w-12 rounded-full bg-zinc-900 border border-zinc-800"></div>
+                <div className="h-4 w-32 rounded bg-zinc-900"></div>
+            </div>
+        </div>
+    )
   }
 
   return (
@@ -374,12 +459,22 @@ export default function SuperAdminPage() {
                                         {/* Acciones */}
                                         <td className="p-6 align-middle text-right">
                                             <div className="flex justify-end gap-2">
+                                                {/* Cambiar Contraseña */}
                                                 <button 
                                                     onClick={() => handleResetPassword(company)}
-                                                    className="p-2 rounded-lg bg-zinc-800 hover:bg-red-500/20 text-zinc-400 hover:text-red-400 border border-white/5 transition-colors group relative"
+                                                    className="p-2 rounded-lg bg-zinc-800 hover:bg-amber-500/10 text-zinc-400 hover:text-amber-400 border border-white/5 transition-colors group relative"
                                                     title="Cambiar Contraseña Maestra"
                                                 >
                                                     <KeyRound className="w-4 h-4" />
+                                                </button>
+                                                
+                                                {/* ELIMINAR EMPRESA (Nuevo) */}
+                                                <button 
+                                                    onClick={() => handleDeleteCompany(company)}
+                                                    className="p-2 rounded-lg bg-zinc-800 hover:bg-red-500/20 text-zinc-400 hover:text-red-400 border border-white/5 transition-colors group relative"
+                                                    title="ELIMINAR EMPRESA Y DATOS"
+                                                >
+                                                    <Trash2 className="w-4 h-4" />
                                                 </button>
                                                 
                                                 <button 
