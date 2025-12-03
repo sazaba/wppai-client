@@ -32,7 +32,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL as string
 // 🔒 LISTA MAESTRA DE CORREOS (Debe coincidir con la de la página Superadmin)
 const SUPER_ADMIN_EMAILS = [
     'tu_correo_real@gmail.com', 
-    'admin@wasaaa.com'
+    'administrador@gmail.com'
 ]
 
 function getAuthHeaders(): Record<string, string> {
