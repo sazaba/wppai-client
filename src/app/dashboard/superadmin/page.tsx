@@ -207,7 +207,10 @@ export default function SuperAdminPage() {
       cancelButtonText: 'Cancelar, es muy peligroso',
       focusCancel: true,
       preConfirm: () => {
-        const val = (document.getElementById('swal-confirm') as HTMLInputElement).value
+        // CORRECCIÓN: Normalizar input (trim + upperCase) para evitar errores visuales
+        const input = document.getElementById('swal-confirm') as HTMLInputElement
+        const val = input.value.trim().toUpperCase()
+        
         if (val !== confirmText) {
           Swal.showValidationMessage(`Debes escribir ${confirmText} exactamente.`)
         }
