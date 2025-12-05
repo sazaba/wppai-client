@@ -21,7 +21,7 @@ export type AppointmentDay = {
 export type AppointmentConfigValue = {
   appointmentTimezone: string;
 
-  // ✅ NUEVO: Agregado para habilitar la agenda por defecto
+  // ✅ NUEVO: Campos agregados para manejar la lógica operativa
   appointmentEnabled?: boolean;
   allowSameDayBooking?: boolean;
   appointmentMinNoticeHours?: number | null;
@@ -469,33 +469,32 @@ export function EsteticaForm({ value, onChange }: Props) {
 export default function EsteticaFormSmart({ empresaId }: { empresaId?: number }) {
   const { value, setValue, loading, saving, save, reload } = useEsteticaConfig(empresaId);
 
-  // ✅ CORRECCIÓN FINAL: Usamos `prev: any` para evitar conflicto con el tipo del Hook
+  // ✅ AUTO-FIX: Corrige la configuración restrictiva por defecto
   useEffect(() => {
     if (loading) return;
 
     setValue((prev: any) => {
-      // 1. Habilitar agenda si está apagada (undefined o false)
-      const forceEnabled = !prev.appointmentEnabled;
+      // 1. Agenda activada
+      const needsFixEnabled = !prev.appointmentEnabled;
+      // 2. Mismo día permitido (si estaba false o undefined)
+      const needsFixSameDay = !prev.allowSameDayBooking; 
+      // 3. Avance máximo 90 días (si estaba 0 o undefined)
+      const needsFixMaxDay = !prev.appointmentMaxAdvanceDays; 
+      // 4. Aviso mínimo 0 (si estaba null)
+      const needsFixNotice = prev.appointmentMinNoticeHours == null;
 
-      // 2. Permitir mismo día (si está false o undefined)
-      const forceSameDay = !prev.allowSameDayBooking; 
-      
-      // 3. Quitar tiempo mínimo de aviso (si está null/undefined)
-      const forceNotice = prev.appointmentMinNoticeHours == null;
+      // Si todo está correcto, no hacemos nada
+      if (!needsFixEnabled && !needsFixSameDay && !needsFixMaxDay && !needsFixNotice) {
+          return prev;
+      }
 
-      // 4. Arreglar bloqueo de fechas futuras (si es 0 o null)
-      const forceAdvance = prev.appointmentMaxAdvanceDays === 0 || prev.appointmentMaxAdvanceDays == null;
-
-      // Si todo está bien configurado, no hacemos nada para evitar loops
-      if (!forceEnabled && !forceSameDay && !forceNotice && !forceAdvance) return prev;
-
-      // Aplicamos TODAS las correcciones
+      // Inyectamos valores permisivos (1 y 90)
       return {
         ...prev,
-        appointmentEnabled: true,            // Habilitar agenda (1)
-        allowSameDayBooking: true,           // Permitir hoy
-        appointmentMinNoticeHours: 0,        // Sin espera mínima
-        appointmentMaxAdvanceDays: 30,       // Ventana de 30 días
+        appointmentEnabled: true,
+        allowSameDayBooking: true,
+        appointmentMinNoticeHours: 0,
+        appointmentMaxAdvanceDays: 90, // ✅ Fijado en 90 días como pediste
       };
     });
   }, [loading, setValue]);
