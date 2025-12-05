@@ -12,8 +12,8 @@ import {
   Calendar,
   CreditCard,
   ShieldAlert,
-  Menu, // Icono para el botón móvil
-  X // Icono cerrar
+  Menu,
+  X
 } from "lucide-react"
 import { useState, useEffect, useMemo } from "react"
 import { useRouter, usePathname } from "next/navigation"
@@ -48,9 +48,8 @@ function getAuthHeaders(): Record<string, string> {
 /* ===================== Layout Dashboard ===================== */
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-  // 1. Estado separado para Desktop y Móvil
-  const [desktopOpen, setDesktopOpen] = useState(false) // Por defecto CERRADO en escritorio
-  const [mobileOpen, setMobileOpen] = useState(false)   // Por defecto CERRADO en móvil
+  const [desktopOpen, setDesktopOpen] = useState(false)
+  const [mobileOpen, setMobileOpen] = useState(false)
 
   const { isAuthenticated, usuario } = useAuth()
   const router = useRouter()
@@ -69,7 +68,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const isOrdersRoute = pathname?.startsWith("/dashboard/orders")
   const isAppointmentsRoute = pathname?.startsWith("/dashboard/appointments")
 
-  // Cerrar menú móvil al navegar
   useEffect(() => {
     setMobileOpen(false)
   }, [pathname])
@@ -120,7 +118,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     return <main className="min-h-screen bg-zinc-950 text-zinc-100">{children}</main>
   }
 
-  // Componente de Navegación (Reutilizable para Desktop y Móvil)
   const NavContent = ({ isOpenMode }: { isOpenMode: boolean }) => (
     <>
       <div className={clsx("flex items-center h-20 border-b border-white/5", isOpenMode ? "px-6" : "justify-center px-2")}>
@@ -218,13 +215,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <AnimatePresence>
           {mobileOpen && (
             <>
-              {/* Backdrop */}
               <motion.div 
                 initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                 onClick={() => setMobileOpen(false)}
                 className="fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm md:hidden"
               />
-              {/* Drawer */}
               <motion.aside
                 initial={{ x: "-100%" }}
                 animate={{ x: 0 }}
@@ -259,25 +254,25 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <div
             className={clsx(
               "flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-transparent",
-              isChatRoute || isOrdersRoute || isAppointmentsRoute ? "p-0" : "p-4 sm:p-8 pb-24 md:pb-8" // Extra padding bottom en móvil para el FAB
+              isChatRoute || isOrdersRoute || isAppointmentsRoute ? "p-0" : "p-4 sm:p-8 pb-24 md:pb-8" 
             )}
           >
             {children}
           </div>
         </main>
-
-        {/* === BOTÓN FLOTANTE MÓVIL (FAB) === */}
-        <div className="md:hidden fixed bottom-6 right-6 z-50">
-            <motion.button
-                whileTap={{ scale: 0.9 }}
-                onClick={() => setMobileOpen(true)}
-                className="flex items-center justify-center w-14 h-14 rounded-full bg-indigo-600 text-white shadow-[0_0_20px_rgba(79,70,229,0.5)] border border-indigo-400/30"
-            >
-                <Menu className="w-7 h-7" />
-            </motion.button>
-        </div>
-
       </div>
+
+      {/* === BOTÓN FLOTANTE MÓVIL (FAB) - FUERA DEL CONTENEDOR PRINCIPAL === */}
+      <div className="md:hidden fixed bottom-6 right-6 z-[100]">
+        <motion.button
+            whileTap={{ scale: 0.9 }}
+            onClick={() => setMobileOpen(true)}
+            className="flex items-center justify-center w-14 h-14 rounded-full bg-indigo-600 text-white shadow-[0_0_25px_rgba(79,70,229,0.6)] border border-indigo-400/30 backdrop-blur-md"
+        >
+            <Menu className="w-7 h-7" />
+        </motion.button>
+      </div>
+
     </>
   )
 }
