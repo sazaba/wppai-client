@@ -13,7 +13,7 @@ import {
   Zap,
   CreditCard,
   AlertTriangle,
-  TrendingUp,
+  TrendingUp, // Icono para mostrar crecimiento
   CheckCircle2
 } from 'lucide-react'
 import {
@@ -51,7 +51,6 @@ type SummaryResponse = {
 
 // Fetcher genérico con credenciales
 const fetcher = async (url: string) => {
-  // Quitamos la barra final si existe para evitar // en la url
   const cleanUrl = url.replace(/([^:]\/)\/+/g, "$1")
   const token = localStorage.getItem('token')
   
@@ -75,38 +74,37 @@ export default function DashboardPage() {
   const empresaId = empresa?.id
   
   // ===========================================================================
-  // 📡 DATA FETCHING (Estrategia Multi-Endpoint para Datos Reales)
+  // 📡 DATA FETCHING (Estrategia Multi-Endpoint)
   // ===========================================================================
 
-  // 1. Estado de Facturación (Plan y Créditos)
+  // 1. Estado de Facturación
   const { data: billingData, isLoading: loadBilling } = useSWR<BillingResponse>(
     isAuthenticated ? `${API}/api/billing/status` : null,
     fetcher
   )
 
-  // 2. Gráficos Históricos (Series)
+  // 2. Gráficos Históricos
   const { data: summaryData, isLoading: loadSummary } = useSWR<SummaryResponse>(
     isAuthenticated && empresaId ? `${API}/api/dashboard/summary?empresaId=${empresaId}` : null,
     fetcher,
     { revalidateOnFocus: false }
   )
 
-  // 3. Chats Activos (Fetch directo para precisión)
+  // 3. Chats Activos
   const { data: chatsData, isLoading: loadChats } = useSWR<any[]>(
     isAuthenticated ? `${API}/api/chats` : null,
     fetcher,
-    { refreshInterval: 10000 } // Polling cada 10s para ver nuevos chats
+    { refreshInterval: 10000 }
   )
 
-  // 4. Citas de HOY (Fetch directo filtrado)
-  // Calculamos rango de hoy para el query
-  const todayStart = new Date()
-  todayStart.setHours(0,0,0,0)
-  const todayEnd = new Date()
-  todayEnd.setHours(23,59,59,999)
+  // 4. Citas del MES ACTUAL (Corrección solicitada)
+  // Calculamos inicio y fin del mes corriente
+  const now = new Date()
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
+  const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999)
   
   const appointmentsQuery = isAuthenticated && empresaId 
-    ? `${API}/api/appointments?empresaId=${empresaId}&from=${todayStart.toISOString()}&to=${todayEnd.toISOString()}`
+    ? `${API}/api/appointments?empresaId=${empresaId}&from=${monthStart.toISOString()}&to=${monthEnd.toISOString()}`
     : null
 
   const { data: appointmentsData, isLoading: loadAppts } = useSWR<any[]>(
@@ -130,14 +128,13 @@ export default function DashboardPage() {
   const planName = billingData?.empresaPlan || 'gratis'
 
   // --- Operations Logic ---
-  // Contamos chats que NO estén cerrados
   const activeChatsCount = useMemo(() => {
     if (!Array.isArray(chatsData)) return 0
     return chatsData.filter(c => c.estado !== 'cerrado').length
   }, [chatsData])
 
-  // Contamos citas confirmadas o pendientes de hoy
-  const todayApptsCount = useMemo(() => {
+  // Contamos total de citas en el mes (confirmadas o pendientes)
+  const monthApptsCount = useMemo(() => {
     if (!Array.isArray(appointmentsData)) return 0
     return appointmentsData.length
   }, [appointmentsData])
@@ -197,7 +194,7 @@ export default function DashboardPage() {
               Hola, <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-purple-400">{empresa?.nombre || 'Admin'}</span>
             </h1>
             <p className="text-zinc-400 mt-2 text-base">
-              Aquí tienes el resumen de tu operación hoy.
+              Resumen de rendimiento y consumo en tiempo real.
             </p>
           </div>
 
@@ -215,7 +212,7 @@ export default function DashboardPage() {
       {/* Grid Principal (Billing + Operativo) */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         
-        {/* 1. Tarjeta de Plan (Billing) */}
+        {/* 1. Tarjeta de Plan */}
         <Card className="flex flex-col justify-between border-indigo-500/30 bg-indigo-900/10">
             <div className="flex items-center justify-between mb-4">
                 <div className="p-3 rounded-2xl bg-indigo-500/20 text-indigo-300">
@@ -236,7 +233,7 @@ export default function DashboardPage() {
             </div>
         </Card>
 
-        {/* 2. Tarjeta de Créditos (Billing) */}
+        {/* 2. Tarjeta de Créditos */}
         <Card className="flex flex-col justify-between relative overflow-hidden">
             <div className="flex items-center justify-between mb-4 relative z-10">
                 <div className={`p-3 rounded-2xl ${isLimitNear ? 'bg-amber-500/10 text-amber-400' : 'bg-cyan-500/10 text-cyan-400'}`}>
@@ -259,7 +256,7 @@ export default function DashboardPage() {
             </div>
         </Card>
 
-        {/* 3. Chats Activos (Operativo) */}
+        {/* 3. Chats Activos (En Vivo) */}
         <Card className="flex flex-col justify-between">
             <div className="flex items-center justify-between mb-4">
                 <div className="p-3 rounded-2xl bg-emerald-500/10 text-emerald-400">
@@ -277,21 +274,25 @@ export default function DashboardPage() {
             </div>
         </Card>
 
-        {/* 4. Citas Hoy (Operativo) */}
-        <Card className="flex flex-col justify-between">
+        {/* 4. Citas del Mes (KPI Corregido) */}
+        <Card className="flex flex-col justify-between border-purple-500/20">
             <div className="flex items-center justify-between mb-4">
                 <div className="p-3 rounded-2xl bg-purple-500/10 text-purple-400">
                     <CalendarDays className="w-6 h-6" />
                 </div>
                 <div className="text-xs font-medium text-purple-400 flex items-center gap-1 bg-purple-500/10 px-2 py-1 rounded-lg">
-                    <CheckCircle2 className="w-3 h-3" /> Hoy
+                    <TrendingUp className="w-3 h-3" /> Mes Actual
                 </div>
             </div>
             <div>
                 <p className="text-zinc-400 text-sm font-medium">Citas Agendadas</p>
-                <p className="text-white text-3xl font-bold tracking-tight mt-1">
-                    {todayApptsCount}
-                </p>
+                <div className="flex items-baseline gap-2">
+                    <p className="text-white text-3xl font-bold tracking-tight mt-1">
+                        {monthApptsCount}
+                    </p>
+                    {/* Indicador visual sutil */}
+                    <span className="text-[10px] text-zinc-500 uppercase font-semibold tracking-wider">Este mes</span>
+                </div>
             </div>
         </Card>
       </div>
