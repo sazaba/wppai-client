@@ -1,4 +1,5 @@
-import TestManager from "../Test/TestManager"
+import TestManager from "../test/TestManager"
+
 
 export const metadata = {
   title: "Test de Conexión | Wasaaa",
