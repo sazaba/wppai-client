@@ -17,11 +17,11 @@ export type AppointmentDay = {
   end2: string | null;
 };
 
-/** Valor del formulario (UI) — versión depurada */
+/** Valor del formulario (UI) — versión completa con campos operativos */
 export type AppointmentConfigValue = {
   appointmentTimezone: string;
 
-  // ✅ NUEVO: Campos agregados para manejar la lógica operativa
+  // ✅ CAMPOS OPERATIVOS (Estos se gestionan "por detrás")
   appointmentEnabled?: boolean;
   allowSameDayBooking?: boolean;
   appointmentMinNoticeHours?: number | null;
@@ -38,7 +38,7 @@ export type AppointmentConfigValue = {
   kb?: {
     businessOverview?: string | null;
     faqs?: Array<{ q: string; a: string }> | null;
-    faqsText?: string | null; // compat
+    faqsText?: string | null;
     freeText?: string | null;
   };
 
@@ -469,32 +469,38 @@ export function EsteticaForm({ value, onChange }: Props) {
 export default function EsteticaFormSmart({ empresaId }: { empresaId?: number }) {
   const { value, setValue, loading, saving, save, reload } = useEsteticaConfig(empresaId);
 
-  // ✅ AUTO-FIX: Corrige la configuración restrictiva por defecto
+  // ✅ AUTO-FIX: Corrige los valores restrictivos (0 o false) al cargar
   useEffect(() => {
     if (loading) return;
 
     setValue((prev: any) => {
-      // 1. Agenda activada
-      const needsFixEnabled = !prev.appointmentEnabled;
-      // 2. Mismo día permitido (si estaba false o undefined)
-      const needsFixSameDay = !prev.allowSameDayBooking; 
-      // 3. Avance máximo 90 días (si estaba 0 o undefined)
-      const needsFixMaxDay = !prev.appointmentMaxAdvanceDays; 
-      // 4. Aviso mínimo 0 (si estaba null)
-      const needsFixNotice = prev.appointmentMinNoticeHours == null;
+      // Leemos los valores actuales (pueden ser 0, false, null o undefined)
+      const currentEnabled = prev.appointmentEnabled;
+      const currentSameDay = prev.allowSameDayBooking;
+      const currentMaxAdvance = prev.appointmentMaxAdvanceDays;
 
-      // Si todo está correcto, no hacemos nada
-      if (!needsFixEnabled && !needsFixSameDay && !needsFixMaxDay && !needsFixNotice) {
+      // Detectamos si es necesario arreglar algo:
+      // - Si la agenda está apagada (!enabled -> true si es false/0/null)
+      // - Si mismo día es false/0 (!sameDay -> true)
+      // - Si avance es 0/null (!maxAdvance -> true)
+      const needsFixEnabled = !currentEnabled;
+      const needsFixSameDay = !currentSameDay;
+      const needsFixMaxDay = !currentMaxAdvance;
+
+      // Si todo está correcto (true, true, y > 0), no hacemos nada
+      if (!needsFixEnabled && !needsFixSameDay && !needsFixMaxDay) {
           return prev;
       }
 
-      // Inyectamos valores permisivos (1 y 90)
+      console.log("🛠️ Aplicando corrección automática de agenda...");
+
+      // Sobrescribimos el estado con valores seguros
       return {
         ...prev,
-        appointmentEnabled: true,
-        allowSameDayBooking: true,
-        appointmentMinNoticeHours: 0,
-        appointmentMaxAdvanceDays: 90, // ✅ Fijado en 90 días como pediste
+        appointmentEnabled: true,            // Forzar habilitado
+        allowSameDayBooking: true,           // Forzar mismo día
+        appointmentMaxAdvanceDays: 90,       // Forzar 90 días
+        appointmentMinNoticeHours: 0,        // Forzar 0 espera
       };
     });
   }, [loading, setValue]);
