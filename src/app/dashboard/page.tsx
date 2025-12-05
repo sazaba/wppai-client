@@ -1,52 +1,31 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useMemo } from 'react'
 import useSWR from 'swr'
 import { useRouter } from 'next/navigation'
-import Link from 'next/link' // 👈 Importante para navegación SPA
+import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { useAuth } from '../context/AuthContext'
 import {
   MessageSquare,
   CalendarDays,
-  CheckCircle2,
-  Bot,
   Activity,
   Zap,
   CreditCard,
-  AlertTriangle
+  AlertTriangle,
+  TrendingUp,
+  CheckCircle2
 } from 'lucide-react'
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer,
-  BarChart, Bar, PieChart, Pie, Cell, CartesianGrid
+  BarChart, Bar, Cell, CartesianGrid
 } from 'recharts'
+import clsx from 'clsx'
 
 // ⬇️ BASE del backend
 const API = process.env.NEXT_PUBLIC_API_URL || ''
 
-// Tipos de respuesta
-type SummaryResponse = {
-  kpis: {
-    chatsActivos: number
-    respIaSegsAvg: number | null
-    citasHoy: number
-    ingresosMes: number
-    convAgendadoPct: number
-    noShowMesPct: number
-    escaladosAgentePct: number
-    agentesConectados: number
-  }
-  series: {
-    messages7d: { day: string; count: number }[]
-    conversationsByStatus: { status: string; count: number }[]
-    topProcedures: { id: number; name: string; count: number }[]
-  }
-  health: {
-    whatsapp: { ok: boolean }
-    templates: { pending: number }
-    webhookErrors24h: number
-  }
-}
+// --- Tipos de Respuesta ---
 
 type BillingResponse = {
   empresaPlan: string
@@ -60,59 +39,114 @@ type BillingResponse = {
   }
 }
 
+type SummaryResponse = {
+  series: {
+    messages7d: { day: string; count: number }[]
+    conversationsByStatus: { status: string; count: number }[]
+  }
+  health: {
+    whatsapp: { ok: boolean }
+  }
+}
+
+// Fetcher genérico con credenciales
 const fetcher = async (url: string) => {
-  const r = await fetch(url, { credentials: 'include' })
-  if (!r.ok) throw new Error('Fetch error')
-  return r.json()
+  // Quitamos la barra final si existe para evitar // en la url
+  const cleanUrl = url.replace(/([^:]\/)\/+/g, "$1")
+  const token = localStorage.getItem('token')
+  
+  const res = await fetch(cleanUrl, { 
+    headers: token ? { Authorization: `Bearer ${token}` } : {} 
+  })
+  
+  if (!res.ok) throw new Error('Fetch error')
+  return res.json()
 }
 
 export default function DashboardPage() {
   const { empresa, isAuthenticated, loading } = useAuth()
   const router = useRouter()
 
+  // 🔐 Protección de ruta
   useEffect(() => {
     if (!loading && !isAuthenticated) router.replace('/login')
   }, [loading, isAuthenticated, router])
 
   const empresaId = empresa?.id
   
-  // 1. Cargar Resumen Operativo
-  const endpointSummary = isAuthenticated && empresaId ? `${API}/api/dashboard/summary?empresaId=${empresaId}` : null
-  const { data, isLoading, error } = useSWR<SummaryResponse>(endpointSummary, fetcher, { revalidateOnFocus: false })
+  // ===========================================================================
+  // 📡 DATA FETCHING (Estrategia Multi-Endpoint para Datos Reales)
+  // ===========================================================================
 
-  // 2. Cargar Datos de Facturación (Para mostrar créditos y plan)
-  const endpointBilling = isAuthenticated ? `${API}/api/billing/status` : null
-  const { data: billingData, isLoading: loadingBilling } = useSWR<BillingResponse>(endpointBilling, fetcher)
+  // 1. Estado de Facturación (Plan y Créditos)
+  const { data: billingData, isLoading: loadBilling } = useSWR<BillingResponse>(
+    isAuthenticated ? `${API}/api/billing/status` : null,
+    fetcher
+  )
 
-  if (loading || isLoading || loadingBilling) return <SkeletonDashboard />
-  if (!isAuthenticated) return null
-  if (error) {
-    return (
-      <div className="min-h-screen bg-zinc-950 p-8 flex items-center justify-center text-red-400 font-mono">
-        Error cargando datos. Verifica la conexión con el backend.
-      </div>
-    )
-  }
+  // 2. Gráficos Históricos (Series)
+  const { data: summaryData, isLoading: loadSummary } = useSWR<SummaryResponse>(
+    isAuthenticated && empresaId ? `${API}/api/dashboard/summary?empresaId=${empresaId}` : null,
+    fetcher,
+    { revalidateOnFocus: false }
+  )
 
-  const k = data?.kpis ?? {
-    chatsActivos: 0, respIaSegsAvg: null, citasHoy: 0, ingresosMes: 0,
-    convAgendadoPct: 0, noShowMesPct: 0, escaladosAgentePct: 0, agentesConectados: 0
-  }
+  // 3. Chats Activos (Fetch directo para precisión)
+  const { data: chatsData, isLoading: loadChats } = useSWR<any[]>(
+    isAuthenticated ? `${API}/api/chats` : null,
+    fetcher,
+    { refreshInterval: 10000 } // Polling cada 10s para ver nuevos chats
+  )
+
+  // 4. Citas de HOY (Fetch directo filtrado)
+  // Calculamos rango de hoy para el query
+  const todayStart = new Date()
+  todayStart.setHours(0,0,0,0)
+  const todayEnd = new Date()
+  todayEnd.setHours(23,59,59,999)
   
-  const seriesMensajes = data?.series.messages7d ?? []
-  const estadosBar = data?.series.conversationsByStatus?.map(s => ({ name: s.status, count: s.count })) ?? []
-  const yMaxEstados = Math.max(5, ...(estadosBar.map(e => e.count ?? 0))) * 1.2
+  const appointmentsQuery = isAuthenticated && empresaId 
+    ? `${API}/api/appointments?empresaId=${empresaId}&from=${todayStart.toISOString()}&to=${todayEnd.toISOString()}`
+    : null
 
-  const topProcedures = data?.series.topProcedures ?? []
+  const { data: appointmentsData, isLoading: loadAppts } = useSWR<any[]>(
+    appointmentsQuery,
+    fetcher,
+    { refreshInterval: 30000 }
+  )
 
-  // Datos Billing
+  // ===========================================================================
+  // 🧮 CÁLCULOS Y LÓGICA
+  // ===========================================================================
+
+  const isLoading = loading || loadBilling || loadSummary || loadChats || loadAppts
+
+  // --- Billing Logic ---
   const used = billingData?.usage?.used || 0
   const limit = billingData?.usage?.limit || 300
+  const remaining = Math.max(0, limit - used)
   const percent = Math.min(100, Math.round((used / limit) * 100))
   const isLimitNear = percent >= 80
   const planName = billingData?.empresaPlan || 'gratis'
 
-  // Paleta
+  // --- Operations Logic ---
+  // Contamos chats que NO estén cerrados
+  const activeChatsCount = useMemo(() => {
+    if (!Array.isArray(chatsData)) return 0
+    return chatsData.filter(c => c.estado !== 'cerrado').length
+  }, [chatsData])
+
+  // Contamos citas confirmadas o pendientes de hoy
+  const todayApptsCount = useMemo(() => {
+    if (!Array.isArray(appointmentsData)) return 0
+    return appointmentsData.length
+  }, [appointmentsData])
+
+  // --- Charts Logic ---
+  const seriesMensajes = summaryData?.series.messages7d ?? []
+  const estadosBar = summaryData?.series.conversationsByStatus?.map(s => ({ name: s.status.replace('_', ' '), count: s.count })) ?? []
+  
+  // Colores de gráficos
   const PIE_COLORS = ['#6366f1', '#8b5cf6', '#ec4899', '#10b981', '#f59e0b']
   
   const tooltipStyle = {
@@ -125,13 +159,11 @@ export default function DashboardPage() {
     padding: '8px 12px'
   }
 
-  const Badge = ({ ok, label }: { ok: boolean, label: string }) => (
-    <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 ${ok ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'}`}>
-      <span className={`w-1.5 h-1.5 rounded-full ${ok ? 'bg-emerald-400 animate-pulse' : 'bg-rose-400'}`} />
-      {label}
-    </span>
-  )
+  // Skeleton Loader
+  if (isLoading) return <SkeletonDashboard />
+  if (!isAuthenticated) return null
 
+  // UI Components Helpers
   const Card = ({ children, className = '' }: { children: React.ReactNode, className?: string }) => (
     <div className={`bg-zinc-900/40 backdrop-blur-xl border border-white/5 rounded-3xl p-6 shadow-xl relative overflow-hidden group hover:border-white/10 transition-colors ${className}`}>
       <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
@@ -139,36 +171,10 @@ export default function DashboardPage() {
     </div>
   )
 
-  const Kpi = ({ icon: Icon, label, value, suffix, color = 'indigo' }: { icon: any, label: string, value: string | number, suffix?: string, color?: string }) => {
-    const colorMap: Record<string, string> = {
-        indigo: 'bg-indigo-500/10 text-indigo-400',
-        emerald: 'bg-emerald-500/10 text-emerald-400',
-        amber: 'bg-amber-500/10 text-amber-400',
-        rose: 'bg-rose-500/10 text-rose-400',
-        cyan: 'bg-cyan-500/10 text-cyan-400',
-        purple: 'bg-purple-500/10 text-purple-400',
-    }
-
-    return (
-        <Card className="flex flex-col justify-between">
-            <div className="flex items-center justify-between mb-4">
-                <div className={`p-3 rounded-2xl ${colorMap[color] || colorMap.indigo}`}>
-                    <Icon className="w-6 h-6" />
-                </div>
-            </div>
-            <div>
-                <p className="text-zinc-400 text-sm font-medium">{label}</p>
-                <p className="text-white text-3xl font-bold tracking-tight mt-1">
-                    {value}{suffix && <span className="text-zinc-500 text-lg ml-1 font-normal">{suffix}</span>}
-                </p>
-            </div>
-        </Card>
-    )
-  }
-
   return (
     <div className="min-h-screen bg-zinc-950 p-4 sm:p-8 space-y-8 relative overflow-hidden">
       
+      {/* Luces Ambientales */}
       <div className="absolute top-0 left-0 w-[500px] h-[500px] bg-indigo-600/10 rounded-full blur-[120px] pointer-events-none" />
       <div className="absolute bottom-0 right-0 w-[500px] h-[500px] bg-purple-600/10 rounded-full blur-[120px] pointer-events-none" />
 
@@ -190,16 +196,14 @@ export default function DashboardPage() {
             <h1 className="text-3xl md:text-4xl font-bold text-white tracking-tight">
               Hola, <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-purple-400">{empresa?.nombre || 'Admin'}</span>
             </h1>
-            
-            <div className="flex flex-wrap gap-3 mt-4">
-              <Badge ok={!!data?.health?.whatsapp?.ok} label={`WhatsApp API`} />
-              {isLimitNear && <Badge ok={false} label="Créditos Bajos" />}
-            </div>
+            <p className="text-zinc-400 mt-2 text-base">
+              Aquí tienes el resumen de tu operación hoy.
+            </p>
           </div>
 
           <div className="flex gap-3">
             <Link href="/dashboard/chats" className="px-5 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-medium transition-all shadow-lg shadow-indigo-500/20 flex items-center gap-2">
-                <MessageSquare className="w-4 h-4" /> Chats
+                <MessageSquare className="w-4 h-4" /> Ir a Chats
             </Link>
             <Link href="/dashboard/appointments" className="px-5 py-3 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-white font-medium transition-colors border border-zinc-700 flex items-center gap-2">
                 <CalendarDays className="w-4 h-4" /> Calendario
@@ -208,31 +212,31 @@ export default function DashboardPage() {
         </div>
       </motion.div>
 
-      {/* KPIs Principales + Billing Info */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        {/* Operativos */}
-        <Kpi icon={MessageSquare} label="Chats Activos Hoy" value={k.chatsActivos ?? 0} color="indigo" />
-        <Kpi icon={CalendarDays} label="Citas Agendadas Hoy" value={k.citasHoy ?? 0} color="emerald" />
+      {/* Grid Principal (Billing + Operativo) */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         
-        {/* Información de Plan (Estilo KPI) */}
+        {/* 1. Tarjeta de Plan (Billing) */}
         <Card className="flex flex-col justify-between border-indigo-500/30 bg-indigo-900/10">
             <div className="flex items-center justify-between mb-4">
                 <div className="p-3 rounded-2xl bg-indigo-500/20 text-indigo-300">
                     <CreditCard className="w-6 h-6" />
                 </div>
                 <span className="text-xs font-bold uppercase tracking-wider text-indigo-300 bg-indigo-500/10 px-2 py-1 rounded-lg">
-                    {planName}
+                    Activo
                 </span>
             </div>
             <div>
-                <p className="text-indigo-200/70 text-sm font-medium">Plan Actual</p>
-                <p className="text-white text-xl font-bold tracking-tight mt-1 capitalize">
+                <p className="text-indigo-200/70 text-sm font-medium">Tu Plan</p>
+                <p className="text-white text-2xl font-bold tracking-tight mt-1 capitalize">
                     {planName === 'basic' ? 'Premium' : planName}
                 </p>
+                <Link href="/dashboard/billing" className="text-xs text-indigo-400 hover:text-indigo-300 mt-2 inline-block underline">
+                    Administrar suscripción →
+                </Link>
             </div>
         </Card>
 
-        {/* Información de Créditos (Barra de progreso) */}
+        {/* 2. Tarjeta de Créditos (Billing) */}
         <Card className="flex flex-col justify-between relative overflow-hidden">
             <div className="flex items-center justify-between mb-4 relative z-10">
                 <div className={`p-3 rounded-2xl ${isLimitNear ? 'bg-amber-500/10 text-amber-400' : 'bg-cyan-500/10 text-cyan-400'}`}>
@@ -242,8 +246,8 @@ export default function DashboardPage() {
             </div>
             <div className="relative z-10">
                 <div className="flex justify-between items-end mb-2">
-                    <p className="text-zinc-400 text-sm font-medium">Créditos Restantes</p>
-                    <p className="text-white font-bold">{limit - used}</p>
+                    <p className="text-zinc-400 text-sm font-medium">Créditos IA Restantes</p>
+                    <p className="text-white font-bold text-xl">{remaining}</p>
                 </div>
                 <div className="h-2 w-full bg-zinc-800 rounded-full overflow-hidden">
                     <div 
@@ -254,34 +258,60 @@ export default function DashboardPage() {
                 <p className="text-xs text-zinc-500 mt-2 text-right">{used} / {limit} usados</p>
             </div>
         </Card>
+
+        {/* 3. Chats Activos (Operativo) */}
+        <Card className="flex flex-col justify-between">
+            <div className="flex items-center justify-between mb-4">
+                <div className="p-3 rounded-2xl bg-emerald-500/10 text-emerald-400">
+                    <MessageSquare className="w-6 h-6" />
+                </div>
+                <div className="text-xs font-medium text-emerald-400 flex items-center gap-1 bg-emerald-500/10 px-2 py-1 rounded-lg">
+                    <Activity className="w-3 h-3" /> En vivo
+                </div>
+            </div>
+            <div>
+                <p className="text-zinc-400 text-sm font-medium">Chats Abiertos</p>
+                <p className="text-white text-3xl font-bold tracking-tight mt-1">
+                    {activeChatsCount}
+                </p>
+            </div>
+        </Card>
+
+        {/* 4. Citas Hoy (Operativo) */}
+        <Card className="flex flex-col justify-between">
+            <div className="flex items-center justify-between mb-4">
+                <div className="p-3 rounded-2xl bg-purple-500/10 text-purple-400">
+                    <CalendarDays className="w-6 h-6" />
+                </div>
+                <div className="text-xs font-medium text-purple-400 flex items-center gap-1 bg-purple-500/10 px-2 py-1 rounded-lg">
+                    <CheckCircle2 className="w-3 h-3" /> Hoy
+                </div>
+            </div>
+            <div>
+                <p className="text-zinc-400 text-sm font-medium">Citas Agendadas</p>
+                <p className="text-white text-3xl font-bold tracking-tight mt-1">
+                    {todayApptsCount}
+                </p>
+            </div>
+        </Card>
       </div>
 
-      {/* Fila 2: Métricas Secundarias (Opcionales pero útiles) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-         <Kpi icon={CheckCircle2} label="Tasa de Cierre (Citas)" value={`${k.convAgendadoPct ?? 0}%`} color="purple" />
-         <Kpi icon={Bot} label="Escalados a Humano" value={`${k.escaladosAgentePct ?? 0}%`} color="rose" />
-      </div>
-
-      {/* Sección Gráficos */}
+      {/* Gráficos de Analítica */}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         
-        {/* Gráfico de Área (Volumen de Mensajes) */}
-        <Card className="min-h-[400px]">
-          <div className="flex items-center justify-between mb-8">
+        {/* Gráfico: Volumen de Mensajes */}
+        <Card className="min-h-[350px]">
+          <div className="flex items-center justify-between mb-6">
             <div>
                 <h3 className="text-lg font-bold text-white flex items-center gap-2">
                     <Activity className="w-5 h-5 text-indigo-400" />
                     Tráfico de Mensajes
                 </h3>
-                <p className="text-zinc-500 text-sm">Última semana</p>
-            </div>
-            <div className="text-right">
-                <p className="text-2xl font-bold text-white">{seriesMensajes.reduce((a, b) => a + (b.count || 0), 0)}</p>
-                <p className="text-xs text-zinc-500">Total</p>
+                <p className="text-zinc-500 text-sm">Últimos 7 días</p>
             </div>
           </div>
           
-          <div className="h-[280px] w-full">
+          <div className="h-[250px] w-full">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={seriesMensajes}>
                 <defs>
@@ -320,52 +350,53 @@ export default function DashboardPage() {
           </div>
         </Card>
 
-        {/* Top Procedimientos (Usuario dijo "si sirve dejala") */}
-        {topProcedures.length > 0 && (
-            <Card>
-            <div className="mb-6 flex justify-between items-center">
-                <h3 className="text-lg font-bold text-white">Intereses de Clientes</h3>
-                <span className="text-xs font-medium text-zinc-500 bg-zinc-800 px-2 py-1 rounded">IA detectado</span>
-            </div>
-            <div className="h-[250px] flex items-center justify-center relative">
-                <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                    <Pie
-                    data={topProcedures}
-                    dataKey="count"
-                    nameKey="name"
-                    cx="50%"
-                    cy="50%"
-                    outerRadius={100}
-                    innerRadius={65}
-                    paddingAngle={5}
-                    stroke="none"
-                    >
-                    {topProcedures.map((_, idx) => (
-                        <Cell key={idx} fill={PIE_COLORS[idx % PIE_COLORS.length]} />
+        {/* Gráfico: Funnel de Estados */}
+        <Card className="min-h-[350px]">
+          <div className="mb-6">
+            <h3 className="text-lg font-bold text-white mb-1">Conversaciones por Estado</h3>
+            <p className="text-zinc-500 text-sm">Distribución actual de tus clientes</p>
+          </div>
+          
+          <div className="h-[250px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart
+                data={estadosBar}
+                margin={{ top: 0, right: 0, bottom: 0, left: -20 }}
+                barCategoryGap="30%"
+              >
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                <XAxis 
+                    dataKey="name" 
+                    stroke="#52525b" 
+                    tick={{ fill: '#71717a', fontSize: 11 }} 
+                    axisLine={false} 
+                    tickLine={false}
+                    dy={10}
+                />
+                <YAxis 
+                    stroke="#52525b" 
+                    tick={{ fill: '#71717a', fontSize: 12 }} 
+                    axisLine={false} 
+                    tickLine={false}
+                    allowDecimals={false}
+                />
+                <Tooltip 
+                    contentStyle={tooltipStyle} 
+                    cursor={{ fill: 'rgba(255,255,255,0.03)', radius: 8 }} 
+                />
+                <Bar
+                  dataKey="count"
+                  radius={[6, 6, 0, 0]}
+                >
+                    {estadosBar.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
                     ))}
-                    </Pie>
-                    <Tooltip contentStyle={tooltipStyle} />
-                </PieChart>
-                </ResponsiveContainer>
-                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                    <div className="text-center">
-                        <span className="block text-2xl font-bold text-white">{topProcedures.reduce((a,b)=>a+b.count,0)}</span>
-                        <span className="text-xs text-zinc-500">Consultas</span>
-                    </div>
-                </div>
-            </div>
-            <div className="mt-4 grid grid-cols-2 gap-2 text-xs text-zinc-400">
-                {topProcedures.slice(0,4).map((p, idx) => (
-                    <div key={idx} className="flex items-center gap-2">
-                        <div className="w-2 h-2 rounded-full" style={{ backgroundColor: PIE_COLORS[idx % PIE_COLORS.length] }} />
-                        <span className="truncate">{p.name}</span>
-                        <span className="text-white font-bold ml-auto">{p.count}</span>
-                    </div>
-                ))}
-            </div>
-            </Card>
-        )}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </Card>
+
       </div>
     </div>
   )
@@ -379,7 +410,7 @@ function SkeletonDashboard() {
         {[...Array(4)].map((_, i) => <div key={i} className="h-32 rounded-3xl bg-zinc-900/50 border border-white/5" />)}
       </div>
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-        {[...Array(2)].map((_, i) => <div key={i} className="h-96 rounded-3xl bg-zinc-900/50 border border-white/5" />)}
+        {[...Array(2)].map((_, i) => <div key={i} className="h-80 rounded-3xl bg-zinc-900/50 border border-white/5" />)}
       </div>
     </div>
   )
