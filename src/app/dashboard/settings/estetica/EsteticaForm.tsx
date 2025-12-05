@@ -21,7 +21,8 @@ export type AppointmentDay = {
 export type AppointmentConfigValue = {
   appointmentTimezone: string;
 
-  // ✅ Agregamos estos campos al tipo local para evitar errores al usarlos en la UI
+  // ✅ NUEVO: Agregado para habilitar la agenda por defecto
+  appointmentEnabled?: boolean;
   allowSameDayBooking?: boolean;
   appointmentMinNoticeHours?: number | null;
   appointmentMaxAdvanceDays?: number | null;
@@ -473,25 +474,28 @@ export default function EsteticaFormSmart({ empresaId }: { empresaId?: number })
     if (loading) return;
 
     setValue((prev: any) => {
-      // 1. Si allowSameDayBooking es false/undefined (bloqueo hoy), forzamos true
+      // 1. Habilitar agenda si está apagada (undefined o false)
+      const forceEnabled = !prev.appointmentEnabled;
+
+      // 2. Permitir mismo día (si está false o undefined)
       const forceSameDay = !prev.allowSameDayBooking; 
       
-      // 2. Si minNoticeHours es null/undefined, forzamos 0 (permitir "ya")
+      // 3. Quitar tiempo mínimo de aviso (si está null/undefined)
       const forceNotice = prev.appointmentMinNoticeHours == null;
 
-      // 3. Si maxAdvanceDays es 0 (bloqueo total) o null, forzamos 30 días
+      // 4. Arreglar bloqueo de fechas futuras (si es 0 o null)
       const forceAdvance = prev.appointmentMaxAdvanceDays === 0 || prev.appointmentMaxAdvanceDays == null;
 
-      // Si todo está bien configurado, no tocamos nada
-      if (!forceSameDay && !forceNotice && !forceAdvance) return prev;
+      // Si todo está bien configurado, no hacemos nada para evitar loops
+      if (!forceEnabled && !forceSameDay && !forceNotice && !forceAdvance) return prev;
 
-      // Aplicamos correcciones al estado
+      // Aplicamos TODAS las correcciones
       return {
         ...prev,
-        allowSameDayBooking: prev.allowSameDayBooking || true, 
-        appointmentMinNoticeHours: prev.appointmentMinNoticeHours ?? 0, 
-        // 30 días es un default seguro para que "0" no bloquee todo
-        appointmentMaxAdvanceDays: prev.appointmentMaxAdvanceDays || 30, 
+        appointmentEnabled: true,            // Habilitar agenda (1)
+        allowSameDayBooking: true,           // Permitir hoy
+        appointmentMinNoticeHours: 0,        // Sin espera mínima
+        appointmentMaxAdvanceDays: 30,       // Ventana de 30 días
       };
     });
   }, [loading, setValue]);
