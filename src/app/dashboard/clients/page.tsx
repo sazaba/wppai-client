@@ -4,11 +4,12 @@ import React, { useEffect, useState, useMemo } from 'react'
 import { 
   FiSearch, FiUser, FiCalendar, FiActivity, FiPhone, 
   FiLoader, FiDatabase, FiFilter, FiX, FiChevronDown, 
-  FiDownload, FiChevronLeft, FiChevronRight, FiUserPlus, FiSave 
+  FiDownload, FiChevronLeft, FiChevronRight, FiUserPlus, 
+  FiSave, FiTrash2, FiRefreshCw, FiArchive 
 } from 'react-icons/fi'
 import { motion, AnimatePresence } from 'framer-motion'
 import * as XLSX from 'xlsx' 
-import Swal from 'sweetalert2' // Asegúrate de tener sweetalert2 instalado
+import Swal from 'sweetalert2' 
 import { useAuth } from '../../context/AuthContext'
 
 interface ClientData {
@@ -18,6 +19,8 @@ interface ClientData {
   lastProcedure: string | null
   lastProcedureDate: string
   notes: string | null
+  // Campo necesario para Soft Delete
+  status?: 'active' | 'trash' 
 }
 
 const MONTHS = [
@@ -32,7 +35,10 @@ export default function ClientsPage() {
   const [clients, setClients] = useState<ClientData[]>([])
   const [loading, setLoading] = useState(true)
   
-  // --- ESTADOS DE FILTRO ---
+  // --- MODO DE VISTA (Activos vs Papelera) ---
+  const [viewMode, setViewMode] = useState<'active' | 'trash'>('active')
+
+  // --- FILTROS ---
   const [search, setSearch] = useState('')
   const [filterYear, setFilterYear] = useState('')
   const [filterMonth, setFilterMonth] = useState('') 
@@ -40,17 +46,17 @@ export default function ClientsPage() {
   const [dateEnd, setDateEnd] = useState('')
   const [showFilters, setShowFilters] = useState(false)
 
-  // --- ESTADO PAGINACIÓN ---
+  // --- PAGINACIÓN ---
   const [currentPage, setCurrentPage] = useState(1)
 
-  // --- ESTADO CREAR CLIENTE (NUEVO) ---
+  // --- CREAR CLIENTE ---
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [creating, setCreating] = useState(false)
   const [newClient, setNewClient] = useState({
     name: '',
     phone: '',
     procedure: '',
-    date: new Date().toISOString().split('T')[0], // Fecha de hoy por defecto
+    date: new Date().toISOString().split('T')[0],
     notes: ''
   })
 
@@ -64,7 +70,12 @@ export default function ClientsPage() {
         })
         const data = await res.json()
         if (data.ok) {
-          setClients(data.data)
+          // Normalizamos: si el backend no trae status, asumimos 'active'
+          const normalized = data.data.map((c: any) => ({
+             ...c,
+             status: c.status || 'active'
+          }))
+          setClients(normalized)
         }
       } catch (err) {
         console.error('Error cargando clientes:', err)
@@ -88,12 +99,18 @@ export default function ClientsPage() {
 
   const filtered = useMemo(() => {
     return clients.filter(c => {
+      // 1. FILTRO DE ESTADO (SEGURIDAD)
+      const clientStatus = c.status || 'active'
+      if (clientStatus !== viewMode) return false
+
+      // 2. Filtros de Texto
       const matchesSearch = 
         c.name.toLowerCase().includes(search.toLowerCase()) || 
         c.phone.includes(search)
 
       if (!matchesSearch) return false
 
+      // 3. Filtros de Fecha
       if ((filterYear || filterMonth || dateStart || dateEnd) && !c.lastProcedureDate) {
         return false
       }
@@ -118,11 +135,12 @@ export default function ClientsPage() {
 
       return true
     })
-  }, [clients, search, filterYear, filterMonth, dateStart, dateEnd])
+  }, [clients, search, filterYear, filterMonth, dateStart, dateEnd, viewMode])
 
+  // Resetear página al cambiar filtros o vista
   useEffect(() => {
     setCurrentPage(1)
-  }, [filtered.length, search, filterYear, filterMonth, dateStart, dateEnd])
+  }, [filtered.length, viewMode])
 
   const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE)
   const paginatedClients = useMemo(() => {
@@ -131,7 +149,7 @@ export default function ClientsPage() {
     return filtered.slice(start, end)
   }, [filtered, currentPage])
 
-  // --- FUNCIONES ---
+  // --- HANDLERS ---
 
   const clearFilters = () => {
     setFilterYear('')
@@ -145,6 +163,7 @@ export default function ClientsPage() {
     if (filtered.length === 0) return
     const dataToExport = filtered.map(c => ({
       ID: c.id,
+      Estado: c.status === 'trash' ? 'Eliminado' : 'Activo',
       Nombre: c.name,
       Teléfono: c.phone,
       'Último Procedimiento': c.lastProcedure || 'N/A',
@@ -153,22 +172,78 @@ export default function ClientsPage() {
     }))
     const ws = XLSX.utils.json_to_sheet(dataToExport)
     const wb = XLSX.utils.book_new()
-    XLSX.utils.book_append_sheet(wb, ws, "Pacientes")
-    XLSX.writeFile(wb, `Pacientes_Export_${new Date().toISOString().split('T')[0]}.xlsx`)
+    const sheetName = viewMode === 'trash' ? "Papelera" : "Pacientes Activos"
+    XLSX.utils.book_append_sheet(wb, ws, sheetName)
+    XLSX.writeFile(wb, `Pacientes_${sheetName}_${new Date().toISOString().split('T')[0]}.xlsx`)
   }
 
-  // --- FUNCIÓN CREAR CLIENTE ---
+  // --- LÓGICA CORE: MOVER A PAPELERA / RESTAURAR ---
+  const toggleClientStatus = async (client: ClientData) => {
+    const newStatus = client.status === 'active' ? 'trash' : 'active'
+    const actionText = newStatus === 'trash' ? 'Mover a papelera' : 'Restaurar'
+    const verb = newStatus === 'trash' ? 'eliminar' : 'restaurar'
+
+    const result = await Swal.fire({
+        title: `¿${actionText}?`,
+        text: newStatus === 'trash' 
+            ? "El paciente se moverá a la papelera y no será visible en la lista principal." 
+            : "El paciente volverá a la lista de activos.",
+        icon: newStatus === 'trash' ? 'warning' : 'question',
+        showCancelButton: true,
+        confirmButtonColor: newStatus === 'trash' ? '#ef4444' : '#10b981',
+        cancelButtonColor: '#27272a',
+        confirmButtonText: `Sí, ${verb}`,
+        cancelButtonText: 'Cancelar',
+        background: '#09090b',
+        color: '#fff'
+    })
+
+    if (!result.isConfirmed) return
+
+    // Actualización Optimista (UI primero)
+    setClients(prev => prev.map(c => 
+        c.id === client.id ? { ...c, status: newStatus } : c
+    ))
+
+    try {
+        if (token) {
+            // Asegúrate de que tu backend tenga PUT /api/clients/:id
+             await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/clients/${client.id}`, {
+                method: 'PUT', 
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}` 
+                },
+                body: JSON.stringify({ status: newStatus })
+            })
+        }
+        
+        Swal.fire({
+            icon: 'success',
+            title: newStatus === 'trash' ? 'Movido a papelera' : 'Restaurado',
+            toast: true,
+            position: 'top-end',
+            showConfirmButton: false,
+            timer: 3000,
+            background: '#09090b',
+            color: '#fff'
+        })
+
+    } catch (error) {
+        console.error(error)
+        // Revertir si falla
+        setClients(prev => prev.map(c => 
+            c.id === client.id ? { ...c, status: client.status } : c
+        ))
+        Swal.fire({ title: 'Error', text: 'No se pudo actualizar el estado', icon: 'error', background: '#09090b', color: '#fff' })
+    }
+  }
+
   const handleCreateClient = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!token) return
     if (!newClient.name.trim() || !newClient.phone.trim()) {
-        Swal.fire({
-            icon: 'warning',
-            title: 'Faltan datos',
-            text: 'El nombre y el teléfono son obligatorios.',
-            background: '#09090b',
-            color: '#fff'
-        })
+        Swal.fire({ icon: 'warning', title: 'Faltan datos', text: 'Nombre y teléfono requeridos', background: '#09090b', color: '#fff' })
         return
     }
 
@@ -176,55 +251,22 @@ export default function ClientsPage() {
     try {
         const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/clients`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify(newClient)
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify({ ...newClient, status: 'active' }) // Crear siempre como activo
         })
-
         const data = await res.json()
 
         if (res.ok) {
-            // Actualizar lista localmente (Optimistic update o usando la respuesta)
-            // Asumimos que data.data o data devuelve el cliente creado con su ID
             const createdClient = data.data || data 
-            
-            // Agregamos al principio de la lista
-            setClients(prev => [createdClient, ...prev])
-            
-            Swal.fire({
-                icon: 'success',
-                title: 'Guardado',
-                text: 'El paciente ha sido registrado correctamente.',
-                background: '#09090b',
-                color: '#fff',
-                timer: 2000,
-                showConfirmButton: false
-            })
-
-            // Resetear y cerrar
-            setNewClient({
-                name: '',
-                phone: '',
-                procedure: '',
-                date: new Date().toISOString().split('T')[0],
-                notes: ''
-            })
+            setClients(prev => [{ ...createdClient, status: 'active' }, ...prev])
+            Swal.fire({ icon: 'success', title: 'Guardado', timer: 2000, showConfirmButton: false, background: '#09090b', color: '#fff' })
+            setNewClient({ name: '', phone: '', procedure: '', date: new Date().toISOString().split('T')[0], notes: '' })
             setShowCreateModal(false)
         } else {
             throw new Error(data.message || 'Error al guardar')
         }
-
     } catch (error: any) {
-        console.error(error)
-        Swal.fire({
-            icon: 'error',
-            title: 'Error',
-            text: error.message || 'No se pudo crear el paciente',
-            background: '#09090b',
-            color: '#fff'
-        })
+        Swal.fire({ icon: 'error', title: 'Error', text: error.message, background: '#09090b', color: '#fff' })
     } finally {
         setCreating(false)
     }
@@ -250,9 +292,32 @@ export default function ClientsPage() {
               <FiDatabase className="text-pink-500" />
               Base de Pacientes
             </h1>
-            <p className="text-zinc-400 mt-2 text-sm">
-              Historial clínico y agenda. {filtered.length} registros encontrados.
-            </p>
+            
+            {/* SWITCHER DE VISTA (Activos / Papelera) */}
+            <div className="flex items-center gap-6 mt-4">
+                <button
+                    onClick={() => setViewMode('active')}
+                    className={`text-sm font-medium pb-1 border-b-2 transition-all flex items-center gap-2 ${
+                        viewMode === 'active' 
+                        ? 'text-white border-pink-500' 
+                        : 'text-zinc-500 border-transparent hover:text-zinc-300'
+                    }`}
+                >
+                    <FiUser className={viewMode === 'active' ? 'text-pink-500' : ''} /> 
+                    Activos
+                </button>
+                <button
+                    onClick={() => setViewMode('trash')}
+                    className={`text-sm font-medium pb-1 border-b-2 transition-all flex items-center gap-2 ${
+                        viewMode === 'trash' 
+                        ? 'text-white border-red-500' 
+                        : 'text-zinc-500 border-transparent hover:text-zinc-300'
+                    }`}
+                >
+                    <FiTrash2 className={viewMode === 'trash' ? 'text-red-500' : ''} /> 
+                    Papelera
+                </button>
+            </div>
           </div>
           
           <div className="flex flex-col sm:flex-row gap-3 w-full xl:w-auto">
@@ -269,7 +334,6 @@ export default function ClientsPage() {
             </div>
             
             <div className="flex flex-wrap gap-2">
-                {/* Botón Filtros */}
                 <button 
                 onClick={() => setShowFilters(!showFilters)}
                 className={`flex items-center justify-center gap-2 px-4 py-3 rounded-xl border transition-all text-sm font-medium flex-1 sm:flex-none
@@ -282,7 +346,6 @@ export default function ClientsPage() {
                 {(hasActiveFilters) && <span className="w-2 h-2 rounded-full bg-pink-500 animate-pulse" />}
                 </button>
 
-                {/* Botón Excel */}
                 <button 
                 onClick={handleExportExcel}
                 disabled={filtered.length === 0}
@@ -292,19 +355,21 @@ export default function ClientsPage() {
                 <span className="hidden md:inline">Excel</span>
                 </button>
 
-                {/* BOTÓN NUEVO PACIENTE (NUEVO) */}
-                <button 
-                onClick={() => setShowCreateModal(true)}
-                className="flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-900/20 transition-all transform hover:-translate-y-0.5 text-sm font-bold flex-1 sm:flex-none"
-                >
-                <FiUserPlus className="w-4 h-4" />
-                <span className="whitespace-nowrap">Nuevo Paciente</span>
-                </button>
+                {/* BOTÓN NUEVO (Solo visible en Activos) */}
+                {viewMode === 'active' && (
+                    <button 
+                    onClick={() => setShowCreateModal(true)}
+                    className="flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-900/20 transition-all transform hover:-translate-y-0.5 text-sm font-bold flex-1 sm:flex-none"
+                    >
+                    <FiUserPlus className="w-4 h-4" />
+                    <span className="whitespace-nowrap">Nuevo</span>
+                    </button>
+                )}
             </div>
           </div>
         </div>
 
-        {/* BARRA DE FILTROS AVANZADOS */}
+        {/* FILTROS AVANZADOS */}
         <AnimatePresence>
           {(showFilters || hasActiveFilters) && (
             <motion.div 
@@ -391,11 +456,13 @@ export default function ClientsPage() {
         ) : filtered.length === 0 ? (
            <div className="flex-1 flex flex-col items-center justify-center py-20 text-center border border-dashed border-white/5 rounded-3xl bg-white/5">
               <div className="p-4 rounded-full bg-zinc-800/50 mb-4">
-                <FiUser className="w-8 h-8 text-zinc-600" />
+                {viewMode === 'active' ? <FiUser className="w-8 h-8 text-zinc-600" /> : <FiTrash2 className="w-8 h-8 text-zinc-600" />}
               </div>
-              <h3 className="text-lg font-medium text-white">No se encontraron pacientes</h3>
+              <h3 className="text-lg font-medium text-white">
+                {viewMode === 'active' ? 'No se encontraron pacientes' : 'Papelera vacía'}
+              </h3>
               <p className="text-zinc-500 text-sm mt-1 max-w-xs mx-auto">
-                No hay resultados para esta búsqueda.
+                 {viewMode === 'active' ? 'No hay resultados que coincidan.' : 'No hay pacientes eliminados.'}
               </p>
               {hasActiveFilters && (
                 <button onClick={clearFilters} className="mt-4 text-pink-400 text-sm hover:underline">
@@ -415,24 +482,48 @@ export default function ClientsPage() {
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, scale: 0.95 }}
                     transition={{ delay: i * 0.05, duration: 0.2 }}
-                    className="group relative bg-zinc-900/40 backdrop-blur-md border border-white/5 rounded-2xl p-5 hover:bg-zinc-800/60 hover:border-pink-500/20 hover:shadow-2xl hover:shadow-pink-900/10 transition-all duration-300"
+                    className={`group relative backdrop-blur-md border rounded-2xl p-5 transition-all duration-300
+                        ${viewMode === 'trash' 
+                            ? 'bg-red-900/10 border-red-500/20 grayscale-[0.3]' 
+                            : 'bg-zinc-900/40 border-white/5 hover:bg-zinc-800/60 hover:border-pink-500/20 hover:shadow-2xl hover:shadow-pink-900/10'}
+                    `}
                     >
+                    {/* Header Card */}
                     <div className="flex justify-between items-start mb-4">
                         <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-zinc-800 to-zinc-900 flex items-center justify-center border border-white/5 group-hover:border-pink-500/30 transition-colors">
-                            <span className="text-sm font-bold text-zinc-300 group-hover:text-pink-400">
-                                {client.name.charAt(0).toUpperCase()}
-                            </span>
-                        </div>
-                        <div>
-                            <h3 className="text-base font-bold text-white leading-tight truncate max-w-[150px]" title={client.name}>
-                                {client.name}
-                            </h3>
-                            <div className="flex items-center gap-1.5 text-xs text-zinc-500 mt-0.5">
-                                <FiPhone className="w-3 h-3" />
-                                <span className="font-mono tracking-wide">{client.phone}</span>
+                            <div className={`w-10 h-10 rounded-full flex items-center justify-center border transition-colors
+                                ${viewMode === 'trash' 
+                                    ? 'bg-red-500/20 border-red-500/30 text-red-400' 
+                                    : 'bg-gradient-to-br from-zinc-800 to-zinc-900 border-white/5 text-zinc-300 group-hover:border-pink-500/30 group-hover:text-pink-400'}
+                            `}>
+                                <span className="text-sm font-bold">
+                                    {client.name.charAt(0).toUpperCase()}
+                                </span>
+                            </div>
+                            <div>
+                                <h3 className="text-base font-bold text-white leading-tight truncate max-w-[150px]" title={client.name}>
+                                    {client.name}
+                                </h3>
+                                <div className="flex items-center gap-1.5 text-xs text-zinc-500 mt-0.5">
+                                    <FiPhone className="w-3 h-3" />
+                                    <span className="font-mono tracking-wide">{client.phone}</span>
+                                </div>
                             </div>
                         </div>
+
+                        {/* ACCIONES (ELIMINAR / RESTAURAR) */}
+                        <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button
+                                onClick={() => toggleClientStatus(client)}
+                                title={viewMode === 'active' ? "Mover a Papelera" : "Restaurar"}
+                                className={`p-2 rounded-lg transition-colors
+                                    ${viewMode === 'active' 
+                                        ? 'bg-zinc-800 hover:bg-red-500/20 text-zinc-400 hover:text-red-400' 
+                                        : 'bg-zinc-800 hover:bg-emerald-500/20 text-zinc-400 hover:text-emerald-400'}
+                                `}
+                            >
+                                {viewMode === 'active' ? <FiTrash2 className="w-4 h-4" /> : <FiRefreshCw className="w-4 h-4" />}
+                            </button>
                         </div>
                     </div>
 
@@ -482,7 +573,7 @@ export default function ClientsPage() {
         {filtered.length > 0 && (
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4 py-4 border-t border-white/5 mt-auto">
                 <span className="text-xs text-zinc-500">
-                    Mostrando <span className="text-white font-medium">{paginatedClients.length}</span> de <span className="text-white font-medium">{filtered.length}</span> resultados
+                    Mostrando <span className="text-white font-medium">{paginatedClients.length}</span> de <span className="text-white font-medium">{filtered.length}</span> {viewMode === 'active' ? 'pacientes' : 'en papelera'}
                 </span>
                 
                 <div className="flex items-center gap-2">
@@ -513,7 +604,7 @@ export default function ClientsPage() {
 
       </div>
 
-      {/* --- MODAL CREAR CLIENTE (NUEVO) --- */}
+      {/* --- MODAL CREAR CLIENTE --- */}
       <AnimatePresence>
         {showCreateModal && (
             <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -533,7 +624,6 @@ export default function ClientsPage() {
                     exit={{ opacity: 0, scale: 0.95, y: 20 }}
                     className="relative z-10 w-full max-w-lg bg-zinc-900 border border-white/10 rounded-2xl shadow-2xl overflow-hidden"
                 >
-                    {/* Header Modal */}
                     <div className="flex items-center justify-between p-5 border-b border-white/5 bg-zinc-900/50">
                         <h3 className="text-xl font-bold text-white flex items-center gap-2">
                             <FiUserPlus className="text-indigo-500" />
@@ -547,7 +637,6 @@ export default function ClientsPage() {
                         </button>
                     </div>
 
-                    {/* Formulario */}
                     <form onSubmit={handleCreateClient} className="p-6 space-y-4">
                         <div className="space-y-2">
                             <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Nombre Completo <span className="text-red-500">*</span></label>
