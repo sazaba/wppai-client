@@ -2,7 +2,18 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { FiSend, FiSmile, FiImage, FiCalendar, FiChevronUp, FiChevronDown, FiLoader, FiPaperclip } from 'react-icons/fi'
+import { 
+  FiSend, 
+  FiSmile, 
+  FiImage, 
+  FiCalendar, 
+  FiChevronUp, 
+  FiChevronDown, 
+  FiLoader, 
+  FiPaperclip, 
+  FiUserPlus, // Nuevo Icono
+  FiPhone     // Nuevo Icono
+} from 'react-icons/fi'
 import EmojiPicker, { EmojiClickData, EmojiStyle, Theme } from 'emoji-picker-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import Swal from 'sweetalert2'
@@ -40,10 +51,9 @@ const DarkSwal = Swal.mixin({
   color: '#e4e4e7', // zinc-200
   iconColor: '#6366f1', // indigo-500
   buttonsStyling: false,
-  // CAMBIO: Aseguramos que el z-index de Swal sea superior al del modal (que ahora es 100)
   didOpen: (popup) => {
-     const container = Swal.getContainer()
-     if (container) container.style.zIndex = '10000'
+      const container = Swal.getContainer()
+      if (container) container.style.zIndex = '10000'
   },
   customClass: {
     popup: 'rounded-[2rem] border border-white/10 shadow-2xl bg-zinc-900/95 backdrop-blur-xl',
@@ -191,11 +201,16 @@ export default function ChatInput({
 }: Props) {
   const [showEmoji, setShowEmoji] = useState(false)
   const [showAppt, setShowAppt] = useState(false)
+  // Estado para el modal de Guardar Cliente
+  const [showSaveClient, setShowSaveClient] = useState(false)
+
   const [staffOpts, setStaffOpts] = useState<Array<{ id: number; name: string }>>([])
   const [serviceOpts, setServiceOpts] = useState<Array<{ id: number; name: string; defaultDuration?: number }>>([])
+  
   const [lockedName, setLockedName] = useState<string>('')
   const [lockedService, setLockedService] = useState<string>('')
   const [lockedPhone, setLockedPhone] = useState<string>(chatPhone || '')
+  
   const fileRef = useRef<HTMLInputElement | null>(null)
   const inputRef = useRef<HTMLInputElement | null>(null)
 
@@ -260,7 +275,7 @@ export default function ChatInput({
 
   useEffect(() => {
     const prime = async () => {
-      if (!conversationId || !token || !showAppt) return
+      if (!conversationId || !token) return
   
       try {
         const stateResp = await api<any>(CI.state(conversationId), undefined, token)
@@ -279,6 +294,7 @@ export default function ChatInput({
   
         const summaryFromStateText =
           stateResp?.summary?.text ||
+          state?.summary?.text ||
           state?.summary?.text ||
           null
   
@@ -311,7 +327,8 @@ export default function ChatInput({
     }
   
     prime()
-  }, [conversationId, token, showAppt])
+    // Eliminamos 'showAppt' de dependencias para evitar recargas infinitas si cambia el modal
+  }, [conversationId, token])
   
 
   const insertAtCursor = useCallback(
@@ -340,7 +357,11 @@ export default function ChatInput({
       if (!disabled && value.trim()) onSend()
       return
     }
-    if (e.key === 'Escape') { if (showEmoji) setShowEmoji(false); if (showAppt) setShowAppt(false) }
+    if (e.key === 'Escape') { 
+        if (showEmoji) setShowEmoji(false); 
+        if (showAppt) setShowAppt(false);
+        if (showSaveClient) setShowSaveClient(false);
+    }
   }
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -428,6 +449,36 @@ export default function ChatInput({
     }
   }
 
+  // Función para Guardar Cliente desde el Chat
+  async function handleSaveClient(data: { name: string; phone: string; procedure: string; date: string }) {
+      if (!token) {
+          await alertError('Error', 'No hay sesión activa')
+          return
+      }
+      try {
+          const res = await fetch(`${API_URL}/api/clients`, {
+              method: 'POST',
+              headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${token}`
+              },
+              body: JSON.stringify(data)
+          })
+          
+          const json = await res.json()
+          if(!res.ok) throw new Error(json.message || 'Error desconocido')
+
+          await alertSuccess(
+              'Paciente Guardado',
+              `Se ha registrado a <b>${data.name}</b> exitosamente.`
+          )
+          setShowSaveClient(false)
+      } catch (err) {
+          const msg = extractErrorMessage(err)
+          await alertError('No se pudo guardar', msg)
+      }
+  }
+
   return (
     // CAMBIO: Contenedor con Glassmorphism y padding mejorado
     <div className="relative border-t border-white/5 bg-zinc-900/60 backdrop-blur-md p-4">
@@ -436,48 +487,60 @@ export default function ChatInput({
         {/* Grupo de Botones Izquierda */}
         <div className="flex items-center gap-1 bg-zinc-800/50 rounded-xl p-1 border border-white/5">
             <button
-            type="button"
-            onClick={() => setShowEmoji((v) => !v)}
-            className="p-2.5 rounded-lg hover:bg-white/10 disabled:opacity-50 text-zinc-400 hover:text-yellow-400 transition-colors"
-            disabled={disabled}
-            aria-label="Emoji"
-            title="Emoji"
+              type="button"
+              onClick={() => setShowEmoji((v) => !v)}
+              className="p-2.5 rounded-lg hover:bg-white/10 disabled:opacity-50 text-zinc-400 hover:text-yellow-400 transition-colors"
+              disabled={disabled}
+              aria-label="Emoji"
+              title="Emoji"
             >
-            <FiSmile className="w-5 h-5" />
+              <FiSmile className="w-5 h-5" />
             </button>
 
             {showEmoji && (
-            <div className="absolute bottom-20 left-4 z-50 shadow-2xl rounded-2xl overflow-hidden ring-1 ring-white/10">
+              <div className="absolute bottom-20 left-4 z-50 shadow-2xl rounded-2xl overflow-hidden ring-1 ring-white/10">
                 <EmojiPicker
-                onEmojiClick={handleEmojiClick}
-                theme={Theme.DARK}
-                emojiStyle={EmojiStyle.NATIVE}
-                searchDisabled
-                previewConfig={{ showPreview: false }}
+                  onEmojiClick={handleEmojiClick}
+                  theme={Theme.DARK}
+                  emojiStyle={EmojiStyle.NATIVE}
+                  searchDisabled
+                  previewConfig={{ showPreview: false }}
                 />
-            </div>
+              </div>
             )}
 
             <button
-            type="button"
-            onClick={() => setShowAppt(true)}
-            className="p-2.5 rounded-lg hover:bg-white/10 disabled:opacity-50 text-zinc-400 hover:text-indigo-400 transition-colors"
-            disabled={disabled}
-            aria-label="Crear cita"
-            title="Crear cita"
+              type="button"
+              onClick={() => setShowAppt(true)}
+              className="p-2.5 rounded-lg hover:bg-white/10 disabled:opacity-50 text-zinc-400 hover:text-indigo-400 transition-colors"
+              disabled={disabled}
+              aria-label="Crear cita"
+              title="Crear cita"
             >
-            <FiCalendar className="w-5 h-5" />
+              <FiCalendar className="w-5 h-5" />
+            </button>
+
+            {/* Nuevo Botón: Guardar Cliente */}
+            <button
+              type="button"
+              onClick={() => setShowSaveClient(true)}
+              className="p-2.5 rounded-lg hover:bg-white/10 disabled:opacity-50 text-zinc-400 hover:text-pink-400 transition-colors"
+              disabled={disabled}
+              aria-label="Guardar Cliente"
+              title="Guardar Cliente"
+            >
+              <FiUserPlus className="w-5 h-5" />
             </button>
 
             <button
-            type="button"
-            onClick={() => fileRef.current?.click()}
-            className="p-2.5 rounded-lg hover:bg-white/10 disabled:opacity-50 text-zinc-400 hover:text-emerald-400 transition-colors"
-            disabled={disabled}
-            aria-label="Adjuntar archivo"
-            title="Adjuntar archivo"
+              type="button"
+              onClick={() => fileRef.current?.click()}
+              className="p-2.5 rounded-lg hover:bg-white/10 disabled:opacity-50 text-zinc-400 hover:text-emerald-400 transition-colors"
+              disabled={disabled}
+              aria-label="Adjuntar archivo"
+              title="Adjuntar archivo"
             >
-            <FiPaperclip className="w-5 h-5" />
+              <FiPaperclip className="w-5 h-5" />
             </button>
         </div>
 
@@ -492,15 +555,15 @@ export default function ChatInput({
         {/* Input Principal */}
         <div className="flex-1 relative">
             <input
-            ref={inputRef}
-            type="text"
-            value={value}
-            onChange={(e) => onChange(e.target.value)}
-            onKeyDown={handleKeyDown}
-            onPaste={handlePaste}
-            placeholder="Escribe un mensaje..."
-            className="w-full bg-zinc-950/50 text-white placeholder:text-zinc-600 px-5 py-3 rounded-2xl outline-none border border-white/5 focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/50 transition-all shadow-inner"
-            disabled={disabled}
+              ref={inputRef}
+              type="text"
+              value={value}
+              onChange={(e) => onChange(e.target.value)}
+              onKeyDown={handleKeyDown}
+              onPaste={handlePaste}
+              placeholder="Escribe un mensaje..."
+              className="w-full bg-zinc-950/50 text-white placeholder:text-zinc-600 px-5 py-3 rounded-2xl outline-none border border-white/5 focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/50 transition-all shadow-inner"
+              disabled={disabled}
             />
         </div>
 
@@ -517,6 +580,7 @@ export default function ChatInput({
         </button>
       </div>
 
+      {/* Modal Agendar Cita */}
       <Dialog open={showAppt} onClose={() => setShowAppt(false)}>
         <CreateApptForm
           defaultName={lockedName}
@@ -530,6 +594,17 @@ export default function ChatInput({
             setShowAppt(false)
           }}
         />
+      </Dialog>
+
+      {/* Modal Guardar Cliente */}
+      <Dialog open={showSaveClient} onClose={() => setShowSaveClient(false)}>
+         <SaveClientForm 
+            defaultName={lockedName}
+            defaultPhone={lockedPhone}
+            defaultService={lockedService}
+            onCancel={() => setShowSaveClient(false)}
+            onSave={handleSaveClient}
+         />
       </Dialog>
 
       <style jsx global>{`
@@ -899,5 +974,104 @@ function CreateApptForm({
         </button>
       </div>
     </form>
+  )
+}
+
+function SaveClientForm({
+  onSave,
+  onCancel,
+  defaultName,
+  defaultPhone,
+  defaultService,
+}: {
+  onSave: (data: { name: string; phone: string; procedure: string; date: string }) => Promise<void> | void
+  onCancel: () => void
+  defaultName: string
+  defaultPhone: string
+  defaultService: string
+}) {
+  const [name, setName] = useState(defaultName || '')
+  const [phone, setPhone] = useState(defaultPhone || '')
+  const [procedure, setProcedure] = useState(defaultService || '')
+  const [date, setDate] = useState(new Date().toISOString().split('T')[0])
+  const [saving, setSaving] = useState(false)
+
+  useEffect(() => { if(defaultName) setName(defaultName) }, [defaultName])
+  useEffect(() => { if(defaultPhone) setPhone(defaultPhone) }, [defaultPhone])
+  useEffect(() => { if(defaultService) setProcedure(defaultService) }, [defaultService])
+
+  const canSave = name.trim() && phone.trim() && procedure.trim() && date && !saving
+
+  return (
+      <form
+          onSubmit={async (e) => {
+              e.preventDefault()
+              if (!canSave) return
+              setSaving(true)
+              try {
+                  await onSave({ name, phone, procedure, date })
+              } finally {
+                  setSaving(false)
+              }
+          }}
+          className="space-y-6"
+      >
+          <div className="flex items-center gap-3 pb-4 border-b border-white/5">
+              <div className="p-3 rounded-full bg-pink-500/10 text-pink-400 shadow-[0_0_15px_rgba(236,72,153,0.3)]">
+                  <FiUserPlus className="h-6 w-6" />
+              </div>
+              <div>
+                  <h2 className="text-2xl font-bold text-white">Guardar Cliente</h2>
+                  <p className="text-sm text-zinc-400">Verifica y guarda la información del paciente.</p>
+              </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-5">
+               <Input 
+                  label="Nombre Completo" 
+                  value={name} 
+                  onChange={setName} 
+                  placeholder="Ej. María Perez" 
+              />
+               <Input 
+                  label="Teléfono" 
+                  value={phone} 
+                  onChange={setPhone} 
+                  placeholder="+57..." 
+                  rightIcon={<FiPhone className="text-zinc-600" />}
+              />
+               <Input 
+                  label="Procedimiento Realizado" 
+                  value={procedure} 
+                  onChange={setProcedure} 
+                  placeholder="Ej. Limpieza Facial" 
+              />
+              <Input 
+                  label="Fecha del Procedimiento" 
+                  type="date"
+                  value={date} 
+                  onChange={setDate} 
+              />
+          </div>
+
+          <div className="flex justify-end gap-3 pt-4 border-t border-white/5 mt-4">
+              <Button variant="ghost" type="button" onClick={onCancel} disabled={saving}>
+                  Cancelar
+              </Button>
+              <button
+                  type="submit"
+                  disabled={!canSave}
+                  className={clsx(
+                      'inline-flex items-center gap-2 rounded-xl px-8 py-3 text-sm font-bold text-white shadow-lg transition-all',
+                      canSave 
+                          ? 'bg-gradient-to-r from-pink-600 to-rose-600 hover:from-pink-500 hover:to-rose-500 shadow-pink-900/20 transform hover:-translate-y-0.5' 
+                          : 'bg-zinc-800 text-zinc-500 cursor-not-allowed'
+                  )}
+              >
+                  {saving ? <FiLoader className="h-4 w-4 animate-spin" /> : <FiUserPlus className="w-4 h-4" />}
+                  {saving ? 'Guardando...' : 'Guardar Ficha'}
+              </button>
+          </div>
+      </form>
   )
 }

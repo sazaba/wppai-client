@@ -278,7 +278,6 @@
 // }
 
 
-
 "use client"
 
 import Link from "next/link"
@@ -295,7 +294,7 @@ import {
   ShieldAlert,
   Menu,
   X,
-  FlaskConical // 👈 Importamos el ícono del matraz
+  Users // 👈 Importamos el ícono para Clientes
 } from "lucide-react"
 import { useState, useEffect, useMemo } from "react"
 import { useRouter, usePathname } from "next/navigation"
@@ -349,6 +348,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const isChatRoute = pathname?.startsWith("/dashboard/chats")
   const isOrdersRoute = pathname?.startsWith("/dashboard/orders")
   const isAppointmentsRoute = pathname?.startsWith("/dashboard/appointments")
+  // Agregamos clients a las rutas full-screen si lo deseas (opcional), 
+  // pero generalmente querrás el padding normal para la tabla.
+  const isClientsRoute = pathname?.startsWith("/dashboard/clients")
 
   useEffect(() => {
     setMobileOpen(false)
@@ -384,11 +386,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         { href: "/dashboard", icon: BrainCircuit, label: "Resumen" },
         { href: "/dashboard/chats", icon: MessageSquareText, label: "Conversaciones" },
         { href: "/dashboard/appointments", icon: Calendar, label: "Citas" },
+        // 👇👇 RUTA DE CLIENTES AGREGADA 👇👇
+        { href: "/dashboard/clients", icon: Users, label: "Pacientes" },
+        // 👆👆 --------------------------- 👆👆
         { href: "/dashboard/billing", icon: CreditCard, label: "Facturación" },
         { href: "/dashboard/templates", icon: FileText, label: "Plantillas" },
-        // 👇👇 RUTA DE PRUEBA AGREGADA 👇👇
-        { href: "/dashboard/test", icon: FlaskConical, label: "Lab / Tests" },
-        // 👆👆 ----------------------- 👆👆
         { href: "/dashboard/settings", icon: Settings2, label: "Configuración" },
     ]
     if (isSuperAdmin) {
@@ -530,7 +532,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             "transition-all duration-500"
           )}
         >
-          {!isChatRoute && !isOrdersRoute && !isAppointmentsRoute && billingStatus && (
+          {!isChatRoute && !isOrdersRoute && !isAppointmentsRoute && !isClientsRoute && billingStatus && (
              <div className="shrink-0">
                 <ExpiryBanner status={billingStatus} />
              </div>
@@ -539,7 +541,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <div
             className={clsx(
               "flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-transparent",
-              isChatRoute || isOrdersRoute || isAppointmentsRoute ? "p-0" : "p-4 sm:p-8 pb-24 md:pb-8" 
+              // Si es clientsRoute, le quitamos el padding para que el fondo ocupe todo, 
+              // O lo dejamos si prefieres margen. En ClientsPage ya tienes p-10, 
+              // así que "p-0" aquí es ideal para que ClientsPage maneje su propio espacio.
+              isChatRoute || isOrdersRoute || isAppointmentsRoute || isClientsRoute ? "p-0" : "p-4 sm:p-8 pb-24 md:pb-8" 
             )}
           >
             {children}
