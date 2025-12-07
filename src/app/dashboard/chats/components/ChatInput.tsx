@@ -5,14 +5,13 @@ import { createPortal } from 'react-dom'
 import { 
   FiSend, 
   FiSmile, 
-  FiImage, 
   FiCalendar, 
   FiChevronUp, 
   FiChevronDown, 
   FiLoader, 
   FiPaperclip, 
-  FiUserPlus, // Nuevo Icono
-  FiPhone     // Nuevo Icono
+  FiUserPlus,
+  FiPhone 
 } from 'react-icons/fi'
 import EmojiPicker, { EmojiClickData, EmojiStyle, Theme } from 'emoji-picker-react'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -22,6 +21,13 @@ import { useAuth } from '../../../context/AuthContext'
 import clsx from 'clsx'
 
 type MediaKind = 'image' | 'video' | 'audio' | 'document'
+
+// --- NUEVA INTERFAZ PARA EL AUTOFILL ---
+interface AutoFillData {
+  nombreCliente?: string;
+  servicio?: string;
+  notas?: string;
+}
 
 interface Props {
   value: string
@@ -34,6 +40,8 @@ interface Props {
   conversationId?: number
   chatPhone?: string
   summaryText?: string
+  // Prop nueva para recibir los datos detectados
+  autoFillData?: AutoFillData | null 
 }
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || ''
@@ -198,18 +206,21 @@ export default function ChatInput({
   conversationId,
   chatPhone,
   summaryText,
+  autoFillData // RECIBIMOS LA PROP
 }: Props) {
   const [showEmoji, setShowEmoji] = useState(false)
   const [showAppt, setShowAppt] = useState(false)
-  // Estado para el modal de Guardar Cliente
   const [showSaveClient, setShowSaveClient] = useState(false)
 
   const [staffOpts, setStaffOpts] = useState<Array<{ id: number; name: string }>>([])
   const [serviceOpts, setServiceOpts] = useState<Array<{ id: number; name: string; defaultDuration?: number }>>([])
   
+  // ESTADOS PARA DATOS BLOQUEADOS / PRE-LLENADOS
   const [lockedName, setLockedName] = useState<string>('')
   const [lockedService, setLockedService] = useState<string>('')
   const [lockedPhone, setLockedPhone] = useState<string>(chatPhone || '')
+  // Nuevo estado para las notas (Preferencias)
+  const [lockedNotes, setLockedNotes] = useState<string>('')
   
   const fileRef = useRef<HTMLInputElement | null>(null)
   const inputRef = useRef<HTMLInputElement | null>(null)
@@ -217,6 +228,20 @@ export default function ChatInput({
   const { token, usuario } = useAuth()
   const empresaId = usuario?.empresaId
 
+  // --- EFECTO PARA AUTO-FILL EN TIEMPO REAL ---
+  // Cuando llegan datos nuevos detectados por el padre, actualizamos los estados locales
+  useEffect(() => {
+    if (autoFillData) {
+        if (autoFillData.nombreCliente) setLockedName(autoFillData.nombreCliente);
+        if (autoFillData.servicio) setLockedService(autoFillData.servicio);
+        if (autoFillData.notas) setLockedNotes(autoFillData.notas);
+        
+        // Opcional: Si también quieres que el teléfono se actualice si viene en el autofill
+        // if (autoFillData.telefono) setLockedPhone(autoFillData.telefono);
+    }
+  }, [autoFillData]);
+
+  // --- CARGA DE STAFF Y SERVICIOS ---
   useEffect(() => {
     const loadStaff = async () => {
       if (!token) return
@@ -247,6 +272,7 @@ export default function ChatInput({
     loadServices()
   }, [token])
 
+  // --- LOGICA DE SUMARIOS ANTIGUA (Mantenemos por si acaso falla el tiempo real) ---
   useEffect(() => {
     if (summaryText) {
       const staffFromSummary = extractStaffFromSummaryText(summaryText)
@@ -256,15 +282,9 @@ export default function ChatInput({
   
       const agBlock = extractAgendaFromSummaryBlock(summaryText)
   
-      if (agBlock.nombre) {
-        setLockedName(agBlock.nombre)
-      }
-      if (agBlock.servicio) {
-        setLockedService(agBlock.servicio)
-      }
-      if (agBlock.telefono) {
-        setLockedPhone(agBlock.telefono)
-      }
+      if (agBlock.nombre) setLockedName(agBlock.nombre)
+      if (agBlock.servicio) setLockedService(agBlock.servicio)
+      if (agBlock.telefono) setLockedPhone(agBlock.telefono)
     }
   
     if (chatPhone) {
@@ -296,6 +316,7 @@ export default function ChatInput({
           stateResp?.summary?.text ||
           state?.summary?.text ||
           state?.summary?.text ||
+          state?.summary?.text ||
           null
   
         const staffFromSummary = extractStaffFromSummaryText(summaryFromStateText || '')
@@ -308,26 +329,11 @@ export default function ChatInput({
           if (agBlock.telefono) setLockedPhone(agBlock.telefono)
         }
       } catch {
-        try {
-          const meta = await api<any>(CI.meta(conversationId), undefined, token)
-  
-          const phoneFromConv = meta?.phone || meta?.conversation?.phone
-          if (phoneFromConv) setLockedPhone(String(phoneFromConv))
-  
-          const summaryFromMetaText = (meta?.summary?.text as string | undefined) || ''
-          const staffFromSummary = extractStaffFromSummaryText(summaryFromMetaText)
-          if (staffFromSummary.length && !staffOpts.length) setStaffOpts(staffFromSummary)
-  
-          const agBlock = extractAgendaFromSummaryBlock(summaryFromMetaText)
-          if (agBlock.nombre) setLockedName(agBlock.nombre)
-          if (agBlock.servicio) setLockedService(agBlock.servicio)
-          if (agBlock.telefono) setLockedPhone(agBlock.telefono)
-        } catch {}
+        // Fallback a meta
       }
     }
   
     prime()
-    // Eliminamos 'showAppt' de dependencias para evitar recargas infinitas si cambia el modal
   }, [conversationId, token])
   
 
@@ -480,7 +486,6 @@ export default function ChatInput({
   }
 
   return (
-    // CAMBIO: Contenedor con Glassmorphism y padding mejorado
     <div className="relative border-t border-white/5 bg-zinc-900/60 backdrop-blur-md p-4">
       <div className="flex items-end gap-3 max-w-5xl mx-auto">
         
@@ -586,6 +591,7 @@ export default function ChatInput({
           defaultName={lockedName}
           defaultPhone={lockedPhone}
           defaultService={lockedService}
+          defaultNotes={lockedNotes} // PASAMOS LAS NOTAS
           staffOptions={staffOpts}
           serviceOptions={serviceOpts}
           onCancel={() => setShowAppt(false)}
@@ -766,6 +772,7 @@ function CreateApptForm({
   defaultName,
   defaultPhone,
   defaultService,
+  defaultNotes, // PROP NUEVA
   staffOptions,
   serviceOptions,
 }: {
@@ -774,6 +781,7 @@ function CreateApptForm({
   defaultName: string
   defaultPhone: string
   defaultService: string
+  defaultNotes?: string
   staffOptions: Array<{ id: number; name: string }>
   serviceOptions: Array<{ id: number; name: string; defaultDuration?: number }>
 }) {
@@ -791,7 +799,7 @@ function CreateApptForm({
   const [provider, setProvider] = useState('')
   const [dateTime, setDateTime] = useState(`${yyyy}-${MM}-${dd}T${HH}:${mm}`)
   const [durationMin, setDurationMin] = useState<number>(30)
-  const [notes, setNotes] = useState('')
+  const [notes, setNotes] = useState(defaultNotes || '') // Inicializar notas
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
@@ -802,9 +810,11 @@ function CreateApptForm({
     }
   }, [serviceOptions, service])
 
+  // LISTENERS DE CAMBIO DE PROPS (Para que se actualice si cambia afuera)
   useEffect(() => { if (defaultName) setName(defaultName) }, [defaultName])
   useEffect(() => { if (defaultPhone) setPhone(defaultPhone) }, [defaultPhone])
   useEffect(() => { if (defaultService) setService(defaultService) }, [defaultService])
+  useEffect(() => { if (defaultNotes) setNotes(defaultNotes) }, [defaultNotes])
 
   const canSave =
     name.trim() && phone.trim() && service.trim() &&
@@ -996,6 +1006,7 @@ function SaveClientForm({
   const [date, setDate] = useState(new Date().toISOString().split('T')[0])
   const [saving, setSaving] = useState(false)
 
+  // Listeners para auto-fill
   useEffect(() => { if(defaultName) setName(defaultName) }, [defaultName])
   useEffect(() => { if(defaultPhone) setPhone(defaultPhone) }, [defaultPhone])
   useEffect(() => { if(defaultService) setProcedure(defaultService) }, [defaultService])

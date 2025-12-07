@@ -19,6 +19,31 @@ import ChatModalCrear from './components/ChatModalCrear'
 import { useAuth } from '../../context/AuthContext'
 
 // ——————————————————————————————
+// UTILIDAD: Extracción de datos del mensaje (Regex)
+// ——————————————————————————————
+const extractBookingData = (text: string) => {
+  if (!text) return null;
+  
+  // Patrones basados en tu formato: *Campo:* Valor
+  const serviceRegex = /\*Tratamiento:\*\s*(.+)/i;
+  const nameRegex = /\*Nombre:\*\s*(.+)/i;
+  const preferenceRegex = /\*Preferencia:\*\s*(.+)/i;
+
+  const serviceMatch = text.match(serviceRegex);
+  const nameMatch = text.match(nameRegex);
+  const preferenceMatch = text.match(preferenceRegex);
+
+  // Si no encuentra al menos el tratamiento o el nombre, retornamos null
+  if (!serviceMatch && !nameMatch) return null;
+
+  return {
+    nombreCliente: nameMatch ? nameMatch[1].trim() : '',
+    servicio: serviceMatch ? serviceMatch[1].trim() : '', // Debe coincidir con los values de tu select
+    notas: preferenceMatch ? `Preferencia: ${preferenceMatch[1].trim()}` : ''
+  };
+};
+
+// ——————————————————————————————
 // Config de estados (Iconos)
 // ——————————————————————————————
 const estadoIconos = {
@@ -57,6 +82,9 @@ export default function ChatsPage() {
   const [estadoFiltro, setEstadoFiltro] = useState('todos')
   const [mostrarModalCerrar, setMostrarModalCerrar] = useState(false)
   const [mostrarModalCrear, setMostrarModalCrear] = useState(false)
+
+  // NUEVO: Estado para datos autodetectados del formulario
+  const [bookingData, setBookingData] = useState<{ nombreCliente: string, servicio: string, notas: string } | null>(null)
 
   // 🔒 Estado de Bloqueo por Billing
   const [isBillingLocked, setIsBillingLocked] = useState(false)
@@ -112,6 +140,26 @@ export default function ChatsPage() {
     },
     [keyOf, ordenarMensajes]
   )
+
+  // NUEVO: UseEffect para autocompletar formulario "Agendar Cita"
+  useEffect(() => {
+    if (!mensajes || mensajes.length === 0) return;
+
+    const lastMessage = mensajes[mensajes.length - 1];
+
+    // Verificamos si es un mensaje del BOT/AGENTE que contenga el resumen
+    // Ajusta 'agent' o 'bot' según cómo guarde tu backend el emisor del bot
+    if (lastMessage.from === 'agent' || lastMessage.from === 'bot') {
+        const content = lastMessage.contenido || lastMessage.body || '';
+        const extracted = extractBookingData(content);
+
+        if (extracted) {
+            console.log("⚡ Datos de cita detectados:", extracted);
+            setBookingData(extracted);
+        }
+    }
+  }, [mensajes]);
+
 
   // Cargar lista de chats
   useEffect(() => {
@@ -203,7 +251,7 @@ export default function ChatsPage() {
         ]
       })
     },
-    [activoId, mergeUnique, token] // Agregamos 'token' a las dependencias
+    [activoId, mergeUnique, token]
   )
 
   const handleChatActualizado = useCallback(
@@ -244,6 +292,7 @@ export default function ChatsPage() {
       if (activoId === id) {
         setActivoId(null)
         setMensajes([])
+        setBookingData(null) // Limpiamos datos de booking
       }
       setPolicyErrors((prev) => {
         const { [id]: _omit, ...rest } = prev
@@ -268,10 +317,11 @@ export default function ChatsPage() {
     }
   }, [handleNuevoMensaje, handleChatActualizado, handlePolicyError, activoId])
 
-  // Handlers de selección y carga (sin cambios)
+  // Handlers de selección y carga
   const handleSelectChat = async (chatId: number) => {
     setActivoId(chatId)
     setMensajes([])
+    setBookingData(null) // Reiniciamos los datos de booking al cambiar de chat
     setPage(1)
     setLoadingMsgs(true)
     try {
@@ -338,7 +388,7 @@ export default function ChatsPage() {
     }
   }
 
-  // Enviar mensaje (protegido con isBillingLocked)
+  // Enviar mensaje
   const handleSendMessage = async () => {
     const body = respuesta.trim()
     if (!body || !activoId) return
@@ -637,7 +687,7 @@ export default function ChatsPage() {
         <div className="absolute top-[40%] right-[-10%] w-[400px] h-[400px] bg-purple-600/5 rounded-full blur-[100px]" />
       </div>
 
-      {/* SIDEBAR - Restaurando estructura original */}
+      {/* SIDEBAR */}
       <ChatSidebar
         chats={chats}
         loading={loading}
@@ -752,6 +802,8 @@ export default function ChatsPage() {
                     onUploadFile={(file, type) => handleUploadFile(file, type)}
                     disabled={chats.find((c) => c.id === activoId)?.estado === 'cerrado'}
                     onAppointmentCreated={handleAppointmentCreated}
+                    // AQUI PASAMOS LOS DATOS AUTO-DETECTADOS
+                    autoFillData={bookingData} 
                     conversationId={activoId}
                     chatPhone={
                         chats.find((c) => c.id === activoId)?.telefono ||
@@ -769,9 +821,8 @@ export default function ChatsPage() {
 
           </>
         ) : (
-          /* EMPTY STATE - Diseño Central "No hay chat" */
+          /* EMPTY STATE */
           <div className="h-full flex flex-col items-center justify-center p-8 text-center relative overflow-hidden">
-            {/* Círculo decorativo de fondo */}
             <div className="absolute w-[400px] h-[400px] bg-indigo-500/5 rounded-full blur-[80px] pointer-events-none" />
             
             <motion.div 
