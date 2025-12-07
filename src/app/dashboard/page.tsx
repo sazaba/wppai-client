@@ -13,7 +13,7 @@ import {
   Zap,
   CreditCard,
   AlertTriangle,
-  TrendingUp, // Icono para mostrar crecimiento
+  TrendingUp,
   CheckCircle2
 } from 'lucide-react'
 import {
@@ -156,8 +156,8 @@ export default function DashboardPage() {
     padding: '8px 12px'
   }
 
-  // Skeleton Loader
-  if (isLoading) return <SkeletonDashboard />
+  // Loader Ultra Premium
+  if (isLoading) return <PremiumLoader />
   if (!isAuthenticated) return null
 
   // UI Components Helpers
@@ -403,15 +403,31 @@ export default function DashboardPage() {
   )
 }
 
-function SkeletonDashboard() {
+function PremiumLoader() {
   return (
-    <div className="min-h-screen bg-zinc-950 p-8 space-y-8 animate-pulse">
-      <div className="h-40 rounded-[2rem] bg-zinc-900/50 border border-white/5" />
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        {[...Array(4)].map((_, i) => <div key={i} className="h-32 rounded-3xl bg-zinc-900/50 border border-white/5" />)}
+    <div className="min-h-screen w-full bg-zinc-950 flex flex-col items-center justify-center relative overflow-hidden">
+      {/* Background Lights */}
+      <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
+         <div className="absolute top-[20%] left-[20%] w-[400px] h-[400px] bg-indigo-600/10 rounded-full blur-[100px] animate-pulse" />
+         <div className="absolute bottom-[20%] right-[20%] w-[300px] h-[300px] bg-purple-600/10 rounded-full blur-[100px] animate-pulse delay-700" />
       </div>
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-        {[...Array(2)].map((_, i) => <div key={i} className="h-80 rounded-3xl bg-zinc-900/50 border border-white/5" />)}
+
+      <div className="relative z-10 flex flex-col items-center">
+        {/* Icon & Spinner */}
+        <div className="relative mb-6">
+           <div className="w-20 h-20 rounded-full border-2 border-indigo-500/20 border-t-indigo-500 animate-spin" />
+           <div className="absolute inset-0 flex items-center justify-center">
+              <Zap className="w-8 h-8 text-indigo-400 fill-indigo-500/20 animate-pulse" />
+           </div>
+        </div>
+
+        {/* Text */}
+        <h2 className="text-xl font-bold text-white tracking-tight mb-2 animate-pulse">
+          Cargando...
+        </h2>
+        <p className="text-sm text-zinc-500">
+          Sincronizando datos en tiempo real
+        </p>
       </div>
     </div>
   )
