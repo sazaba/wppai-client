@@ -2,16 +2,9 @@
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://wppai-server.onrender.com'
 
 const nextConfig = {
-    // 🚀 OPTIMIZACIONES DE RENDIMIENTO
-    reactStrictMode: true,
-    compress: true,      // Comprime archivos para que carguen rápido en 4G/3G
-    swcMinify: true,     // Minificación rápida
-    poweredByHeader: false,
-
     eslint: { ignoreDuringBuilds: true },
     typescript: { ignoreBuildErrors: true },
 
-    // 🖼️ OPTIMIZACIÓN DE IMÁGENES (Vital para móviles)
     images: {
         remotePatterns: [
             {
@@ -22,17 +15,37 @@ const nextConfig = {
             {
                 protocol: 'https',
                 hostname: 'imagedelivery.net',
-                pathname: '/**',
+                pathname: '/**', // 👈 habilita todas las imágenes Cloudflare Images
             },
+            // Si usas dominio propio, añade aquí:
+            // { protocol: 'https', hostname: 'wppai-products.example.com', pathname: '/**' },
         ],
-        // Tamaños específicos para que el móvil no descargue imágenes 4K
-        deviceSizes: [640, 750, 828, 1080, 1200, 1920], 
-        imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
-        minimumCacheTTL: 60, // Cachear imágenes por 60 segundos mínimo
     },
 
-    // 🔗 CONEXIÓN CON BACKEND
+    async headers() {
+        return [
+            {
+                source: '/:path*',
+                headers: [
+                    {
+                        key: 'Content-Security-Policy',
+                        value: [
+                            "default-src 'self'",
+                            // 👇 habilita ambos buckets (R2 y Cloudflare Images)
+                            "img-src 'self' data: blob: https://*.r2.cloudflarestorage.com https://imagedelivery.net",
+                            "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+                            "style-src 'self' 'unsafe-inline'",
+                            `connect-src 'self' https: wss: ${API_BASE}`,
+                            "frame-ancestors 'self'",
+                        ].join('; '),
+                    },
+                ],
+            },
+        ]
+    },
+
     async rewrites() {
+        // Reenvía todo /api/* al backend de Render (o al que uses)
         return [
             {
                 source: '/api/:path*',

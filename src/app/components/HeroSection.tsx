@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button"
 import { Sparkles, ChevronRight } from "lucide-react"
 import Link from "next/link"
 import { motion, Variants } from "framer-motion"
-import HeroChatAnimation from "./HeroChatAnimation" // Importamos la animación
+import HeroChatAnimation from "./HeroChatAnimation"
 
 const containerVariants: Variants = {
   hidden: { opacity: 0 },
@@ -18,11 +18,12 @@ const containerVariants: Variants = {
 }
 
 const itemVariants: Variants = {
-  hidden: { opacity: 0, y: 50 },
+  hidden: { opacity: 0, y: 30 }, // Reducido de 50 a 30 para menos trabajo
   visible: { 
     opacity: 1, 
     y: 0, 
-    transition: { type: "spring", stiffness: 100, damping: 20 } 
+    // Tween es más ligero que Spring para móviles
+    transition: { type: "tween", ease: "easeOut", duration: 0.5 } 
   },
 }
 
@@ -36,11 +37,12 @@ export default function HeroSection() {
         animate="visible"
       >
         
-        {/* Lado Izquierdo: Texto y CTA */}
+        {/* Lado Izquierdo */}
         <div className="md:col-span-7 space-y-8 text-center md:text-left flex flex-col items-center md:items-start justify-center relative z-20">
           
           <motion.div variants={itemVariants}>
-            <span className="inline-flex items-center rounded-full bg-indigo-500/10 dark:bg-indigo-400/10 px-4 py-1.5 text-sm font-semibold text-indigo-600 dark:text-indigo-400 border border-indigo-500/30 backdrop-blur-sm">
+            {/* OPTIMIZACIÓN: Backdrop blur solo en md */}
+            <span className="inline-flex items-center rounded-full bg-indigo-500/10 dark:bg-indigo-400/10 px-4 py-1.5 text-sm font-semibold text-indigo-600 dark:text-indigo-400 border border-indigo-500/30 md:backdrop-blur-sm">
                 <Sparkles className="mr-1.5 h-4 w-4 fill-indigo-500/30" />
                 La evolución de WhatsApp Business
             </span>
@@ -79,7 +81,8 @@ export default function HeroSection() {
               <Button 
                 size="lg" 
                 variant="outline" 
-                className="w-full sm:w-auto rounded-full px-8 h-12 text-lg bg-white/50 dark:bg-white/5 text-zinc-900 dark:text-white border-zinc-200 dark:border-white/10 hover:bg-white/80 dark:hover:bg-white/10 transition-colors backdrop-blur-sm"
+                // OPTIMIZACIÓN: Sin blur en móvil
+                className="w-full sm:w-auto rounded-full px-8 h-12 text-lg bg-white/50 dark:bg-white/5 text-zinc-900 dark:text-white border-zinc-200 dark:border-white/10 hover:bg-white/80 dark:hover:bg-white/10 transition-colors md:backdrop-blur-sm"
               >
                 Ver demo en vivo
                 <ChevronRight className="ml-1 h-5 w-5" />
@@ -88,23 +91,23 @@ export default function HeroSection() {
           </motion.div>
         </div>
 
-        {/* Lado Derecho: ANIMACIÓN DEL CHAT */}
+        {/* Lado Derecho */}
         <motion.div 
-          initial={{ opacity: 0, scale: 0.8, x: 50 }}
-          animate={{ opacity: 1, scale: 1, x: 0 }}
-          transition={{ delay: 0.4, type: "spring", stiffness: 80, damping: 20 }}
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.2, duration: 0.5 }}
           className="md:col-span-5 relative w-full flex items-center justify-center perspective-1000"
         >
-          {/* Componente de Chat Animado en Inglés */}
-          <div className="transform rotate-y-[-5deg] rotate-x-[5deg] hover:rotate-0 transition-transform duration-700 ease-out">
+          {/* OPTIMIZACIÓN: Solo rotar 3D en pantallas grandes para ahorrar GPU */}
+          <div className="md:transform md:rotate-y-[-5deg] md:rotate-x-[5deg] md:hover:rotate-0 transition-transform duration-700 ease-out">
              <HeroChatAnimation />
           </div>
 
-          {/* Elementos decorativos flotantes alrededor del chat */}
+          {/* Elementos flotantes - Ocultos en móvil pequeño para evitar clutter y lag */}
           <motion.div 
-             animate={{ y: [0, -15, 0] }}
-             transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
-             className="absolute top-20 -right-4 md:-right-12 bg-white dark:bg-zinc-800 p-4 rounded-2xl shadow-xl border border-gray-100 dark:border-white/10 z-30 max-w-[180px]"
+             animate={{ y: [0, -10, 0] }}
+             transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+             className="hidden sm:block absolute top-20 -right-4 md:-right-12 bg-white dark:bg-zinc-800 p-4 rounded-2xl shadow-xl border border-gray-100 dark:border-white/10 z-30 max-w-[180px]"
           >
              <div className="flex items-center gap-3 mb-2">
                 <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
