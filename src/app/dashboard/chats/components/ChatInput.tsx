@@ -476,7 +476,7 @@ export default function ChatInput({
 
           await alertSuccess(
               'Paciente Guardado',
-              `Se ha registrado a <b>${data.name}</b> exitosamente.`
+              `Se ha registrado a ${data.name} exitosamente.`
           )
           setShowSaveClient(false)
       } catch (err) {
