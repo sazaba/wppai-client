@@ -334,12 +334,11 @@ const META_WA_CONFIG_ID = process.env.NEXT_PUBLIC_META_WA_CONFIG_ID
 const FB_VERSION = 'v20.0'
 
 declare global {
-  interface Window { FB: any; fbLoaded?: boolean }
+  interface Window { FB: any; fbAsyncInit?: () => void }
 }
 
 type Estado = 'conectado' | 'desconectado' | 'cargando'
 
-// Estilos Dark para SweetAlert
 const DarkSwal = Swal.mixin({
   background: '#09090b',
   color: '#e4e4e7',
@@ -363,63 +362,49 @@ export default function WhatsappConfig() {
   const [loadingAction, setLoadingAction] = useState(false)
   const [loadingEstado, setLoadingEstado] = useState(false)
   
-  // ✅ Estado para controlar la carga del SDK
+  // ✅ Control de SDK
   const [sdkReady, setSdkReady] = useState(false)
-  
   const codeRef = useRef<string | null>(null)
 
-  // --- 1. Carga Robusta del SDK de Facebook ---
+  // --- 1. Carga OFICIAL del SDK de Facebook (fbAsyncInit) ---
   useEffect(() => {
-    // Función para chequear si FB ya está listo (navegación SPA)
-    const checkSDK = () => {
-      if (window.FB) {
+    // Si ya existe, marcamos listo y salimos
+    if (window.FB) {
         setSdkReady(true)
-        return true
-      }
-      return false
+        return
     }
 
-    if (checkSDK()) return
+    // Definimos la función que Facebook llamará cuando termine de cargar
+    window.fbAsyncInit = function() {
+        window.FB.init({
+            appId: META_APP_ID,
+            cookie: true,
+            xfbml: false,
+            version: FB_VERSION
+        });
+        console.log("✅ Facebook SDK inicializado (fbAsyncInit)");
+        setSdkReady(true);
+    };
 
-    // Si no está listo, inyectamos el script
-    const loadSDK = () => {
-        if (document.getElementById('fb-sdk-script')) return
-
-        const script = document.createElement('script')
-        script.id = 'fb-sdk-script'
-        script.src = 'https://connect.facebook.net/en_US/sdk.js'
-        script.async = true
-        script.defer = true
-        script.crossOrigin = 'anonymous'
+    // Inyectamos el script solo si no existe
+    if (!document.getElementById('facebook-jssdk')) {
+        const js = document.createElement('script');
+        js.id = 'facebook-jssdk';
+        js.src = "https://connect.facebook.net/en_US/sdk.js";
+        js.async = true;
+        js.defer = true;
+        js.crossOrigin = 'anonymous';
         
-        script.onload = () => {
-            window.FB?.init({
-                appId: META_APP_ID,
-                cookie: true,
-                xfbml: false,
-                version: FB_VERSION
-            })
-            setSdkReady(true) // ✅ Habilita el botón visualmente
-        }
+        js.onerror = () => {
+            console.error("❌ Falló la carga del SDK de Facebook.");
+            // No mostramos alerta intrusiva, solo dejamos el botón en estado 'Cargando...'
+        };
         
-        script.onerror = () => {
-            console.error("Facebook SDK falló al cargar. Posible AdBlocker.")
-            DarkSwal.fire({
-                icon: 'warning',
-                title: 'Bloqueador detectado',
-                text: 'Parece que un AdBlocker impidió cargar Facebook. Desactívalo para conectar tu cuenta.',
-                background: '#111827',
-                color: '#fff'
-            })
-        }
-
-        document.body.appendChild(script)
+        document.body.appendChild(js);
     }
-
-    loadSDK()
   }, [])
 
-  // --- 2. Listener postMessage para ESU (Confirmación visual) ---
+  // --- 2. Listener para finalización visual del Popup ---
   useEffect(() => {
     const onMsg = (event: MessageEvent) => {
         if (event.origin !== "https://www.facebook.com" && event.origin !== "https://web.facebook.com") return;
@@ -427,9 +412,10 @@ export default function WhatsappConfig() {
             const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
             if (data.type === 'WA_EMBEDDED_SIGNUP') {
                 if (data.event === 'FINISH') {
-                    console.log("✅ ESU Finalizado en popup");
+                    // El usuario terminó el wizard, pero el CODE viene por el callback del login
+                    console.log("✅ ESU Finalizado Visualmente");
                 } else if (data.event === 'CANCEL') {
-                    setLoadingAction(false);
+                    setLoadingAction(false); // Desbloqueamos el botón si cierra el popup
                 }
             }
         } catch (e) {}
@@ -438,15 +424,7 @@ export default function WhatsappConfig() {
     return () => window.removeEventListener('message', onMsg)
   }, [])
 
-  // Alertas
-  const alertError = (titulo: string, texto?: string) =>
-    DarkSwal.fire({ icon: 'error', title: titulo, text: texto, iconColor: '#ef4444' })
-  const alertInfo = (titulo: string, html?: string) =>
-    DarkSwal.fire({ icon: 'info', title: titulo, html, iconColor: '#3b82f6' })
-  const alertSuccess = (titulo: string, texto?: string) =>
-    DarkSwal.fire({ icon: 'success', title: titulo, text: texto })
-
-  // Estado actual desde backend
+  // --- 3. Obtener Estado ---
   const fetchEstado = useCallback(
     async (authToken: string) => {
       if (!API_URL) return
@@ -480,24 +458,27 @@ export default function WhatsappConfig() {
 
   useEffect(() => {
     if (!API_URL) {
-      alertError('Configuración requerida', 'Falta NEXT_PUBLIC_API_URL')
+      alertError('Error Config', 'Falta NEXT_PUBLIC_API_URL')
       return
     }
     if (token) fetchEstado(token)
   }, [token, fetchEstado])
 
-  // Lógica Embedded Signup (Popup)
+  // --- 4. Acción del Botón ---
   const iniciarEmbeddedSignup = () => {
     if (!empresaId || !token) {
-      alertInfo('Sesión requerida', 'Inicia sesión para conectar tu WhatsApp.')
+      DarkSwal.fire({ icon: 'info', title: 'Sesión expirada', text: 'Por favor inicia sesión nuevamente.' })
       return
     }
-    if (!sdkReady || !window.FB) {
-      alertError('Cargando...', 'El SDK de Facebook aún se está cargando. Espera un momento.')
-      return
+    
+    // Doble chequeo de seguridad
+    if (!window.FB) {
+        alertError('Cargando...', 'Facebook aún no está listo. Revisa tu conexión.')
+        return
     }
+
     if (!META_WA_CONFIG_ID) {
-        alertError('Falta Config ID', 'No se ha definido NEXT_PUBLIC_META_WA_CONFIG_ID')
+        alertError('Error', 'Falta el Config ID en las variables de entorno.')
         return
     }
 
@@ -512,7 +493,8 @@ export default function WhatsappConfig() {
              finalizarVinculacion(code); 
           } else {
              setLoadingAction(false);
-             alertError('Error', 'No se recibió el código de autorización.')
+             // Si el usuario cierra el popup de login sin aceptar
+             console.log("Login incompleto o cerrado.");
           }
         } else {
           setLoadingAction(false);
@@ -535,29 +517,26 @@ export default function WhatsappConfig() {
     )
   }
 
-  // Finalizar vinculación
   const finalizarVinculacion = async (code: string) => {
     try {
-        // 1. Intercambio de Code -> Token
         const rExchange = await axios.post(`${API_URL}/api/auth/exchange-code`, { code });
         const accessToken = rExchange.data.access_token;
 
-        // 2. Autodescubrimiento de IDs
+        // Auto-descubrimiento de IDs
         const rMeta = await axios.get(`https://graph.facebook.com/${FB_VERSION}/me/assigned_whatsapp_business_accounts`, {
             params: { access_token: accessToken }
         });
         
         const wabaIdFound = rMeta.data?.data?.[0]?.id;
-        if(!wabaIdFound) throw new Error("No se encontró WABA asociada.");
+        if(!wabaIdFound) throw new Error("No encontramos una cuenta de WhatsApp (WABA) asociada.");
 
         const rPhone = await axios.get(`https://graph.facebook.com/${FB_VERSION}/${wabaIdFound}/phone_numbers`, {
              params: { access_token: accessToken }
         });
         
         const phoneObj = rPhone.data?.data?.[0];
-        if(!phoneObj) throw new Error("No se encontró número de teléfono en la cuenta.");
+        if(!phoneObj) throw new Error("No encontramos un número de teléfono en esa cuenta.");
 
-        // 3. Guardar en Backend
         await axios.post(
             `${API_URL}/api/whatsapp/vincular`,
             {
@@ -569,22 +548,22 @@ export default function WhatsappConfig() {
             { headers: { Authorization: `Bearer ${token}` } }
         );
 
-        alertSuccess('¡Conectado!', 'WhatsApp Business vinculado exitosamente.')
+        alertSuccess('¡Conectado!', 'WhatsApp Business vinculado correctamente.')
         if (token) fetchEstado(token)
 
     } catch (e: any) {
         console.error(e);
-        alertError('Error de conexión', e.message || 'Falló la vinculación automática.')
+        alertError('Error de conexión', e?.response?.data?.error || e.message || 'Error desconocido.')
     } finally {
         setLoadingAction(false);
     }
   }
 
   const eliminarWhatsapp = async () => {
-    if (!token || !API_URL) return
+    if (!token) return
     const confirm = await DarkSwal.fire({
       title: '¿Desconectar?',
-      text: 'Tu bot dejará de responder mensajes.',
+      text: 'El bot dejará de funcionar.',
       icon: 'warning',
       showCancelButton: true,
       confirmButtonText: 'Sí, desconectar',
@@ -597,25 +576,22 @@ export default function WhatsappConfig() {
         headers: { Authorization: `Bearer ${token}` }
       })
       setEstado('desconectado')
-      setDisplayPhone('')
-      setPhoneNumberId('')
-      setWabaId('')
-      setBusinessId('')
-      alertSuccess('Desconectado correctamente')
+      alertSuccess('Desconectado')
     } catch {
-      alertError('No se pudo eliminar la conexión')
+      alertError('Error al desconectar')
     }
   }
 
-  const recargar = () => {
-    if (!token) return
-    fetchEstado(token)
-  }
+  const recargar = () => { if (token) fetchEstado(token) }
+
+  // Componentes de Alerta
+  const alertError = (t: string, m?: string) => DarkSwal.fire({ icon: 'error', title: t, text: m })
+  const alertSuccess = (t: string, m?: string) => DarkSwal.fire({ icon: 'success', title: t, text: m })
 
   return (
     <div className="relative w-full max-w-3xl mx-auto bg-zinc-900/40 backdrop-blur-xl border border-white/5 rounded-[2.5rem] p-8 shadow-2xl overflow-hidden">
       
-      {/* Luces ambientales */}
+      {/* Luces decorativas */}
       <div className="absolute top-[-20%] right-[-10%] w-[400px] h-[400px] bg-emerald-500/10 rounded-full blur-[100px] pointer-events-none" />
       <div className="absolute bottom-[-20%] left-[-10%] w-[400px] h-[400px] bg-green-600/10 rounded-full blur-[100px] pointer-events-none" />
 
@@ -629,122 +605,89 @@ export default function WhatsappConfig() {
                 </div>
                 <div>
                     <h2 className="text-xl font-bold text-white tracking-tight">API de WhatsApp</h2>
-                    <p className="text-sm text-zinc-400">Gestiona la conexión con Meta Cloud API</p>
+                    <p className="text-sm text-zinc-400">Estado de la conexión Cloud API</p>
                 </div>
             </div>
-            
-            <button
-              onClick={recargar}
-              disabled={loadingEstado}
-              className="p-2.5 rounded-xl hover:bg-white/5 text-zinc-400 hover:text-white transition-colors border border-transparent hover:border-white/10"
-              title="Refrescar estado"
-            >
-              <RefreshCw className={clsx("w-5 h-5", loadingEstado && "animate-spin")} />
+            <button onClick={recargar} className="p-2 hover:bg-white/5 rounded-lg text-zinc-400">
+                <RefreshCw className={clsx("w-5 h-5", loadingEstado && "animate-spin")} />
             </button>
           </div>
 
-          {/* Contenido Dinámico */}
-          {estado === 'cargando' ? (
-            <div className="flex flex-col items-center justify-center py-12 gap-4">
-              <div className="w-12 h-12 border-4 border-[#25D366]/30 border-t-[#25D366] rounded-full animate-spin" />
-              <span className="text-sm text-zinc-400 animate-pulse">Verificando estado...</span>
+          {/* Estado Cargando */}
+          {estado === 'cargando' && (
+            <div className="flex justify-center py-12">
+              <div className="w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
             </div>
-          ) : estado === 'conectado' ? (
+          )}
+
+          {/* Estado Conectado */}
+          {estado === 'conectado' && (
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <div className="flex items-center gap-2 mb-6 bg-emerald-500/10 border border-emerald-500/20 px-4 py-2 rounded-full w-fit">
-                  <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                  <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider">Conexión Activa</span>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
-                 <div className="bg-zinc-950/50 p-4 rounded-2xl border border-white/5">
-                    <div className="flex items-center gap-2 mb-2 text-zinc-500">
-                        <Smartphone className="w-4 h-4" />
-                        <span className="text-xs uppercase font-bold tracking-wider">Número Visible</span>
-                    </div>
-                    <p className="text-lg font-mono text-white tracking-wide">{displayPhone || '—'}</p>
-                 </div>
-                 
-                 <div className="bg-zinc-900/30 p-4 rounded-2xl border border-white/5">
-                    <div className="flex items-center gap-2 mb-2 text-zinc-500">
-                        <ShieldCheck className="w-4 h-4" />
-                        <span className="text-xs uppercase font-bold tracking-wider">Phone ID</span>
-                    </div>
-                    <code className="text-xs text-zinc-300 break-all">{phoneNumberId || '—'}</code>
-                 </div>
-
-                 <div className="bg-zinc-900/30 p-4 rounded-2xl border border-white/5">
-                    <span className="text-xs uppercase font-bold tracking-wider text-zinc-500 block mb-2">WABA ID</span>
-                    <code className="text-xs text-zinc-300 break-all">{wabaId || '—'}</code>
-                 </div>
-
-                 <div className="bg-zinc-900/30 p-4 rounded-2xl border border-white/5">
-                    <span className="text-xs uppercase font-bold tracking-wider text-zinc-500 block mb-2">Business ID</span>
-                    <code className="text-xs text-zinc-300 break-all">{businessId || '—'}</code>
-                 </div>
-              </div>
-
-              <div className="flex flex-col sm:flex-row gap-3 pt-6 border-t border-white/5">
-                <button
-                  onClick={iniciarEmbeddedSignup}
-                  disabled={loadingAction || !sdkReady} // Protegido
-                  className="flex-1 py-3 px-4 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-white text-sm font-semibold transition-all border border-white/10 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                   {loadingAction ? (
-                      <><RefreshCw className="w-4 h-4 animate-spin" /> Procesando...</>
-                   ) : !sdkReady ? (
-                      <><RefreshCw className="w-4 h-4 animate-spin" /> Cargando...</>
-                   ) : 'Re-conectar / Cambiar Número'}
-                </button>
+                <div className="bg-emerald-500/10 border border-emerald-500/20 px-4 py-2 rounded-full w-fit mb-6 flex items-center gap-2">
+                    <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
+                    <span className="text-xs font-bold text-emerald-400 uppercase">Conectado</span>
+                </div>
                 
-                <button
-                  onClick={eliminarWhatsapp}
-                  className="flex-1 py-3 px-4 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 text-sm font-semibold transition-all flex items-center justify-center gap-2 group"
-                >
-                  <Trash2 className="w-4 h-4 group-hover:scale-110 transition-transform" />
-                  Desconectar
-                </button>
-              </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+                    <div className="bg-zinc-950/50 p-4 rounded-xl border border-white/5">
+                        <p className="text-xs text-zinc-500 font-bold uppercase mb-1">Teléfono</p>
+                        <p className="font-mono text-white text-lg">{displayPhone}</p>
+                    </div>
+                    <div className="bg-zinc-900/30 p-4 rounded-xl border border-white/5">
+                        <p className="text-xs text-zinc-500 font-bold uppercase mb-1">WABA ID</p>
+                        <code className="text-xs text-zinc-300 break-all">{wabaId}</code>
+                    </div>
+                </div>
+
+                <div className="flex gap-3">
+                    <button 
+                        onClick={iniciarEmbeddedSignup} 
+                        disabled={!sdkReady || loadingAction}
+                        className="flex-1 py-3 bg-zinc-800 hover:bg-zinc-700 rounded-xl text-sm font-semibold border border-white/10 disabled:opacity-50"
+                    >
+                        {loadingAction ? 'Procesando...' : 'Re-conectar'}
+                    </button>
+                    <button 
+                        onClick={eliminarWhatsapp}
+                        className="flex-1 py-3 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-xl text-sm font-semibold border border-red-500/20 flex justify-center gap-2 items-center"
+                    >
+                        <Trash2 className="w-4 h-4" /> Desconectar
+                    </button>
+                </div>
             </div>
-          ) : (
-            <div className="text-center py-8 animate-in fade-in zoom-in duration-500">
-              <div className="w-20 h-20 bg-zinc-800 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner border border-white/5">
-                  <AlertCircle className="w-10 h-10 text-zinc-600" />
-              </div>
-              
-              <h3 className="text-lg font-bold text-white mb-2">No hay conexión establecida</h3>
-              <p className="text-zinc-400 text-sm max-w-md mx-auto mb-8 leading-relaxed">
-                Vincula tu número oficial de WhatsApp Business API mediante el asistente seguro de Meta.
-              </p>
+          )}
 
-              <div className="max-w-sm mx-auto">
-                <button
-                  onClick={iniciarEmbeddedSignup}
-                  disabled={loadingAction || !sdkReady} // Protegido
-                  className="w-full py-4 rounded-xl bg-[#1877F2] hover:bg-[#166fe5] text-white font-bold shadow-lg transition-all transform hover:scale-[1.02] flex items-center justify-center gap-3 disabled:opacity-70 disabled:transform-none disabled:cursor-not-allowed"
-                >
-                  {loadingAction ? (
-                    <>
-                       <RefreshCw className="w-5 h-5 animate-spin" />
-                       Conectando...
-                    </>
-                  ) : !sdkReady ? (
-                    <>
-                       <RefreshCw className="w-5 h-5 animate-spin" />
-                       Cargando Facebook...
-                    </>
-                  ) : (
-                    <>
-                       <svg className="w-6 h-6 fill-current" viewBox="0 0 24 24"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.791-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.871v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
-                       Conectar con Facebook
-                    </>
-                  )}
-                </button>
+          {/* Estado Desconectado */}
+          {estado === 'desconectado' && (
+            <div className="text-center py-8">
+                <div className="w-16 h-16 bg-zinc-800 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <AlertCircle className="w-8 h-8 text-zinc-500" />
+                </div>
+                <h3 className="text-lg font-bold text-white mb-2">Sin conexión</h3>
+                <p className="text-zinc-400 text-sm mb-6 max-w-xs mx-auto">Conecta tu número oficial para activar el bot.</p>
                 
-                <p className="text-[10px] text-zinc-500 mt-4">
-                   Usamos el flujo oficial "Embedded Signup" de Meta para garantizar la seguridad de tu cuenta.
-                </p>
-              </div>
+                <div className="max-w-xs mx-auto">
+                    <button
+                        onClick={iniciarEmbeddedSignup}
+                        // 👇 LA CLAVE: El botón está deshabilitado hasta que sdkReady es true
+                        disabled={!sdkReady || loadingAction}
+                        className={clsx(
+                            "w-full py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-all",
+                            !sdkReady ? "bg-zinc-700 text-zinc-400 cursor-not-allowed" : "bg-[#25D366] hover:bg-[#20bd5a] text-zinc-900 shadow-lg hover:scale-[1.02]"
+                        )}
+                    >
+                        {loadingAction ? (
+                            <><RefreshCw className="w-5 h-5 animate-spin" /> Conectando...</>
+                        ) : !sdkReady ? (
+                            <><RefreshCw className="w-5 h-5 animate-spin" /> Cargando Facebook...</>
+                        ) : (
+                            <>
+                                <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.791-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+                                Conectar con Facebook
+                            </>
+                        )}
+                    </button>
+                </div>
             </div>
           )}
       </div>
