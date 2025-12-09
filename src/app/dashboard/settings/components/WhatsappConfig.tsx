@@ -330,7 +330,7 @@ import clsx from 'clsx'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL
 const META_APP_ID = process.env.NEXT_PUBLIC_META_APP_ID
-const META_WA_CONFIG_ID = process.env.NEXT_PUBLIC_META_WA_CONFIG_ID // ¡Asegúrate de tener esto en .env!
+const META_WA_CONFIG_ID = process.env.NEXT_PUBLIC_META_WA_CONFIG_ID
 const FB_VERSION = 'v20.0'
 
 declare global {
@@ -360,31 +360,66 @@ export default function WhatsappConfig() {
   const [phoneNumberId, setPhoneNumberId] = useState('')
   const [wabaId, setWabaId] = useState('')
   const [businessId, setBusinessId] = useState('')
-  const [loadingAction, setLoadingAction] = useState(false) // Reemplaza a redirecting
+  const [loadingAction, setLoadingAction] = useState(false)
   const [loadingEstado, setLoadingEstado] = useState(false)
   
-  // Refs para el flujo ESU
+  // ✅ Estado para controlar la carga del SDK
+  const [sdkReady, setSdkReady] = useState(false)
+  
   const codeRef = useRef<string | null>(null)
 
-  // --- Cargar SDK de Facebook ---
+  // --- 1. Carga Robusta del SDK de Facebook ---
   useEffect(() => {
-    if (typeof window === 'undefined' || window.fbLoaded) return
-    const script = document.createElement('script')
-    script.src = 'https://connect.facebook.net/en_US/sdk.js'
-    script.async = true
-    script.onload = () => {
-      window.FB?.init({
-        appId: META_APP_ID,
-        cookie: true,
-        xfbml: false,
-        version: FB_VERSION
-      })
-      window.fbLoaded = true
+    // Función para chequear si FB ya está listo (navegación SPA)
+    const checkSDK = () => {
+      if (window.FB) {
+        setSdkReady(true)
+        return true
+      }
+      return false
     }
-    document.body.appendChild(script)
+
+    if (checkSDK()) return
+
+    // Si no está listo, inyectamos el script
+    const loadSDK = () => {
+        if (document.getElementById('fb-sdk-script')) return
+
+        const script = document.createElement('script')
+        script.id = 'fb-sdk-script'
+        script.src = 'https://connect.facebook.net/en_US/sdk.js'
+        script.async = true
+        script.defer = true
+        script.crossOrigin = 'anonymous'
+        
+        script.onload = () => {
+            window.FB?.init({
+                appId: META_APP_ID,
+                cookie: true,
+                xfbml: false,
+                version: FB_VERSION
+            })
+            setSdkReady(true) // ✅ Habilita el botón visualmente
+        }
+        
+        script.onerror = () => {
+            console.error("Facebook SDK falló al cargar. Posible AdBlocker.")
+            DarkSwal.fire({
+                icon: 'warning',
+                title: 'Bloqueador detectado',
+                text: 'Parece que un AdBlocker impidió cargar Facebook. Desactívalo para conectar tu cuenta.',
+                background: '#111827',
+                color: '#fff'
+            })
+        }
+
+        document.body.appendChild(script)
+    }
+
+    loadSDK()
   }, [])
 
-  // --- Listener postMessage para ESU (Confirmación visual) ---
+  // --- 2. Listener postMessage para ESU (Confirmación visual) ---
   useEffect(() => {
     const onMsg = (event: MessageEvent) => {
         if (event.origin !== "https://www.facebook.com" && event.origin !== "https://web.facebook.com") return;
@@ -403,7 +438,7 @@ export default function WhatsappConfig() {
     return () => window.removeEventListener('message', onMsg)
   }, [])
 
-  // Alertas visualmente mejoradas
+  // Alertas
   const alertError = (titulo: string, texto?: string) =>
     DarkSwal.fire({ icon: 'error', title: titulo, text: texto, iconColor: '#ef4444' })
   const alertInfo = (titulo: string, html?: string) =>
@@ -451,14 +486,14 @@ export default function WhatsappConfig() {
     if (token) fetchEstado(token)
   }, [token, fetchEstado])
 
-  // ✅ NUEVO: Lógica Embedded Signup (Popup)
+  // Lógica Embedded Signup (Popup)
   const iniciarEmbeddedSignup = () => {
     if (!empresaId || !token) {
       alertInfo('Sesión requerida', 'Inicia sesión para conectar tu WhatsApp.')
       return
     }
-    if (!window.FB) {
-      alertError('Error de carga', 'El SDK de Facebook no está listo. Recarga la página o desactiva bloqueadores.')
+    if (!sdkReady || !window.FB) {
+      alertError('Cargando...', 'El SDK de Facebook aún se está cargando. Espera un momento.')
       return
     }
     if (!META_WA_CONFIG_ID) {
@@ -485,7 +520,7 @@ export default function WhatsappConfig() {
         }
       },
       {
-        config_id: META_WA_CONFIG_ID, // ID de configuración de WhatsApp
+        config_id: META_WA_CONFIG_ID,
         response_type: 'code',
         override_default_response_type: true,
         extras: {
@@ -500,14 +535,14 @@ export default function WhatsappConfig() {
     )
   }
 
-  // ✅ NUEVO: Finalizar vinculación (Exchange + Save)
+  // Finalizar vinculación
   const finalizarVinculacion = async (code: string) => {
     try {
         // 1. Intercambio de Code -> Token
         const rExchange = await axios.post(`${API_URL}/api/auth/exchange-code`, { code });
         const accessToken = rExchange.data.access_token;
 
-        // 2. Autodescubrimiento de IDs (WABA y Phone)
+        // 2. Autodescubrimiento de IDs
         const rMeta = await axios.get(`https://graph.facebook.com/${FB_VERSION}/me/assigned_whatsapp_business_accounts`, {
             params: { access_token: accessToken }
         });
@@ -535,7 +570,7 @@ export default function WhatsappConfig() {
         );
 
         alertSuccess('¡Conectado!', 'WhatsApp Business vinculado exitosamente.')
-        if (token) fetchEstado(token) // Refrescar vista
+        if (token) fetchEstado(token)
 
     } catch (e: any) {
         console.error(e);
@@ -615,7 +650,6 @@ export default function WhatsappConfig() {
               <span className="text-sm text-zinc-400 animate-pulse">Verificando estado...</span>
             </div>
           ) : estado === 'conectado' ? (
-            // === VISTA CONECTADO ===
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
               <div className="flex items-center gap-2 mb-6 bg-emerald-500/10 border border-emerald-500/20 px-4 py-2 rounded-full w-fit">
                   <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
@@ -653,11 +687,13 @@ export default function WhatsappConfig() {
               <div className="flex flex-col sm:flex-row gap-3 pt-6 border-t border-white/5">
                 <button
                   onClick={iniciarEmbeddedSignup}
-                  disabled={loadingAction}
-                  className="flex-1 py-3 px-4 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-white text-sm font-semibold transition-all border border-white/10 flex items-center justify-center gap-2"
+                  disabled={loadingAction || !sdkReady} // Protegido
+                  className="flex-1 py-3 px-4 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-white text-sm font-semibold transition-all border border-white/10 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                    {loadingAction ? (
                       <><RefreshCw className="w-4 h-4 animate-spin" /> Procesando...</>
+                   ) : !sdkReady ? (
+                      <><RefreshCw className="w-4 h-4 animate-spin" /> Cargando...</>
                    ) : 'Re-conectar / Cambiar Número'}
                 </button>
                 
@@ -671,7 +707,6 @@ export default function WhatsappConfig() {
               </div>
             </div>
           ) : (
-            // === VISTA DESCONECTADO ===
             <div className="text-center py-8 animate-in fade-in zoom-in duration-500">
               <div className="w-20 h-20 bg-zinc-800 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner border border-white/5">
                   <AlertCircle className="w-10 h-10 text-zinc-600" />
@@ -685,13 +720,18 @@ export default function WhatsappConfig() {
               <div className="max-w-sm mx-auto">
                 <button
                   onClick={iniciarEmbeddedSignup}
-                  disabled={loadingAction}
-                  className="w-full py-4 rounded-xl bg-[#1877F2] hover:bg-[#166fe5] text-white font-bold shadow-lg transition-all transform hover:scale-[1.02] flex items-center justify-center gap-3 disabled:opacity-70 disabled:transform-none"
+                  disabled={loadingAction || !sdkReady} // Protegido
+                  className="w-full py-4 rounded-xl bg-[#1877F2] hover:bg-[#166fe5] text-white font-bold shadow-lg transition-all transform hover:scale-[1.02] flex items-center justify-center gap-3 disabled:opacity-70 disabled:transform-none disabled:cursor-not-allowed"
                 >
                   {loadingAction ? (
                     <>
                        <RefreshCw className="w-5 h-5 animate-spin" />
                        Conectando...
+                    </>
+                  ) : !sdkReady ? (
+                    <>
+                       <RefreshCw className="w-5 h-5 animate-spin" />
+                       Cargando Facebook...
                     </>
                   ) : (
                     <>
