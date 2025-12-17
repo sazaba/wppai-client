@@ -657,7 +657,7 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId?: number
         // ✅ CARGA PARALELA: Traemos las citas Y el staff al mismo tiempo
         const [dataAppts, dataStaff] = await Promise.all([
           api<Appointment[]>(`/api/appointments?${query}`, { method: "GET" }, token),
-          api<Staff[]>(`/api/staff?empresaId=${effEmpresaId}`, { method: "GET" }, token)
+          api<Staff[]>(`/api/estetica/staff?empresaId=${effEmpresaId}`, { method: "GET" }, token)
         ]);
 
         setEvents(dataAppts);
