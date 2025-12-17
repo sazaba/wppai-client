@@ -12,6 +12,8 @@ import { useAuth } from "../../context/AuthContext";
 import Swal from "sweetalert2";
 import "sweetalert2/dist/sweetalert2.min.css";
 
+
+
 /* ---------- helpers ---------- */
 const cx = (...c: (string | false | undefined)[]) => c.filter(Boolean).join(" ");
 const fmtKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
@@ -151,6 +153,12 @@ function TextArea(
 /* ---------- Types ---------- */
 type ConfirmStatus = "confirmed" | "reschedule" | "pending" | "cancelled";
 
+export type Staff = {
+  id: number;
+  name: string;
+  role: string;
+};
+
 export type Appointment = {
   id: number;
   empresaId: number;
@@ -163,6 +171,9 @@ export type Appointment = {
   endAt: string;
   notas?: string | null;
   status?: "pending" | "confirmed" | "rescheduled" | "cancelled" | "completed" | "no_show";
+
+  staffId?: number | null;
+  staffName?: string | null;
 
   // 🔹 Resumen que viene de conversation_state.summary
   summary?: {
@@ -552,6 +563,8 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId?: number
   const [saving, setSaving] = useState(false); // loader durante PUT
   const [showCreate, setShowCreate] = useState(false);
   const [editing, setEditing] = useState<Appointment | null>(null);
+  const [staffList, setStaffList] = useState<Staff[]>([]);
+  const [selectedStaffId, setSelectedStaffId] = useState<number | "all">("all");
 
   const [createPrefill, setCreatePrefill] = useState<{ startISO?: string; durationMin?: number }>({});
 
@@ -564,6 +577,11 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId?: number
   weekColumnRefs.current = [];
 
   const [drag, setDrag] = useState<DragState | null>(null);
+
+  const filteredEvents = useMemo(() => {
+    if (selectedStaffId === "all") return events;
+    return events.filter((e) => e.staffId === selectedStaffId);
+  }, [events, selectedStaffId]);
 
   // matriz mes
   const daysMonth = useMemo(() => {
@@ -587,29 +605,29 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId?: number
     });
   },[selectedWeekStart]);
 
-  const eventsByDay = useMemo(()=>{
+ const eventsByDay = useMemo(()=>{
     const map: Record<string, Appointment[]> = {};
-    for (const e of events) {
+    for (const e of filteredEvents) { // <--- AQUÍ USAS filteredEvents
       const k = fmtKey(new Date(e.startAt));
       (map[k] ||= []).push(e);
     }
     for (const k of Object.keys(map)) map[k].sort((a,b)=>+new Date(a.startAt)-+new Date(b.startAt));
     return map;
-  },[events]);
+  },[filteredEvents]);
 
-  const eventsForSelectedDay = useMemo(() => {
-    return events
+ const eventsForSelectedDay = useMemo(() => {
+    return filteredEvents // <--- AQUÍ
       .filter(ev => isSameYMD(new Date(ev.startAt), selectedDay))
       .sort((a,b) => +new Date(a.startAt) - +new Date(b.startAt));
-  }, [events, selectedDay]);
+  }, [filteredEvents, selectedDay]);
 
   const eventsForWeek = useMemo(() => {
     const end = new Date(selectedWeekStart); end.setDate(end.getDate()+7);
-    return events.filter(ev=>{
+    return filteredEvents.filter(ev=>{ // <--- AQUÍ
       const s=new Date(ev.startAt);
       return s>=selectedWeekStart && s<end;
     });
-  },[events, selectedWeekStart]);
+  },[filteredEvents, selectedWeekStart]);
 
   const hourTicks = useMemo(() => {
     const arr: Date[] = [];
@@ -622,9 +640,10 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId?: number
     return arr;
   }, []);
 
-  /* ---------- Load appointments ---------- */
+ /* ---------- Load appointments & STAFF ---------- */
   useEffect(() => {
     if (!effEmpresaId || !token) return;
+
     const first = new Date(current.getFullYear(), current.getMonth(), 1);
     const last  = new Date(current.getFullYear(), current.getMonth()+1, 0);
     const from  = new Date(first); from.setHours(0,0,0,0);
@@ -634,10 +653,17 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId?: number
       try {
         setLoading(true);
         const query = qs({ empresaId: effEmpresaId, from: from.toISOString(), to: to.toISOString() });
-        const data = await api<Appointment[]>(`/api/appointments?${query}`, { method: "GET" }, token);
-        setEvents(data);
+
+        // ✅ CARGA PARALELA: Traemos las citas Y el staff al mismo tiempo
+        const [dataAppts, dataStaff] = await Promise.all([
+          api<Appointment[]>(`/api/appointments?${query}`, { method: "GET" }, token),
+          api<Staff[]>(`/api/staff?empresaId=${effEmpresaId}`, { method: "GET" }, token)
+        ]);
+
+        setEvents(dataAppts);
+        setStaffList(dataStaff); // ✅ Guardamos la lista de staff en el estado
       } catch (e) {
-        console.error("[appointments load]", e);
+        console.error("[load data error]", e);
       } finally {
         setLoading(false);
       }
@@ -1246,6 +1272,22 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId?: number
             </div>
 
             <div className="flex items-center gap-2">
+              {/* ✅ INICIO: Filtro de Staff */}
+              <select
+                value={selectedStaffId}
+                onChange={(e) => setSelectedStaffId(e.target.value === "all" ? "all" : Number(e.target.value))}
+                className="hidden md:block bg-zinc-800 text-white text-sm rounded-xl border border-white/15 px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500"
+              >
+                <option value="all">Todo el equipo</option>
+                {staffList.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}
+                  </option>
+                ))}
+              </select>
+
+              <div className="hidden md:block h-6 w-px bg-white/10 mx-1" /> 
+              {/* ✅ FIN: Filtro de Staff */}
               <Button variant={view==='month'?'primary':'outline'} onClick={()=>setView('month')}>Mes</Button>
               <Button variant={view==='week'?'primary':'outline'}  onClick={()=>{
                 setSelectedWeekStart(getWeekStart(selectedDay));
@@ -1523,7 +1565,13 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId?: number
         </>
       ) : null}
     </div>
-
+{/* ✅ NUEVO: Mostrar Staff en Vista Día */}
+                            {ev.staffName && (
+                              <div className="flex items-center gap-1 text-[10px] text-indigo-200 mt-0.5 font-medium">
+                                <div className="h-1.5 w-1.5 rounded-full bg-indigo-400" />
+                                {ev.staffName}
+                              </div>
+                            )}
     {/* 🔹 Badge de estado (status) */}
     <div className="mt-1">
       {renderStatusBadge(ev.status)}
@@ -1684,7 +1732,13 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId?: number
         </>
       ) : null}
     </div>
-
+{/* ✅ NUEVO: Mostrar Staff en Vista Semana */}
+                          {ev.staffName && (
+                            <div className="flex items-center gap-1 text-[10px] text-indigo-200 mt-0.5 truncate opacity-90">
+                              <span className="shrink-0 h-1 w-1 rounded-full bg-indigo-400" />
+                              {ev.staffName}
+                            </div>
+                          )}
     {/* 🔹 Badge de estado debajo del nombre */}
     <div className="mt-1">
       {renderStatusBadge(ev.status)}
@@ -1817,6 +1871,7 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId?: number
         <CreateForm
           initialStartISO={createPrefill.startISO}
           initialDurationMin={createPrefill.durationMin ?? 30}
+          staffList={staffList}
           onCancel={()=>setShowCreate(false)}
           onSave={async (data)=>{ await addAppointment(data); setShowCreate(false); }}
         />
@@ -1827,6 +1882,7 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId?: number
         {editing && (
           <EditForm
             appt={editing}
+            staffList={staffList}
             onCancel={()=>setEditing(null)}
             onSave={async (patch)=>{
               const startLocalStr = (patch.startAt ? patch.startAt : editing.startAt);
@@ -1854,15 +1910,18 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId?: number
 function CreateForm({
   initialStartISO,
   initialDurationMin = 30,
+  staffList,
   onSave, onCancel
 }:{
   initialStartISO?: string;
   initialDurationMin?: number;
-  onSave:(d:{name:string;phone:string;service:string;sede?:string;provider?:string;startISO:string;durationMin?:number;notes?:string;})=>Promise<void>|void;
+  staffList: Staff[];
+  onSave:(d:{name:string;phone:string;service:string;sede?:string;provider?:string;startISO:string;durationMin?:number;notes?:string; staffId?: string})=>Promise<void>|void;
   onCancel:()=>void;
 }) {
   const [form, setForm] = useState({
     name:"", phone:"", service:"", sede:"", provider:"",
+    staffId: "", // ✅ NUEVO CAMPO
     startISO: initialStartISO ?? "", durationMin: initialDurationMin, notes:""
   });
 
@@ -1874,11 +1933,29 @@ function CreateForm({
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <Input label="Nombre cliente" value={form.name} onChange={(v)=>setForm({...form,name:v})} placeholder="Ej. Juan Pérez"/>
         <Input label="Teléfono" value={form.phone} onChange={(v)=>setForm({...form,phone:v})} placeholder="Ej. +57 300 000 0000"/>
-        <Input label="Sede (opcional)" value={form.sede} onChange={(v)=>setForm({...form,sede:v})} placeholder="Ej. Sede Centro"/>
-        <Input label="Profesional (opcional)" value={form.provider} onChange={(v)=>setForm({...form,provider:v})} placeholder="Ej. Dra. López"/>
+        
+        {/* ✅ NUEVO SELECTOR DE STAFF */}
+        <label className="space-y-1">
+          <span className="text-xs text-white/80">Profesional</span>
+          <select
+            value={form.staffId}
+            onChange={(e)=>setForm({...form, staffId: e.target.value})}
+            className="w-full rounded-xl border border-white/15 bg-zinc-900 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          >
+            <option value="">Cualquiera disponible</option>
+            {staffList.map(s => (
+              <option key={s.id} value={s.id}>{s.name} ({s.role})</option>
+            ))}
+          </select>
+        </label>
+
         <Input label="Servicio" value={form.service} onChange={(v)=>setForm({...form,service:v})} placeholder="Ej. Blanqueamiento dental"/>
         <Input label="Fecha y hora" type="datetime-local" value={form.startISO} onChange={(v)=>setForm({...form,startISO:v})} />
         <Input label="Duración (min)" type="number" value={String(form.durationMin)} onChange={(v)=>setForm({...form,durationMin:Number(v||30)})} placeholder="30"/>
+        
+        {/* Campos opcionales */}
+        <Input label="Sede (opcional)" value={form.sede} onChange={(v)=>setForm({...form,sede:v})} placeholder="Ej. Sede Centro"/>
+        
         <TextArea label="Notas (opcional)" value={form.notes} onChange={(v)=>setForm({...form,notes:v})} placeholder="Observaciones, indicaciones..."/>
       </div>
       <div className="flex justify-end gap-2">
@@ -1890,9 +1967,10 @@ function CreateForm({
 }
 
 function EditForm({
-  appt, onSave, onCancel
+  appt, staffList, onSave, onCancel
 }:{
   appt: Appointment;
+  staffList: Staff[];
   onSave:(patch:Partial<Appointment>)=>Promise<void>|void;
   onCancel:()=>void;
 }) {
@@ -1901,13 +1979,15 @@ function EditForm({
   const [service,setService] = useState(appt.serviceName);
   const [start,setStart] = useState(() => isoToLocalYMDHM(appt.startAt, -300));
   const [notes,setNotes] = useState(appt.notas ?? "");
+  const [staffId, setStaffId] = useState(appt.staffId ? String(appt.staffId) : ""); // ✅ NUEVO ESTADO
 
   return (
     <form
       onSubmit={async (e)=>{ e.preventDefault(); await onSave({
         customerName:name, customerPhone:phone, serviceName:service,
         startAt:start,
-        notas:notes
+        notas:notes,
+        staffId: staffId ? Number(staffId) : null // ✅ ENVIAMOS STAFF AL BACKEND
       }); }}
       className="space-y-4 text-white"
     >
@@ -1915,6 +1995,22 @@ function EditForm({
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <Input label="Nombre cliente" value={name} onChange={setName} placeholder="Nombre completo"/>
         <Input label="Teléfono" value={phone} onChange={setPhone} placeholder="Contacto"/>
+        
+        {/* ✅ NUEVO SELECTOR DE STAFF */}
+        <label className="space-y-1">
+          <span className="text-xs text-white/80">Profesional</span>
+          <select
+            value={staffId}
+            onChange={(e)=>setStaffId(e.target.value)}
+            className="w-full rounded-xl border border-white/15 bg-zinc-900 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          >
+            <option value="">Sin asignar / Cualquiera</option>
+            {staffList.map(s => (
+              <option key={s.id} value={s.id}>{s.name} ({s.role})</option>
+            ))}
+          </select>
+        </label>
+
         <Input label="Servicio" value={service} onChange={setService} placeholder="Tipo de servicio"/>
         <Input label="Fecha y hora" type="datetime-local" value={start} onChange={setStart}/>
         <TextArea label="Notas" value={notes} onChange={setNotes} placeholder="Notas internas o del cliente"/>
