@@ -4,10 +4,31 @@ import { listStaff, upsertStaff, type StaffRow } from '@/services/estetica.servi
 import Swal from 'sweetalert2'
 import 'sweetalert2/dist/sweetalert2.min.css'
 import { useAuth } from '@/app/context/AuthContext'
-import { Trash2 } from 'lucide-react'
+import { Trash2, Clock, CheckCircle2, XCircle } from 'lucide-react'
+
+// Definición de tipos para la UI de horarios
+type DayKey = 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat' | 'sun'
+type DaySchedule = {
+  day: DayKey
+  label: string
+  active: boolean
+  start: string
+  end: string
+}
 
 const ROLES: StaffRow['role'][] = ['profesional', 'esteticista', 'medico']
 const API = process.env.NEXT_PUBLIC_API_URL || ''
+
+// Configuración base para inicializar horarios vacíos
+const DEFAULT_SCHEDULE: DaySchedule[] = [
+  { day: 'mon', label: 'Lunes',     active: true,  start: '09:00', end: '18:00' },
+  { day: 'tue', label: 'Martes',    active: true,  start: '09:00', end: '18:00' },
+  { day: 'wed', label: 'Miércoles', active: true,  start: '09:00', end: '18:00' },
+  { day: 'thu', label: 'Jueves',    active: true,  start: '09:00', end: '18:00' },
+  { day: 'fri', label: 'Viernes',   active: true,  start: '09:00', end: '18:00' },
+  { day: 'sat', label: 'Sábado',    active: false, start: '09:00', end: '14:00' },
+  { day: 'sun', label: 'Domingo',   active: false, start: '00:00', end: '00:00' },
+]
 
 export default function StaffPanel() {
   const { token } = useAuth() || {}
@@ -15,12 +36,19 @@ export default function StaffPanel() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [deletingId, setDeletingId] = useState<number | null>(null)
+
+  // Estado del formulario
   const [editing, setEditing] = useState<Partial<StaffRow>>({
     name: '',
     role: 'esteticista',
     active: true,
     availability: null
   })
+
+  // Estado local para manejar la UI de horarios (array de 7 días)
+  const [scheduleUi, setScheduleUi] = useState<DaySchedule[]>(DEFAULT_SCHEDULE)
+  // Switch para saber si usamos horario personalizado o el general
+  const [useCustomSchedule, setUseCustomSchedule] = useState(false)
 
   async function reload() {
     setLoading(true)
@@ -37,78 +65,86 @@ export default function StaffPanel() {
     reload()
   }, [])
 
+  // Iniciar nuevo Staff
   function startNew() {
-    setEditing({ id: undefined, name: '', role: 'esteticista', active: true, availability: '' })
+    setEditing({ id: undefined, name: '', role: 'esteticista', active: true, availability: null })
+    setScheduleUi(DEFAULT_SCHEDULE) // Reset UI
+    setUseCustomSchedule(false)     // Por defecto usa horario general
   }
 
+  // Editar existente
   function editRow(r: StaffRow) {
-    setEditing({ ...r, availability: r.availability ? JSON.stringify(r.availability, null, 2) : '' })
+    setEditing(r)
+    
+    // Parsear availability para la UI
+    if (r.availability && Array.isArray(r.availability) && r.availability.length > 0) {
+      setUseCustomSchedule(true)
+      // Fusionar con el default para asegurar que estén los 7 días y etiquetas correctas
+      const merged = DEFAULT_SCHEDULE.map(def => {
+        const found = (r.availability as DaySchedule[]).find(x => x.day === def.day)
+        return found ? { ...def, ...found } : def
+      })
+      setScheduleUi(merged)
+    } else {
+      setUseCustomSchedule(false)
+      setScheduleUi(DEFAULT_SCHEDULE)
+    }
+  }
+
+  // Actualizar un día específico en la UI
+  function updateDay(day: DayKey, field: keyof DaySchedule, value: any) {
+    setScheduleUi(prev => prev.map(d => d.day === day ? { ...d, [field]: value } : d))
   }
 
   async function save() {
     if (!editing?.name || !editing.name.trim()) {
       await Swal.fire({
         title: 'Campo requerido',
-        text: 'Nombre es obligatorio',
+        text: 'El nombre es obligatorio',
         icon: 'warning',
         confirmButtonText: 'Entendido',
         background: '#0f172a',
         color: '#e2e8f0',
-        iconColor: '#f59e0b',
         confirmButtonColor: '#7c3aed',
-        customClass: {
-          popup: 'rounded-2xl border border-white/10',
-          title: 'text-slate-100',
-          htmlContainer: 'text-slate-300',
-          confirmButton: 'rounded-xl',
-        },
+        customClass: { popup: 'rounded-2xl border border-white/10' },
       })
       return
     }
+
     setSaving(true)
     try {
+      // Preparar payload final
       const payload = {
         ...editing,
-        availability: ((): any => {
-          if (!editing?.availability) return null
-          try { return JSON.parse(String(editing.availability)) } catch { return null }
-        })(),
+        // Si el switch está activado, enviamos el array de scheduleUi. Si no, null.
+        availability: useCustomSchedule ? scheduleUi : null
       }
+
       await upsertStaff(payload as any)
       await reload()
       startNew()
+      
       await Swal.fire({
-        title: '¡Guardado!',
-        text: 'Staff guardado',
         icon: 'success',
-        confirmButtonText: 'Listo',
+        title: 'Guardado',
+        toast: true,
+        position: 'top-end',
+        showConfirmButton: false,
+        timer: 3000,
         background: '#0f172a',
-        color: '#e2e8f0',
-        iconColor: '#22c55e',
-        confirmButtonColor: '#7c3aed',
-        customClass: {
-          popup: 'rounded-2xl border border-white/10',
-          title: 'text-slate-100',
-          htmlContainer: 'text-slate-300',
-          confirmButton: 'rounded-xl',
-        },
+        color: '#fff'
       })
+
     } catch (e: any) {
       await Swal.fire({
         title: 'Error al guardar',
-        text: e?.message || 'Error al guardar staff',
+        text: e?.message || 'Ocurrió un error inesperado',
         icon: 'error',
-        confirmButtonText: 'Entendido',
+        confirmButtonText: 'Cerrar',
         background: '#0f172a',
         color: '#e2e8f0',
-        iconColor: '#ef4444',
-        confirmButtonColor: '#7c3aed',
-        customClass: {
-          popup: 'rounded-2xl border border-white/10',
-          title: 'text-slate-100',
-          htmlContainer: 'text-slate-300',
-          confirmButton: 'rounded-xl',
-        },
+        confirmButtonColor: '#ef4444',
+        customClass: { popup: 'rounded-2xl border border-white/10' },
       })
     } finally {
       setSaving(false)
@@ -120,39 +156,10 @@ export default function StaffPanel() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, rows.length])
 
-  // ==== Helpers UI (sólo para rellenar el textarea; no altera la lógica) ====
-  function fillAvailabilityPreset(kind: 'none' | 'split' | 'compact') {
-    if (kind === 'none') {
-      setEditing(p => ({ ...p!, availability: '' }))
-      return
-    }
-    if (kind === 'split') {
-      const tpl = [
-        { day: 'mon', blocks: [['09:00','13:00'],['14:00','18:00']] },
-        { day: 'tue', blocks: [['09:00','13:00'],['14:00','18:00']] },
-        { day: 'wed', blocks: [['09:00','13:00'],['14:00','18:00']] },
-        { day: 'thu', blocks: [['09:00','13:00'],['14:00','18:00']] },
-        { day: 'fri', blocks: [['09:00','13:00'],['14:00','18:00']] },
-      ]
-      setEditing(p => ({ ...p!, availability: JSON.stringify(tpl, null, 2) }))
-      return
-    }
-    if (kind === 'compact') {
-      const tpl = [
-        { day: 'mon', blocks: [['10:00','18:00']] },
-        { day: 'tue', blocks: [['10:00','18:00']] },
-        { day: 'wed', blocks: [['10:00','18:00']] },
-        { day: 'thu', blocks: [['10:00','18:00']] },
-        { day: 'fri', blocks: [['10:00','18:00']] },
-      ]
-      setEditing(p => ({ ...p!, availability: JSON.stringify(tpl, null, 2) }))
-    }
-  }
-
   async function confirmAndDelete(r: StaffRow) {
     const result = await Swal.fire({
       title: 'Eliminar miembro',
-      html: `<div class="text-slate-300">¿Seguro que deseas eliminar a <b>${(r.name || '').replace(/</g,'&lt;')}</b> del staff?</div>`,
+      html: `<div class="text-slate-300">¿Eliminar a <b>${(r.name || '').replace(/</g,'&lt;')}</b>?</div>`,
       icon: 'warning',
       showCancelButton: true,
       confirmButtonText: 'Sí, eliminar',
@@ -162,13 +169,7 @@ export default function StaffPanel() {
       iconColor: '#f59e0b',
       confirmButtonColor: '#ef4444',
       cancelButtonColor: '#334155',
-      customClass: {
-        popup: 'rounded-2xl border border-white/10',
-        title: 'text-slate-100',
-        htmlContainer: 'text-slate-300',
-        confirmButton: 'rounded-xl',
-        cancelButton: 'rounded-xl',
-      },
+      customClass: { popup: 'rounded-2xl border border-white/10' },
     })
     if (!result.isConfirmed) return
 
@@ -180,47 +181,12 @@ export default function StaffPanel() {
           'Content-Type': 'application/json',
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        credentials: 'include',
       })
-      if (!res.ok) {
-        const msg = (await res.json().catch(() => ({})))?.error || `No se pudo eliminar (#${r.id})`
-        throw new Error(msg)
-      }
+      if (!res.ok) throw new Error('No se pudo eliminar')
       await reload()
       if (editing?.id === r.id) startNew()
-      await Swal.fire({
-        title: 'Eliminado',
-        text: 'El miembro fue eliminado correctamente.',
-        icon: 'success',
-        confirmButtonText: 'Listo',
-        background: '#0f172a',
-        color: '#e2e8f0',
-        iconColor: '#22c55e',
-        confirmButtonColor: '#7c3aed',
-        customClass: {
-          popup: 'rounded-2xl border border-white/10',
-          title: 'text-slate-100',
-          htmlContainer: 'text-slate-300',
-          confirmButton: 'rounded-xl',
-        },
-      })
     } catch (e: any) {
-      await Swal.fire({
-        title: 'Error al eliminar',
-        text: e?.message || 'No fue posible eliminar.',
-        icon: 'error',
-        confirmButtonText: 'Entendido',
-        background: '#0f172a',
-        color: '#e2e8f0',
-        iconColor: '#ef4444',
-        confirmButtonColor: '#7c3aed',
-        customClass: {
-          popup: 'rounded-2xl border border-white/10',
-          title: 'text-slate-100',
-          htmlContainer: 'text-slate-300',
-          confirmButton: 'rounded-xl',
-        },
-      })
+      await Swal.fire({ title: 'Error', text: e.message, icon: 'error', background: '#0f172a', color: '#fff' })
     } finally {
       setDeletingId(null)
     }
@@ -230,243 +196,256 @@ export default function StaffPanel() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h2 className="text-lg font-semibold tracking-tight">Staff / Profesionales</h2>
+        <h2 className="text-lg font-semibold tracking-tight text-white">Staff / Profesionales</h2>
         <p className="text-sm text-slate-400">
-          Gestiona el equipo que la IA tendrá en cuenta al proponer horarios y asignar citas.
+          Configura tu equipo y sus turnos individuales para que la Agenda Inteligente asigne citas correctamente.
         </p>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-        {/* ====== Lista ====== */}
-        <div className="rounded-2xl border border-white/10 bg-gradient-to-b from-slate-900/70 to-slate-950/70 backdrop-blur-xl">
-          <div className="px-4 py-3 border-b border-white/10 flex items-center justify-between">
-            <div className="text-sm font-semibold">Listado</div>
-            <div className="text-[11px] text-slate-400">{loading ? 'Cargando…' : `${rows.length} miembros`}</div>
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
+        
+        {/* ====== Columna Izquierda: Lista (4 columnas) ====== */}
+        <div className="xl:col-span-4 rounded-2xl border border-white/10 bg-gradient-to-b from-slate-900/70 to-slate-950/70 backdrop-blur-xl flex flex-col h-[fit-content] max-h-[85vh]">
+          <div className="px-4 py-3 border-b border-white/10 flex items-center justify-between shrink-0">
+            <div className="text-sm font-semibold text-white">Equipo</div>
+            <div className="text-[11px] text-slate-400">{loading ? '...' : `${rows.length}`}</div>
           </div>
 
-          <div className="p-3 space-y-2 max-h-[70vh] overflow-auto">
+          <div className="p-2 space-y-2 overflow-y-auto">
             {loading ? (
-              <div className="space-y-2">
-                {[...Array(6)].map((_, i) => (
-                  <div key={i} className="h-14 rounded-xl bg-white/5 border border-white/10 animate-pulse" />
+              <div className="space-y-2 p-2">
+                {[...Array(4)].map((_, i) => (
+                  <div key={i} className="h-12 rounded-xl bg-white/5 border border-white/10 animate-pulse" />
                 ))}
               </div>
             ) : rows.length === 0 ? (
-              <div className="p-4 text-slate-400 text-sm">Aún no hay staff. Crea uno en el panel derecho.</div>
+              <div className="p-6 text-center text-slate-500 text-sm">
+                No hay profesionales.<br/>Crea el primero.
+              </div>
             ) : (
               rows.map((r) => (
                 <div
                   key={r.id}
-                  className="w-full text-left p-3 rounded-xl border border-white/10 bg-white/[.03] hover:bg-white/[.06] transition group"
+                  onClick={() => editRow(r)}
+                  className={`w-full text-left p-3 rounded-xl border transition cursor-pointer group relative
+                    ${editing?.id === r.id 
+                      ? 'bg-violet-500/10 border-violet-500/50 ring-1 ring-violet-500/20' 
+                      : 'border-white/5 bg-white/[.03] hover:bg-white/[.06] hover:border-white/10'
+                    }`}
                 >
-                  <div className="flex items-start gap-3">
-                    <button
-                      onClick={() => editRow(r)}
-                      className="flex-1 text-left"
-                      title="Editar"
-                    >
-                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
-                        <div className="font-medium truncate">{r.name}</div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-[11px] rounded-full px-2 py-0.5 border border-indigo-400/40 text-indigo-200 bg-indigo-500/10">
-                            {r.role}
-                          </span>
-                          <span
-                            className={[
-                              'text-[11px] rounded-full px-2 py-0.5 border',
-                              r.active
-                                ? 'border-emerald-500/70 text-emerald-300 bg-emerald-500/10'
-                                : 'border-slate-500/70 text-slate-300 bg-slate-500/10',
-                            ].join(' ')}
-                          >
-                            {r.active ? 'Activo' : 'Inactivo'}
-                          </span>
-                        </div>
+                  <div className="flex items-center justify-between gap-2">
+                    <div>
+                      <div className={`font-medium text-sm ${editing?.id === r.id ? 'text-violet-200' : 'text-slate-200'}`}>
+                        {r.name}
                       </div>
-                      {r.availability ? (
-                        <div className="mt-1 text-[12px] text-slate-500 line-clamp-1">
-                          Disponibilidad personalizada
-                        </div>
-                      ) : (
-                        <div className="mt-1 text-[12px] text-slate-500">Sin disponibilidad definida</div>
-                      )}
-                    </button>
-
-                    {/* Botón eliminar */}
+                      <div className="text-[11px] text-slate-400 capitalize mt-0.5 flex items-center gap-2">
+                        <span>{r.role}</span>
+                        {!r.active && <span className="text-red-400 font-medium">• Inactivo</span>}
+                        {r.availability && <span className="text-emerald-400">• Horario Personal</span>}
+                      </div>
+                    </div>
+                    
                     <button
                       onClick={(e) => { e.stopPropagation(); confirmAndDelete(r) }}
-                      className="shrink-0 h-9 w-9 flex items-center justify-center rounded-lg border border-white/10 bg-white/[.02] hover:bg-red-500/10 hover:border-red-500/50 text-slate-300 hover:text-red-300 transition"
-                      title="Eliminar"
                       disabled={deletingId === r.id}
+                      className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg hover:bg-red-500/20 text-slate-400 hover:text-red-400 transition"
                     >
-                      {deletingId === r.id ? (
-                        <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
-                        </svg>
-                      ) : (
-                        <Trash2 className="h-4 w-4" />
-                      )}
+                      <Trash2 className="h-3.5 w-3.5" />
                     </button>
                   </div>
                 </div>
               ))
             )}
           </div>
+          
+          <div className="p-3 border-t border-white/10 mt-auto bg-slate-950/30 rounded-b-2xl">
+            <button 
+              onClick={startNew}
+              className="w-full py-2 rounded-xl border border-dashed border-white/20 text-slate-400 text-xs hover:bg-white/5 hover:text-white transition flex items-center justify-center gap-2"
+            >
+              <PlusIcon className="h-3 w-3"/> Agregar nuevo
+            </button>
+          </div>
         </div>
 
-        {/* ====== Editor ====== */}
-        <div className="rounded-2xl border border-white/10 bg-gradient-to-b from-slate-900/70 to-slate-950/70 backdrop-blur-xl">
-          <div className="px-4 py-3 border-b border-white/10 flex items-center justify-between">
-            <div className="text-sm font-semibold">
-              {editing?.id ? 'Editar profesional' : 'Nuevo profesional'}
+        {/* ====== Columna Derecha: Editor (8 columnas) ====== */}
+        <div className="xl:col-span-8 rounded-2xl border border-white/10 bg-gradient-to-b from-slate-900/70 to-slate-950/70 backdrop-blur-xl flex flex-col">
+          
+          {/* Toolbar del Editor */}
+          <div className="px-5 py-4 border-b border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h3 className="text-base font-semibold text-white">
+                {editing?.id ? 'Editar Profesional' : 'Registrar Nuevo Profesional'}
+              </h3>
+              <p className="text-xs text-slate-400">Información básica y disponibilidad semanal.</p>
             </div>
-            <div className="text-[11px] text-slate-400">
-              Los cambios no se guardan hasta que presiones “Guardar”.
+            
+            <div className="flex items-center gap-2">
+               <button
+                onClick={startNew}
+                className="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-300 hover:bg-white/5 transition"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={save}
+                disabled={saving}
+                className="px-4 py-1.5 rounded-lg bg-violet-600 hover:bg-violet-500 text-white text-xs font-medium shadow-lg shadow-violet-900/20 disabled:opacity-50 transition flex items-center gap-2"
+              >
+                {saving ? 'Guardando...' : 'Guardar Cambios'}
+              </button>
             </div>
           </div>
 
-          <div className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {/* Nombre */}
-            <div className="sm:col-span-2">
-              <label className="text-xs text-slate-400 mb-1 block">Nombre *</label>
-              <input
-                placeholder="Ej: Dra. María Pérez"
-                value={editing?.name ?? ''}
-                onChange={(e) => setEditing((p) => ({ ...p!, name: e.target.value }))}
-                className="w-full bg-slate-950/60 border border-white/10 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-violet-600"
-              />
-              <div className="mt-1 text-[11px] text-slate-500">Nombre como aparecerá en la agenda interna.</div>
-            </div>
+          <div className="p-5 space-y-8 overflow-y-auto max-h-[80vh]">
+            
+            {/* Sección 1: Datos Básicos */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+              <div className="sm:col-span-2">
+                <label className="block text-xs font-medium text-slate-400 mb-1.5">Nombre Completo</label>
+                <input
+                  type="text"
+                  value={editing?.name ?? ''}
+                  onChange={(e) => setEditing(p => ({ ...p!, name: e.target.value }))}
+                  placeholder="Ej. Dra. Camila Torres"
+                  className="w-full bg-slate-950/50 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white focus:ring-2 focus:ring-violet-500/50 outline-none placeholder:text-slate-600"
+                />
+              </div>
 
-            {/* Rol */}
-            <div className="sm:col-span-1">
-              <label className="text-xs text-slate-400 mb-1 block">Rol</label>
-              <div className="relative">
+              <div>
+                <label className="block text-xs font-medium text-slate-400 mb-1.5">Rol en la empresa</label>
                 <select
                   value={editing?.role ?? 'esteticista'}
-                  onChange={(e) => setEditing((p) => ({ ...p!, role: e.target.value as StaffRow['role'] }))}
-                  className="peer w-full appearance-none bg-slate-950/60 border border-white/10 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-violet-600 pr-10"
+                  onChange={(e) => setEditing(p => ({ ...p!, role: e.target.value as any }))}
+                  className="w-full bg-slate-950/50 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white focus:ring-2 focus:ring-violet-500/50 outline-none appearance-none"
                 >
-                  {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
+                  {ROLES.map(r => <option key={r} value={r} className="bg-slate-900 capitalize">{r}</option>)}
                 </select>
-                <svg
-                  className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 peer-focus:text-violet-300"
-                  viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"
-                >
-                  <path d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.08 1.04l-4.25 4.25a.75.75 0 01-1.06 0L5.21 8.27a.75.75 0 01.02-1.06z" />
-                </svg>
-              </div>
-              <div className="mt-1 text-[11px] text-slate-500">Define el tipo de profesional.</div>
-            </div>
-
-            {/* Estado */}
-            <div className="sm:col-span-1">
-              <label className="text-xs text-slate-400 mb-1 block">Estado</label>
-              <label className="flex items-center gap-2 text-sm bg-slate-950/60 border border-white/10 rounded-lg px-3 py-2">
-                <input
-                  type="checkbox"
-                  checked={!!editing?.active}
-                  onChange={(e) => setEditing((p) => ({ ...p!, active: e.target.checked }))}
-                  className="h-4 w-4"
-                />
-                Activo (disponible para agendar)
-              </label>
-            </div>
-
-            {/* Disponibilidad */}
-            <div className="sm:col-span-2">
-              <label className="text-xs text-slate-400 mb-1 block">Disponibilidad del profesional (opcional)</label>
-
-              {/* Atajos */}
-              <div className="flex flex-wrap gap-2 mb-2">
-                <button
-                  type="button"
-                  onClick={() => fillAvailabilityPreset('none')}
-                  className="text-[11px] rounded-full px-3 py-1 border border-white/10 bg-white/[.02] hover:bg-white/[.06]"
-                >
-                  Sin disponibilidad (usar horario general)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => fillAvailabilityPreset('split')}
-                  className="text-[11px] rounded-full px-3 py-1 border border-white/10 bg-white/[.02] hover:bg-white/[.06]"
-                >
-                  L–V 9:00–13:00 & 14:00–18:00
-                </button>
-                <button
-                  type="button"
-                  onClick={() => fillAvailabilityPreset('compact')}
-                  className="text-[11px] rounded-full px-3 py-1 border border-white/10 bg-white/[.02] hover:bg-white/[.06]"
-                >
-                  L–V 10:00–18:00
-                </button>
               </div>
 
-              <textarea
-                placeholder={
-`Opcional. Si este profesional atiende en horarios distintos al general, escribe los días y rangos.
-Ejemplos válidos:
-• L–V en dos jornadas: 09:00–13:00 y 14:00–18:00
-• L–V jornada continua: 10:00–18:00
-(Avanzado) Formato técnico que entiende el sistema:
-[
-  {"day":"mon","blocks":[["09:00","13:00"],["14:00","18:00"]]},
-  {"day":"tue","blocks":[["09:00","13:00"],["14:00","18:00"]]}
-]`
-                }
-                value={(editing?.availability as any) ?? ''}
-                onChange={(e) => setEditing((p) => ({ ...p!, availability: e.target.value }))}
-                className="w-full bg-slate-950/60 border border-white/10 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-violet-600 font-mono"
-                rows={7}
-              />
-              <div className="mt-1 text-[11px] text-slate-500">
-                Déjalo vacío para heredar el horario semanal del negocio. Usa los atajos de arriba si no quieres escribirlo.
+              <div>
+                <label className="block text-xs font-medium text-slate-400 mb-1.5">Estado del perfil</label>
+                <div 
+                  onClick={() => setEditing(p => ({ ...p!, active: !p!.active }))}
+                  className={`cursor-pointer w-full border rounded-xl px-3 py-2.5 text-sm flex items-center justify-between transition select-none
+                    ${editing?.active 
+                      ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-200' 
+                      : 'bg-slate-800/30 border-slate-700 text-slate-400'}`}
+                >
+                  <span>{editing?.active ? 'Activo (Recibe citas)' : 'Inactivo (Oculto)'}</span>
+                  {editing?.active ? <CheckCircle2 className="h-4 w-4"/> : <XCircle className="h-4 w-4"/>}
+                </div>
               </div>
             </div>
 
-            {/* Acciones */}
-            <div className="sm:col-span-2">
-              <div className="sticky bottom-2 flex gap-2 bg-gradient-to-t from-slate-950/80 to-transparent pt-3">
-                <button
-                  onClick={save}
-                  disabled={saving}
-                  className="px-4 py-2 rounded-xl bg-violet-600 hover:bg-violet-700 text-white shadow-lg shadow-violet-900/30 disabled:opacity-60"
-                >
-                  {saving ? 'Guardando…' : 'Guardar'}
-                </button>
-                <button
-                  onClick={startNew}
-                  className="px-4 py-2 rounded-xl border border-white/10 bg-white/[.03] hover:bg-white/[.06] text-white"
-                >
-                  Nuevo
-                </button>
-
-                {/* Eliminar desde el editor */}
-                {editing?.id ? (
-                  <button
-                    onClick={() => confirmAndDelete(editing as StaffRow)}
-                    className="ml-auto px-3 py-2 rounded-xl border border-white/10 bg-white/[.02] hover:bg-red-500/10 hover:border-red-500/50 text-red-200 flex items-center gap-2"
-                    title="Eliminar este miembro"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                    Eliminar
-                  </button>
-                ) : (
-                  <span className="ml-auto text-[11px] text-slate-400 self-center">
-                    Crea o selecciona un profesional para editar.
+            {/* Sección 2: Configuración de Horario Visual */}
+            <div className="pt-4 border-t border-white/10">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-2">
+                <div>
+                  <h4 className="text-sm font-medium text-white flex items-center gap-2">
+                    <Clock className="h-4 w-4 text-violet-400" />
+                    Horario de Trabajo
+                  </h4>
+                  <p className="text-[11px] text-slate-400 mt-0.5">
+                    Define qué días y horas trabaja este profesional específicamente.
+                  </p>
+                </div>
+                
+                {/* Switch Global de Horario Personalizado */}
+                <label className="inline-flex items-center cursor-pointer gap-3">
+                  <span className="text-xs text-slate-300 text-right leading-tight">
+                    {useCustomSchedule ? 'Horario Personalizado' : 'Usar Horario General'}
                   </span>
-                )}
+                  <div className="relative">
+                    <input 
+                      type="checkbox" 
+                      className="sr-only peer" 
+                      checked={useCustomSchedule} 
+                      onChange={(e) => setUseCustomSchedule(e.target.checked)} 
+                    />
+                    <div className="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-violet-600"></div>
+                  </div>
+                </label>
               </div>
+
+              {!useCustomSchedule ? (
+                <div className="p-6 rounded-xl border border-dashed border-white/10 bg-white/[.02] text-center">
+                  <p className="text-sm text-slate-400">
+                    Este profesional seguirá el <b>Horario General de Apertura</b> de la empresa.<br/>
+                    (Ideal para staff de tiempo completo).
+                  </p>
+                  <button 
+                    onClick={() => setUseCustomSchedule(true)}
+                    className="mt-3 text-xs text-violet-300 hover:text-violet-200 underline"
+                  >
+                    Personalizar turnos
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-1 bg-slate-950/30 rounded-xl border border-white/5 p-1">
+                  {/* Grid de días */}
+                  {scheduleUi.map((daySch) => (
+                    <div 
+                      key={daySch.day} 
+                      className={`grid grid-cols-12 items-center gap-2 p-2 rounded-lg transition-colors
+                        ${daySch.active ? 'bg-white/[.03]' : 'opacity-50'}`}
+                    >
+                      {/* Toggle del día */}
+                      <div className="col-span-3 sm:col-span-2 flex items-center gap-3">
+                        <input
+                          type="checkbox"
+                          checked={daySch.active}
+                          onChange={(e) => updateDay(daySch.day, 'active', e.target.checked)}
+                          className="h-4 w-4 rounded border-slate-600 bg-slate-800 text-violet-600 focus:ring-violet-500 cursor-pointer"
+                        />
+                        <span className={`text-sm font-medium ${daySch.active ? 'text-white' : 'text-slate-500'}`}>
+                          {daySch.label}
+                        </span>
+                      </div>
+
+                      {/* Selectores de Hora */}
+                      <div className="col-span-9 sm:col-span-10 flex items-center gap-2 sm:gap-4">
+                        <div className="flex items-center gap-2 flex-1">
+                          <input
+                            type="time"
+                            disabled={!daySch.active}
+                            value={daySch.start}
+                            onChange={(e) => updateDay(daySch.day, 'start', e.target.value)}
+                            className="w-full bg-slate-900 border border-white/10 rounded-md px-2 py-1.5 text-xs text-white disabled:opacity-50 disabled:cursor-not-allowed focus:ring-1 focus:ring-violet-500 outline-none"
+                          />
+                          <span className="text-slate-500 text-xs">a</span>
+                          <input
+                            type="time"
+                            disabled={!daySch.active}
+                            value={daySch.end}
+                            onChange={(e) => updateDay(daySch.day, 'end', e.target.value)}
+                            className="w-full bg-slate-900 border border-white/10 rounded-md px-2 py-1.5 text-xs text-white disabled:opacity-50 disabled:cursor-not-allowed focus:ring-1 focus:ring-violet-500 outline-none"
+                          />
+                        </div>
+                        
+                        <div className="hidden sm:block w-24 text-right">
+                          <span className={`text-[10px] ${daySch.active ? 'text-emerald-400' : 'text-slate-600'}`}>
+                            {daySch.active ? 'Disponible' : 'Descanso'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
+
           </div>
         </div>
       </div>
-
-      {/* Nota inferior */}
-      <div className="text-[11px] text-slate-500">
-        Tip: Define la disponibilidad sólo si el profesional tiene horarios distintos al general.
-      </div>
     </div>
+  )
+}
+
+function PlusIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M12 5v14M5 12h14" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
   )
 }
