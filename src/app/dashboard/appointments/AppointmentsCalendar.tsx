@@ -641,6 +641,7 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId?: number
   }, []);
 
  /* ---------- Load appointments & STAFF ---------- */
+ /* ---------- Load appointments & STAFF (BLINDADO) ---------- */
   useEffect(() => {
     if (!effEmpresaId || !token) return;
 
@@ -654,16 +655,30 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId?: number
         setLoading(true);
         const query = qs({ empresaId: effEmpresaId, from: from.toISOString(), to: to.toISOString() });
 
-        // ✅ CARGA PARALELA: Traemos las citas Y el staff al mismo tiempo
+        // Intentamos cargar ambas cosas
         const [dataAppts, dataStaff] = await Promise.all([
-          api<Appointment[]>(`/api/appointments?${query}`, { method: "GET" }, token),
-          api<Staff[]>(`/api/estetica/staff?empresaId=${effEmpresaId}`, { method: "GET" }, token)
+          api<Appointment[]>(`/api/appointments?${query}`, { method: "GET" }, token).catch(err => {
+             console.error("Error cargando citas:", err);
+             return []; // Si falla, retorna array vacío para no romper la app
+          }),
+          api<Staff[]>(`/api/estetica/staff?empresaId=${effEmpresaId}`, { method: "GET" }, token).catch(err => {
+             console.error("Error cargando staff:", err);
+             return []; // Si falla, retorna array vacío
+          })
         ]);
 
-        setEvents(dataAppts);
-        setStaffList(dataStaff); // ✅ Guardamos la lista de staff en el estado
+        // ✅ VALIDACIÓN EXTRA: Aseguramos que sea array antes de setear estado
+        setEvents(Array.isArray(dataAppts) ? dataAppts : []);
+        
+        // Filtramos staff activo y validamos que sea array
+        const safeStaff = Array.isArray(dataStaff) ? dataStaff : [];
+        setStaffList(safeStaff.filter(s => (s as any).active !== false));
+
       } catch (e) {
-        console.error("[load data error]", e);
+        console.error("[Fatal load error]", e);
+        // En caso de error catastrófico, limpiamos para evitar pantalla blanca
+        setEvents([]);
+        setStaffList([]); 
       } finally {
         setLoading(false);
       }
