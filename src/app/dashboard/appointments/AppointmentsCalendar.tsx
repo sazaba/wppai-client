@@ -712,10 +712,11 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId?: number
   }, [current, effEmpresaId, token]); // El token aquí es CLAVE para re-intentar cuando auth termine
 
   /* ---------- CRUD ---------- */
-  async function addAppointment(data: {
+ async function addAppointment(data: {
     name: string; phone: string;
     service: string; sede?: string; provider?: string;
     startISO: string; durationMin?: number; notes?: string;
+    staffId?: string; // ✅ 1. Agregamos staffId al tipo
   }) {
     if (!effEmpresaId || !token) return;
     try {
@@ -736,6 +737,8 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId?: number
         startAt: startAtISO,
         endAt: endAtISO,
         timezone: "America/Bogota",
+        // ✅ 2. Enviamos el staffId al backend
+        staffId: data.staffId ? Number(data.staffId) : null, 
       };
 
       const created = await api<Appointment>(`/api/appointments?${qs({ empresaId: effEmpresaId })}`, {
@@ -743,7 +746,17 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId?: number
         body: JSON.stringify(body),
       }, token);
 
-      setEvents((prev) => [...prev, created]);
+      // ✅ 3. Enriquecemos el objeto localmente para que se vea sin refrescar
+      // Buscamos el nombre del staff en la lista que ya tenemos cargada en memoria
+      const assignedStaff = staffList.find(s => s.id === Number(data.staffId));
+      
+      const newEventForState = {
+        ...created,
+        staffName: assignedStaff ? assignedStaff.name : null
+      };
+
+      setEvents((prev) => [...prev, newEventForState]);
+      
       await alertSuccess("Cita creada",
         `${created.customerName} • ${new Date(created.startAt).toLocaleString("es-CO", { dateStyle: "medium", timeStyle: "short" })}`);
       return created;
@@ -1958,6 +1971,7 @@ function CreateForm({
   initialStartISO?: string;
   initialDurationMin?: number;
   staffList: Staff[];
+  // ✅ 4. Aseguramos que staffId esté en la definición del prop
   onSave:(d:{name:string;phone:string;service:string;sede?:string;provider?:string;startISO:string;durationMin?:number;notes?:string; staffId?: string})=>Promise<void>|void;
   onCancel:()=>void;
 }) {
