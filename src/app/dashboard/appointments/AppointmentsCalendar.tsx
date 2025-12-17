@@ -641,9 +641,18 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId?: number
   }, []);
 
  /* ---------- Load appointments & STAFF ---------- */
- /* ---------- Load appointments & STAFF (BLINDADO) ---------- */
+/* ---------- Load appointments & STAFF (AUDITADO) ---------- */
   useEffect(() => {
-    if (!effEmpresaId || !token) return;
+    // 1. LOG DE AUDITORÍA: Verificamos si tenemos lo necesario para arrancar
+    console.log("🔄 Intentando cargar calendario...", { empresaId: effEmpresaId, tieneToken: !!token });
+
+    if (!effEmpresaId) return;
+    
+    // 🛑 FRENO DE MANO: Si no hay token, no llamamos a la API para evitar el 401/403
+    if (!token) {
+        console.log("⏳ Esperando autenticación (Token no listo)...");
+        return;
+    }
 
     const first = new Date(current.getFullYear(), current.getMonth(), 1);
     const last  = new Date(current.getFullYear(), current.getMonth()+1, 0);
@@ -655,35 +664,52 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId?: number
         setLoading(true);
         const query = qs({ empresaId: effEmpresaId, from: from.toISOString(), to: to.toISOString() });
 
-        // Intentamos cargar ambas cosas
-        const [dataAppts, dataStaff] = await Promise.all([
-          api<Appointment[]>(`/api/appointments?${query}`, { method: "GET" }, token).catch(err => {
-             console.error("Error cargando citas:", err);
-             return []; // Si falla, retorna array vacío para no romper la app
-          }),
-          api<Staff[]>(`/api/estetica/staff?empresaId=${effEmpresaId}&t=${Date.now()}`, { method: "GET" }, token).catch(err => {
-             console.error("Error cargando staff:", err);
-             return []; // Si falla, retorna array vacío
-          })
+        console.log("🚀 Iniciando Peticiones API...");
+
+        // Usamos Promise.allSettled para que si falla uno, no falle el otro
+        const [resultsAppts, resultsStaff] = await Promise.allSettled([
+          api<Appointment[]>(`/api/appointments?${query}`, { method: "GET" }, token),
+          api<Staff[]>(`/api/estetica/staff?empresaId=${effEmpresaId}`, { method: "GET" }, token)
         ]);
 
-        // ✅ VALIDACIÓN EXTRA: Aseguramos que sea array antes de setear estado
-        setEvents(Array.isArray(dataAppts) ? dataAppts : []);
-        
-        // Filtramos staff activo y validamos que sea array
-        const safeStaff = Array.isArray(dataStaff) ? dataStaff : [];
-        setStaffList(safeStaff.filter(s => (s as any).active !== false));
+        // --- Procesar Citas ---
+        if (resultsAppts.status === 'fulfilled') {
+            const data = resultsAppts.value;
+            console.log("✅ Citas cargadas:", Array.isArray(data) ? data.length : "Formato inválido");
+            setEvents(Array.isArray(data) ? data : []);
+        } else {
+            console.error("❌ Error cargando citas:", resultsAppts.reason);
+            setEvents([]);
+        }
+
+        // --- Procesar Staff ---
+        if (resultsStaff.status === 'fulfilled') {
+            const data = resultsStaff.value;
+            console.log("✅ Staff cargado (Raw):", data);
+            
+            if (Array.isArray(data)) {
+                // Filtramos y aseguramos tipo
+                const activeStaff = data.filter(s => (s as any).active !== false);
+                console.log("👥 Staff Activo procesado:", activeStaff.length);
+                setStaffList(activeStaff);
+            } else {
+                console.error("⚠️ El Staff no llegó como array:", data);
+                setStaffList([]);
+            }
+        } else {
+            console.error("❌ Error cargando Staff (API Falló):", resultsStaff.reason);
+            setStaffList([]);
+        }
 
       } catch (e) {
-        console.error("[Fatal load error]", e);
-        // En caso de error catastrófico, limpiamos para evitar pantalla blanca
+        console.error("🔥 Error Fatal en useEffect:", e);
         setEvents([]);
         setStaffList([]); 
       } finally {
         setLoading(false);
       }
     })();
-  }, [current, effEmpresaId, token]);
+  }, [current, effEmpresaId, token]); // El token aquí es CLAVE para re-intentar cuando auth termine
 
   /* ---------- CRUD ---------- */
   async function addAppointment(data: {
@@ -1291,10 +1317,11 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId?: number
               <select
                 value={selectedStaffId}
                 onChange={(e) => setSelectedStaffId(e.target.value === "all" ? "all" : Number(e.target.value))}
-                className="hidden md:block bg-zinc-800 text-white text-sm rounded-xl border border-white/15 px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500"
+                className="bg-zinc-800 text-white text-sm rounded-xl border border-white/15 px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500"
               >
                 <option value="all">Todo el equipo</option>
-                {staffList.map((s) => (
+                {/* Agregamos el chequeo Array.isArray por seguridad extrema */}
+                {Array.isArray(staffList) && staffList.map((s) => (
                   <option key={s.id} value={s.id}>
                     {s.name}
                   </option>
@@ -1951,14 +1978,14 @@ function CreateForm({
         
         {/* ✅ NUEVO SELECTOR DE STAFF */}
         <label className="space-y-1">
-          <span className="text-xs text-white/80">Profesional</span>
           <select
             value={form.staffId}
             onChange={(e)=>setForm({...form, staffId: e.target.value})}
             className="w-full rounded-xl border border-white/15 bg-zinc-900 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
           >
             <option value="">Cualquiera disponible</option>
-            {staffList.map(s => (
+            {/* Protección extra aquí 👇 */}
+            {Array.isArray(staffList) && staffList.map(s => (
               <option key={s.id} value={s.id}>{s.name} ({s.role})</option>
             ))}
           </select>
@@ -2020,7 +2047,7 @@ function EditForm({
             className="w-full rounded-xl border border-white/15 bg-zinc-900 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
           >
             <option value="">Sin asignar / Cualquiera</option>
-            {staffList.map(s => (
+            {Array.isArray(staffList) && staffList.map(s => (
               <option key={s.id} value={s.id}>{s.name} ({s.role})</option>
             ))}
           </select>
