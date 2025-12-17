@@ -661,7 +661,7 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId?: number
              console.error("Error cargando citas:", err);
              return []; // Si falla, retorna array vacío para no romper la app
           }),
-          api<Staff[]>(`/api/estetica/staff?empresaId=${effEmpresaId}`, { method: "GET" }, token).catch(err => {
+          api<Staff[]>(`/api/estetica/staff?empresaId=${effEmpresaId}&t=${Date.now()}`, { method: "GET" }, token).catch(err => {
              console.error("Error cargando staff:", err);
              return []; // Si falla, retorna array vacío
           })
