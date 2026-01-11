@@ -418,20 +418,24 @@ export default function ChatInput({
         `${String(endLocal.getHours()).padStart(2, '0')}:${String(endLocal.getMinutes()).padStart(2, '0')}`
       const { iso: endAtISO } = localToISOWithOffset(endLocalStr, -300)
 
-      const body = {
-        empresaId,
-        conversationId: conversationId ?? null,
-        customerName: data.name,
-        customerPhone: data.phone,
-        serviceName: data.service,
-        providerId: data.providerId ?? null,
-        sede: data.sede || null,
-        notas: data.notes || null,
-        startAt: startAtISO,
-        endAt: endAtISO,
-        timezone: 'America/Bogota',
-        sendReminder24h,
-      }
+     const body = {
+  empresaId,
+  conversationId: conversationId ?? null,
+  customerName: data.name,
+  customerPhone: data.phone,
+  serviceName: data.service,
+
+  // ✅ la clave correcta para tu backend
+  staffId: data.providerId ?? null,
+
+  sede: data.sede || null,
+  notas: data.notes || null,
+  startAt: startAtISO,
+  endAt: endAtISO,
+  timezone: 'America/Bogota',
+  sendReminder24h,
+}
+
 
       const created = await api<{ id: number; customerName: string; startAt: string }>(
         `/api/appointments?empresaId=${empresaId}`,
