@@ -55,6 +55,7 @@ function isoToLocalYMDHM(iso: string, offsetMinutes = -300): string {
 }
 
 /* ---------- SweetAlert dark premium ---------- */
+/* ---------- SweetAlert dark premium ---------- */
 const DarkSwal = Swal.mixin({
   background: "linear-gradient(180deg,#0B0C14 0%, #0F1020 100%)",
   color: "#E5E7EB",
@@ -63,15 +64,32 @@ const DarkSwal = Swal.mixin({
   hideClass: { popup: "" },
   buttonsStyling: false,
   customClass: {
-    popup: "rounded-2xl border border-white/10 shadow-[0_20px_60px_-20px_rgba(80,70,200,.4)]",
+    popup:
+      "rounded-2xl border border-white/10 shadow-[0_20px_60px_-20px_rgba(80,70,200,.4)]",
     title: "text-xl font-semibold tracking-tight",
     htmlContainer: "text-sm text-gray-200",
+
+    // ✅ alinea y separa bien el grupo de botones
+    actions: "mt-5 flex items-center justify-center gap-2",
+
     confirmButton:
-      "inline-flex items-center justify-center rounded-xl px-4 py-2 font-medium bg-gradient-to-r from-indigo-500 to-fuchsia-600 text-white hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-indigo-400",
+      "inline-flex items-center justify-center rounded-xl px-4 py-2 font-medium " +
+      "bg-gradient-to-r from-indigo-500 to-fuchsia-600 text-white hover:opacity-90 " +
+      "focus:outline-none focus:ring-2 focus:ring-indigo-400",
+
+    // ✅ NUEVO: botón para Deny ("Eliminar") en el modal de info
+    denyButton:
+      "inline-flex items-center justify-center rounded-xl px-4 py-2 font-medium " +
+      "border border-red-400/30 bg-red-500/10 text-red-200 hover:bg-red-500/20 " +
+      "focus:outline-none focus:ring-2 focus:ring-red-400",
+
     cancelButton:
-      "inline-flex items-center justify-center rounded-xl px-4 py-2 font-medium border border-white/15 text-white/90 hover:bg-white/5 ml-2",
+      "inline-flex items-center justify-center rounded-xl px-4 py-2 font-medium " +
+      "border border-white/15 text-white/90 hover:bg-white/5 " +
+      "focus:outline-none focus:ring-2 focus:ring-white/20",
   },
 });
+
 const alertSuccess = (title: string, text?: string) => DarkSwal.fire({ icon:"success", title, text, confirmButtonText:"Aceptar" });
 const alertError = (title: string, html?: string) => DarkSwal.fire({ icon:"error", title, html, confirmButtonText:"Entendido" });
 const extractErrorMessage = (err: unknown) => {
