@@ -145,13 +145,13 @@ type CreateApptPayload = {
   phone: string
   service: string
   sede?: string
-  provider?: string
+  providerId?: number | null
   startISO: string
   durationMin?: number
   notes?: string
-  /** Flag por cita: si se debe enviar recordatorio 24h antes */
   sendReminder24h?: boolean
 }
+
 
 function extractAgendaFromState(state?: any): { nombre?: string; servicio?: string } {
   if (!state) return {}
@@ -424,7 +424,7 @@ export default function ChatInput({
         customerName: data.name,
         customerPhone: data.phone,
         serviceName: data.service,
-        providerName: data.provider || null,
+        providerId: data.providerId ?? null,
         sede: data.sede || null,
         notas: data.notes || null,
         startAt: startAtISO,
@@ -796,7 +796,8 @@ function CreateApptForm({
   const [phone, setPhone] = useState(defaultPhone || '')
   const [service, setService] = useState(defaultService || '')
   const [sede, setSede] = useState('')
-  const [provider, setProvider] = useState('')
+const [providerId, setProviderId] = useState<string>('') // guardamos el id como string
+
   const [dateTime, setDateTime] = useState(`${yyyy}-${MM}-${dd}T${HH}:${mm}`)
   const [durationMin, setDurationMin] = useState<number>(30)
   const [notes, setNotes] = useState(defaultNotes || '') // Inicializar notas
@@ -842,10 +843,17 @@ function CreateApptForm({
         if (!canSave) return
         setSaving(true)
         try {
-          const payload: CreateApptPayload = {
-            name, phone, service, sede, provider,
-            startISO: dateTime, durationMin, notes,
-          }
+         const payload: CreateApptPayload = {
+  name,
+  phone,
+  service,
+  sede,
+  providerId: providerId ? Number(providerId) : null,
+  startISO: dateTime,
+  durationMin,
+  notes,
+}
+
           await onSave(payload)
         } finally {
           setSaving(false)
@@ -898,16 +906,19 @@ function CreateApptForm({
         <div className="space-y-6">
             <label className="space-y-1.5 block">
                 <span className="text-xs font-semibold text-zinc-400 uppercase tracking-wider ml-1">Profesional</span>
-                <select
-                    value={provider || ''}
-                    onChange={(e) => setProvider(e.target.value)}
-                    className="w-full rounded-xl border border-white/5 bg-zinc-950/50 px-4 py-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50 appearance-none transition-colors hover:bg-zinc-900"
-                >
-                    <option value="">(Sin preferencia)</option>
-                    {staffOptions.map((s) => (
-                    <option key={s.id} value={s.name}>{s.name}</option>
-                    ))}
-                </select>
+             <select
+  value={providerId}
+  onChange={(e) => setProviderId(e.target.value)}
+  className="w-full rounded-xl border border-white/5 bg-zinc-950/50 px-4 py-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50 appearance-none transition-colors hover:bg-zinc-900"
+>
+  <option value="">(Sin preferencia)</option>
+  {staffOptions.map((s) => (
+    <option key={s.id} value={String(s.id)}>
+      {s.name}
+    </option>
+  ))}
+</select>
+
             </label>
 
             <Input label="Fecha y Hora" type="datetime-local" value={dateTime} onChange={setDateTime} />
