@@ -4,8 +4,9 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Calendar as CalendarIcon,
   ChevronLeft, ChevronRight, Plus,
-  Clock, Check, X, Edit, Trash
+  Clock, Check, X, Edit, Trash, Info
 } from "lucide-react";
+
 import { motion } from "framer-motion";
 import { useAuth } from "../../context/AuthContext";
 
@@ -774,7 +775,15 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId?: number
         method: "PUT",
         body: JSON.stringify(patch),
       }, token);
-      setEvents(prev => prev.map(e => e.id === id ? updated : e));
+     const assignedStaff = staffList.find(s => s.id === updated.staffId);
+
+const updatedForState = {
+  ...updated,
+  staffName: assignedStaff ? assignedStaff.name : (updated.staffName ?? null),
+};
+
+setEvents(prev => prev.map(e => e.id === id ? updatedForState : e));
+
       await alertSuccess("Cita actualizada",
         `${updated.customerName} • ${new Date(updated.startAt).toLocaleString("es-CO", { dateStyle: "medium", timeStyle: "short" })}`);
       return updated;
@@ -807,6 +816,83 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId?: number
       throw err;
     }
   }
+
+    function fmtCODateTime(iso?: string) {
+    return iso
+      ? new Date(iso).toLocaleString("es-CO", { dateStyle: "medium", timeStyle: "short" })
+      : "—";
+  }
+
+  async function openApptDetails(ev: Appointment) {
+    const time = `${fmtCODateTime(ev.startAt)} – ${fmtCODateTime(ev.endAt)}`;
+
+    const statusText =
+      ev.status === "pending" ? "Pendiente" :
+      ev.status === "confirmed" ? "Confirmada" :
+      ev.status === "rescheduled" ? "Reagendada" :
+      ev.status === "cancelled" ? "Cancelada" :
+      ev.status === "completed" ? "Atendida" :
+      ev.status === "no_show" ? "No llegó" : "—";
+
+    const confirmIconHtml = (() => {
+      const s = ev.summary?.statusConfirm ?? null;
+      if (!s || s === "pending") return `<span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:999px;border:1px solid rgba(253,224,71,.5);color:rgba(253,230,138,.95);font-size:11px;">?</span>`;
+      if (s === "confirmed") return `<span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:999px;background:rgba(16,185,129,.9);color:white;font-size:11px;">✓</span>`;
+      if (s === "reschedule") return `<span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:999px;background:rgba(14,165,233,.9);color:white;font-size:11px;">⏱</span>`;
+      if (s === "cancelled") return `<span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:999px;background:rgba(239,68,68,.9);color:white;font-size:11px;">✕</span>`;
+      return "";
+    })();
+
+    const safeNotas = ev.notas
+      ? String(ev.notas).replaceAll("<", "&lt;").replaceAll(">", "&gt;")
+      : "";
+
+    const html = `
+      <div class="grid gap-3 text-left">
+        <div class="rounded-xl p-3 bg-gradient-to-r from-indigo-500/10 via-fuchsia-500/10 to-transparent border border-white/10">
+          <div class="flex items-center justify-between gap-2">
+            <div>
+              <div class="text-xs text-white/60">Cliente</div>
+              <div class="text-base font-semibold">${ev.customerName ?? "—"}</div>
+            </div>
+            <div title="Confirmación del paciente">${confirmIconHtml}</div>
+          </div>
+          <div class="mt-2 text-sm text-white/80">
+            <div><span class="text-white/60">Servicio:</span> ${ev.serviceName ?? "—"}</div>
+            <div><span class="text-white/60">Horario:</span> ${time}</div>
+            <div><span class="text-white/60">Tel:</span> ${ev.customerPhone ?? "—"}</div>
+            <div><span class="text-white/60">Staff:</span> ${ev.staffName ?? "—"}</div>
+            <div><span class="text-white/60">Estado:</span> ${statusText}</div>
+          </div>
+        </div>
+
+        ${ev.notas ? `
+          <div class="rounded-xl border border-white/10 p-3 bg-white/5">
+            <div class="text-xs text-white/60 mb-1">Notas</div>
+            <div class="text-sm text-white/90" style="white-space:pre-wrap;">${safeNotas}</div>
+          </div>
+        ` : ""}
+      </div>
+    `;
+
+    const res = await DarkSwal.fire({
+      icon: "info",
+      title: "Detalles de la cita",
+      html,
+      showCancelButton: true,
+      showDenyButton: true,
+      confirmButtonText: "Editar",
+      denyButtonText: "Eliminar",
+      cancelButtonText: "Cerrar",
+    });
+
+    if (res.isConfirmed) {
+      setEditing(ev);
+    } else if (res.isDenied) {
+      await deleteAppointment(ev.id);
+    }
+  }
+
 
   /* ---------- DnD: mover ---------- */
   function beginDrag_day(ev: Appointment, containerEl: HTMLDivElement | null, dayDate: Date, e: React.MouseEvent) {
@@ -1260,7 +1346,8 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId?: number
       window.removeEventListener("mousemove", onMove);
       window.removeEventListener("mouseup", onUp);
     };
-  }, [drag, events]); // eslint-disable-line
+  }, [drag, events, selectedWeekStart, selectedDay]); 
+
 
   /* ---------- UI ---------- */
   const monthTitle = current.toLocaleString("es-CO",{month:"long", year:"numeric"});
@@ -1573,7 +1660,7 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId?: number
                       <div
                         key={ev.id}
                         className={cx(
-                          "absolute rounded-xl border text-xs shadow bg-violet-600/20 border-violet-500/40 text-white backdrop-blur select-none",
+                          "absolute rounded-xl border text-xs shadow bg-violet-600/20 border-violet-500/40 text-white backdrop-blur select-none overflow-hidden",
                           "cursor-grab active:cursor-grabbing",
                           (isMoving || isResizingB || isResizingT) && "ring-2 ring-indigo-400/70 z-20"
                         )}
@@ -1594,56 +1681,68 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId?: number
                           <div className="mx-auto mb-0.5 h-1 w-12 rounded-full bg-white/40 hover:bg-white/70" />
                         </div>
 
-                        <div className="flex items-center justify-between px-2 py-1">
-  <div className="truncate">
-    <div className="flex items-center gap-1 text-[11px] opacity-90">
-      <span className="inline-flex items-center gap-1">
-        <Clock className="h-3 w-3" />
-        {spanLabel(startForLabel, endForLabel)}
-      </span>
-      {/* 🔹 Icono de confirmación */}
-           {/* 🔹 Icono de confirmación desde conversation_state.summary */}
-           {renderConfirmIcon(
-        ev.summary?.statusConfirm ?? null,
-        ev.summary?.confirmAt ?? null
-      )}
+                      <div className="flex items-start justify-between gap-2 px-2 py-1">
+  <div className="min-w-0 flex-1">
+    <div className="flex items-center gap-2">
+      <div className="min-w-0 flex-1 truncate text-[11px] font-semibold leading-tight">
+        {ev.customerName}
+      </div>
 
+      {/* icono confirmación (paciente) */}
+      <div className="shrink-0" title="Confirmación del paciente">
+        {renderConfirmIcon(ev.summary?.statusConfirm ?? null, ev.summary?.confirmAt ?? null)}
+      </div>
 
+      {/* botón info */}
+      <button
+        data-nodrag
+        type="button"
+        className="shrink-0 rounded-md p-1 hover:bg-white/10"
+        title="Ver detalles"
+        onClick={(evt) => {
+          evt.stopPropagation();
+          openApptDetails(ev);
+        }}
+      >
+        <Info className="h-3.5 w-3.5 text-white/80" />
+      </button>
     </div>
 
-    <div className="mt-0.5">
-      <strong>{ev.customerName}</strong>
-      {ev.serviceName ? (
-        <>
-          {" "}
-          · <span className="opacity-90">{ev.serviceName}</span>
-        </>
-      ) : null}
-    </div>
-{/* ✅ NUEVO: Mostrar Staff en Vista Día */}
-                            {ev.staffName && (
-                              <div className="flex items-center gap-1 text-[10px] text-indigo-200 mt-0.5 font-medium">
-                                <div className="h-1.5 w-1.5 rounded-full bg-indigo-400" />
-                                {ev.staffName}
-                              </div>
-                            )}
-    {/* 🔹 Badge de estado (status) */}
-    <div className="mt-1">
-      {renderStatusBadge(ev.status)}
-    </div>
+    {/* Solo si hay espacio, mostramos 1 línea extra (sin desbordar) */}
+    {heightPx >= 56 && (
+      <div className="mt-0.5 flex items-center gap-2 text-[10px] text-white/75">
+        <span className="truncate">{ev.serviceName || "—"}</span>
+        {ev.staffName && (
+          <>
+            <span className="opacity-50">•</span>
+            <span className="truncate">{ev.staffName}</span>
+          </>
+        )}
+      </div>
+    )}
   </div>
 
-  <div className="ml-2 shrink-0 flex gap-1">
-    <button data-nodrag title="Editar" onClick={(evt)=>{ evt.stopPropagation(); setEditing(ev); }}>
+  {/* acciones */}
+  <div className="shrink-0 flex items-center gap-1">
+    <button
+      data-nodrag
+      title="Editar"
+      className="rounded-md p-1 hover:bg-white/10"
+      onClick={(evt)=>{ evt.stopPropagation(); setEditing(ev); }}
+    >
       <Edit className="h-3.5 w-3.5 text-indigo-300"/>
     </button>
-    <button data-nodrag title="Eliminar" onClick={(evt)=>{ evt.stopPropagation(); deleteAppointment(ev.id); }}>
+    <button
+      data-nodrag
+      title="Eliminar"
+      className="rounded-md p-1 hover:bg-white/10"
+      onClick={(evt)=>{ evt.stopPropagation(); deleteAppointment(ev.id); }}
+    >
       <Trash className="h-3.5 w-3.5 text-red-300"/>
     </button>
   </div>
 </div>
 
-{ev.notas && <div className="px-2 pb-1 pr-12 opacity-80 line-clamp-2">{ev.notas}</div>}
 
 
                         {/* Handle inferior (resize bottom) */}
@@ -1755,7 +1854,7 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId?: number
                         <div
                           key={ev.id}
                           className={cx(
-                            "absolute rounded-xl border text-[11px] shadow bg-indigo-600/20 border-indigo-400/40 text-white backdrop-blur select-none",
+                            "absolute rounded-xl border text-[11px] shadow bg-indigo-600/20 border-indigo-400/40 text-white backdrop-blur select-none overflow-hidden",
                             "cursor-grab active:cursor-grabbing",
                             (isMoving || isResizingB || isResizingT) && "ring-2 ring-indigo-400/70 z-20"
                           )}
@@ -1776,48 +1875,64 @@ export default function AppointmentsCalendar({ empresaId }: { empresaId?: number
                             <div className="mx-auto mb-0.5 h-1 w-12 rounded-full bg-white/40 hover:bg-white/70" />
                           </div>
 
-                          <div className="flex items-center justify-between px-2 py-1">
-  <div className="truncate">
-    <div className="text-[11px] font-semibold leading-tight">
-      {ev.customerName}
-      {ev.serviceName ? (
-        <>
-          {" "}
-          · <span className="opacity-90">{ev.serviceName}</span>
-        </>
-      ) : null}
+                          <div className="flex items-start justify-between gap-2 px-2 py-1">
+  <div className="min-w-0 flex-1">
+    <div className="flex items-center gap-2">
+      <div className="min-w-0 flex-1 truncate text-[11px] font-semibold leading-tight">
+        {ev.customerName}
+      </div>
+
+      <div className="shrink-0" title="Confirmación del paciente">
+        {renderConfirmIcon(ev.summary?.statusConfirm ?? null, ev.summary?.confirmAt ?? null)}
+      </div>
+
+      <button
+        data-nodrag
+        type="button"
+        className="shrink-0 rounded-md p-1 hover:bg-white/10"
+        title="Ver detalles"
+        onClick={(evt) => {
+          evt.stopPropagation();
+          openApptDetails(ev);
+        }}
+      >
+        <Info className="h-3.5 w-3.5 text-white/80" />
+      </button>
     </div>
-{/* ✅ NUEVO: Mostrar Staff en Vista Semana */}
-                          {ev.staffName && (
-                            <div className="flex items-center gap-1 text-[10px] text-indigo-200 mt-0.5 truncate opacity-90">
-                              <span className="shrink-0 h-1 w-1 rounded-full bg-indigo-400" />
-                              {ev.staffName}
-                            </div>
-                          )}
-    {/* 🔹 Badge de estado debajo del nombre */}
-    <div className="mt-1">
-      {renderStatusBadge(ev.status)}
-    </div>
+
+    {heightPx >= 56 && (
+      <div className="mt-0.5 flex items-center gap-2 text-[10px] text-white/75">
+        <span className="truncate">{ev.serviceName || "—"}</span>
+        {ev.staffName && (
+          <>
+            <span className="opacity-50">•</span>
+            <span className="truncate">{ev.staffName}</span>
+          </>
+        )}
+      </div>
+    )}
   </div>
 
-  <div className="ml-1 shrink-0 flex gap-1">
-    <button data-nodrag title="Editar" onClick={(evt)=>{ evt.stopPropagation(); setEditing(ev); }}>
+  <div className="shrink-0 flex items-center gap-1">
+    <button
+      data-nodrag
+      title="Editar"
+      className="rounded-md p-1 hover:bg-white/10"
+      onClick={(evt)=>{ evt.stopPropagation(); setEditing(ev); }}
+    >
       <Edit className="h-3.5 w-3.5 text-indigo-200"/>
     </button>
-    <button data-nodrag title="Eliminar" onClick={(evt)=>{ evt.stopPropagation(); deleteAppointment(ev.id); }}>
+    <button
+      data-nodrag
+      title="Eliminar"
+      className="rounded-md p-1 hover:bg-white/10"
+      onClick={(evt)=>{ evt.stopPropagation(); deleteAppointment(ev.id); }}
+    >
       <Trash className="h-3.5 w-3.5 text-red-300"/>
     </button>
   </div>
 </div>
 
-<div className="px-2 pb-1 opacity-80 flex items-center justify-between text-[11px]">
-  <span>{spanLabel(startForLabel, endForLabel)}</span>
-  {/* 🔹 Icono de confirmación desde conversation_state.summary */}
-  {renderConfirmIcon(
-    ev.summary?.statusConfirm ?? null,
-    ev.summary?.confirmAt ?? null
-  )}
-</div>
 
 
 
