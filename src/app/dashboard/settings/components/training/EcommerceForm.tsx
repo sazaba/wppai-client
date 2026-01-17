@@ -9,10 +9,10 @@ import Swal from 'sweetalert2'
 import clsx from 'clsx'
 
 // Tipos y Servicio
-import { EcommerceConfigForm, DEFAULTS_ECOMMERCE } from './types'
+import { EcommerceConfigForm, DEFAULTS_ECOMMERCE, AiSellingStyle } from './types'
 import { getEcommerceConfig, saveEcommerceConfig } from '@/services/ecommerce.service'
 
-// --- Componentes UI Reutilizables (estilo AgentForm) ---
+// --- Componentes UI Reutilizables (DEFINIDOS AFUERA PARA EVITAR RE-RENDER) ---
 
 function Hint({ text }: { text: string }) {
   return (
@@ -20,8 +20,6 @@ function Hint({ text }: { text: string }) {
       <HelpCircle aria-hidden className="w-3.5 h-3.5 text-slate-400 cursor-help" />
       <span className="pointer-events-none absolute left-1/2 -translate-x-1/2 bottom-full mb-2 w-max max-w-[280px] rounded-lg border border-slate-700 bg-slate-900 text-slate-200 text-xs px-3 py-2 shadow-xl opacity-0 group-hover:opacity-100 transition-opacity z-50">
         {text}
-        {/* Triangulito */}
-        <span className="absolute left-1/2 -translate-x-1/2 top-full w-2 h-2 bg-slate-900 border-r border-b border-slate-700 transform rotate-45"></span>
       </span>
     </span>
   )
@@ -46,63 +44,7 @@ function Section({ title, subtitle, icon: Icon, children }: { title: string; sub
   )
 }
 
-// --- Componente Principal ---
-
-interface EcommerceFormProps {
-  onClose?: () => void
-}
-
-function EcommerceFormBase({ onClose }: EcommerceFormProps) {
-  const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
-  const [form, setForm] = useState<EcommerceConfigForm>(DEFAULTS_ECOMMERCE)
-
-  // Cargar datos
-  useEffect(() => {
-    const loadData = async () => {
-      try {
-        const data = await getEcommerceConfig()
-        if (data && Object.keys(data).length > 0) {
-          setForm({ ...DEFAULTS_ECOMMERCE, ...data })
-        }
-      } catch (err) {
-        console.error(err)
-      } finally {
-        setLoading(false)
-      }
-    }
-    void loadData()
-  }, [])
-
-  // Guardar datos
-  const handleSave = async () => {
-    setSaving(true)
-    try {
-      await saveEcommerceConfig(form)
-      Swal.fire({
-        icon: 'success',
-        title: 'Guardado',
-        text: 'Tu tienda ha sido actualizada correctamente.',
-        background: '#0f172a', // slate-900
-        color: '#e2e8f0', // slate-200
-        confirmButtonColor: '#6366f1' // indigo-500
-      })
-      if (onClose) onClose()
-    } catch (error) {
-      Swal.fire({
-        icon: 'error',
-        title: 'Error',
-        text: 'No se pudo guardar la configuración.',
-        background: '#0f172a',
-        color: '#e2e8f0'
-      })
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  // Inputs Helpers
-  const TextInput = ({ 
+const TextInput = ({ 
     label, value, onChange, placeholder, hint 
   }: { label: string, value: string, onChange: (v: string) => void, placeholder?: string, hint?: string }) => (
     <div>
@@ -118,9 +60,9 @@ function EcommerceFormBase({ onClose }: EcommerceFormProps) {
         placeholder={placeholder}
       />
     </div>
-  )
+)
 
-  const TextArea = ({ 
+const TextArea = ({ 
     label, value, onChange, placeholder, hint, rows = 3, mono = false
   }: { label: string, value: string, onChange: (v: string) => void, placeholder?: string, hint?: string, rows?: number, mono?: boolean }) => (
     <div>
@@ -139,16 +81,65 @@ function EcommerceFormBase({ onClose }: EcommerceFormProps) {
         placeholder={placeholder}
       />
     </div>
-  )
+)
 
-  if (loading) {
-    return (
-      <div className="flex flex-col items-center justify-center py-20 text-slate-500 gap-3 animate-pulse">
-        <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
-        <p className="text-sm">Cargando configuración...</p>
-      </div>
-    )
+// --- Componente Principal ---
+
+interface EcommerceFormProps {
+  onClose?: () => void
+}
+
+function EcommerceFormBase({ onClose }: EcommerceFormProps) {
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [form, setForm] = useState<EcommerceConfigForm>(DEFAULTS_ECOMMERCE)
+
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const data = await getEcommerceConfig()
+        if (data && Object.keys(data).length > 0) {
+          setForm({ ...DEFAULTS_ECOMMERCE, ...data })
+        }
+      } catch (err) {
+        console.error(err)
+      } finally {
+        setLoading(false)
+      }
+    }
+    void loadData()
+  }, [])
+
+  const handleSave = async () => {
+    setSaving(true)
+    try {
+      // Forzamos aiMode a 'ecommerce'
+      const dataToSend = { ...form, aiMode: 'ecommerce' as const }
+      await saveEcommerceConfig(dataToSend)
+      
+      Swal.fire({
+        icon: 'success',
+        title: 'Guardado',
+        text: 'Tu tienda ha sido actualizada correctamente.',
+        background: '#0f172a',
+        color: '#e2e8f0',
+        confirmButtonColor: '#6366f1'
+      })
+      if (onClose) onClose()
+    } catch (error) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'No se pudo guardar la configuración.',
+        background: '#0f172a',
+        color: '#e2e8f0'
+      })
+    } finally {
+      setSaving(false)
+    }
   }
+
+  if (loading) return <div className="p-10 text-center text-slate-500">Cargando...</div>
 
   return (
     <div className="space-y-8 pb-20 animate-in fade-in duration-500">
@@ -163,6 +154,7 @@ function EcommerceFormBase({ onClose }: EcommerceFormProps) {
           <p className="text-sm text-slate-400 mt-1">Activa las funciones de venta, carrito y catálogo en tu IA.</p>
         </div>
         
+        {/* SWITCH DE ACTIVACIÓN - OJO AQUÍ */}
         <div className={clsx(
             "flex items-center gap-3 px-4 py-2 rounded-xl border transition-all",
             form.isActive 
@@ -173,6 +165,7 @@ function EcommerceFormBase({ onClose }: EcommerceFormProps) {
             {form.isActive ? 'Tienda Activa' : 'Desactivada'}
           </span>
           <button
+            type="button"
             onClick={() => setForm(prev => ({ ...prev, isActive: !prev.isActive }))}
             className={clsx(
               "relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none border border-transparent",
@@ -191,61 +184,61 @@ function EcommerceFormBase({ onClose }: EcommerceFormProps) {
 
         {/* COLUMNA IZQUIERDA */}
         <div className="space-y-6">
-          
-          {/* Identidad */}
           <Section title="Identidad de la Tienda" subtitle="Cómo se presenta tu negocio ante los clientes." icon={Store}>
             <TextInput 
               label="Nombre de la Tienda" 
               value={form.storeName || ''} 
-              onChange={v => setForm({...form, storeName: v})}
+              onChange={v => setForm(f => ({...f, storeName: v}))}
               placeholder="Ej: Moda Urbana SAS"
             />
-            <div className="w-1/3">
-              <TextInput 
-                label="Moneda" 
-                value={form.currency || 'COP'} 
-                onChange={v => setForm({...form, currency: v})}
-                placeholder="COP"
-                hint="Código ISO (USD, MXN, COP)"
-              />
+            
+            {/* SELECTOR DE MONEDA (NUEVO) */}
+            <div>
+              <label className="text-sm font-medium text-slate-300 mb-1.5 block">Moneda</label>
+              <select
+                value={form.currency || 'COP'}
+                onChange={e => setForm(f => ({...f, currency: e.target.value}))}
+                className="w-full bg-slate-950 border border-slate-800 px-4 py-2.5 rounded-xl text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/40"
+              >
+                <option value="COP">Peso Colombiano (COP)</option>
+                <option value="USD">Dólar Americano (USD)</option>
+                <option value="MXN">Peso Mexicano (MXN)</option>
+                <option value="EUR">Euro (EUR)</option>
+              </select>
             </div>
           </Section>
 
-          {/* Logística */}
-          <Section title="Logística y Envíos" subtitle="Información clave para que la IA responda sobre despachos." icon={Truck}>
+          <Section title="Logística y Envíos" subtitle="Información clave para despachos." icon={Truck}>
             <div className="grid grid-cols-2 gap-4">
               <TextInput 
                 label="Costo de Envío" 
                 value={form.shippingCost || ''} 
-                onChange={v => setForm({...form, shippingCost: v})}
+                onChange={v => setForm(f => ({...f, shippingCost: v}))}
                 placeholder="Ej: $15.000 o 'Gratis'"
               />
               <TextInput 
                 label="Tiempo de Entrega" 
                 value={form.deliveryTimeEstimate || ''} 
-                onChange={v => setForm({...form, deliveryTimeEstimate: v})}
+                onChange={v => setForm(f => ({...f, deliveryTimeEstimate: v}))}
                 placeholder="Ej: 2-3 días hábiles"
               />
             </div>
             <TextArea 
               label="Dirección de Recogida" 
               value={form.pickupAddress || ''} 
-              onChange={v => setForm({...form, pickupAddress: v})}
-              placeholder="Si tienes punto físico, pon la dirección y horario aquí. Si no, déjalo vacío."
-              hint="La IA usará esto solo si el cliente pregunta por recoger en tienda."
+              onChange={v => setForm(f => ({...f, pickupAddress: v}))}
+              placeholder="Si tienes punto físico, pon la dirección y horario aquí."
             />
           </Section>
 
-          {/* Pagos */}
-          <Section title="Pagos Manuales" subtitle="Datos para transferencias o depósitos." icon={CreditCard}>
+          <Section title="Pagos Manuales" subtitle="Datos para transferencias." icon={CreditCard}>
             <TextArea 
               label="Instrucciones de Pago" 
               value={form.manualPaymentInfo || ''} 
-              onChange={v => setForm({...form, manualPaymentInfo: v})}
+              onChange={v => setForm(f => ({...f, manualPaymentInfo: v}))}
               rows={4}
               mono
-              placeholder={`Bancolombia Ahorros: 000-123-456\nNequi: 300-123-4567\nTitular: Mi Empresa\nEnviar comprobante al chat.`}
-              hint="Esto se enviará al cliente textualmente cuando decida comprar."
+              placeholder={`Bancolombia Ahorros: 000-123\nNequi: 300-123\nTitular: Mi Empresa`}
             />
           </Section>
         </div>
@@ -253,36 +246,29 @@ function EcommerceFormBase({ onClose }: EcommerceFormProps) {
         {/* COLUMNA DERECHA */}
         <div className="space-y-6">
           
-          {/* Cerebro IA */}
-          <div className="rounded-2xl border border-pink-500/20 bg-slate-900/40 p-5 shadow-sm relative overflow-hidden group">
-            <div className="absolute top-0 right-0 w-64 h-64 bg-pink-500/5 blur-[80px] pointer-events-none group-hover:bg-pink-500/10 transition-colors" />
-            
+          <div className="rounded-2xl border border-pink-500/20 bg-slate-900/40 p-5 shadow-sm relative overflow-hidden">
             <div className="mb-6 flex items-start gap-3 border-b border-pink-500/10 pb-4 relative z-10">
               <div className="p-2 rounded-lg bg-pink-500/10 text-pink-400">
                 <Sparkles className="w-5 h-5" />
               </div>
               <div>
                 <h3 className="text-slate-100 font-semibold tracking-tight text-lg">Cerebro Vendedor</h3>
-                <p className="text-sm text-slate-400 mt-1">Configura cómo la IA cierra las ventas.</p>
+                <p className="text-sm text-slate-400 mt-1">Configura el estilo de venta.</p>
               </div>
             </div>
 
             <div className="space-y-6 relative z-10">
               <div>
-                <div className="flex items-center mb-3">
-                  <label className="text-sm font-medium text-slate-300">Estilo de Venta</label>
-                  <Hint text="Define la personalidad del vendedor." />
-                </div>
+                <label className="text-sm font-medium text-slate-300 mb-3 block">Estilo de Venta</label>
                 <div className="grid grid-cols-2 gap-3">
                   {[
-                    { id: 'asesor', label: 'Asesor', desc: 'Amable, paciente y educativo.' },
-                    { id: 'vendedor_agresivo', label: 'Persuasivo', desc: 'Enfocado en cerrar rápido.' }
+                    { id: 'asesor', label: 'Asesor', desc: 'Amable y paciente.' },
+                    { id: 'persuasivo', label: 'Persuasivo', desc: 'Enfocado en cerrar.' }
                   ].map((style) => (
                     <button
                       key={style.id}
                       type="button"
-                      // @ts-ignore - Ignoramos error si el string no calza exacto por ahora
-                      onClick={() => setForm({...form, aiSellingStyle: style.id})}
+                      onClick={() => setForm(f => ({...f, aiSellingStyle: style.id as AiSellingStyle}))}
                       className={clsx(
                         "p-3 rounded-xl border text-left transition-all",
                         form.aiSellingStyle === style.id 
@@ -298,57 +284,45 @@ function EcommerceFormBase({ onClose }: EcommerceFormProps) {
               </div>
 
               <div>
-                <div className="flex items-center gap-2 mb-2">
-                   <label className="text-sm font-medium text-slate-200 flex items-center gap-2">
-                     <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                     Instrucciones de Cierre (El 90% Manual)
-                   </label>
-                </div>
-                
-                <div className="bg-amber-500/10 border border-amber-500/20 p-3 rounded-xl mb-3 flex gap-3 items-start">
+                 <div className="bg-amber-500/10 border border-amber-500/20 p-3 rounded-xl mb-2 flex gap-3">
                    <AlertCircle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
                    <p className="text-xs text-amber-200/90 leading-relaxed">
-                     Cuando el cliente quiera pagar, la IA pedirá estos datos. 
-                     <strong> Solo cuando el usuario los entregue, la IA marcará la venta como "Lista".</strong>
+                     La IA pedirá estos datos para marcar la venta como "Lista".
                    </p>
                 </div>
-
                 <TextArea 
-                  label=""
+                  label="Instrucciones de Cierre"
                   value={form.closingInstructions || ''}
-                  onChange={v => setForm({...form, closingInstructions: v})}
+                  onChange={v => setForm(f => ({...f, closingInstructions: v}))}
                   rows={5}
-                  placeholder="Ej: Por favor envíame: 1. Foto del comprobante. 2. Nombre completo. 3. Dirección exacta y ciudad. 4. Teléfono de quien recibe."
+                  placeholder="Ej: 1. Foto comprobante. 2. Nombre. 3. Dirección. 4. Teléfono."
                 />
               </div>
             </div>
           </div>
 
-          {/* Políticas */}
-          <Section title="Garantías y Políticas" subtitle="Reglas claras para evitar reclamos." icon={ShieldCheck}>
+          <Section title="Políticas" subtitle="Reglas claras." icon={ShieldCheck}>
             <TextArea 
-              label="Política de Garantía" 
+              label="Garantía" 
               value={form.warrantyPolicy || ''} 
-              onChange={v => setForm({...form, warrantyPolicy: v})}
-              placeholder="Ej: 30 días por defectos de fábrica."
+              onChange={v => setForm(f => ({...f, warrantyPolicy: v}))}
             />
             <TextArea 
-              label="Política de Devolución" 
+              label="Devoluciones" 
               value={form.returnPolicy || ''} 
-              onChange={v => setForm({...form, returnPolicy: v})}
-              placeholder="Ej: No aceptamos cambios en ropa interior o productos abiertos."
+              onChange={v => setForm(f => ({...f, returnPolicy: v}))}
             />
           </Section>
 
         </div>
       </div>
 
-      {/* Footer Flotante de Guardado */}
-      <div className="fixed bottom-6 right-6 z-50 animate-in slide-in-from-bottom-10">
+      {/* Botón Guardar Flotante */}
+      <div className="fixed bottom-6 right-6 z-50">
         <button
           onClick={handleSave}
           disabled={saving}
-          className="flex items-center gap-2 bg-pink-600 hover:bg-pink-500 text-white px-6 py-3 rounded-full font-bold shadow-2xl shadow-pink-500/40 hover:shadow-pink-500/60 transition-all disabled:opacity-50 disabled:cursor-not-allowed transform hover:-translate-y-1 active:scale-95"
+          className="flex items-center gap-2 bg-pink-600 hover:bg-pink-500 text-white px-6 py-3 rounded-full font-bold shadow-2xl shadow-pink-500/40 hover:shadow-pink-500/60 transition-all disabled:opacity-50 hover:-translate-y-1 active:scale-95"
         >
           {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
           {saving ? 'Guardando...' : 'Guardar Cambios'}

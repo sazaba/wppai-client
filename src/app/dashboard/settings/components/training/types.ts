@@ -221,6 +221,9 @@ export type AppointmentDTO = AppointmentPayload & {
 // ✨ NUEVO: Configuración E-commerce
 // ===============================
 
+// Definimos el tipo exportado para reusarlo en el formulario y evitar errores de tipado
+export type AiSellingStyle = 'asesor' | 'directo' | 'persuasivo' | 'vendedor_agresivo'
+
 export interface EcommerceConfigForm {
   id?: number
   isActive: boolean
@@ -236,15 +239,15 @@ export interface EcommerceConfigForm {
   manualPaymentInfo: string
   
   // IA y Cierre
- aiSellingStyle: 'asesor' | 'vendedor_agresivo' | 'persuasivo' | 'directo'
-
- aiMode?: 'ecommerce'
-
+  aiSellingStyle: AiSellingStyle
   closingInstructions: string
 
   // Políticas
   returnPolicy: string
   warrantyPolicy: string
+
+  // Compatibilidad Backend
+  aiMode?: 'ecommerce'
 
   // Opcionales para el form
   crossSellingEnabled?: boolean
@@ -262,5 +265,6 @@ export const DEFAULTS_ECOMMERCE: EcommerceConfigForm = {
   closingInstructions: '',
   returnPolicy: '',
   warrantyPolicy: '',
+  aiMode: 'ecommerce',
   crossSellingEnabled: true
 }
