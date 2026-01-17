@@ -237,6 +237,9 @@ export interface EcommerceConfigForm {
   
   // IA y Cierre
  aiSellingStyle: 'asesor' | 'vendedor_agresivo' | 'persuasivo' | 'directo'
+
+ aiMode?: 'ecommerce'
+
   closingInstructions: string
 
   // Políticas
