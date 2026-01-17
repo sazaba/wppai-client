@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { 
   RotateCw, Calendar, Bot, MessageCircle, ChevronDown, Settings, 
-  ExternalLink, Sparkles, CheckCircle2, XCircle, ShoppingBag // 1. Icono nuevo
+  ExternalLink, Sparkles, CheckCircle2, XCircle, ShoppingBag 
 } from 'lucide-react'
 import axios from 'axios'
 import Swal from 'sweetalert2'
@@ -18,7 +18,7 @@ import type { ConfigForm, BusinessType, BackendBusinessConfig } from './componen
 
 // Servicios
 import { getApptConfig, getAppointmentHours } from '@/services/estetica.service'
-import { getEcommerceConfig } from '@/services/ecommerce.service' // 2. Importamos servicio
+import { getEcommerceConfig } from '@/services/ecommerce.service'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL as string
 
@@ -104,26 +104,24 @@ async function fetchAppointmentsConfigured(): Promise<boolean> {
     const [cfg, hours] = await Promise.all([getApptConfig(), getAppointmentHours()])
     const enabled = !!cfg?.appointmentEnabled
     const hasTz = typeof cfg?.appointmentTimezone === 'string' && cfg.appointmentTimezone.trim() !== ''
-    const hasVert = typeof cfg?.appointmentVertical === 'string' && cfg.appointmentVertical.trim() !== ''
-    const hasServ = typeof (cfg as any)?.servicesText === 'string' && (cfg as any).servicesText.trim() !== ''
     const anyOpen = Array.isArray(hours) && hours.some((h: any) => !!h?.isOpen)
-    return Boolean(enabled || hasTz || hasVert || hasServ || anyOpen)
+    return Boolean(enabled || hasTz || anyOpen)
   } catch {
     return false
   }
 }
 
-// 3. Helper para detectar Ecommerce
 async function fetchEcommerceConfigured(): Promise<boolean> {
   try {
     const cfg = await getEcommerceConfig()
-    return !!cfg?.isActive
+    // Consideramos configurado si está activo O si ya tiene nombre de tienda guardado
+    return !!cfg?.isActive || (!!cfg?.storeName && cfg.storeName.length > 0)
   } catch {
     return false
   }
 }
 
-/* =================== Componente =================== */
+/* =================== Componente Principal =================== */
 export default function SettingsPage(): React.ReactElement {
   const router = useRouter()
 
@@ -132,12 +130,10 @@ export default function SettingsPage(): React.ReactElement {
 
   const [agentConfigured, setAgentConfigured] = useState<boolean>(false)
   const [appointmentsConfigured, setAppointmentsConfigured] = useState<boolean>(false)
-  // 4. Estado local para ecommerce
   const [ecommerceConfigured, setEcommerceConfigured] = useState<boolean>(false)
 
   // Modal
   const [trainingActive, setTrainingActive] = useState<boolean>(false)
-  // 5. Tipo actualizado para panel inicial
   const [initialTrainingPanel, setInitialTrainingPanel] = useState<'agente' | 'ecommerce' | null>(null)
 
   const [loading, setLoading] = useState<boolean>(true)
@@ -157,7 +153,6 @@ export default function SettingsPage(): React.ReactElement {
 
       setAgentConfigured(isAgentConfigured(safe))
       
-      // Detección paralela de ambos módulos
       const [apptOk, ecomOk] = await Promise.all([
         fetchAppointmentsConfigured(),
         fetchEcommerceConfigured()
@@ -182,26 +177,35 @@ export default function SettingsPage(): React.ReactElement {
     void refreshAll()
   }, [])
 
-  // ============= Reinicio =============
+  // ============= Reinicio (Lógica de Borrado Real) =============
   const reiniciarEntrenamiento = async (): Promise<void> => {
     const { isConfirmed } = await Swal.fire({
-      title: '¿Reiniciar todo?',
-      html: '<div class="text-slate-300 text-sm">Se borrará la configuración de Agente, Estética y Tienda Virtual.</div>',
+      title: '¿BORRAR TODO?',
+      html: `
+        <div class="text-left text-sm text-slate-300 space-y-2">
+          <p>Esta acción borrará de la base de datos:</p>
+          <ul class="list-disc pl-4 text-red-400">
+            <li>Configuración del Agente.</li>
+            <li>Agenda, doctores y servicios (Estética).</li>
+            <li>Catálogo y datos de la Tienda (Ecommerce).</li>
+          </ul>
+        </div>
+      `,
       icon: 'warning',
       showCancelButton: true,
-      confirmButtonText: 'Sí, reiniciar',
+      confirmButtonText: 'Sí, Borrar Todo',
       cancelButtonText: 'Cancelar',
       background: '#09090b',
       color: '#e4e4e7',
-      iconColor: '#f59e0b',
-      confirmButtonColor: '#ef4444',
+      iconColor: '#ef4444',
+      confirmButtonColor: '#dc2626',
       cancelButtonColor: '#27272a',
     })
 
     if (!isConfirmed) return
 
     Swal.fire({
-      title: 'Reiniciando…',
+      title: 'Eliminando datos...',
       allowOutsideClick: false,
       didOpen: () => Swal.showLoading(),
       background: '#09090b',
@@ -209,37 +213,48 @@ export default function SettingsPage(): React.ReactElement {
     })
 
     try {
-        // Reset calls...
-        try { await axios.delete(`${API_URL}/api/estetica/config`, { params: { purgeHours: 1 }, headers: getAuthHeaders() }) } catch {}
-        try { await axios.post(`${API_URL}/api/estetica/config/reset`, null, { headers: getAuthHeaders() }) } catch {}
-        try { await axios.post(`${API_URL}/api/config/reset`, null, { params: { withCatalog: true }, headers: getAuthHeaders() }) } catch {}
-        // Reset Ecommerce (Desactivar)
-        try { await axios.post(`${API_URL}/api/ecommerce/config`, { isActive: false }, { headers: getAuthHeaders() }) } catch {}
+        const headers = getAuthHeaders()
+        
+        // Ejecutamos peticiones en paralelo. 
+        // DELETE /api/ecommerce/config borrará la fila de la DB.
+        await Promise.allSettled([
+            // 1. Estetica
+            axios.delete(`${API_URL}/api/estetica/config`, { params: { purgeHours: 'true' }, headers }),
+            axios.post(`${API_URL}/api/estetica/config/reset`, null, { headers }),
+            
+            // 2. Agente
+            axios.post(`${API_URL}/api/config/reset`, null, { params: { withCatalog: 'true' }, headers }),
+            
+            // 3. Ecommerce (Borrado Real)
+            axios.delete(`${API_URL}/api/ecommerce/config`, { headers })
+        ])
 
+        localStorage.removeItem('trainingLockedBy')
         setConfigGuardada(null)
         setForm(DEFAULTS)
+        
         setAgentConfigured(false)
         setAppointmentsConfigured(false)
         setEcommerceConfigured(false)
         setInitialTrainingPanel(null)
         setTrainingActive(false)
+        
         await refreshAll()
 
         Swal.close()
-        await Swal.fire({ title: 'Listo', icon: 'success', background: '#09090b', color: '#fff' })
+        await Swal.fire({ title: 'Sistema Reiniciado', text: 'Datos borrados correctamente.', icon: 'success', background: '#09090b', color: '#fff' })
     } catch (e) {
         Swal.close()
-        Swal.fire({ title: 'Error', text: 'Intenta nuevamente.', icon: 'error', background: '#09090b', color: '#fff' })
+        Swal.fire({ title: 'Error', text: 'Hubo un problema al borrar.', icon: 'error', background: '#09090b', color: '#fff' })
     }
   }
 
-  // 6. Función de abrir actualizada
+  // Abrir modal
   const openTraining = (panel: 'estetica' | 'agente' | 'ecommerce' | null) => {
     if (panel === 'estetica') {
       router.push('/dashboard/settings/estetica')
       return
     }
-    // Para ecommerce y agente usamos el modal con el panel correcto
     setInitialTrainingPanel(panel === 'agente' || panel === 'ecommerce' ? panel : null)
     setTrainingActive(true)
   }
@@ -313,7 +328,7 @@ export default function SettingsPage(): React.ReactElement {
               onClick={() => openTraining('estetica')}
               colorClass="bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
             />
-            {/* 2. E-commerce (NUEVA CARD) */}
+            {/* 2. E-commerce */}
             <Card
               icon={<ShoppingBag className="w-6 h-6" />}
               title="Configurar Tienda"
@@ -332,7 +347,7 @@ export default function SettingsPage(): React.ReactElement {
           </div>
         )}
 
-        {/* Panel de Acciones (Estado activo) */}
+        {/* Panel de Acciones (Estado activo - Banner) */}
         {showActions && (
           <div className="bg-zinc-900/60 backdrop-blur-xl border border-white/10 p-8 rounded-[2rem] shadow-2xl space-y-6 relative overflow-hidden animate-in fade-in zoom-in duration-500">
             <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-indigo-500 to-transparent opacity-50" />
@@ -354,7 +369,7 @@ export default function SettingsPage(): React.ReactElement {
                 <span className={clsx("flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider border", appointmentsConfigured ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" : "bg-zinc-800 text-zinc-500 border-zinc-700")}>
                    {appointmentsConfigured ? <CheckCircle2 className="w-3 h-3" /> : <XCircle className="w-3 h-3" />} Estética
                 </span>
-                {/* Badge Tienda (NUEVO) */}
+                {/* Badge Tienda */}
                 <span className={clsx("flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider border", ecommerceConfigured ? "bg-pink-500/10 text-pink-400 border-pink-500/20" : "bg-zinc-800 text-zinc-500 border-zinc-700")}>
                    {ecommerceConfigured ? <CheckCircle2 className="w-3 h-3" /> : <XCircle className="w-3 h-3" />} Tienda
                 </span>
@@ -367,7 +382,6 @@ export default function SettingsPage(): React.ReactElement {
                   <Calendar className="w-4 h-4 text-emerald-400" /> Editar Estética
                 </button>
               )}
-              {/* Botón Editar Tienda (NUEVO) */}
               {ecommerceConfigured && (
                 <button onClick={() => openTraining('ecommerce')} className="flex items-center gap-2 bg-zinc-800 hover:bg-zinc-700 border border-white/10 text-white px-5 py-2.5 rounded-xl shadow transition-all text-sm font-medium">
                   <ShoppingBag className="w-4 h-4 text-pink-400" /> Editar Tienda
@@ -398,7 +412,7 @@ export default function SettingsPage(): React.ReactElement {
           }}
         />
 
-        {/* SECCIÓN WHATSAPP (Igual) */}
+        {/* SECCIÓN WHATSAPP */}
         <section className="mt-16 space-y-6">
             <div className="flex items-center gap-4 pb-4 border-b border-white/5">
                 <div className="p-3 rounded-2xl bg-[#25D366]/10 border border-[#25D366]/20 shadow-lg shadow-green-500/10">
