@@ -268,3 +268,34 @@ export const DEFAULTS_ECOMMERCE: EcommerceConfigForm = {
   aiMode: 'ecommerce',
   crossSellingEnabled: true
 }
+
+// ... (código existente)
+
+// ===============================
+// Catálogo (Productos e Imágenes)
+// ===============================
+
+export interface ProductImage {
+  id: number
+  url: string
+  alt?: string
+  imageId?: string // ID de Cloudflare
+  isPrimary: boolean
+  sortOrder?: number
+}
+
+export interface Product {
+  id?: number
+  empresaId?: number
+  nombre: string
+  slug?: string
+  descripcion: string
+  beneficios: string
+  caracteristicas: string
+  precioDesde?: number | null
+  imagenes: ProductImage[]
+  updatedAt?: string
+}
+
+// Estado para el editor de productos
+export type ProductViewMode = 'list' | 'create' | 'edit'
