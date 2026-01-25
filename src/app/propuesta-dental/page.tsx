@@ -2,14 +2,14 @@
 
 import React from 'react';
 import { Sparkles, CheckCircle2, Clock, Users, Database, BrainCircuit, BarChart3 } from 'lucide-react';
-import { motion, Variants } from 'framer-motion'; // 1. Importamos el tipo Variants
+import { motion, Variants } from 'framer-motion';
+import Link from 'next/link'; // Importante para la navegación al registro
 
 // IMPORTA TUS COMPONENTES VISUALES
-// Asegúrate de que las rutas sean correctas según tu estructura
 import CalendarVisual from './components/CalendarVisual'; 
 import DentalChatAnimation from './components/DentalChatAnimation';
 
-// 2. Tipamos explícitamente las variantes para evitar el error de TS
+// Variantes de animación
 const fadeInUp: Variants = {
   hidden: { opacity: 0, y: 40 },
   visible: { 
@@ -33,10 +33,10 @@ export default function DentalProposal() {
   return (
     <main className="min-h-screen bg-[#050505] text-slate-200 selection:bg-cyan-500 selection:text-black font-sans overflow-x-hidden relative">
       
-      {/* Navbar Background Fix - Mejora visibilidad navbar */}
+      {/* Navbar Background Fix */}
       <div className="absolute top-0 left-0 right-0 h-[500px] bg-gradient-to-b from-slate-900/90 via-[#050505] to-[#050505] z-0 pointer-events-none" />
       
-      {/* Background Glows Estáticos (Mejor rendimiento que animados) */}
+      {/* Background Glows */}
       <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
         <div className="absolute top-[10%] left-[0%] w-[600px] h-[600px] bg-cyan-900/10 rounded-full blur-[120px] opacity-60" />
         <div className="absolute bottom-[20%] right-[0%] w-[500px] h-[500px] bg-purple-900/10 rounded-full blur-[128px] opacity-60" />
@@ -81,19 +81,21 @@ export default function DentalProposal() {
                 </div>
             </motion.div>
             
-            {/* Columna Texto */}
-            <motion.div variants={fadeInUp} className="order-1 lg:order-2">
-                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center mb-8 shadow-lg shadow-indigo-500/30">
+            {/* Columna Texto (CENTRADA) */}
+            <motion.div variants={fadeInUp} className="order-1 lg:order-2 flex flex-col items-center text-center lg:items-center lg:text-center">
+                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center mb-8 shadow-lg shadow-indigo-500/30 mx-auto">
                     <BrainCircuit className="text-white" size={28} />
                 </div>
                 <h2 className="text-3xl md:text-5xl font-bold text-white mb-6 tracking-tight">
                     Tu Recepcionista Experta <br/>
                     <span className="text-indigo-400">Disponible 24/7</span>
                 </h2>
-                <p className="text-slate-400 text-lg mb-8 leading-relaxed">
+                <p className="text-slate-400 text-lg mb-8 leading-relaxed max-w-lg">
                     Olvídate de responder lo mismo 100 veces al día. Nuestro asistente IA está entrenado exclusivamente con <strong>terminología odontológica</strong>.
                 </p>
-                <ul className="space-y-5">
+                <ul className="space-y-5 text-left inline-block"> 
+                {/* Nota: Mantenemos el 'text-left' dentro del 'ul' para que los items se lean bien, 
+                    pero el bloque entero está centrado gracias a 'inline-block' y el padre flex-col items-center */}
                     {[
                         "Responde precios, horarios y ubicación al instante.",
                         "Filtra curiosos: Solo te notifica intención real.",
@@ -120,18 +122,19 @@ export default function DentalProposal() {
           variants={staggerContainer}
           className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center mb-48"
         >
-            <motion.div variants={fadeInUp} className="order-1">
-                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-purple-500 to-pink-600 flex items-center justify-center mb-8 shadow-lg shadow-purple-500/30">
+            {/* Columna Texto (CENTRADA) */}
+            <motion.div variants={fadeInUp} className="order-1 flex flex-col items-center text-center">
+                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-purple-500 to-pink-600 flex items-center justify-center mb-8 shadow-lg shadow-purple-500/30 mx-auto">
                     <Clock className="text-white" size={28} />
                 </div>
                 <h2 className="text-3xl md:text-5xl font-bold text-white mb-6 tracking-tight">
                     Agenda que Trabaja Sola <br/>
                     <span className="text-purple-400">Cero Ausentismo</span>
                 </h2>
-                <p className="text-slate-400 text-lg mb-8 leading-relaxed">
+                <p className="text-slate-400 text-lg mb-8 leading-relaxed max-w-lg">
                     Un sistema de gestión de citas diseñado para clínicas de alto flujo. Control total sobre tus doctores, sillones y tiempos.
                 </p>
-                <ul className="space-y-5">
+                <ul className="space-y-5 text-left inline-block">
                     {[
                         "Confirmación automática vía WhatsApp 24h antes.",
                         "Gestión multi-doctor y filtrado por especialista.",
@@ -150,7 +153,6 @@ export default function DentalProposal() {
 
             <motion.div variants={fadeInUp} className="order-2 relative w-full flex justify-center">
                  <div className="absolute inset-0 bg-purple-500/10 blur-[90px] rounded-full" />
-                 {/* CalendarVisual ahora se adaptará al ancho gracias al fix */}
                  <div className="w-full max-w-xl">
                     <CalendarVisual />
                  </div>
@@ -158,7 +160,7 @@ export default function DentalProposal() {
         </motion.section>
 
 
-        {/* --- FEATURE 3: DATA & DASHBOARD --- */}
+        {/* --- FEATURE 3: DATA & DASHBOARD (CARDS CENTRADAS) --- */}
         <motion.section 
           initial="hidden"
           whileInView="visible"
@@ -177,7 +179,7 @@ export default function DentalProposal() {
 
             <div className="grid md:grid-cols-3 gap-6">
                 {/* Card 1 */}
-                <motion.div whileHover={{ y: -5 }} className="p-8 rounded-3xl bg-[#0A0A0A] border border-white/5 hover:border-cyan-500/30 transition duration-300 group shadow-lg">
+                <motion.div whileHover={{ y: -5 }} className="p-8 rounded-3xl bg-[#0A0A0A] border border-white/5 hover:border-cyan-500/30 transition duration-300 group shadow-lg flex flex-col items-center text-center">
                     <div className="mb-6 w-12 h-12 rounded-xl bg-cyan-900/20 flex items-center justify-center text-cyan-400 group-hover:bg-cyan-900/40 transition">
                         <Database size={24} />
                     </div>
@@ -188,7 +190,7 @@ export default function DentalProposal() {
                 </motion.div>
 
                 {/* Card 2 */}
-                <motion.div whileHover={{ y: -5 }} className="p-8 rounded-3xl bg-[#0A0A0A] border border-white/5 hover:border-emerald-500/30 transition duration-300 group shadow-lg">
+                <motion.div whileHover={{ y: -5 }} className="p-8 rounded-3xl bg-[#0A0A0A] border border-white/5 hover:border-emerald-500/30 transition duration-300 group shadow-lg flex flex-col items-center text-center">
                     <div className="mb-6 w-12 h-12 rounded-xl bg-emerald-900/20 flex items-center justify-center text-emerald-400 group-hover:bg-emerald-900/40 transition">
                         <Users size={24} />
                     </div>
@@ -199,7 +201,7 @@ export default function DentalProposal() {
                 </motion.div>
 
                 {/* Card 3 */}
-                <motion.div whileHover={{ y: -5 }} className="p-8 rounded-3xl bg-[#0A0A0A] border border-white/5 hover:border-blue-500/30 transition duration-300 group shadow-lg">
+                <motion.div whileHover={{ y: -5 }} className="p-8 rounded-3xl bg-[#0A0A0A] border border-white/5 hover:border-blue-500/30 transition duration-300 group shadow-lg flex flex-col items-center text-center">
                     <div className="mb-6 w-12 h-12 rounded-xl bg-blue-900/20 flex items-center justify-center text-blue-400 group-hover:bg-blue-900/40 transition">
                         <BarChart3 size={24} />
                     </div>
@@ -211,7 +213,7 @@ export default function DentalProposal() {
             </div>
         </motion.section>
 
-        {/* --- CTA FINAL --- */}
+        {/* --- CTA FINAL (BOTÓN ACTUALIZADO) --- */}
         <motion.section 
           initial="hidden"
           whileInView="visible"
@@ -228,9 +230,13 @@ export default function DentalProposal() {
                 <p className="text-slate-400 max-w-2xl mx-auto mb-10 text-lg relative z-10">
                     Deje de perder pacientes por demoras en respuesta. Implemente la IA hoy mismo.
                 </p>
-                <button className="relative z-10 px-10 py-4 bg-white text-black font-bold rounded-xl hover:scale-105 transition shadow-[0_0_50px_-10px_rgba(255,255,255,0.2)]">
-                    Agendar Demo Personalizada
-                </button>
+                
+                {/* Botón Actualizado con Link */}
+                <Link href="/register" className="relative z-10 inline-block">
+                    <button className="px-10 py-4 bg-white text-black font-bold rounded-xl hover:scale-105 transition shadow-[0_0_50px_-10px_rgba(255,255,255,0.2)]">
+                        Registrar Empresa
+                    </button>
+                </Link>
             </div>
         </motion.section>
 

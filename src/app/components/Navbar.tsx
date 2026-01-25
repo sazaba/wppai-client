@@ -25,6 +25,9 @@ const navLinks = [
 
 export default function Navbar() {
   const [isScrolled, setIsScrolled] = useState(false)
+  const [isVisible, setIsVisible] = useState(true) // Nuevo estado para visibilidad
+  const [lastScrollY, setLastScrollY] = useState(0) // Para guardar la posición anterior
+  
   const [openSheet, setOpenSheet] = useState(false)
   const [showLogoutModal, setShowLogoutModal] = useState(false)
 
@@ -32,18 +35,32 @@ export default function Navbar() {
   const router = useRouter()
   const pathname = usePathname()
 
-  // --- MODIFICACIÓN AQUÍ ---
-  // Lista de rutas que tienen fondo oscuro y necesitan texto blanco al inicio
-  // Asegúrate de que '/propuesta-dental' coincida con el nombre de tu carpeta en 'app'
   const darkRoutes = ['/login', '/register', '/forgot-password', '/delete-my-data', '/propuesta-dental'];
   const isDarkPage = darkRoutes.includes(pathname || ''); 
-  // -------------------------
 
+  // Control del Scroll (Color y Visibilidad)
   useEffect(() => {
-    const handleScroll = () => setIsScrolled(window.scrollY > 20)
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY;
+      
+      // 1. Lógica de fondo (Glassmorphism)
+      setIsScrolled(currentScrollY > 20);
+
+      // 2. Lógica de Esconder/Mostrar Navbar
+      if (currentScrollY > lastScrollY && currentScrollY > 100) {
+        // Si bajamos y pasamos 100px, escondemos
+        setIsVisible(false);
+      } else {
+        // Si subimos, mostramos
+        setIsVisible(true);
+      }
+      
+      setLastScrollY(currentScrollY);
+    }
+
     window.addEventListener('scroll', handleScroll)
     return () => window.removeEventListener('scroll', handleScroll)
-  }, [])
+  }, [lastScrollY])
 
   useEffect(() => {
     if (showLogoutModal) {
@@ -66,17 +83,6 @@ export default function Navbar() {
     }
   }, [showLogoutModal, logout, router])
 
-  const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
-    const href = e.currentTarget.getAttribute('href')
-    if (pathname === '/' && href?.startsWith('/#')) {
-      e.preventDefault()
-      const id = href.replace('/#', '')
-      const target = document.getElementById(id)
-      if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' })
-    }
-    setOpenSheet(false)
-  }
-
   // Lógica de colores dinámica
   const textColorClass = isScrolled 
     ? "text-gray-600 dark:text-gray-300" 
@@ -94,10 +100,13 @@ export default function Navbar() {
     <>
       <header
         className={clsx(
-          'fixed w-full top-0 z-50 transition-all duration-500 ease-in-out border-b',
+          'fixed w-full top-0 z-50 transition-all duration-300 ease-in-out border-b', // Duration 300 para suavizar la ocultación
+          // Lógica de estilos visuales
           isScrolled
             ? 'bg-white/70 dark:bg-black/70 backdrop-blur-xl border-gray-200/50 dark:border-white/10 shadow-sm'
-            : 'bg-transparent border-transparent py-2'
+            : 'bg-transparent border-transparent py-2',
+          // Lógica de visibilidad (Transform)
+          isVisible ? 'translate-y-0' : '-translate-y-full'
         )}
       >
         <div className="max-w-7xl mx-auto px-4 md:px-6 h-20 flex items-center justify-between">
@@ -128,13 +137,6 @@ export default function Navbar() {
               <Link
                 key={link.name}
                 href={link.href}
-                onClick={(e) => {
-                    if (pathname === '/' && link.href.startsWith('/#')) {
-                        e.preventDefault()
-                        const id = link.href.replace('/#', '')
-                        document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' })
-                    }
-                }}
                 className={clsx(
                     "px-4 py-2 text-sm font-medium transition-colors rounded-full hover:bg-white/10",
                     textColorClass
@@ -186,7 +188,7 @@ export default function Navbar() {
                     </Link>
                     <Link href="/register">
                       <Button className="rounded-full px-6 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white shadow-lg shadow-indigo-500/25 transition-all hover:scale-105 border border-white/10">
-                        <Sparkles className="mr-2 h-4 w-4" /> Empezar Gratis
+                        <Sparkles className="mr-2 h-4 w-4" /> Probar Gratis
                       </Button>
                     </Link>
                   </div>
@@ -223,14 +225,7 @@ export default function Navbar() {
                         animate={{ opacity: 1, x: 0 }}
                         transition={{ delay: 0.2 + (i * 0.05), duration: 0.3, ease: "easeOut" }}
                         href={link.href}
-                        onClick={(e) => {
-                             if (pathname === '/' && link.href.startsWith('/#')) {
-                                e.preventDefault()
-                                const id = link.href.replace('/#', '')
-                                document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' })
-                            }
-                            setOpenSheet(false)
-                        }}
+                        onClick={() => setOpenSheet(false)}
                         className="flex items-center justify-between p-3 rounded-xl text-lg font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all"
                       >
                         {link.name}
@@ -290,7 +285,7 @@ export default function Navbar() {
         </div>
       </header>
 
-      {/* Modal Premium de Logout */}
+      {/* Modal Logout */}
       <AnimatePresence>
         {showLogoutModal && (
           <Dialog open={showLogoutModal} onClose={() => {}} className="relative z-[100]">
@@ -308,7 +303,6 @@ export default function Navbar() {
                 className="w-full max-w-sm rounded-3xl bg-white dark:bg-zinc-900 p-8 shadow-2xl border border-gray-100 dark:border-white/10 text-center overflow-hidden relative"
               >
                 <div className="absolute top-0 left-0 w-full h-32 bg-gradient-to-b from-indigo-500/10 to-transparent pointer-events-none" />
-                
                 <div className="relative z-10 flex flex-col items-center">
                     <div className="h-16 w-16 bg-gradient-to-tr from-green-400 to-emerald-600 rounded-full flex items-center justify-center mb-6 shadow-lg shadow-green-500/30">
                         <Sparkles className="h-8 w-8 text-white" />
