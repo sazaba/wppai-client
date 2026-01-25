@@ -9,9 +9,9 @@ import Link from 'next/link';
 import CalendarVisual from './components/CalendarVisual'; 
 import DentalChatAnimation from './components/DentalChatAnimation';
 
-// --- ANIMATION VARIANTS OPTIMIZADAS ---
+// --- ANIMATION VARIANTS (Safari Optimized: Menos movimiento en Y) ---
 const fadeInUp: Variants = {
-  hidden: { opacity: 0, y: 20 },
+  hidden: { opacity: 0, y: 15 }, // Reducido de 20 a 15 para menos carga de repintado
   visible: { 
     opacity: 1, 
     y: 0,
@@ -44,10 +44,10 @@ const listItem: Variants = {
     visible: { opacity: 1, x: 0 }
 };
 
-// Animación de fondo optimizada
+// Animación de fondo: Reducida complejidad para móvil
 const pulseDeep: Variants = {
     animate: {
-        opacity: [0.2, 0.35, 0.2],
+        opacity: [0.3, 0.45, 0.3], // Opacidad reducida para evitar saltos bruscos
         scale: [1, 1.02, 1],
         transition: {
             duration: 8,
@@ -67,15 +67,19 @@ const mockPatients = [
 
 export default function DentalProposal() {
   return (
-    <main className="min-h-screen bg-[#050505] text-slate-200 selection:bg-cyan-500 selection:text-black font-sans overflow-x-hidden relative">
+    // "overflow-x-hidden" es crucial en Safari para evitar scroll lateral fantasma
+    <main className="min-h-screen bg-[#050505] text-slate-200 selection:bg-cyan-500 selection:text-black font-sans overflow-x-hidden relative transform-gpu">
       
       {/* Navbar Background Fix */}
       <div className="absolute top-0 left-0 right-0 h-[500px] bg-gradient-to-b from-slate-900/90 via-[#050505] to-[#050505] z-0 pointer-events-none" />
       
-      {/* Background Glows Globales */}
+      {/* SAFARI FIX: 
+         1. Quitamos 'mix-blend-screen' (Causa lag con backdrop-filter).
+         2. Redujimos el blur en movil (blur-[60px] vs blur-[120px]).
+      */}
       <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
-        <div className="absolute top-[10%] left-[0%] w-[300px] md:w-[600px] h-[300px] md:h-[600px] bg-cyan-900/05 rounded-full blur-[80px] md:blur-[120px] opacity-40 will-change-transform transform-gpu" />
-        <div className="absolute bottom-[20%] right-[0%] w-[250px] md:w-[500px] h-[250px] md:h-[500px] bg-purple-900/05 rounded-full blur-[80px] md:blur-[128px] opacity-40 will-change-transform transform-gpu" />
+        <div className="absolute top-[10%] left-[0%] w-[250px] md:w-[600px] h-[250px] md:h-[600px] bg-cyan-900/10 rounded-full blur-[60px] md:blur-[120px] opacity-40 transform-gpu translate-z-0" />
+        <div className="absolute bottom-[20%] right-[0%] w-[200px] md:w-[500px] h-[200px] md:h-[500px] bg-purple-900/10 rounded-full blur-[60px] md:blur-[128px] opacity-40 transform-gpu translate-z-0" />
       </div>
 
       <div className="relative z-10 max-w-7xl mx-auto px-4 md:px-6 pt-28 md:pt-44 pb-20 md:pb-32">
@@ -111,7 +115,8 @@ export default function DentalProposal() {
         >
             {/* Columna Visual */}
             <motion.div variants={fadeInUp} className="order-2 lg:order-1 relative flex justify-center transform-gpu">
-                <div className="absolute inset-0 bg-indigo-500/20 blur-[60px] md:blur-[90px] rounded-full will-change-transform" />
+                {/* Safari Fix: Blur reducido en móvil */}
+                <div className="absolute inset-0 bg-indigo-500/10 blur-[50px] md:blur-[90px] rounded-full" />
                 <div className="relative w-full max-w-[350px] md:max-w-none transform scale-100 lg:scale-110 transition-transform duration-700">
                     <DentalChatAnimation/>
                 </div>
@@ -185,7 +190,7 @@ export default function DentalProposal() {
             </motion.div>
 
             <motion.div variants={fadeInUp} className="order-2 relative w-full flex justify-center transform-gpu">
-                 <div className="absolute inset-0 bg-purple-500/10 blur-[60px] md:blur-[90px] rounded-full" />
+                 <div className="absolute inset-0 bg-purple-500/10 blur-[50px] md:blur-[90px] rounded-full" />
                  <div className="w-full max-w-[350px] md:max-w-xl">
                     <CalendarVisual />
                  </div>
@@ -193,12 +198,15 @@ export default function DentalProposal() {
         </motion.section>
 
 
-        {/* --- FEATURE 3: EL CEREBRO (BENTO GRID OPTIMIZADO) --- */}
+        {/* --- FEATURE 3: EL CEREBRO (SAFARI OPTIMIZED) --- */}
         <section className="mb-32 md:mb-40 relative">
             
-            {/* GLOWS TRASEROS */}
-            <div className="absolute top-0 left-[-20%] w-[300px] md:w-[600px] h-[300px] md:h-[600px] bg-purple-600/10 blur-[80px] md:blur-[130px] rounded-full -z-10 pointer-events-none mix-blend-screen transform-gpu" />
-            <div className="absolute bottom-0 right-[-20%] w-[300px] md:w-[600px] h-[300px] md:h-[600px] bg-blue-500/10 blur-[80px] md:blur-[130px] rounded-full -z-10 pointer-events-none mix-blend-screen transform-gpu" />
+            {/* SAFARI FIX: 
+               Eliminamos 'mix-blend-screen' de estos glows. 
+               Ahora son opacidad normal para que el backdrop-blur de las tarjetas funcione fluido.
+            */}
+            <div className="absolute top-0 left-[-20%] w-[300px] md:w-[600px] h-[300px] md:h-[600px] bg-purple-600/10 blur-[80px] md:blur-[130px] rounded-full -z-10 pointer-events-none transform-gpu translate-z-0" />
+            <div className="absolute bottom-0 right-[-20%] w-[300px] md:w-[600px] h-[300px] md:h-[600px] bg-blue-500/10 blur-[80px] md:blur-[130px] rounded-full -z-10 pointer-events-none transform-gpu translate-z-0" />
 
             {/* Título */}
             <div className="text-center max-w-3xl mx-auto mb-12 md:mb-16 relative z-10 px-4">
@@ -223,12 +231,14 @@ export default function DentalProposal() {
             {/* BENTO GRID LAYOUT */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 md:gap-6 max-w-6xl mx-auto relative z-10">
                 
-                {/* 1. MÓDULO CENTRAL (Database) */}
+                {/* 1. MÓDULO CENTRAL */}
                 <motion.div 
                     initial={{ opacity: 0, y: 20 }}
                     whileInView={{ opacity: 1, y: 0 }}
                     viewport={{ once: true, amount: 0.2 }}
-                    className="lg:col-span-7 group relative rounded-[24px] md:rounded-[32px] overflow-hidden bg-white/[0.03] border border-white/10 hover:border-cyan-500/30 transition-all duration-500 flex flex-col backdrop-blur-lg md:backdrop-blur-xl shadow-2xl shadow-black/20 isolation-isolate transform-gpu"
+                    // SAFARI FIX: 'backdrop-blur-lg' en vez de XL para movil. 
+                    // 'isolation-isolate' crea un contexto nuevo para que el blur no se mezcle con el fondo.
+                    className="lg:col-span-7 group relative rounded-[24px] md:rounded-[32px] overflow-hidden bg-white/[0.03] border border-white/10 hover:border-cyan-500/30 transition-all duration-500 flex flex-col backdrop-blur-lg md:backdrop-blur-xl shadow-2xl shadow-black/20 isolation-isolate transform-gpu translate-z-0"
                 >
                     <div className="absolute inset-0 bg-gradient-to-b from-white/[0.02] to-transparent pointer-events-none" />
                     
@@ -253,7 +263,6 @@ export default function DentalProposal() {
                             </p>
                         </div>
 
-                        {/* --- LISTA OPTIMIZADA --- */}
                         <div className="mt-auto border-t border-white/5 pt-5 md:pt-6">
                             <div className="flex justify-between items-center mb-3 md:mb-4 px-1">
                                 <span className="text-[10px] md:text-xs font-mono text-slate-500 uppercase tracking-wider">Actividad Reciente</span>
@@ -305,13 +314,13 @@ export default function DentalProposal() {
                 {/* COLUMNA DERECHA */}
                 <div className="lg:col-span-5 flex flex-col gap-4 md:gap-6">
 
-                    {/* 2. MÓDULO REACTIVACIÓN (Fix: size prop replaced with className) */}
+                    {/* 2. MÓDULO REACTIVACIÓN */}
                     <motion.div 
                         initial={{ opacity: 0, y: 20 }}
                         whileInView={{ opacity: 1, y: 0 }}
                         viewport={{ once: true, amount: 0.2 }}
                         transition={{ delay: 0.1 }}
-                        className="group relative rounded-[24px] md:rounded-[32px] overflow-hidden bg-white/[0.03] border border-white/10 hover:border-emerald-500/30 transition-all duration-500 min-h-[200px] md:min-h-[240px] flex flex-col backdrop-blur-lg md:backdrop-blur-xl shadow-2xl shadow-black/20 transform-gpu"
+                        className="group relative rounded-[24px] md:rounded-[32px] overflow-hidden bg-white/[0.03] border border-white/10 hover:border-emerald-500/30 transition-all duration-500 min-h-[200px] md:min-h-[240px] flex flex-col backdrop-blur-lg md:backdrop-blur-xl shadow-2xl shadow-black/20 isolation-isolate transform-gpu translate-z-0"
                     >
                         <div className="absolute inset-0 bg-gradient-to-br from-emerald-900/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
                         
@@ -322,7 +331,6 @@ export default function DentalProposal() {
                                     <p className="text-[10px] md:text-xs text-emerald-400/80 uppercase tracking-wider mt-1 font-semibold">Gestión de Retorno</p>
                                 </div>
                                 <div className="p-2 rounded-lg bg-emerald-950/30 border border-emerald-500/20 text-emerald-400">
-                                    {/* CORRECCIÓN AQUI: Uso de clases Tailwind para tamaño responsivo */}
                                     <Users className="w-[18px] h-[18px] md:w-[20px] md:h-[20px]" />
                                 </div>
                             </div>
@@ -341,13 +349,13 @@ export default function DentalProposal() {
                         </div>
                     </motion.div>
 
-                    {/* 3. MÓDULO METRICAS (Fix: size prop replaced with className) */}
+                    {/* 3. MÓDULO METRICAS */}
                     <motion.div 
                         initial={{ opacity: 0, y: 20 }}
                         whileInView={{ opacity: 1, y: 0 }}
                         viewport={{ once: true, amount: 0.2 }}
                         transition={{ delay: 0.2 }}
-                        className="group relative rounded-[24px] md:rounded-[32px] overflow-hidden bg-white/[0.03] border border-white/10 hover:border-blue-500/30 transition-all duration-500 min-h-[200px] md:min-h-[240px] flex flex-col backdrop-blur-lg md:backdrop-blur-xl shadow-2xl shadow-black/20 transform-gpu"
+                        className="group relative rounded-[24px] md:rounded-[32px] overflow-hidden bg-white/[0.03] border border-white/10 hover:border-blue-500/30 transition-all duration-500 min-h-[200px] md:min-h-[240px] flex flex-col backdrop-blur-lg md:backdrop-blur-xl shadow-2xl shadow-black/20 isolation-isolate transform-gpu translate-z-0"
                     >
                          <div className="absolute inset-0 bg-gradient-to-br from-blue-900/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
 
@@ -358,7 +366,6 @@ export default function DentalProposal() {
                                     <p className="text-[10px] md:text-xs text-blue-400/80 uppercase tracking-wider mt-1 font-semibold">Dashboard CRM</p>
                                 </div>
                                 <div className="p-2 rounded-lg bg-blue-950/30 border border-blue-500/20 text-blue-400">
-                                    {/* CORRECCIÓN AQUI: Uso de clases Tailwind para tamaño responsivo */}
                                     <CalendarCheck className="w-[18px] h-[18px] md:w-[20px] md:h-[20px]" />
                                 </div>
                             </div>
@@ -381,7 +388,7 @@ export default function DentalProposal() {
             </div>
         </section>
 
-        {/* --- CTA FINAL (OPTIMIZADO & TRANSPARENTE) --- */}
+        {/* --- CTA FINAL (SAFARI SAFE) --- */}
         <motion.section 
           initial="hidden"
           whileInView="visible"
@@ -389,20 +396,19 @@ export default function DentalProposal() {
           variants={fadeInUp}
           className="relative py-20 md:py-32 group"
         >
-            {/* --- FONDO AMBIENTAL SUTIL (GPU Accelerated) --- */}
+            {/* Fondo ambiental sin modos de mezcla complejos */}
             <div className="absolute inset-0 pointer-events-none">
-                <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-full md:w-[70%] h-[200px] md:h-[300px] bg-blue-900/10 blur-[80px] md:blur-[150px] rounded-full mix-blend-screen transform-gpu" />
+                <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-full md:w-[70%] h-[200px] md:h-[300px] bg-blue-900/10 blur-[80px] md:blur-[150px] rounded-full transform-gpu translate-z-0" />
                  
                 <motion.div 
                      variants={pulseDeep}
                      animate="animate"
-                    className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full md:w-[80%] h-full md:h-[80%] bg-indigo-900/05 blur-[100px] md:blur-[180px] rounded-full mix-blend-screen opacity-60 transform-gpu"
+                    className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full md:w-[80%] h-full md:h-[80%] bg-indigo-900/05 blur-[100px] md:blur-[180px] rounded-full opacity-60 transform-gpu translate-z-0"
                 />
             </div>
 
-            {/* --- CONTENIDO GLASSMORPHISM --- */}
             <div className="relative z-10 max-w-3xl mx-auto text-center px-4 md:px-6">
-                <div className="bg-white/[0.02] backdrop-blur-lg md:backdrop-blur-2xl p-8 md:p-12 rounded-[24px] md:rounded-[32px] border border-white/10 shadow-xl shadow-black/30 relative overflow-hidden transition-all duration-500 hover:border-white/20">
+                <div className="bg-white/[0.02] backdrop-blur-lg md:backdrop-blur-2xl p-8 md:p-12 rounded-[24px] md:rounded-[32px] border border-white/10 shadow-xl shadow-black/30 relative overflow-hidden transition-all duration-500 hover:border-white/20 isolation-isolate">
                     
                     <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent" />
 
