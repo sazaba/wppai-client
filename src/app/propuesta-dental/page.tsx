@@ -6,10 +6,11 @@ import { motion, Variants } from 'framer-motion';
 import Link from 'next/link';
 
 // IMPORTA TUS COMPONENTES VISUALES
+// Asegúrate de que las rutas sean correctas
 import CalendarVisual from './components/CalendarVisual'; 
 import DentalChatAnimation from './components/DentalChatAnimation';
 
-// --- ANIMATION VARIANTS ---
+// --- ANIMATION VARIANTS OPTIMIZADAS ---
 const fadeInUp: Variants = {
   hidden: { opacity: 0, y: 30 },
   visible: { 
@@ -39,12 +40,13 @@ const listContainer: Variants = {
     }
 };
 
+// Se agregó will-change para avisar al navegador y evitar flickering
 const listItem: Variants = {
     hidden: { opacity: 0, x: -10 },
     visible: { opacity: 1, x: 0 }
 };
 
-// --- DATOS FICTICIOS GENÉRICOS (CORREGIDO) ---
+// --- DATOS FICTICIOS GENÉRICOS ---
 const mockPatients = [
     { initials: "LG", name: "Laura García", procedure: "Control Ortodoncia", date: "Hoy, 10:30 AM", color: "bg-purple-500/20 text-purple-300 font-bold" },
     { initials: "CR", name: "Carlos Rodríguez", procedure: "Implante Dental", date: "Ayer", color: "bg-blue-500/20 text-blue-300 font-bold" },
@@ -59,10 +61,10 @@ export default function DentalProposal() {
       {/* Navbar Background Fix */}
       <div className="absolute top-0 left-0 right-0 h-[500px] bg-gradient-to-b from-slate-900/90 via-[#050505] to-[#050505] z-0 pointer-events-none" />
       
-      {/* Background Glows Globales (Más sutiles para no competir con los nuevos) */}
+      {/* Background Glows Globales */}
       <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
-        <div className="absolute top-[10%] left-[0%] w-[600px] h-[600px] bg-cyan-900/05 rounded-full blur-[120px] opacity-40" />
-        <div className="absolute bottom-[20%] right-[0%] w-[500px] h-[500px] bg-purple-900/05 rounded-full blur-[128px] opacity-40" />
+        <div className="absolute top-[10%] left-[0%] w-[600px] h-[600px] bg-cyan-900/05 rounded-full blur-[120px] opacity-40 will-change-transform" />
+        <div className="absolute bottom-[20%] right-[0%] w-[500px] h-[500px] bg-purple-900/05 rounded-full blur-[128px] opacity-40 will-change-transform" />
       </div>
 
       <div className="relative z-10 max-w-7xl mx-auto px-6 pt-32 md:pt-44 pb-32">
@@ -96,9 +98,9 @@ export default function DentalProposal() {
           variants={staggerContainer}
           className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center mb-48"
         >
-            {/* Columna Visual con Glow */}
+            {/* Columna Visual */}
             <motion.div variants={fadeInUp} className="order-2 lg:order-1 relative flex justify-center">
-                <div className="absolute inset-0 bg-indigo-500/20 blur-[90px] rounded-full" />
+                <div className="absolute inset-0 bg-indigo-500/20 blur-[90px] rounded-full will-change-transform" />
                 <div className="relative transform scale-95 sm:scale-100 lg:scale-110 transition-transform duration-700">
                     <DentalChatAnimation/>
                 </div>
@@ -172,7 +174,6 @@ export default function DentalProposal() {
                 </ul>
             </motion.div>
 
-             {/* Columna Visual con Glow */}
             <motion.div variants={fadeInUp} className="order-2 relative w-full flex justify-center">
                  <div className="absolute inset-0 bg-purple-500/10 blur-[90px] rounded-full" />
                  <div className="w-full max-w-xl">
@@ -182,17 +183,15 @@ export default function DentalProposal() {
         </motion.section>
 
 
-        {/* --- FEATURE 3: EL CEREBRO (BENTO GRID) --- */}
+        {/* --- FEATURE 3: EL CEREBRO (BENTO GRID OPTIMIZADO) --- */}
         <section className="mb-40 relative px-6 md:px-0">
             
-            {/* --- NUEVOS GLOWS TRASEROS DISRUPTIVOS --- */}
-            {/* Luz Morada Superior Izquierda */}
-            <div className="absolute top-0 left-[-20%] w-[600px] h-[600px] bg-purple-600/20 blur-[130px] rounded-full -z-10 pointer-events-none mix-blend-screen" />
-            {/* Luz Azul Inferior Derecha */}
-            <div className="absolute bottom-0 right-[-20%] w-[600px] h-[600px] bg-blue-500/20 blur-[130px] rounded-full -z-10 pointer-events-none mix-blend-screen" />
+            {/* GLOWS TRASEROS (Optimizado con will-change para evitar repaints) */}
+            <div className="absolute top-0 left-[-20%] w-[600px] h-[600px] bg-purple-600/20 blur-[130px] rounded-full -z-10 pointer-events-none mix-blend-screen will-change-transform" />
+            <div className="absolute bottom-0 right-[-20%] w-[600px] h-[600px] bg-blue-500/20 blur-[130px] rounded-full -z-10 pointer-events-none mix-blend-screen will-change-transform" />
 
 
-            {/* Título de Sección */}
+            {/* Título */}
             <div className="text-center max-w-3xl mx-auto mb-16 relative z-10">
                 <motion.div 
                     initial={{ opacity: 0, scale: 0.9 }}
@@ -219,13 +218,12 @@ export default function DentalProposal() {
                     initial={{ opacity: 0, x: -20 }}
                     whileInView={{ opacity: 1, x: 0 }}
                     viewport={{ once: true }}
-                    // Se aumentó ligeramente la opacidad del bg-white/[0.03] y el blur para que resalte más sobre los nuevos glows
-                    className="lg:col-span-7 group relative rounded-[32px] overflow-hidden bg-white/[0.03] border border-white/10 hover:border-cyan-500/30 transition-all duration-500 flex flex-col backdrop-blur-xl shadow-2xl shadow-black/20"
+                    // Agregado 'isolation-isolate' y 'transform-gpu' para crear contexto de apilamiento y evitar parpadeo
+                    className="lg:col-span-7 group relative rounded-[32px] overflow-hidden bg-white/[0.03] border border-white/10 hover:border-cyan-500/30 transition-all duration-500 flex flex-col backdrop-blur-xl shadow-2xl shadow-black/20 isolation-isolate transform-gpu"
                 >
                     <div className="absolute inset-0 bg-gradient-to-b from-white/[0.02] to-transparent pointer-events-none" />
                     
                     <div className="relative p-8 md:p-10 h-full flex flex-col">
-                        {/* Header */}
                         <div className="flex items-start justify-between mb-8">
                             <div className="p-3 rounded-2xl bg-cyan-950/30 border border-cyan-500/20 text-cyan-400 shadow-[0_0_15px_rgba(6,182,212,0.1)]">
                                 <Database size={28} />
@@ -246,7 +244,7 @@ export default function DentalProposal() {
                             </p>
                         </div>
 
-                        {/* --- LISTA CON DATOS GENÉRICOS --- */}
+                        {/* --- LISTA OPTIMIZADA (FIXED FLICKER) --- */}
                         <div className="mt-auto border-t border-white/5 pt-6">
                             <div className="flex justify-between items-center mb-4 px-2">
                                 <span className="text-xs font-mono text-slate-500 uppercase tracking-wider">Actividad Reciente</span>
@@ -266,7 +264,8 @@ export default function DentalProposal() {
                                     <motion.div 
                                         key={i} 
                                         variants={listItem}
-                                        className="flex items-center justify-between p-3 rounded-xl bg-white/[0.03] border border-white/5 hover:bg-white/[0.06] transition-colors group/item"
+                                        // CLAVE: transform-gpu y translate-z-0 evitan el parpadeo al hacer hover
+                                        className="flex items-center justify-between p-3 rounded-xl bg-white/[0.03] border border-white/5 hover:bg-white/[0.06] transition-colors group/item transform-gpu translate-z-0"
                                     >
                                         <div className="flex items-center gap-4">
                                             {/* Avatar (Iniciales) */}
@@ -309,7 +308,7 @@ export default function DentalProposal() {
                         whileInView={{ opacity: 1, y: 0 }}
                         viewport={{ once: true }}
                         transition={{ delay: 0.1 }}
-                        className="group relative rounded-[32px] overflow-hidden bg-white/[0.03] border border-white/10 hover:border-emerald-500/30 transition-all duration-500 min-h-[240px] flex flex-col backdrop-blur-xl shadow-2xl shadow-black/20"
+                        className="group relative rounded-[32px] overflow-hidden bg-white/[0.03] border border-white/10 hover:border-emerald-500/30 transition-all duration-500 min-h-[240px] flex flex-col backdrop-blur-xl shadow-2xl shadow-black/20 transform-gpu"
                     >
                         <div className="absolute inset-0 bg-gradient-to-br from-emerald-900/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
                         
@@ -344,7 +343,7 @@ export default function DentalProposal() {
                         whileInView={{ opacity: 1, y: 0 }}
                         viewport={{ once: true }}
                         transition={{ delay: 0.2 }}
-                        className="group relative rounded-[32px] overflow-hidden bg-white/[0.03] border border-white/10 hover:border-blue-500/30 transition-all duration-500 min-h-[240px] flex flex-col backdrop-blur-xl shadow-2xl shadow-black/20"
+                        className="group relative rounded-[32px] overflow-hidden bg-white/[0.03] border border-white/10 hover:border-blue-500/30 transition-all duration-500 min-h-[240px] flex flex-col backdrop-blur-xl shadow-2xl shadow-black/20 transform-gpu"
                     >
                          <div className="absolute inset-0 bg-gradient-to-br from-blue-900/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
 
