@@ -14,15 +14,7 @@ export default function DentalProposal() {
 
       <div className="relative z-10 max-w-5xl mx-auto px-6 pt-20 pb-32">
         
-        {/* --- HEADER --- */}
-        <header className="flex justify-between items-center mb-24">
-          <div className="text-xl font-bold tracking-tighter text-white">
-            WPPAI<span className="text-cyan-400">.Dental</span>
-          </div>
-          <div className="px-4 py-1.5 rounded-full border border-white/10 bg-white/5 backdrop-blur-md text-xs font-medium text-slate-400">
-            Propuesta Confidencial
-          </div>
-        </header>
+
 
         {/* --- HERO SECTION --- */}
         <section className="text-center mb-32">
