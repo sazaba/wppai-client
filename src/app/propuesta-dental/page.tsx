@@ -6,6 +6,7 @@ import { motion, Variants } from 'framer-motion';
 import Link from 'next/link';
 
 // IMPORTA TUS COMPONENTES VISUALES
+// Asegúrate de que las rutas sean correctas según tu estructura de carpetas
 import CalendarVisual from './components/CalendarVisual'; 
 import DentalChatAnimation from './components/DentalChatAnimation';
 
@@ -158,77 +159,142 @@ export default function DentalProposal() {
         </motion.section>
 
 
-        {/* --- FEATURE 3: DATA & DASHBOARD (DISEÑO FINAL GLASSMORPHISM) --- */}
-        <motion.section 
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, margin: "-50px" }}
-          variants={fadeInUp}
-          className="mb-32 relative"
-        >
-            {/* Luces de fondo sutiles exclusivas para esta sección para potenciar el efecto glass */}
-            <div className="absolute top-1/2 left-1/4 w-64 h-64 bg-cyan-500/10 rounded-full blur-[100px] -translate-y-1/2 pointer-events-none" />
-            <div className="absolute top-1/2 right-1/4 w-64 h-64 bg-blue-500/10 rounded-full blur-[100px] -translate-y-1/2 pointer-events-none" />
-
+        {/* --- FEATURE 3: EL CEREBRO (DISEÑO BENTO GRID NEURAL) --- */}
+        <section className="mb-40 relative px-4 md:px-0">
+            {/* Título de Sección */}
             <div className="text-center max-w-3xl mx-auto mb-16 relative z-10">
-                <h2 className="text-3xl md:text-4xl font-bold text-white mb-6">
-                    El Cerebro de tu Clínica
+                <motion.div 
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    whileInView={{ opacity: 1, scale: 1 }}
+                    className="inline-block mb-4"
+                >
+                     <span className="px-3 py-1 rounded border border-cyan-500/30 bg-cyan-500/10 text-cyan-300 text-xs font-mono tracking-widest uppercase">
+                        Core System v.2.0
+                     </span>
+                </motion.div>
+                <h2 className="text-4xl md:text-5xl font-bold text-white mb-6 tracking-tight">
+                    El Cerebro Digital de tu Clínica
                 </h2>
                 <p className="text-slate-400 text-lg">
-                    No solo agendamos, construimos el activo más valioso de tu negocio: <span className="text-white font-medium">Tu Base de Datos.</span>
+                    Transformamos datos estáticos en un <span className="text-cyan-400 font-semibold">activo viviente</span>.
                 </p>
             </div>
 
-            <div className="grid md:grid-cols-3 gap-8 relative z-10">
+            {/* BENTO GRID LAYOUT */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 max-w-6xl mx-auto relative z-10">
                 
-                {/* Card 1: Marketing (Cyan Theme - Glassy) */}
-                <div className="relative p-[1px] rounded-[24px] bg-gradient-to-b from-cyan-500/30 to-transparent shadow-lg">
-                    {/* Cambio clave: bg-gradient translúcido + backdrop-blur-xl */}
-                    <div className="relative h-full p-8 rounded-[23px] bg-gradient-to-b from-white/[0.08] to-transparent backdrop-blur-xl border border-white/5 flex flex-col items-center text-center">
-                        <div className="mb-6 w-16 h-16 rounded-2xl bg-gradient-to-br from-cyan-500/20 to-cyan-900/30 border border-cyan-500/30 flex items-center justify-center text-cyan-300 shadow-[0_0_20px_-5px_rgba(6,182,212,0.3)]">
-                            <Database size={28} />
+                {/* 1. MÓDULO CENTRAL (Database) - Ocupa 7 columnas */}
+                <motion.div 
+                    initial={{ opacity: 0, x: -20 }}
+                    whileInView={{ opacity: 1, x: 0 }}
+                    viewport={{ once: true }}
+                    className="lg:col-span-7 group relative rounded-[32px] overflow-hidden border border-white/10 bg-[#0A0A0A]"
+                >
+                    {/* Background Effects */}
+                    <div className="absolute inset-0 bg-gradient-to-br from-cyan-900/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
+                    <div className="absolute -right-20 -top-20 w-64 h-64 bg-cyan-500/10 blur-[80px] rounded-full pointer-events-none" />
+                    
+                    <div className="relative p-8 md:p-10 h-full flex flex-col justify-between min-h-[320px]">
+                        <div className="flex justify-between items-start">
+                            <div className="p-3 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400">
+                                <Database size={32} />
+                            </div>
+                            {/* Abstract Decor: Lines */}
+                            <div className="flex gap-1">
+                                <div className="w-1 h-6 bg-cyan-800/40 rounded-full animate-pulse" />
+                                <div className="w-1 h-4 bg-cyan-800/40 rounded-full" />
+                                <div className="w-1 h-8 bg-cyan-500/40 rounded-full animate-pulse delay-75" />
+                            </div>
                         </div>
-                        <h3 className="text-xl font-bold text-white mb-3">
-                            Historial Clínico de Marketing
-                        </h3>
-                        <p className="text-slate-300 text-sm leading-relaxed font-medium">
-                            Guarda automáticamente cada interacción. Sabrás cuándo fue su última cita y qué procedimiento se realizó.
-                        </p>
-                    </div>
-                </div>
 
-                {/* Card 2: Reactivación (Emerald Theme - Glassy) */}
-                <div className="relative p-[1px] rounded-[24px] bg-gradient-to-b from-emerald-500/30 to-transparent shadow-lg">
-                    <div className="relative h-full p-8 rounded-[23px] bg-gradient-to-b from-white/[0.08] to-transparent backdrop-blur-xl border border-white/5 flex flex-col items-center text-center">
-                        <div className="mb-6 w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-500/20 to-emerald-900/30 border border-emerald-500/30 flex items-center justify-center text-emerald-300 shadow-[0_0_20px_-5px_rgba(16,185,129,0.3)]">
-                            <Users size={28} />
+                        <div className="mt-8">
+                            <h3 className="text-3xl font-bold text-white mb-4">
+                                Historial Clínico de Marketing
+                            </h3>
+                            <p className="text-slate-400 text-base leading-relaxed max-w-md">
+                                No es solo una lista de nombres. Es un registro vivo de cada interacción, procedimiento y tiempo de espera. 
+                                <span className="block mt-2 text-cyan-200/80 text-sm border-l-2 border-cyan-500/30 pl-3">
+                                    "Paciente X: Última profilaxis hace 6 meses → <span className="text-cyan-400">Activar Protocolo Retorno</span>"
+                                </span>
+                            </p>
                         </div>
-                        <h3 className="text-xl font-bold text-white mb-3">
-                            Motor de Reactivación
-                        </h3>
-                        <p className="text-slate-300 text-sm leading-relaxed font-medium">
-                            Detecta pacientes inactivos y envía mensajes personalizados para traerlos de vuelta automáticamente.
-                        </p>
                     </div>
-                </div>
+                </motion.div>
 
-                {/* Card 3: Dashboard (Blue Theme - Glassy) */}
-                <div className="relative p-[1px] rounded-[24px] bg-gradient-to-b from-blue-500/30 to-transparent shadow-lg">
-                    <div className="relative h-full p-8 rounded-[23px] bg-gradient-to-b from-white/[0.08] to-transparent backdrop-blur-xl border border-white/5 flex flex-col items-center text-center">
-                        <div className="mb-6 w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500/20 to-blue-900/30 border border-blue-500/30 flex items-center justify-center text-blue-300 shadow-[0_0_20px_-5px_rgba(59,130,246,0.3)]">
-                            <BarChart3 size={28} />
+                {/* COLUMNA DERECHA - Ocupa 5 columnas */}
+                <div className="lg:col-span-5 flex flex-col gap-6">
+
+                    {/* 2. MÓDULO REACTIVACIÓN (Top Right) */}
+                    <motion.div 
+                        initial={{ opacity: 0, y: 20 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        viewport={{ once: true }}
+                        transition={{ delay: 0.1 }}
+                        className="group relative rounded-[32px] overflow-hidden border border-white/10 bg-[#0A0A0A] h-full"
+                    >
+                        <div className="absolute inset-0 bg-gradient-to-br from-emerald-900/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
+                        
+                        <div className="relative p-8 h-full">
+                            <div className="flex items-center gap-4 mb-6">
+                                <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
+                                    <Users size={24} />
+                                </div>
+                                <div className="h-[1px] flex-1 bg-gradient-to-r from-emerald-500/30 to-transparent" />
+                            </div>
+                            
+                            <h3 className="text-xl font-bold text-white mb-2">Motor de Reactivación</h3>
+                            <p className="text-slate-400 text-sm">
+                                Detecta inactividad y dispara campañas ultra-personalizadas automáticamente.
+                            </p>
+                            
+                            {/* Visual Stats Simulation */}
+                            <div className="mt-6 flex items-center gap-3 text-xs font-mono text-emerald-300/70">
+                                <span className="flex items-center gap-1">
+                                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                                    Scanning DB...
+                                </span>
+                            </div>
                         </div>
-                        <h3 className="text-xl font-bold text-white mb-3">
-                            Dashboard ROI Real
-                        </h3>
-                        <p className="text-slate-300 text-sm leading-relaxed font-medium">
-                            Visualiza en tiempo real chats activos, citas concretadas y dinero generado. Mide la efectividad exacta.
-                        </p>
-                    </div>
+                    </motion.div>
+
+                    {/* 3. MÓDULO ROI (Bottom Right) */}
+                    <motion.div 
+                        initial={{ opacity: 0, y: 20 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        viewport={{ once: true }}
+                        transition={{ delay: 0.2 }}
+                        className="group relative rounded-[32px] overflow-hidden border border-white/10 bg-[#0A0A0A] h-full"
+                    >
+                         <div className="absolute inset-0 bg-gradient-to-br from-blue-900/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
+
+                        <div className="relative p-8 h-full">
+                            <div className="flex justify-between items-start mb-4">
+                                <div>
+                                    <h3 className="text-xl font-bold text-white">Dashboard ROI</h3>
+                                    <p className="text-xs text-blue-300/60 uppercase tracking-wider mt-1">Tiempo Real</p>
+                                </div>
+                                <div className="p-2 rounded-lg bg-blue-500/10 border border-blue-500/20 text-blue-400">
+                                    <BarChart3 size={20} />
+                                </div>
+                            </div>
+
+                            <p className="text-slate-400 text-sm mb-6">
+                                Visualiza dinero generado, no solo likes. Mide la efectividad exacta de cada peso invertido.
+                            </p>
+
+                            {/* Mini Chart Abstract */}
+                            <div className="flex items-end gap-2 h-12 w-full opacity-60">
+                                <div className="w-1/4 h-[40%] bg-slate-700 rounded-t-sm" />
+                                <div className="w-1/4 h-[60%] bg-slate-600 rounded-t-sm" />
+                                <div className="w-1/4 h-[45%] bg-slate-700 rounded-t-sm" />
+                                <div className="w-1/4 h-[90%] bg-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.5)] rounded-t-sm" />
+                            </div>
+                        </div>
+                    </motion.div>
+
                 </div>
-                
             </div>
-        </motion.section>
+        </section>
 
         {/* --- CTA FINAL --- */}
         <motion.section 
