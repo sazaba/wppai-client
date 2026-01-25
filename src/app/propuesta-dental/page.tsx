@@ -4,7 +4,7 @@ import { Sparkles, ShieldCheck, BarChart3, ChevronRight, CheckCircle2 } from 'lu
 export default function DentalProposal() {
   return (
     // CONTENEDOR PRINCIPAL: Fuerza modo oscuro y fuente sans
-    <main className="min-h-screen bg-[#050505] text-slate-200 selection:bg-cyan-500 selection:text-black font-sans overflow-x-hidden">
+    <main className="min-h-screen bg-[#050505] text-slate-200 selection:bg-cyan-500 selection:text-black font-sans overflow-x-hidden p-5">
       
       {/* --- BACKGROUND FX (Luces ambientales) --- */}
       <div className="fixed inset-0 z-0 pointer-events-none">
