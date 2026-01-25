@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react';
-import { Sparkles, CheckCircle2, Clock, Users, Database, BrainCircuit, BarChart3, CalendarCheck, ChevronRight, FileText, CalendarDays, Zap } from 'lucide-react';
+import { Sparkles, CheckCircle2, Clock, Users, Database, BrainCircuit, BarChart3, CalendarCheck, ChevronRight, FileText, CalendarDays } from 'lucide-react';
 import { motion, Variants } from 'framer-motion';
 import Link from 'next/link';
 
@@ -44,29 +44,19 @@ const listItem: Variants = {
     visible: { opacity: 1, x: 0 }
 };
 
-// --- ANIMACIÓN DE FONDO PARA EL CTA ---
-const pulseGradient: Variants = {
+// --- ANIMACIÓN DE FONDO PARA EL CTA (PROFESIONAL) ---
+const pulseDeep: Variants = {
     animate: {
-        scale: [1, 1.05, 1],
-        opacity: [0.4, 0.6, 0.4],
+        opacity: [0.3, 0.5, 0.3],
+        scale: [1, 1.02, 1],
         transition: {
-            duration: 8,
+            duration: 10,
             repeat: Infinity,
             ease: "easeInOut"
         }
     }
 };
 
-const rotateGradient: Variants = {
-    animate: {
-        rotate: [0, 360],
-        transition: {
-            duration: 20,
-            repeat: Infinity,
-            ease: "linear"
-        }
-    }
-};
 
 // --- DATOS FICTICIOS GENÉRICOS ---
 const mockPatients = [
@@ -391,65 +381,52 @@ export default function DentalProposal() {
             </div>
         </section>
 
-        {/* --- CTA FINAL DISRUPTIVO: NÚCLEO DE FUSIÓN --- */}
+        {/* --- CTA FINAL DISRUPTIVO & PROFESIONAL --- */}
         <motion.section 
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true }}
           variants={fadeInUp}
-          // Contenedor principal con overflow hidden para contener los efectos de plasma
-          className="relative py-24 md:py-32 overflow-hidden rounded-[40px] mx-2 md:mx-0 group"
+          className="relative py-24 md:py-32 overflow-hidden rounded-[40px] mx-2 md:mx-0 group border border-white/10"
         >
-            {/* --- FONDO DE PLASMA ANIMADO --- */}
-            <div className="absolute inset-0 pointer-events-none">
-                {/* Ruido de fondo para textura */}
-                <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 mix-blend-soft-light"></div>
+            {/* --- FONDO ESTRUCTURADO (PROFESIONAL) --- */}
+            <div className="absolute inset-0 pointer-events-none bg-[#0A0A0A]">
+                {/* Patrón de Rejilla Técnica Sutil */}
+                <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff05_1px,transparent_1px),linear-gradient(to_bottom,#ffffff05_1px,transparent_1px)] bg-[size:40px_40px] mask-radial-faded"></div>
                 
-                {/* Gradiente Cian Giratorio */}
+                {/* Gradiente Profundo y Lento (Índigo/Azul) */}
                 <motion.div 
-                    variants={rotateGradient}
-                    animate="animate"
-                    className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-conic-gradient from-cyan-500/40 via-transparent to-transparent blur-[100px] opacity-60" 
-                />
-                {/* Gradiente Morado Pulsante */}
-                <motion.div 
-                     variants={pulseGradient}
+                     variants={pulseDeep}
                      animate="animate"
-                    className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-purple-600/30 blur-[120px] rounded-full mix-blend-screen"
+                    className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[80%] h-[80%] bg-indigo-900/20 blur-[150px] rounded-full mix-blend-screen"
                 />
-                
-                {/* Destellos de energía ascendentes */}
-                <div className="absolute inset-0 flex justify-center items-center">
-                    <Sparkles className="text-cyan-300 opacity-30 animate-pulse absolute top-1/4 left-1/3" size={20} />
-                    <Zap className="text-purple-300 opacity-20 animate-bounce absolute bottom-1/4 right-1/3 duration-[2000ms]" size={16} />
-                </div>
             </div>
 
-            {/* --- CONTENIDO GLASSMORPHISM --- */}
+            {/* --- CONTENIDO GLASSMORPHISM REFINADO --- */}
             <div className="relative z-10 max-w-3xl mx-auto text-center px-6">
-                {/* Contenedor de Cristal */}
-                <div className="bg-white/[0.03] backdrop-blur-2xl p-8 md:p-12 rounded-[32px] border border-white/10 shadow-2xl shadow-purple-500/10 relative overflow-hidden group-hover:border-white/20 transition-all duration-500">
+                {/* Contenedor de Cristal Más Sobrio */}
+                <div className="bg-white/[0.02] backdrop-blur-md p-8 md:p-12 rounded-[32px] border border-white/5 shadow-xl shadow-black/30 relative overflow-hidden transition-all duration-500">
                     
-                    {/* Reflejo superior en el cristal */}
-                    <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/30 to-transparent opacity-50" />
+                    {/* Reflejo superior sutil */}
+                    <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
 
-                    <h2 className="text-4xl md:text-6xl font-bold text-white mb-6 tracking-tight drop-shadow-lg">
-                        ¿Listo para el <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 to-purple-400">Siguiente Nivel</span>?
+                    <h2 className="text-4xl md:text-5xl font-bold text-white mb-6 tracking-tight drop-shadow-sm">
+                        ¿Listo para el <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-indigo-300">Siguiente Nivel</span>?
                     </h2>
-                    <p className="text-slate-300 max-w-xl mx-auto mb-10 text-lg md:text-xl leading-relaxed font-medium">
-                        Deje que la IA maneje la rutina. Recupere su tiempo y enfóquese en lo que realmente importa: sus pacientes.
+                    <p className="text-slate-400 max-w-xl mx-auto mb-10 text-lg leading-relaxed font-medium">
+                        Deje que la IA maneje la rutina con precisión. Recupere su tiempo y enfóquese en la excelencia clínica.
                     </p>
                     
-                    {/* --- BOTÓN DE ENERGÍA "HALO" --- */}
+                    {/* --- BOTÓN "HALO" REFINADO (AZUL PROFUNDO) --- */}
                     <Link href="/register" className="relative z-10 inline-block group/btn">
                         <div className="relative">
-                            {/* Halo de energía detrás del botón */}
-                            <div className="absolute -inset-1 bg-gradient-to-r from-cyan-500 to-purple-600 rounded-2xl blur-xl opacity-40 group-hover/btn:opacity-70 transition-opacity duration-500 animate-pulse" />
+                            {/* Halo de energía sutil y oscuro detrás del botón */}
+                            <div className="absolute -inset-2 bg-gradient-to-r from-blue-700 to-indigo-700 rounded-2xl blur-2xl opacity-30 group-hover/btn:opacity-50 transition-opacity duration-500" />
                             
-                            {/* Botón Principal */}
-                            <button className="relative bg-white text-black font-bold text-lg px-12 py-5 rounded-2xl hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 shadow-[0_0_30px_-5px_rgba(255,255,255,0.3)] flex items-center gap-2 mx-auto">
+                            {/* Botón Principal Blanco */}
+                            <button className="relative bg-white text-black font-bold text-lg px-10 py-4 rounded-xl hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 shadow-lg shadow-blue-900/20 flex items-center gap-2 mx-auto">
                                 Iniciar Transformación
-                                <ChevronRight className="group-hover/btn:translate-x-1 transition-transform" size={20} />
+                                <ChevronRight className="group-hover/btn:translate-x-1 transition-transform text-blue-600" size={20} />
                             </button>
                         </div>
                     </Link>
