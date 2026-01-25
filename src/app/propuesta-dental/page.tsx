@@ -159,10 +159,10 @@ export default function DentalProposal() {
         </motion.section>
 
 
-        {/* --- FEATURE 3: EL CEREBRO (DISEÑO BENTO GRID NEURAL) --- */}
-        <section className="mb-40 relative px-4 md:px-0">
+        {/* --- FEATURE 3: EL CEREBRO (BENTO GRID - CORREGIDO) --- */}
+        <section className="mb-40 relative px-6 md:px-0">
             {/* Título de Sección */}
-            <div className="text-center max-w-3xl mx-auto mb-16 relative z-10">
+            <div className="text-center max-w-3xl mx-auto mb-12 relative z-10">
                 <motion.div 
                     initial={{ opacity: 0, scale: 0.9 }}
                     whileInView={{ opacity: 1, scale: 1 }}
@@ -188,35 +188,39 @@ export default function DentalProposal() {
                     initial={{ opacity: 0, x: -20 }}
                     whileInView={{ opacity: 1, x: 0 }}
                     viewport={{ once: true }}
-                    className="lg:col-span-7 group relative rounded-[32px] overflow-hidden border border-white/10 bg-[#0A0A0A]"
+                    className="lg:col-span-7 group relative rounded-[32px] overflow-hidden border border-white/10 bg-[#0A0A0A] flex flex-col justify-center"
                 >
                     {/* Background Effects */}
                     <div className="absolute inset-0 bg-gradient-to-br from-cyan-900/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
                     <div className="absolute -right-20 -top-20 w-64 h-64 bg-cyan-500/10 blur-[80px] rounded-full pointer-events-none" />
                     
-                    <div className="relative p-8 md:p-10 h-full flex flex-col justify-between min-h-[320px]">
-                        <div className="flex justify-between items-start">
-                            <div className="p-3 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400">
-                                <Database size={32} />
+                    <div className="relative p-8 md:p-10 h-full flex flex-col gap-8">
+                        {/* Header de la tarjeta más compacto y alineado */}
+                        <div className="flex items-start justify-between">
+                            <div className="p-3 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 shadow-[0_0_15px_rgba(6,182,212,0.2)]">
+                                <Database size={28} />
                             </div>
+                            
                             {/* Abstract Decor: Lines */}
-                            <div className="flex gap-1">
-                                <div className="w-1 h-6 bg-cyan-800/40 rounded-full animate-pulse" />
-                                <div className="w-1 h-4 bg-cyan-800/40 rounded-full" />
-                                <div className="w-1 h-8 bg-cyan-500/40 rounded-full animate-pulse delay-75" />
+                            <div className="flex gap-1 opacity-50">
+                                <div className="w-1 h-4 bg-cyan-800 rounded-full" />
+                                <div className="w-1 h-6 bg-cyan-600 rounded-full animate-pulse" />
                             </div>
                         </div>
 
-                        <div className="mt-8">
-                            <h3 className="text-3xl font-bold text-white mb-4">
+                        <div>
+                            <h3 className="text-2xl md:text-3xl font-bold text-white mb-3">
                                 Historial Clínico de Marketing
                             </h3>
-                            <p className="text-slate-400 text-base leading-relaxed max-w-md">
-                                No es solo una lista de nombres. Es un registro vivo de cada interacción, procedimiento y tiempo de espera. 
-                                <span className="block mt-2 text-cyan-200/80 text-sm border-l-2 border-cyan-500/30 pl-3">
-                                    "Paciente X: Última profilaxis hace 6 meses → <span className="text-cyan-400">Activar Protocolo Retorno</span>"
-                                </span>
+                            <p className="text-slate-400 text-base leading-relaxed max-w-lg">
+                                Un registro vivo de cada interacción. El sistema entiende no solo quién es el paciente, sino en qué etapa de su tratamiento se encuentra para actuar en consecuencia.
                             </p>
+                            
+                            {/* Ejemplo visual más sutil */}
+                            <div className="mt-6 inline-flex items-center gap-3 px-4 py-2 rounded-lg bg-white/5 border border-white/5 text-sm text-slate-300">
+                                <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
+                                <span>Última visita: Hace 6 meses → <span className="text-cyan-400 font-medium">Sugerir Profilaxis</span></span>
+                            </div>
                         </div>
                     </div>
                 </motion.div>
@@ -230,29 +234,29 @@ export default function DentalProposal() {
                         whileInView={{ opacity: 1, y: 0 }}
                         viewport={{ once: true }}
                         transition={{ delay: 0.1 }}
-                        className="group relative rounded-[32px] overflow-hidden border border-white/10 bg-[#0A0A0A] h-full"
+                        className="group relative rounded-[32px] overflow-hidden border border-white/10 bg-[#0A0A0A] h-full min-h-[220px]"
                     >
                         <div className="absolute inset-0 bg-gradient-to-br from-emerald-900/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
                         
-                        <div className="relative p-8 h-full">
-                            <div className="flex items-center gap-4 mb-6">
-                                <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
-                                    <Users size={24} />
+                        <div className="relative p-8 h-full flex flex-col justify-between">
+                            {/* Header estandarizado con ROI: Texto Izq / Icono Der */}
+                            <div className="flex justify-between items-start mb-2">
+                                <div>
+                                    <h3 className="text-xl font-bold text-white">Motor de Reactivación</h3>
+                                    <p className="text-xs text-emerald-400/80 uppercase tracking-wider mt-1">Automatización Ética</p>
                                 </div>
-                                <div className="h-[1px] flex-1 bg-gradient-to-r from-emerald-500/30 to-transparent" />
+                                <div className="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
+                                    <Users size={20} />
+                                </div>
                             </div>
                             
-                            <h3 className="text-xl font-bold text-white mb-2">Motor de Reactivación</h3>
-                            <p className="text-slate-400 text-sm">
-                                Detecta inactividad y dispara campañas ultra-personalizadas automáticamente.
+                            <p className="text-slate-400 text-sm mt-4">
+                                Detecta pacientes inactivos y envía mensajes personalizados para facilitar su retorno a consulta de forma natural.
                             </p>
                             
-                            {/* Visual Stats Simulation */}
-                            <div className="mt-6 flex items-center gap-3 text-xs font-mono text-emerald-300/70">
-                                <span className="flex items-center gap-1">
-                                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                                    Scanning DB...
-                                </span>
+                            <div className="mt-4 flex items-center gap-2 text-[10px] font-mono text-emerald-500/50">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                                Database Scan Active
                             </div>
                         </div>
                     </motion.div>
@@ -263,30 +267,30 @@ export default function DentalProposal() {
                         whileInView={{ opacity: 1, y: 0 }}
                         viewport={{ once: true }}
                         transition={{ delay: 0.2 }}
-                        className="group relative rounded-[32px] overflow-hidden border border-white/10 bg-[#0A0A0A] h-full"
+                        className="group relative rounded-[32px] overflow-hidden border border-white/10 bg-[#0A0A0A] h-full min-h-[220px]"
                     >
                          <div className="absolute inset-0 bg-gradient-to-br from-blue-900/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
 
-                        <div className="relative p-8 h-full">
-                            <div className="flex justify-between items-start mb-4">
+                        <div className="relative p-8 h-full flex flex-col justify-between">
+                            <div className="flex justify-between items-start mb-2">
                                 <div>
                                     <h3 className="text-xl font-bold text-white">Dashboard ROI</h3>
-                                    <p className="text-xs text-blue-300/60 uppercase tracking-wider mt-1">Tiempo Real</p>
+                                    <p className="text-xs text-blue-400/80 uppercase tracking-wider mt-1">Tiempo Real</p>
                                 </div>
                                 <div className="p-2 rounded-lg bg-blue-500/10 border border-blue-500/20 text-blue-400">
                                     <BarChart3 size={20} />
                                 </div>
                             </div>
 
-                            <p className="text-slate-400 text-sm mb-6">
+                            <p className="text-slate-400 text-sm mt-4 mb-4">
                                 Visualiza dinero generado, no solo likes. Mide la efectividad exacta de cada peso invertido.
                             </p>
 
                             {/* Mini Chart Abstract */}
-                            <div className="flex items-end gap-2 h-12 w-full opacity-60">
-                                <div className="w-1/4 h-[40%] bg-slate-700 rounded-t-sm" />
-                                <div className="w-1/4 h-[60%] bg-slate-600 rounded-t-sm" />
-                                <div className="w-1/4 h-[45%] bg-slate-700 rounded-t-sm" />
+                            <div className="flex items-end gap-2 h-8 w-full opacity-60">
+                                <div className="w-1/4 h-[40%] bg-slate-800 rounded-t-sm" />
+                                <div className="w-1/4 h-[60%] bg-slate-700 rounded-t-sm" />
+                                <div className="w-1/4 h-[45%] bg-slate-800 rounded-t-sm" />
                                 <div className="w-1/4 h-[90%] bg-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.5)] rounded-t-sm" />
                             </div>
                         </div>
