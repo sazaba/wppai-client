@@ -1,16 +1,28 @@
 'use client'
 
-import React from 'react';
-import { Sparkles, CheckCircle2, Clock, Users, Database, BrainCircuit, CalendarCheck, ChevronRight, FileText, CalendarDays, Zap, Download, CreditCard, Wifi } from 'lucide-react';
+import React, { memo } from 'react';
+import { Sparkles, CheckCircle2, Clock, Users, Database, BrainCircuit, CalendarCheck, ChevronRight, FileText, CalendarDays, Zap, Download, Wifi } from 'lucide-react';
 import { motion, Variants } from 'framer-motion';
 import Link from 'next/link';
 
 // IMPORTA TUS COMPONENTES VISUALES
-// Asegúrate de que las rutas sean correctas
+// Asegúrate de que las rutas sean correctas o comenta si no los tienes aún
 import CalendarVisual from './components/CalendarVisual'; 
 import DentalChatAnimation from './components/DentalChatAnimation';
 
-// --- ANIMATION VARIANTS (Safari Optimized) ---
+// --- 1. CONFIGURACIÓN DE ANIMACIÓN (MOTION REC / ESTILO BIOSETA) ---
+const drawVariants: Variants = {
+  hidden: { pathLength: 0, opacity: 0 },
+  visible: (i = 1) => ({
+    pathLength: 1,
+    opacity: 1,
+    transition: {
+      pathLength: { delay: i * 0.2, type: "spring", duration: 1.5, bounce: 0 },
+      opacity: { delay: i * 0.2, duration: 0.01 }
+    }
+  })
+};
+
 const fadeInUp: Variants = {
   hidden: { opacity: 0, y: 15 },
   visible: { 
@@ -24,20 +36,12 @@ const staggerContainer: Variants = {
   hidden: { opacity: 0 },
   visible: {
     opacity: 1,
-    transition: {
-      staggerChildren: 0.1,
-      delayChildren: 0.1
-    }
+    transition: { staggerChildren: 0.1, delayChildren: 0.1 }
   }
 };
 
 const listContainer: Variants = {
-    visible: {
-        opacity: 1,
-        transition: {
-            staggerChildren: 0.08
-        }
-    }
+    visible: { opacity: 1, transition: { staggerChildren: 0.08 } }
 };
 
 const listItem: Variants = {
@@ -45,86 +49,131 @@ const listItem: Variants = {
     visible: { opacity: 1, x: 0 }
 };
 
-// Animación de fondo optimizada
 const pulseDeep: Variants = {
     animate: {
         opacity: [0.3, 0.45, 0.3],
         scale: [1, 1.02, 1],
-        transition: {
-            duration: 8,
-            repeat: Infinity,
-            ease: "easeInOut"
-        }
+        transition: { duration: 8, repeat: Infinity, ease: "easeInOut" }
     }
 };
 
-// --- NUEVOS ICONOS DE AMBIENTACIÓN DENTAL (Sutiles) ---
-const DentalToolsBg = () => (
-  <>
-    {/* Espejo Dental - Arriba Izquierda */}
-    <svg className="absolute top-[5%] left-[2%] w-32 h-32 text-cyan-900/20 rotate-45 blur-[2px] pointer-events-none opacity-40" viewBox="0 0 24 24" fill="currentColor">
-      <path d="M12 2C8.13 2 5 5.13 5 9C5 11.38 6.19 13.47 8 14.74V17C8 17.55 8.45 18 9 18H11V20H13V18H15C15.55 18 16 17.55 16 17V14.74C17.81 13.47 19 11.38 19 9C19 5.13 15.87 2 12 2ZM12 4C14.76 4 17 6.24 17 9C17 11.76 14.76 14 12 14C9.24 14 7 11.76 7 9C7 6.24 9.24 4 12 4Z" />
-    </svg>
-    {/* Sonda Exploradora - Centro Derecha */}
-    <svg className="absolute top-[45%] right-[5%] w-40 h-40 text-purple-900/20 -rotate-12 blur-[3px] pointer-events-none opacity-30" viewBox="0 0 24 24" fill="currentColor">
-       <path d="M6.1,7.19L8.4,12.04C8.58,12.42 8.43,12.87 8.06,13.07L5,14.64L7.59,20.36L6,21.09L2.15,12.64L5.56,10.87C5.94,10.68 6.1,10.23 5.9,9.85L3.74,5.3L6.1,7.19M19.14,8.97L15.56,10.6C15.19,10.77 14.76,10.59 14.59,10.21L10.64,1.5L12.24,0.77L15.84,8.68L18.43,7.5L19.14,8.97Z" />
-    </svg>
-    {/* Muela Estilizada Pequeña - Abajo Izquierda */}
-    <svg className="absolute bottom-[15%] left-[8%] w-24 h-24 text-blue-900/20rotate-[30deg] blur-[1px] pointer-events-none opacity-25" viewBox="0 0 24 24" fill="currentColor">
-        <path d="M17,2H7C4.79,2 3,3.79 3,6V18C3,20.21 4.79,22 7,22H17C19.21,22 21,20.21 21,18V6C21,3.79 19.21,2 17,2M11,6H13V10H17V12H13V18H11V12H7V10H11V6Z" /> 
-    </svg>
-  </>
-);
+// --- 2. TARJETA GENÉRICA ANIMADA (PREMIUM BLACK & GOLD) ---
+const AnimatedGenericCard = memo(() => {
+  return (
+    <div className="w-full max-w-[320px] md:max-w-[360px] mx-auto relative group perspective-1000">
+      <motion.div 
+        initial={{ rotateY: 0 }}
+        whileHover={{ rotateY: 5, scale: 1.02 }}
+        transition={{ duration: 0.5 }}
+        className="relative w-full aspect-[1.586/1] rounded-2xl overflow-hidden shadow-[0_0_30px_-5px_rgba(245,158,11,0.15)] bg-gradient-to-br from-[#111] via-[#0a0a0a] to-black border border-amber-500/20"
+      >
+        {/* Ruido y Brillo */}
+        <div className="absolute inset-0 opacity-10 bg-[url('https://grainy-gradients.vercel.app/noise.svg')]" />
+        <div className="absolute -inset-[100%] bg-gradient-to-r from-transparent via-amber-400/5 to-transparent rotate-45 translate-x-[-100%] animate-[shimmer_6s_infinite]" />
 
+        <div className="relative p-6 h-full flex flex-col justify-between z-10">
+          {/* Fila Superior: Chip y Contactless Dibujados */}
+          <div className="flex justify-between items-start">
+            <motion.svg 
+              width="45" height="32" viewBox="0 0 50 35" 
+              className="stroke-amber-400/80 fill-none stroke-[1.5]"
+              initial="hidden" whileInView="visible" viewport={{ once: true }}
+            >
+              <motion.rect x="2" y="2" width="46" height="31" rx="6" variants={drawVariants} custom={1} />
+              <motion.path d="M15 2 V 33" variants={drawVariants} custom={2} />
+              <motion.path d="M35 2 V 33" variants={drawVariants} custom={2} />
+              <motion.path d="M2 17 H 48" variants={drawVariants} custom={3} />
+              <motion.path d="M15 10 H 35" variants={drawVariants} custom={4} className="stroke-[0.5]" />
+              <motion.path d="M15 25 H 35" variants={drawVariants} custom={4} className="stroke-[0.5]" />
+            </motion.svg>
 
-// --- NUEVA TARJETA DE CRÉDITO GENÉRICA (SVG AUTOMATIZADO) ---
-const GenericPaymentCard = () => (
-  <div className="w-full max-w-[320px] md:max-w-[360px] mx-auto relative group/card perspective-1000">
-    <div className="relative w-full aspect-[1.586/1] rounded-2xl overflow-hidden shadow-2xl transition-all duration-500 transform-gpu group-hover/card:scale-[1.02] group-hover/card:rotate-y-[5deg]">
-      {/* Fondo Gradiente de la Tarjeta */}
-      <div className="absolute inset-0 bg-gradient-to-br from-slate-800 via-slate-900 to-black" />
-      <div className="absolute inset-0 bg-[linear-gradient(45deg,transparent_20%,rgba(255,255,255,0.05)_40%,rgba(255,255,255,0.1)_50%,rgba(255,255,255,0.05)_60%,transparent_80%)] bg-[length:200%_200%] animate-shimmer-slow pointer-events-none" />
-      
-      {/* Bordes Brillantes */}
-      <div className="absolute inset-0 rounded-2xl border border-white/10 group-hover/card:border-purple-500/30 transition-colors duration-500" />
-      
-      <div className="relative p-6 h-full flex flex-col justify-between z-10">
-        {/* Top Row: Chip y Contactless */}
-        <div className="flex justify-between items-start">
-          <div className="w-12 h-9 bg-gradient-to-br from-amber-200 via-amber-400 to-amber-600 rounded-md border border-amber-500/50 flex items-center justify-center overflow-hidden relative">
-              <div className="absolute inset-0 opacity-50 bg-[repeating-linear-gradient(90deg,transparent,transparent_2px,#000_2px,#000_4px)]" />
-              <div className="absolute inset-0 opacity-50 bg-[repeating-linear-gradient(0deg,transparent,transparent_2px,#000_2px,#000_4px)]" />
+            <motion.svg 
+               width="24" height="24" viewBox="0 0 24 24" 
+               className="stroke-amber-200 fill-none stroke-2"
+               initial="hidden" whileInView="visible" viewport={{ once: true }}
+            >
+               <motion.path d="M5 12.55a11 11 0 0 1 14.08 0" variants={drawVariants} custom={3} />
+               <motion.path d="M1.42 9a16 16 0 0 1 21.16 0" variants={drawVariants} custom={4} />
+               <motion.path d="M8.53 16.11a6 6 0 0 1 6.95 0" variants={drawVariants} custom={2} />
+               <motion.line x1="12" y1="20" x2="12.01" y2="20" variants={drawVariants} custom={1} strokeLinecap="round" />
+            </motion.svg>
           </div>
-          <Wifi className="text-white/70 rotate-90" size={24} />
-        </div>
 
-        {/* Middle Row: Texto Principal */}
-        <div className="text-center my-auto pt-4">
-           <p className="text-xs text-purple-300 uppercase tracking-[0.2em] mb-1 font-semibold">Método de Pago Universal</p>
-           <h4 className="text-xl md:text-2xl font-bold text-white tracking-wider bg-clip-text bg-gradient-to-r from-white via-purple-100 to-white drop-shadow-sm">
-             TODAS LAS TARJETAS
-           </h4>
-           <p className="text-sm text-slate-400 uppercase tracking-widest font-medium mt-1">DÉBITO Y CRÉDITO</p>
-        </div>
+          {/* Texto Central */}
+          <div className="text-center pt-2">
+             <p className="text-[10px] text-amber-200/50 uppercase tracking-[0.3em] mb-1">Universal Access</p>
+             <h4 className="text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-white via-amber-100 to-white tracking-widest drop-shadow-sm">
+               ALL CARDS
+             </h4>
+          </div>
 
-        {/* Bottom Row: Indicadores Estilizados */}
-        <div className="flex justify-between items-center pt-4 opacity-80">
-            <div className="flex gap-2 items-center">
-                <div className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)] animate-pulse"></div>
-                <span className="text-[10px] font-mono text-slate-300 uppercase">Aceptación Global</span>
-            </div>
-            {/* Simulación de logos abstractos */}
-             <div className="flex -space-x-2 opacity-70 grayscale group-hover/card:grayscale-0 transition-all duration-500">
-                <div className="w-8 h-8 rounded-full bg-red-500/80 border-2 border-white/10 shrink-0" />
-                <div className="w-8 h-8 rounded-full bg-yellow-500/80 border-2 border-white/10 shrink-0" />
-                <div className="w-8 h-8 rounded-full bg-blue-500/80 border-2 border-white/10 shrink-0" />
-            </div>
+          {/* Fila Inferior: Números simulados y bolitas */}
+          <div className="flex justify-between items-end opacity-90">
+              <motion.svg 
+                height="8" width="110" viewBox="0 0 120 10" 
+                className="stroke-white/20 fill-none stroke-[2] stroke-linecap-round"
+                initial="hidden" whileInView="visible" viewport={{ once: true }}
+              >
+                  <motion.line x1="0" y1="5" x2="20" y2="5" variants={drawVariants} custom={5} />
+                  <motion.line x1="30" y1="5" x2="50" y2="5" variants={drawVariants} custom={5.5} />
+                  <motion.line x1="60" y1="5" x2="80" y2="5" variants={drawVariants} custom={6} />
+                  <motion.line x1="90" y1="5" x2="110" y2="5" variants={drawVariants} custom={6.5} />
+              </motion.svg>
+              
+              <div className="flex -space-x-2">
+                 <div className="w-6 h-6 rounded-full border border-white/10 bg-red-500/20 backdrop-blur-sm" />
+                 <div className="w-6 h-6 rounded-full border border-white/10 bg-yellow-500/20 backdrop-blur-sm" />
+              </div>
+          </div>
         </div>
-      </div>
+      </motion.div>
     </div>
-  </div>
-);
+  );
+});
+AnimatedGenericCard.displayName = "AnimatedGenericCard";
 
+// --- 3. BACKGROUND DENTAL ANIMADO (MOTION REC - LINE ART) ---
+const AnimatedDentalBg = memo(() => (
+  <div className="absolute inset-0 pointer-events-none mix-blend-screen overflow-hidden text-slate-500/10">
+     {/* Implante (Arriba Izquierda) */}
+    <motion.svg 
+       className="absolute top-[10%] left-[5%] w-32 h-32 rotate-12"
+       viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="0.5"
+       initial="hidden" whileInView="visible" viewport={{ once: true }}
+    >
+       <motion.path d="M12 2L12 6" variants={drawVariants} custom={1} /> 
+       <motion.path d="M9 6L15 6" variants={drawVariants} custom={1.5} /> 
+       <motion.path d="M10 8L14 8" variants={drawVariants} custom={2} />
+       <motion.path d="M12 8L12 16" variants={drawVariants} custom={2.5} /> 
+       <motion.path d="M9 16L15 16" variants={drawVariants} custom={3} />
+       <motion.path d="M12 18L12 22" variants={drawVariants} custom={3.5} />
+       <motion.path d="M7 2H17" variants={drawVariants} custom={4} />
+    </motion.svg>
+
+    {/* Muela (Abajo Derecha) */}
+    <motion.svg 
+       className="absolute bottom-[20%] right-[5%] w-40 h-40 -rotate-12"
+       viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="0.5"
+       initial="hidden" whileInView="visible" viewport={{ once: true }}
+    >
+       <motion.path d="M16.5 3C14.5 3 13 4.5 12 6C11 4.5 9.5 3 7.5 3C5 3 3 5 3 8C3 11 5 15 7 17L9 21H15L17 17C19 15 21 11 21 8C21 5 19 3 16.5 3Z" variants={drawVariants} custom={1} />
+       <motion.path d="M12 6V21" variants={drawVariants} custom={2} />
+       <motion.path d="M7 17C7 17 9 16 9 13" variants={drawVariants} custom={3} />
+       <motion.path d="M17 17C17 17 15 16 15 13" variants={drawVariants} custom={3} />
+    </motion.svg>
+    
+    {/* Espejo (Centro Izquierda - Muy sutil) */}
+    <motion.svg 
+       className="absolute top-[45%] left-[-2%] w-48 h-48 rotate-45 opacity-5"
+       viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="0.5"
+       initial="hidden" whileInView="visible" viewport={{ once: true }}
+    >
+       <motion.circle cx="12" cy="7" r="4" variants={drawVariants} custom={4} />
+       <motion.line x1="12" y1="11" x2="12" y2="22" variants={drawVariants} custom={5} />
+    </motion.svg>
+  </div>
+));
+AnimatedDentalBg.displayName = "AnimatedDentalBg";
 
 // --- DATOS BENTO GRID ---
 const mockPatients = [
@@ -136,7 +185,6 @@ const mockPatients = [
 
 export default function DentalProposal() {
   
-  // Función simulada para descargar el PDF
   const handleDownloadPDF = () => {
     const pdfUrl = '/propuesta.pdf';
     const link = document.createElement('a');
@@ -153,18 +201,15 @@ export default function DentalProposal() {
       {/* Navbar Background Fix */}
       <div className="absolute top-0 left-0 right-0 h-[500px] bg-gradient-to-b from-slate-900/90 via-[#050505] to-[#050505] z-0 pointer-events-none" />
       
-      {/* Background Glows & Dental Ambient Globales */}
+      {/* Background Glows Globales */}
       <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
         <div className="absolute top-[10%] left-[0%] w-[250px] md:w-[600px] h-[250px] md:h-[600px] bg-cyan-900/10 rounded-full blur-[60px] md:blur-[120px] opacity-40 transform-gpu translate-z-0" />
         <div className="absolute bottom-[20%] right-[0%] w-[200px] md:w-[500px] h-[200px] md:h-[500px] bg-purple-900/10 rounded-full blur-[60px] md:blur-[128px] opacity-40 transform-gpu translate-z-0" />
-        
-        {/* NUEVA Ambientación Dental Sutil */}
-        <DentalToolsBg />
       </div>
 
       <div className="relative z-10 max-w-7xl mx-auto px-4 md:px-6 pt-28 md:pt-44 pb-20 md:pb-32">
         
-        {/* --- HERO (TÍTULO CORREGIDO) --- */}
+        {/* --- HERO --- */}
         <motion.section 
           initial="hidden"
           whileInView="visible"
@@ -176,7 +221,6 @@ export default function DentalProposal() {
             <Sparkles size={12} /> Inteligencia Artificial Odontológica
           </div>
           
-          {/* TÍTULO EXACTO SOLICITADO */}
           <h1 className="text-4xl sm:text-5xl md:text-7xl font-bold text-white mb-6 tracking-tighter leading-[1.1]">
             Automatiza tu Clinica Odontologica <br className="hidden md:block" />
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">Sin Perder el Toque Humano</span>
@@ -186,7 +230,6 @@ export default function DentalProposal() {
             La plataforma que agenda, confirma y organiza sus pacientes mientras usted se dedica a la odontología.
           </p>
         </motion.section>
-
 
         {/* --- FEATURE 1: ASISTENTE VIRTUAL --- */}
         <motion.section 
@@ -232,7 +275,6 @@ export default function DentalProposal() {
             </motion.div>
         </motion.section>
 
-
         {/* --- FEATURE 2: AGENDA INTELIGENTE --- */}
         <motion.section 
           initial="hidden"
@@ -276,7 +318,6 @@ export default function DentalProposal() {
                  </div>
             </motion.div>
         </motion.section>
-
 
         {/* --- FEATURE 3: EL CEREBRO (BENTO GRID) --- */}
         <section className="mb-32 md:mb-40 relative">
@@ -449,7 +490,7 @@ export default function DentalProposal() {
         </section>
 
 
-        {/* --- NUEVA SECCIÓN: MEMBRESÍA ÉLITE (REDESIGN CON CORRECCIONES) --- */}
+        {/* --- NUEVA SECCIÓN: MEMBRESÍA ÉLITE (BLACK & GOLD + MOTION REC) --- */}
         <motion.section 
           initial="hidden"
           whileInView="visible"
@@ -457,57 +498,57 @@ export default function DentalProposal() {
           variants={fadeInUp}
           className="relative mb-32 md:mb-40 max-w-4xl mx-auto px-2"
         >
-          {/* Tarjeta de Membresía Estilo "Reference Card" */}
-          {/* PADDING RESPONSIVE AJUSTADO AQUÍ: p-5 en móvil, md:p-12 en escritorio */}
-          <div className="relative rounded-[32px] overflow-hidden border border-purple-500/20 bg-[#080808] shadow-[0_0_50px_-10px_rgba(168,85,247,0.1)] group p-5 md:p-12">
+          {/* Tarjeta Black & Gold */}
+          <div className="relative rounded-[32px] overflow-hidden border border-amber-500/20 bg-[#080808] shadow-[0_0_60px_-15px_rgba(217,119,6,0.15)] group p-5 md:p-12">
             
-            {/* Efectos de fondo de la tarjeta */}
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(168,85,247,0.15),transparent_40%)] pointer-events-none" />
-            <div className="absolute inset-0 bg-[linear-gradient(45deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:20px_20px] opacity-20 pointer-events-none" />
+            {/* Efectos de fondo */}
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(251,191,36,0.1),transparent_50%)] pointer-events-none" />
+            <div className="absolute inset-0 bg-[linear-gradient(45deg,rgba(251,191,36,0.03)_1px,transparent_1px)] bg-[size:20px_20px] opacity-20 pointer-events-none" />
             
-            {/* SE ELIMINÓ LA MUELA FANTASMA GRANDE DEL FONDO AQUÍ */}
+            {/* Ambientación Dental Animada (Line Art) */}
+            <AnimatedDentalBg />
             
             <div className="relative flex flex-col items-center text-center z-10">
               
               {/* Badge Superior */}
-              <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-purple-950/30 border border-purple-500/30 text-purple-200 text-sm font-bold mb-8">
-                <Sparkles size={16} className="fill-purple-200" /> Plan Premium Todo Incluido
+              <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-amber-950/30 border border-amber-500/30 text-amber-200 text-sm font-bold mb-8 shadow-[0_0_15px_rgba(251,191,36,0.1)]">
+                <Sparkles size={16} className="fill-amber-200 text-amber-400" /> Plan Premium Todo Incluido
               </div>
 
-              {/* Precio y Título */}
+              {/* Precio */}
               <div className="flex items-start justify-center gap-1 mb-2">
-                <span className="text-2xl md:text-3xl font-bold text-white mt-2">$</span>
-                <h3 className="text-5xl md:text-6xl font-extrabold text-white tracking-tight">
+                <span className="text-2xl md:text-3xl font-bold text-amber-500 mt-2">$</span>
+                <h3 className="text-5xl md:text-6xl font-extrabold text-transparent bg-clip-text bg-gradient-to-b from-amber-200 via-amber-400 to-amber-600 tracking-tight drop-shadow-sm">
                   250.000
                 </h3>
               </div>
-              <p className="text-xl text-slate-400 font-normal mb-6">COP/mes</p>
+              <p className="text-xl text-amber-200/60 font-normal mb-6">COP/mes</p>
               
               <p className="text-slate-300 mb-10 max-w-md mx-auto text-lg">
                 Diseñado para <strong>clínicas odontológicas</strong> y negocios de alto flujo que no pueden perder ni un solo paciente.
               </p>
 
-              {/* Lista de Beneficios */}
-              <div className="w-full max-w-2xl mb-12 text-left p-6 md:p-8 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-sm">
+              {/* Lista de Beneficios (Black & Gold Theme) */}
+              <div className="w-full max-w-2xl mb-12 text-left p-6 md:p-8 rounded-2xl bg-amber-900/5 border border-amber-500/10 backdrop-blur-sm">
                 <div className="flex items-center gap-2 mb-6">
-                  <Zap className="text-amber-500" size={20} />
+                  <Zap className="text-amber-500 fill-amber-500/20" size={20} />
                   <h4 className="text-lg font-bold text-white">Lo que incluye tu membresía:</h4>
                 </div>
                 <div className="grid gap-4">
                   
                   {/* Beneficio Destacado 1 */}
-                  <div className="flex items-start gap-3 p-3 rounded-xl bg-purple-500/10 border border-purple-500/20">
-                    <CheckCircle2 className="text-purple-400 shrink-0 mt-0.5" size={20} />
+                  <div className="flex items-start gap-3 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20">
+                    <CheckCircle2 className="text-amber-400 shrink-0 mt-0.5" size={20} />
                     <div>
                       <span className="text-base md:text-lg font-bold text-white block">300 Conversaciones Premium</span>
                       <span className="text-sm text-slate-400">Incluidas cada mes con IA avanzada.</span>
                     </div>
                   </div>
                   
-                  {/* Beneficio Destacado 2 con Badge */}
-                  <div className="flex items-start gap-3 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 relative overflow-hidden">
-                    <div className="absolute top-0 right-0 bg-emerald-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-bl-lg">AHORRO</div>
-                    <CheckCircle2 className="text-emerald-400 shrink-0 mt-0.5" size={20} />
+                  {/* Beneficio Destacado 2 */}
+                  <div className="flex items-start gap-3 p-3 rounded-xl bg-amber-500/5 border border-amber-500/20 relative overflow-hidden">
+                    <div className="absolute top-0 right-0 bg-amber-500 text-black text-[10px] font-bold px-2 py-0.5 rounded-bl-lg">AHORRO</div>
+                    <CheckCircle2 className="text-amber-400 shrink-0 mt-0.5" size={20} />
                     <div>
                       <span className="text-base md:text-lg font-bold text-white block">Recargas con 80% OFF</span>
                       <span className="text-sm text-slate-400">Si necesitas más, paga una fracción del costo.</span>
@@ -519,26 +560,44 @@ export default function DentalProposal() {
                     "Agenda y confirmación de citas",
                     "Soporte técnico prioritario",
                     "Actualizaciones Semanales",
-                    "Sin contratos forzosos. Cancela cuando quieras."
+                    "Sin contratos forzosos"
                   ].map((feature, i) => (
                     <div key={i} className="flex items-center gap-3 text-slate-300 px-3">
-                      <CheckCircle2 className="text-purple-400 shrink-0" size={18} />
+                      <CheckCircle2 className="text-amber-400 shrink-0" size={18} />
                       <span className="text-sm md:text-base font-medium">{feature}</span>
                     </div>
                   ))}
                 </div>
               </div>
 
-              {/* NUEVA SECCIÓN DE PAGO CON TARJETA GENÉRICA AUTOMATIZADA */}
+              {/* SECCIÓN PAGO: Tarjeta Genérica + Logos Dibujados */}
               <div className="w-full pt-8 border-t border-white/5 flex flex-col items-center gap-8">
-                <GenericPaymentCard />
+                <AnimatedGenericCard />
+                
+                {/* Logos de Pago con efecto Motion Rec */}
+                <div className="w-full flex justify-center gap-8 opacity-60 hover:opacity-100 transition-opacity duration-500">
+                    {/* Visa Simplificada Animada */}
+                    <motion.svg width="50" height="20" viewBox="0 0 50 20" className="stroke-white/80 fill-none stroke-[1.5]" initial="hidden" whileInView="visible" viewport={{ once: true }}>
+                        <motion.path d="M20 1 L 13 19 H 9 L 5 4 C 5 4 4 2 2 2" variants={drawVariants} custom={2} />
+                        <motion.path d="M24 1 L 28 19" variants={drawVariants} custom={3} />
+                        <motion.path d="M36 1 C 34 1 32 2 32 5 C 32 9 38 9 38 12 C 38 16 33 17 30 15" variants={drawVariants} custom={4} />
+                        <motion.path d="M49 1 L 44 19 H 40 L 42 8 L 40 1 Z" variants={drawVariants} custom={5} />
+                    </motion.svg>
+                    
+                    {/* Mastercard Simplificada Animada */}
+                     <motion.svg width="36" height="24" viewBox="0 0 36 24" className="stroke-white/80 fill-none stroke-[1.5]" initial="hidden" whileInView="visible" viewport={{ once: true }}>
+                        <motion.circle cx="11" cy="12" r="10" variants={drawVariants} custom={3} />
+                        <motion.circle cx="25" cy="12" r="10" variants={drawVariants} custom={4} />
+                        <motion.path d="M18 6 V 18" variants={drawVariants} custom={5} className="stroke-[0.5]" />
+                     </motion.svg>
+                </div>
               </div>
 
               {/* Botón de Descarga PDF */}
               <div className="mt-10">
                   <button 
                     onClick={handleDownloadPDF}
-                    className="flex items-center gap-2 text-sm text-slate-500 hover:text-purple-400 transition-colors py-2 border-b border-transparent hover:border-purple-400/50"
+                    className="flex items-center gap-2 text-sm text-slate-500 hover:text-amber-400 transition-colors py-2 border-b border-transparent hover:border-amber-400/50"
                   >
                       <Download size={16} />
                       Descargar Propuesta Económica & Comercial (.pdf)
@@ -550,7 +609,7 @@ export default function DentalProposal() {
         </motion.section>
 
 
-        {/* --- CTA FINAL (SAFARI SAFE) --- */}
+        {/* --- CTA FINAL --- */}
         <motion.section 
           initial="hidden"
           whileInView="visible"
