@@ -4,11 +4,16 @@ import React, { memo } from 'react';
 import { Sparkles, CheckCircle2, Clock, Users, Database, BrainCircuit, CalendarCheck, ChevronRight, FileText, CalendarDays, Zap, Download, Wifi } from 'lucide-react';
 import { motion, Variants } from 'framer-motion';
 import Link from 'next/link';
+import Image from 'next/image'; // Importamos Image de next para optimización
 
 // IMPORTA TUS COMPONENTES VISUALES
-// Asegúrate de que las rutas sean correctas o comenta si no los tienes aún
 import CalendarVisual from './components/CalendarVisual'; 
 import DentalChatAnimation from './components/DentalChatAnimation';
+
+// IMPORTACIÓN DE IMÁGENES (Ajustadas según tu solicitud)
+import visaLogo from '../images/visa-logo.webp';
+import amexLogo from '../images/american-express.webp';
+import mastercardLogo from '../images/mastercard-logo.webp';
 
 // --- 1. CONFIGURACIÓN DE ANIMACIÓN (MOTION REC / ESTILO BIOSETA) ---
 const drawVariants: Variants = {
@@ -58,6 +63,7 @@ const pulseDeep: Variants = {
 };
 
 // --- 2. TARJETA GENÉRICA ANIMADA (PREMIUM BLACK & GOLD) ---
+// Se mantiene la tarjeta tecnológica, pero SIN los logos vectoriales abajo
 const AnimatedGenericCard = memo(() => {
   return (
     <div className="w-full max-w-[320px] md:max-w-[360px] mx-auto relative group perspective-1000">
@@ -121,8 +127,8 @@ const AnimatedGenericCard = memo(() => {
               </motion.svg>
               
               <div className="flex -space-x-2">
-                 <div className="w-6 h-6 rounded-full border border-white/10 bg-red-500/20 backdrop-blur-sm" />
-                 <div className="w-6 h-6 rounded-full border border-white/10 bg-yellow-500/20 backdrop-blur-sm" />
+                 <div className="w-6 h-6 rounded-full border border-white/10 bg-white/10 backdrop-blur-sm" />
+                 <div className="w-6 h-6 rounded-full border border-white/10 bg-white/5 backdrop-blur-sm" />
               </div>
           </div>
         </div>
@@ -132,48 +138,6 @@ const AnimatedGenericCard = memo(() => {
 });
 AnimatedGenericCard.displayName = "AnimatedGenericCard";
 
-// --- 3. BACKGROUND DENTAL ANIMADO (MOTION REC - LINE ART) ---
-const AnimatedDentalBg = memo(() => (
-  <div className="absolute inset-0 pointer-events-none mix-blend-screen overflow-hidden text-slate-500/10">
-     {/* Implante (Arriba Izquierda) */}
-    <motion.svg 
-       className="absolute top-[10%] left-[5%] w-32 h-32 rotate-12"
-       viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="0.5"
-       initial="hidden" whileInView="visible" viewport={{ once: true }}
-    >
-       <motion.path d="M12 2L12 6" variants={drawVariants} custom={1} /> 
-       <motion.path d="M9 6L15 6" variants={drawVariants} custom={1.5} /> 
-       <motion.path d="M10 8L14 8" variants={drawVariants} custom={2} />
-       <motion.path d="M12 8L12 16" variants={drawVariants} custom={2.5} /> 
-       <motion.path d="M9 16L15 16" variants={drawVariants} custom={3} />
-       <motion.path d="M12 18L12 22" variants={drawVariants} custom={3.5} />
-       <motion.path d="M7 2H17" variants={drawVariants} custom={4} />
-    </motion.svg>
-
-    {/* Muela (Abajo Derecha) */}
-    <motion.svg 
-       className="absolute bottom-[20%] right-[5%] w-40 h-40 -rotate-12"
-       viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="0.5"
-       initial="hidden" whileInView="visible" viewport={{ once: true }}
-    >
-       <motion.path d="M16.5 3C14.5 3 13 4.5 12 6C11 4.5 9.5 3 7.5 3C5 3 3 5 3 8C3 11 5 15 7 17L9 21H15L17 17C19 15 21 11 21 8C21 5 19 3 16.5 3Z" variants={drawVariants} custom={1} />
-       <motion.path d="M12 6V21" variants={drawVariants} custom={2} />
-       <motion.path d="M7 17C7 17 9 16 9 13" variants={drawVariants} custom={3} />
-       <motion.path d="M17 17C17 17 15 16 15 13" variants={drawVariants} custom={3} />
-    </motion.svg>
-    
-    {/* Espejo (Centro Izquierda - Muy sutil) */}
-    <motion.svg 
-       className="absolute top-[45%] left-[-2%] w-48 h-48 rotate-45 opacity-5"
-       viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="0.5"
-       initial="hidden" whileInView="visible" viewport={{ once: true }}
-    >
-       <motion.circle cx="12" cy="7" r="4" variants={drawVariants} custom={4} />
-       <motion.line x1="12" y1="11" x2="12" y2="22" variants={drawVariants} custom={5} />
-    </motion.svg>
-  </div>
-));
-AnimatedDentalBg.displayName = "AnimatedDentalBg";
 
 // --- DATOS BENTO GRID ---
 const mockPatients = [
@@ -505,9 +469,6 @@ export default function DentalProposal() {
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(251,191,36,0.1),transparent_50%)] pointer-events-none" />
             <div className="absolute inset-0 bg-[linear-gradient(45deg,rgba(251,191,36,0.03)_1px,transparent_1px)] bg-[size:20px_20px] opacity-20 pointer-events-none" />
             
-            {/* Ambientación Dental Animada (Line Art) */}
-            <AnimatedDentalBg />
-            
             <div className="relative flex flex-col items-center text-center z-10">
               
               {/* Badge Superior */}
@@ -570,26 +531,41 @@ export default function DentalProposal() {
                 </div>
               </div>
 
-              {/* SECCIÓN PAGO: Tarjeta Genérica + Logos Dibujados */}
+              {/* SECCIÓN PAGO: Tarjeta Genérica + Logos IMAGENES REALES */}
               <div className="w-full pt-8 border-t border-white/5 flex flex-col items-center gap-8">
                 <AnimatedGenericCard />
                 
-                {/* Logos de Pago con efecto Motion Rec */}
-                <div className="w-full flex justify-center gap-8 opacity-60 hover:opacity-100 transition-opacity duration-500">
-                    {/* Visa Simplificada Animada */}
-                    <motion.svg width="50" height="20" viewBox="0 0 50 20" className="stroke-white/80 fill-none stroke-[1.5]" initial="hidden" whileInView="visible" viewport={{ once: true }}>
-                        <motion.path d="M20 1 L 13 19 H 9 L 5 4 C 5 4 4 2 2 2" variants={drawVariants} custom={2} />
-                        <motion.path d="M24 1 L 28 19" variants={drawVariants} custom={3} />
-                        <motion.path d="M36 1 C 34 1 32 2 32 5 C 32 9 38 9 38 12 C 38 16 33 17 30 15" variants={drawVariants} custom={4} />
-                        <motion.path d="M49 1 L 44 19 H 40 L 42 8 L 40 1 Z" variants={drawVariants} custom={5} />
-                    </motion.svg>
+                {/* LOGOS DE PAGO (REEMPLAZADOS POR IMÁGENES) */}
+                <div className="w-full flex justify-center items-center gap-8 opacity-60 hover:opacity-100 transition-opacity duration-500">
+                    {/* Visa Image */}
+                    <div className="h-8 w-auto relative">
+                      <Image 
+                        src={visaLogo} 
+                        alt="Visa" 
+                        height={32}
+                        className="object-contain w-auto h-full grayscale hover:grayscale-0 transition-all duration-300"
+                      />
+                    </div>
                     
-                    {/* Mastercard Simplificada Animada */}
-                     <motion.svg width="36" height="24" viewBox="0 0 36 24" className="stroke-white/80 fill-none stroke-[1.5]" initial="hidden" whileInView="visible" viewport={{ once: true }}>
-                        <motion.circle cx="11" cy="12" r="10" variants={drawVariants} custom={3} />
-                        <motion.circle cx="25" cy="12" r="10" variants={drawVariants} custom={4} />
-                        <motion.path d="M18 6 V 18" variants={drawVariants} custom={5} className="stroke-[0.5]" />
-                     </motion.svg>
+                    {/* Mastercard Image */}
+                    <div className="h-8 w-auto relative">
+                      <Image 
+                        src={mastercardLogo} 
+                        alt="Mastercard" 
+                        height={32}
+                        className="object-contain w-auto h-full grayscale hover:grayscale-0 transition-all duration-300"
+                      />
+                    </div>
+
+                    {/* Amex Image */}
+                    <div className="h-8 w-auto relative">
+                      <Image 
+                        src={amexLogo} 
+                        alt="American Express" 
+                        height={32}
+                        className="object-contain w-auto h-full grayscale hover:grayscale-0 transition-all duration-300"
+                      />
+                    </div>
                 </div>
               </div>
 
