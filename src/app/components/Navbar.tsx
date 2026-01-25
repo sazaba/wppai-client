@@ -9,13 +9,12 @@ import clsx from 'clsx'
 import { useAuth } from '../context/AuthContext'
 import logo from '../images/Logo-Wasaaa.webp'
 import Image from 'next/image'
-import { useRouter, usePathname } from 'next/navigation' // 1. Importamos usePathname
+import { useRouter, usePathname } from 'next/navigation'
 import { Dialog } from '@headlessui/react'
 import { motion, AnimatePresence } from 'framer-motion'
 // @ts-ignore
 import confetti from 'canvas-confetti'
 
-// 2. Ajustamos links para que funcionen desde /login (rutas absolutas)
 const navLinks = [
   { name: 'Funcionalidades', href: '/#features' },
   { name: 'Cómo funciona', href: '/#how' },
@@ -31,10 +30,14 @@ export default function Navbar() {
 
   const { empresa, loading, logout } = useAuth()
   const router = useRouter()
-  const pathname = usePathname() // 3. Obtenemos la ruta actual
+  const pathname = usePathname()
 
-  // 4. Detectamos si estamos en una página con fondo oscuro
-  const isDarkPage = pathname === '/login' || pathname === '/register' || pathname === '/forgot-password' || pathname === '/delete-my-data'
+  // --- MODIFICACIÓN AQUÍ ---
+  // Lista de rutas que tienen fondo oscuro y necesitan texto blanco al inicio
+  // Asegúrate de que '/propuesta-dental' coincida con el nombre de tu carpeta en 'app'
+  const darkRoutes = ['/login', '/register', '/forgot-password', '/delete-my-data', '/propuesta-dental'];
+  const isDarkPage = darkRoutes.includes(pathname || ''); 
+  // -------------------------
 
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 20)
@@ -65,7 +68,6 @@ export default function Navbar() {
 
   const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
     const href = e.currentTarget.getAttribute('href')
-    // Si estamos en home, hacemos scroll suave. Si no, dejamos que Link navegue.
     if (pathname === '/' && href?.startsWith('/#')) {
       e.preventDefault()
       const id = href.replace('/#', '')
@@ -75,9 +77,7 @@ export default function Navbar() {
     setOpenSheet(false)
   }
 
-  // 5. Lógica de colores dinámica
-  // Si hay scroll: Texto oscuro (o claro si hay dark mode del sistema).
-  // Si es página oscura (Login) y NO hay scroll: Texto BLANCO forzado.
+  // Lógica de colores dinámica
   const textColorClass = isScrolled 
     ? "text-gray-600 dark:text-gray-300" 
     : isDarkPage 
@@ -114,16 +114,14 @@ export default function Navbar() {
                 className="relative h-14 w-14 md:h-16 md:w-16 object-contain transition-transform duration-300 group-hover:scale-105"
                 />
             </div>
-            {/* Texto Wasaaa con color dinámico */}
             <span className={clsx("font-bold text-2xl tracking-tight block transition-colors", logoTextClass)}>
                 Wasaaa
             </span>
           </Link>
 
-          {/* Navegación Desktop - Minimalista */}
+          {/* Navegación Desktop */}
           <nav className={clsx(
               "hidden md:flex items-center gap-1 px-2 py-1.5 rounded-full border transition-all",
-              // Si hay scroll, usamos el fondo suave. Si es Login (sin scroll), transparente total.
               isScrolled ? "bg-white/5 dark:bg-white/5 border-transparent" : "border-transparent"
           )}>
             {navLinks.map((link) => (
@@ -131,7 +129,6 @@ export default function Navbar() {
                 key={link.name}
                 href={link.href}
                 onClick={(e) => {
-                    // Manejo manual del click para scroll si estamos en home
                     if (pathname === '/' && link.href.startsWith('/#')) {
                         e.preventDefault()
                         const id = link.href.replace('/#', '')
@@ -168,7 +165,6 @@ export default function Navbar() {
                       onClick={() => setShowLogoutModal(true)}
                       className={clsx(
                           "rounded-full transition-colors",
-                          // Color del icono logout dinámico
                           isDarkPage && !isScrolled ? "text-white/70 hover:text-white hover:bg-white/10" : "text-gray-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20"
                       )}
                     >
@@ -182,7 +178,6 @@ export default function Navbar() {
                         variant="ghost" 
                         className={clsx(
                             "rounded-full hover:bg-white/10",
-                            // Botón "Ingresar" blanco en páginas oscuras
                             isDarkPage && !isScrolled ? "text-white" : "text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/10"
                         )}
                       >
@@ -200,13 +195,12 @@ export default function Navbar() {
             )}
           </div>
 
-          {/* Menú Móvil - Hamburguesa */}
+          {/* Menú Móvil */}
           <div className="md:hidden">
             <Sheet open={openSheet} onOpenChange={setOpenSheet}>
               <SheetTrigger asChild>
                 <Button variant="ghost" size="icon" className={clsx(
                     "rounded-full w-10 h-10 shrink-0 hover:bg-white/10",
-                    // Icono hamburguesa blanco en páginas oscuras
                     isDarkPage && !isScrolled ? "text-white" : "hover:bg-gray-100 dark:hover:bg-white/10 text-gray-700 dark:text-white"
                 )}>
                   <Menu className="h-6 w-6" />
@@ -229,7 +223,6 @@ export default function Navbar() {
                         animate={{ opacity: 1, x: 0 }}
                         transition={{ delay: 0.2 + (i * 0.05), duration: 0.3, ease: "easeOut" }}
                         href={link.href}
-                        // En el menú móvil (sheet) usamos href directo porque el Link de next a veces cierra el sheet antes de navegar
                         onClick={(e) => {
                              if (pathname === '/' && link.href.startsWith('/#')) {
                                 e.preventDefault()
@@ -314,7 +307,6 @@ export default function Navbar() {
                 exit={{ opacity: 0, scale: 0.95, y: 20 }}
                 className="w-full max-w-sm rounded-3xl bg-white dark:bg-zinc-900 p-8 shadow-2xl border border-gray-100 dark:border-white/10 text-center overflow-hidden relative"
               >
-                {/* Fondo decorativo del modal */}
                 <div className="absolute top-0 left-0 w-full h-32 bg-gradient-to-b from-indigo-500/10 to-transparent pointer-events-none" />
                 
                 <div className="relative z-10 flex flex-col items-center">
