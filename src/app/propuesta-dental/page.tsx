@@ -1,12 +1,11 @@
 'use client'
 
 import React from 'react';
-import { Sparkles, CheckCircle2, Clock, Users, Database, BrainCircuit, BarChart3, CalendarCheck, ChevronRight, FileText, CalendarDays } from 'lucide-react';
+import { Sparkles, CheckCircle2, Clock, Users, Database, BrainCircuit, BarChart3, CalendarCheck, ChevronRight, FileText, CalendarDays, Zap } from 'lucide-react';
 import { motion, Variants } from 'framer-motion';
 import Link from 'next/link';
 
 // IMPORTA TUS COMPONENTES VISUALES
-// Asegúrate de que las rutas sean correctas
 import CalendarVisual from './components/CalendarVisual'; 
 import DentalChatAnimation from './components/DentalChatAnimation';
 
@@ -40,10 +39,33 @@ const listContainer: Variants = {
     }
 };
 
-// Se agregó will-change para avisar al navegador y evitar flickering
 const listItem: Variants = {
     hidden: { opacity: 0, x: -10 },
     visible: { opacity: 1, x: 0 }
+};
+
+// --- ANIMACIÓN DE FONDO PARA EL CTA ---
+const pulseGradient: Variants = {
+    animate: {
+        scale: [1, 1.05, 1],
+        opacity: [0.4, 0.6, 0.4],
+        transition: {
+            duration: 8,
+            repeat: Infinity,
+            ease: "easeInOut"
+        }
+    }
+};
+
+const rotateGradient: Variants = {
+    animate: {
+        rotate: [0, 360],
+        transition: {
+            duration: 20,
+            repeat: Infinity,
+            ease: "linear"
+        }
+    }
 };
 
 // --- DATOS FICTICIOS GENÉRICOS ---
@@ -186,7 +208,7 @@ export default function DentalProposal() {
         {/* --- FEATURE 3: EL CEREBRO (BENTO GRID OPTIMIZADO) --- */}
         <section className="mb-40 relative px-6 md:px-0">
             
-            {/* GLOWS TRASEROS (Optimizado con will-change para evitar repaints) */}
+            {/* GLOWS TRASEROS */}
             <div className="absolute top-0 left-[-20%] w-[600px] h-[600px] bg-purple-600/20 blur-[130px] rounded-full -z-10 pointer-events-none mix-blend-screen will-change-transform" />
             <div className="absolute bottom-0 right-[-20%] w-[600px] h-[600px] bg-blue-500/20 blur-[130px] rounded-full -z-10 pointer-events-none mix-blend-screen will-change-transform" />
 
@@ -218,7 +240,6 @@ export default function DentalProposal() {
                     initial={{ opacity: 0, x: -20 }}
                     whileInView={{ opacity: 1, x: 0 }}
                     viewport={{ once: true }}
-                    // Agregado 'isolation-isolate' y 'transform-gpu' para crear contexto de apilamiento y evitar parpadeo
                     className="lg:col-span-7 group relative rounded-[32px] overflow-hidden bg-white/[0.03] border border-white/10 hover:border-cyan-500/30 transition-all duration-500 flex flex-col backdrop-blur-xl shadow-2xl shadow-black/20 isolation-isolate transform-gpu"
                 >
                     <div className="absolute inset-0 bg-gradient-to-b from-white/[0.02] to-transparent pointer-events-none" />
@@ -244,7 +265,7 @@ export default function DentalProposal() {
                             </p>
                         </div>
 
-                        {/* --- LISTA OPTIMIZADA (FIXED FLICKER) --- */}
+                        {/* --- LISTA OPTIMIZADA --- */}
                         <div className="mt-auto border-t border-white/5 pt-6">
                             <div className="flex justify-between items-center mb-4 px-2">
                                 <span className="text-xs font-mono text-slate-500 uppercase tracking-wider">Actividad Reciente</span>
@@ -264,16 +285,12 @@ export default function DentalProposal() {
                                     <motion.div 
                                         key={i} 
                                         variants={listItem}
-                                        // CLAVE: transform-gpu y translate-z-0 evitan el parpadeo al hacer hover
                                         className="flex items-center justify-between p-3 rounded-xl bg-white/[0.03] border border-white/5 hover:bg-white/[0.06] transition-colors group/item transform-gpu translate-z-0"
                                     >
                                         <div className="flex items-center gap-4">
-                                            {/* Avatar (Iniciales) */}
                                             <div className={`w-10 h-10 rounded-full ${patient.color} flex items-center justify-center text-sm shadow-sm`}>
                                                 {patient.initials}
                                             </div>
-                                            
-                                            {/* Info Principal */}
                                             <div className="flex flex-col">
                                                 <span className="text-sm font-semibold text-slate-200 group-hover/item:text-white transition-colors">
                                                     {patient.name}
@@ -286,8 +303,6 @@ export default function DentalProposal() {
                                                 </div>
                                             </div>
                                         </div>
-
-                                        {/* Fecha */}
                                         <div className="flex items-center gap-2 text-slate-500 px-3 py-1 rounded-lg bg-black/20">
                                             <CalendarDays size={12} />
                                             <span className="text-xs font-mono">{patient.date}</span>
@@ -362,7 +377,6 @@ export default function DentalProposal() {
                                 Visualiza el rendimiento mensual: Citas agendadas, pacientes nuevos vs. recurrentes y volumen de gestión.
                             </p>
 
-                            {/* Mini Chart Abstract */}
                             <div className="flex items-end gap-1.5 h-10 w-full opacity-80 mt-auto">
                                 <div className="w-full h-[30%] bg-white/5 rounded-t-[2px] hover:bg-blue-500/40 transition-colors duration-300" />
                                 <div className="w-full h-[50%] bg-white/5 rounded-t-[2px] hover:bg-blue-500/40 transition-colors duration-300" />
@@ -377,30 +391,69 @@ export default function DentalProposal() {
             </div>
         </section>
 
-        {/* --- CTA FINAL --- */}
+        {/* --- CTA FINAL DISRUPTIVO: NÚCLEO DE FUSIÓN --- */}
         <motion.section 
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true }}
           variants={fadeInUp}
-          className="relative p-[1px] rounded-3xl bg-gradient-to-r from-cyan-500/30 via-purple-500/30 to-blue-500/30"
+          // Contenedor principal con overflow hidden para contener los efectos de plasma
+          className="relative py-24 md:py-32 overflow-hidden rounded-[40px] mx-2 md:mx-0 group"
         >
-            <div className="bg-[#050505] rounded-[23px] px-6 py-20 text-center relative overflow-hidden backdrop-blur-xl">
-                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-full bg-gradient-to-b from-white/5 to-transparent pointer-events-none" />
+            {/* --- FONDO DE PLASMA ANIMADO --- */}
+            <div className="absolute inset-0 pointer-events-none">
+                {/* Ruido de fondo para textura */}
+                <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 mix-blend-soft-light"></div>
                 
-                <h2 className="text-4xl md:text-5xl font-bold text-white mb-6 relative z-10">
-                    ¿Listo para modernizar su clínica?
-                </h2>
-                <p className="text-slate-400 max-w-2xl mx-auto mb-10 text-lg relative z-10">
-                    Deje de perder pacientes por demoras en respuesta. Implemente la IA hoy mismo.
-                </p>
+                {/* Gradiente Cian Giratorio */}
+                <motion.div 
+                    variants={rotateGradient}
+                    animate="animate"
+                    className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-conic-gradient from-cyan-500/40 via-transparent to-transparent blur-[100px] opacity-60" 
+                />
+                {/* Gradiente Morado Pulsante */}
+                <motion.div 
+                     variants={pulseGradient}
+                     animate="animate"
+                    className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-purple-600/30 blur-[120px] rounded-full mix-blend-screen"
+                />
                 
-                {/* Botón CTA */}
-                <Link href="/register" className="relative z-10 inline-block">
-                    <button className="px-10 py-4 bg-white text-black font-bold rounded-xl hover:scale-105 transition shadow-[0_0_50px_-10px_rgba(255,255,255,0.2)]">
-                        Registrar Empresa
-                    </button>
-                </Link>
+                {/* Destellos de energía ascendentes */}
+                <div className="absolute inset-0 flex justify-center items-center">
+                    <Sparkles className="text-cyan-300 opacity-30 animate-pulse absolute top-1/4 left-1/3" size={20} />
+                    <Zap className="text-purple-300 opacity-20 animate-bounce absolute bottom-1/4 right-1/3 duration-[2000ms]" size={16} />
+                </div>
+            </div>
+
+            {/* --- CONTENIDO GLASSMORPHISM --- */}
+            <div className="relative z-10 max-w-3xl mx-auto text-center px-6">
+                {/* Contenedor de Cristal */}
+                <div className="bg-white/[0.03] backdrop-blur-2xl p-8 md:p-12 rounded-[32px] border border-white/10 shadow-2xl shadow-purple-500/10 relative overflow-hidden group-hover:border-white/20 transition-all duration-500">
+                    
+                    {/* Reflejo superior en el cristal */}
+                    <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/30 to-transparent opacity-50" />
+
+                    <h2 className="text-4xl md:text-6xl font-bold text-white mb-6 tracking-tight drop-shadow-lg">
+                        ¿Listo para el <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 to-purple-400">Siguiente Nivel</span>?
+                    </h2>
+                    <p className="text-slate-300 max-w-xl mx-auto mb-10 text-lg md:text-xl leading-relaxed font-medium">
+                        Deje que la IA maneje la rutina. Recupere su tiempo y enfóquese en lo que realmente importa: sus pacientes.
+                    </p>
+                    
+                    {/* --- BOTÓN DE ENERGÍA "HALO" --- */}
+                    <Link href="/register" className="relative z-10 inline-block group/btn">
+                        <div className="relative">
+                            {/* Halo de energía detrás del botón */}
+                            <div className="absolute -inset-1 bg-gradient-to-r from-cyan-500 to-purple-600 rounded-2xl blur-xl opacity-40 group-hover/btn:opacity-70 transition-opacity duration-500 animate-pulse" />
+                            
+                            {/* Botón Principal */}
+                            <button className="relative bg-white text-black font-bold text-lg px-12 py-5 rounded-2xl hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 shadow-[0_0_30px_-5px_rgba(255,255,255,0.3)] flex items-center gap-2 mx-auto">
+                                Iniciar Transformación
+                                <ChevronRight className="group-hover/btn:translate-x-1 transition-transform" size={20} />
+                            </button>
+                        </div>
+                    </Link>
+                </div>
             </div>
         </motion.section>
 
