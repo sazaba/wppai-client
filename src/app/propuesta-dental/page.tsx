@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react';
-import { Sparkles, CheckCircle2, Clock, Users, Database, BrainCircuit, BarChart3, Search, CalendarCheck, Activity, ChevronRight, FileText, CalendarDays } from 'lucide-react';
+import { Sparkles, CheckCircle2, Clock, Users, Database, BrainCircuit, BarChart3, CalendarCheck, ChevronRight, FileText, CalendarDays } from 'lucide-react';
 import { motion, Variants } from 'framer-motion';
 import Link from 'next/link';
 
@@ -44,13 +44,12 @@ const listItem: Variants = {
     visible: { opacity: 1, x: 0 }
 };
 
-// --- DATOS FICTICIOS BASADOS EN TU DEMO REAL ---
-// Estructura: Paciente, Procedimiento realizado, Fecha
+// --- DATOS FICTICIOS GENÉRICOS (CORREGIDO) ---
 const mockPatients = [
-    { initials: "MQ", name: "Manuela Quintero", procedure: "Toxina botulínica", date: "20 Ene", color: "bg-purple-500/20 text-purple-300" },
-    { initials: "AM", name: "Ana Maria Gomez", procedure: "Diseño de Sonrisa", date: "12 Ene", color: "bg-blue-500/20 text-blue-300" },
-    { initials: "JZ", name: "Juan Zappa", procedure: "Limpieza Profunda", date: "06 Dic", color: "bg-cyan-500/20 text-cyan-300" },
-    { initials: "SZ", name: "Santiago Zappa", procedure: "Valoración Ortodoncia", date: "06 Dic", color: "bg-emerald-500/20 text-emerald-300" },
+    { initials: "LG", name: "Laura García", procedure: "Control Ortodoncia", date: "Hoy, 10:30 AM", color: "bg-purple-500/20 text-purple-300 font-bold" },
+    { initials: "CR", name: "Carlos Rodríguez", procedure: "Implante Dental", date: "Ayer", color: "bg-blue-500/20 text-blue-300 font-bold" },
+    { initials: "MP", name: "María Pérez", procedure: "Blanqueamiento", date: "Hace 2 días", color: "bg-cyan-500/20 text-cyan-300 font-bold" },
+    { initials: "JL", name: "Jorge López", procedure: "Profilaxis General", date: "Hace 1 semana", color: "bg-emerald-500/20 text-emerald-300 font-bold" },
 ];
 
 export default function DentalProposal() {
@@ -60,10 +59,10 @@ export default function DentalProposal() {
       {/* Navbar Background Fix */}
       <div className="absolute top-0 left-0 right-0 h-[500px] bg-gradient-to-b from-slate-900/90 via-[#050505] to-[#050505] z-0 pointer-events-none" />
       
-      {/* Background Glows Globales */}
+      {/* Background Glows Globales (Más sutiles para no competir con los nuevos) */}
       <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
-        <div className="absolute top-[10%] left-[0%] w-[600px] h-[600px] bg-cyan-900/10 rounded-full blur-[120px] opacity-60" />
-        <div className="absolute bottom-[20%] right-[0%] w-[500px] h-[500px] bg-purple-900/10 rounded-full blur-[128px] opacity-60" />
+        <div className="absolute top-[10%] left-[0%] w-[600px] h-[600px] bg-cyan-900/05 rounded-full blur-[120px] opacity-40" />
+        <div className="absolute bottom-[20%] right-[0%] w-[500px] h-[500px] bg-purple-900/05 rounded-full blur-[128px] opacity-40" />
       </div>
 
       <div className="relative z-10 max-w-7xl mx-auto px-6 pt-32 md:pt-44 pb-32">
@@ -97,7 +96,7 @@ export default function DentalProposal() {
           variants={staggerContainer}
           className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center mb-48"
         >
-            {/* Columna Visual */}
+            {/* Columna Visual con Glow */}
             <motion.div variants={fadeInUp} className="order-2 lg:order-1 relative flex justify-center">
                 <div className="absolute inset-0 bg-indigo-500/20 blur-[90px] rounded-full" />
                 <div className="relative transform scale-95 sm:scale-100 lg:scale-110 transition-transform duration-700">
@@ -105,7 +104,7 @@ export default function DentalProposal() {
                 </div>
             </motion.div>
             
-            {/* Columna Texto (CENTRADA) */}
+            {/* Columna Texto */}
             <motion.div variants={fadeInUp} className="order-1 lg:order-2 flex flex-col items-center text-center lg:items-center lg:text-center">
                 <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center mb-8 shadow-lg shadow-indigo-500/30 mx-auto">
                     <BrainCircuit className="text-white" size={28} />
@@ -144,7 +143,7 @@ export default function DentalProposal() {
           variants={staggerContainer}
           className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center mb-48"
         >
-            {/* Columna Texto (CENTRADA) */}
+            {/* Columna Texto */}
             <motion.div variants={fadeInUp} className="order-1 flex flex-col items-center text-center">
                 <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-purple-500 to-pink-600 flex items-center justify-center mb-8 shadow-lg shadow-purple-500/30 mx-auto">
                     <Clock className="text-white" size={28} />
@@ -173,6 +172,7 @@ export default function DentalProposal() {
                 </ul>
             </motion.div>
 
+             {/* Columna Visual con Glow */}
             <motion.div variants={fadeInUp} className="order-2 relative w-full flex justify-center">
                  <div className="absolute inset-0 bg-purple-500/10 blur-[90px] rounded-full" />
                  <div className="w-full max-w-xl">
@@ -182,11 +182,15 @@ export default function DentalProposal() {
         </motion.section>
 
 
-        {/* --- FEATURE 3: EL CEREBRO (INTEGRADO AL FONDO - SIN CAJA NEGRA) --- */}
+        {/* --- FEATURE 3: EL CEREBRO (BENTO GRID) --- */}
         <section className="mb-40 relative px-6 md:px-0">
             
-            {/* Glow de fondo localizado para unir la sección */}
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[80vw] h-[500px] bg-cyan-900/5 blur-[120px] rounded-full pointer-events-none" />
+            {/* --- NUEVOS GLOWS TRASEROS DISRUPTIVOS --- */}
+            {/* Luz Morada Superior Izquierda */}
+            <div className="absolute top-0 left-[-20%] w-[600px] h-[600px] bg-purple-600/20 blur-[130px] rounded-full -z-10 pointer-events-none mix-blend-screen" />
+            {/* Luz Azul Inferior Derecha */}
+            <div className="absolute bottom-0 right-[-20%] w-[600px] h-[600px] bg-blue-500/20 blur-[130px] rounded-full -z-10 pointer-events-none mix-blend-screen" />
+
 
             {/* Título de Sección */}
             <div className="text-center max-w-3xl mx-auto mb-16 relative z-10">
@@ -210,14 +214,14 @@ export default function DentalProposal() {
             {/* BENTO GRID LAYOUT */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 max-w-6xl mx-auto relative z-10">
                 
-                {/* 1. MÓDULO CENTRAL (Database) - LISTA REALISTA */}
+                {/* 1. MÓDULO CENTRAL (Database) */}
                 <motion.div 
                     initial={{ opacity: 0, x: -20 }}
                     whileInView={{ opacity: 1, x: 0 }}
                     viewport={{ once: true }}
-                    className="lg:col-span-7 group relative rounded-[32px] overflow-hidden bg-white/[0.02] border border-white/10 hover:border-cyan-500/30 transition-all duration-500 flex flex-col backdrop-blur-sm"
+                    // Se aumentó ligeramente la opacidad del bg-white/[0.03] y el blur para que resalte más sobre los nuevos glows
+                    className="lg:col-span-7 group relative rounded-[32px] overflow-hidden bg-white/[0.03] border border-white/10 hover:border-cyan-500/30 transition-all duration-500 flex flex-col backdrop-blur-xl shadow-2xl shadow-black/20"
                 >
-                    {/* Gradient sutil interno */}
                     <div className="absolute inset-0 bg-gradient-to-b from-white/[0.02] to-transparent pointer-events-none" />
                     
                     <div className="relative p-8 md:p-10 h-full flex flex-col">
@@ -226,7 +230,6 @@ export default function DentalProposal() {
                             <div className="p-3 rounded-2xl bg-cyan-950/30 border border-cyan-500/20 text-cyan-400 shadow-[0_0_15px_rgba(6,182,212,0.1)]">
                                 <Database size={28} />
                             </div>
-                            {/* Decoración Tech */}
                             <div className="flex gap-1 opacity-30">
                                 <div className="w-1 h-1 bg-white rounded-full" />
                                 <div className="w-1 h-1 bg-white rounded-full" />
@@ -243,12 +246,12 @@ export default function DentalProposal() {
                             </p>
                         </div>
 
-                        {/* --- LISTA TIPO DEMO --- */}
+                        {/* --- LISTA CON DATOS GENÉRICOS --- */}
                         <div className="mt-auto border-t border-white/5 pt-6">
                             <div className="flex justify-between items-center mb-4 px-2">
-                                <span className="text-xs font-mono text-slate-500 uppercase tracking-wider">Pacientes Recientes</span>
+                                <span className="text-xs font-mono text-slate-500 uppercase tracking-wider">Actividad Reciente</span>
                                 <span className="text-xs text-cyan-400 hover:text-cyan-300 cursor-pointer flex items-center gap-1 transition-colors">
-                                    Ver todos <ChevronRight size={12}/>
+                                    Ver DB Completa <ChevronRight size={12}/>
                                 </span>
                             </div>
 
@@ -267,7 +270,7 @@ export default function DentalProposal() {
                                     >
                                         <div className="flex items-center gap-4">
                                             {/* Avatar (Iniciales) */}
-                                            <div className={`w-10 h-10 rounded-full ${patient.color} flex items-center justify-center font-bold text-sm shadow-inner`}>
+                                            <div className={`w-10 h-10 rounded-full ${patient.color} flex items-center justify-center text-sm shadow-sm`}>
                                                 {patient.initials}
                                             </div>
                                             
@@ -297,7 +300,7 @@ export default function DentalProposal() {
                     </div>
                 </motion.div>
 
-                {/* COLUMNA DERECHA - Ocupa 5 columnas */}
+                {/* COLUMNA DERECHA */}
                 <div className="lg:col-span-5 flex flex-col gap-6">
 
                     {/* 2. MÓDULO REACTIVACIÓN */}
@@ -306,7 +309,7 @@ export default function DentalProposal() {
                         whileInView={{ opacity: 1, y: 0 }}
                         viewport={{ once: true }}
                         transition={{ delay: 0.1 }}
-                        className="group relative rounded-[32px] overflow-hidden bg-white/[0.02] border border-white/10 hover:border-emerald-500/30 transition-all duration-500 min-h-[240px] flex flex-col backdrop-blur-sm"
+                        className="group relative rounded-[32px] overflow-hidden bg-white/[0.03] border border-white/10 hover:border-emerald-500/30 transition-all duration-500 min-h-[240px] flex flex-col backdrop-blur-xl shadow-2xl shadow-black/20"
                     >
                         <div className="absolute inset-0 bg-gradient-to-br from-emerald-900/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
                         
@@ -341,7 +344,7 @@ export default function DentalProposal() {
                         whileInView={{ opacity: 1, y: 0 }}
                         viewport={{ once: true }}
                         transition={{ delay: 0.2 }}
-                        className="group relative rounded-[32px] overflow-hidden bg-white/[0.02] border border-white/10 hover:border-blue-500/30 transition-all duration-500 min-h-[240px] flex flex-col backdrop-blur-sm"
+                        className="group relative rounded-[32px] overflow-hidden bg-white/[0.03] border border-white/10 hover:border-blue-500/30 transition-all duration-500 min-h-[240px] flex flex-col backdrop-blur-xl shadow-2xl shadow-black/20"
                     >
                          <div className="absolute inset-0 bg-gradient-to-br from-blue-900/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
 
