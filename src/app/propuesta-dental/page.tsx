@@ -44,13 +44,13 @@ const listItem: Variants = {
     visible: { opacity: 1, x: 0 }
 };
 
-// --- ANIMACIÓN DE FONDO PARA EL CTA (PROFESIONAL) ---
+// --- ANIMACIÓN SUTIL PARA EL FONDO DEL CTA ---
 const pulseDeep: Variants = {
     animate: {
-        opacity: [0.3, 0.5, 0.3],
-        scale: [1, 1.02, 1],
+        opacity: [0.2, 0.4, 0.2],
+        scale: [1, 1.05, 1],
         transition: {
-            duration: 10,
+            duration: 12,
             repeat: Infinity,
             ease: "easeInOut"
         }
@@ -381,34 +381,34 @@ export default function DentalProposal() {
             </div>
         </section>
 
-        {/* --- CTA FINAL DISRUPTIVO & PROFESIONAL --- */}
+        {/* --- CTA FINAL PROFESIONAL Y FLUIDO --- */}
         <motion.section 
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true }}
           variants={fadeInUp}
-          className="relative py-24 md:py-32 overflow-hidden rounded-[40px] mx-2 md:mx-0 group border border-white/10"
+          className="relative py-24 md:py-32 mx-2 md:mx-0 group"
         >
-            {/* --- FONDO ESTRUCTURADO (PROFESIONAL) --- */}
-            <div className="absolute inset-0 pointer-events-none bg-[#0A0A0A]">
-                {/* Patrón de Rejilla Técnica Sutil */}
-                <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff05_1px,transparent_1px),linear-gradient(to_bottom,#ffffff05_1px,transparent_1px)] bg-[size:40px_40px] mask-radial-faded"></div>
-                
-                {/* Gradiente Profundo y Lento (Índigo/Azul) */}
+            {/* --- FONDO AMBIENTAL SUTIL (Sin Malla) --- */}
+            <div className="absolute inset-0 pointer-events-none">
+                 {/* Luz azul profunda inferior */}
+                <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[70%] h-[300px] bg-blue-900/20 blur-[150px] rounded-full mix-blend-screen" />
+                 
+                 {/* Pulso sutil índigo central */}
                 <motion.div 
                      variants={pulseDeep}
                      animate="animate"
-                    className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[80%] h-[80%] bg-indigo-900/20 blur-[150px] rounded-full mix-blend-screen"
+                    className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[80%] h-[80%] bg-indigo-900/10 blur-[180px] rounded-full mix-blend-screen opacity-60"
                 />
             </div>
 
-            {/* --- CONTENIDO GLASSMORPHISM REFINADO --- */}
+            {/* --- CONTENIDO GLASSMORPHISM --- */}
             <div className="relative z-10 max-w-3xl mx-auto text-center px-6">
-                {/* Contenedor de Cristal Más Sobrio */}
-                <div className="bg-white/[0.02] backdrop-blur-md p-8 md:p-12 rounded-[32px] border border-white/5 shadow-xl shadow-black/30 relative overflow-hidden transition-all duration-500">
+                {/* Contenedor de Cristal */}
+                <div className="bg-white/[0.02] backdrop-blur-2xl p-8 md:p-12 rounded-[32px] border border-white/10 shadow-2xl shadow-black/30 relative overflow-hidden transition-all duration-500 hover:border-white/20">
                     
                     {/* Reflejo superior sutil */}
-                    <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+                    <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent" />
 
                     <h2 className="text-4xl md:text-5xl font-bold text-white mb-6 tracking-tight drop-shadow-sm">
                         ¿Listo para el <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-indigo-300">Siguiente Nivel</span>?
