@@ -36,7 +36,7 @@ export default function DentalProposal() {
       {/* Navbar Background Fix */}
       <div className="absolute top-0 left-0 right-0 h-[500px] bg-gradient-to-b from-slate-900/90 via-[#050505] to-[#050505] z-0 pointer-events-none" />
       
-      {/* Background Glows */}
+      {/* Background Glows Globales */}
       <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
         <div className="absolute top-[10%] left-[0%] w-[600px] h-[600px] bg-cyan-900/10 rounded-full blur-[120px] opacity-60" />
         <div className="absolute bottom-[20%] right-[0%] w-[500px] h-[500px] bg-purple-900/10 rounded-full blur-[128px] opacity-60" />
@@ -158,15 +158,19 @@ export default function DentalProposal() {
         </motion.section>
 
 
-        {/* --- FEATURE 3: DATA & DASHBOARD (DISEÑO STATIC GLOW) --- */}
+        {/* --- FEATURE 3: DATA & DASHBOARD (DISEÑO FINAL GLASSMORPHISM) --- */}
         <motion.section 
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true, margin: "-50px" }}
           variants={fadeInUp}
-          className="mb-32"
+          className="mb-32 relative"
         >
-            <div className="text-center max-w-3xl mx-auto mb-16">
+            {/* Luces de fondo sutiles exclusivas para esta sección para potenciar el efecto glass */}
+            <div className="absolute top-1/2 left-1/4 w-64 h-64 bg-cyan-500/10 rounded-full blur-[100px] -translate-y-1/2 pointer-events-none" />
+            <div className="absolute top-1/2 right-1/4 w-64 h-64 bg-blue-500/10 rounded-full blur-[100px] -translate-y-1/2 pointer-events-none" />
+
+            <div className="text-center max-w-3xl mx-auto mb-16 relative z-10">
                 <h2 className="text-3xl md:text-4xl font-bold text-white mb-6">
                     El Cerebro de tu Clínica
                 </h2>
@@ -175,48 +179,49 @@ export default function DentalProposal() {
                 </p>
             </div>
 
-            <div className="grid md:grid-cols-3 gap-6">
+            <div className="grid md:grid-cols-3 gap-8 relative z-10">
                 
-                {/* Card 1: Marketing (Cyan Theme) */}
-                <div className="relative p-[1px] rounded-3xl bg-gradient-to-b from-cyan-500/30 to-transparent">
-                    <div className="relative h-full p-8 rounded-[23px] bg-[#0A0A0A] flex flex-col items-center text-center">
-                        <div className="mb-6 w-14 h-14 rounded-2xl bg-gradient-to-br from-cyan-500/10 to-cyan-900/20 border border-cyan-500/20 flex items-center justify-center text-cyan-400 shadow-[0_0_15px_-3px_rgba(6,182,212,0.15)]">
-                            <Database size={26} />
+                {/* Card 1: Marketing (Cyan Theme - Glassy) */}
+                <div className="relative p-[1px] rounded-[24px] bg-gradient-to-b from-cyan-500/30 to-transparent shadow-lg">
+                    {/* Cambio clave: bg-gradient translúcido + backdrop-blur-xl */}
+                    <div className="relative h-full p-8 rounded-[23px] bg-gradient-to-b from-white/[0.08] to-transparent backdrop-blur-xl border border-white/5 flex flex-col items-center text-center">
+                        <div className="mb-6 w-16 h-16 rounded-2xl bg-gradient-to-br from-cyan-500/20 to-cyan-900/30 border border-cyan-500/30 flex items-center justify-center text-cyan-300 shadow-[0_0_20px_-5px_rgba(6,182,212,0.3)]">
+                            <Database size={28} />
                         </div>
                         <h3 className="text-xl font-bold text-white mb-3">
                             Historial Clínico de Marketing
                         </h3>
-                        <p className="text-slate-400 text-sm leading-relaxed">
+                        <p className="text-slate-300 text-sm leading-relaxed font-medium">
                             Guarda automáticamente cada interacción. Sabrás cuándo fue su última cita y qué procedimiento se realizó.
                         </p>
                     </div>
                 </div>
 
-                {/* Card 2: Reactivación (Emerald Theme) */}
-                <div className="relative p-[1px] rounded-3xl bg-gradient-to-b from-emerald-500/30 to-transparent">
-                    <div className="relative h-full p-8 rounded-[23px] bg-[#0A0A0A] flex flex-col items-center text-center">
-                        <div className="mb-6 w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-500/10 to-emerald-900/20 border border-emerald-500/20 flex items-center justify-center text-emerald-400 shadow-[0_0_15px_-3px_rgba(16,185,129,0.15)]">
-                            <Users size={26} />
+                {/* Card 2: Reactivación (Emerald Theme - Glassy) */}
+                <div className="relative p-[1px] rounded-[24px] bg-gradient-to-b from-emerald-500/30 to-transparent shadow-lg">
+                    <div className="relative h-full p-8 rounded-[23px] bg-gradient-to-b from-white/[0.08] to-transparent backdrop-blur-xl border border-white/5 flex flex-col items-center text-center">
+                        <div className="mb-6 w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-500/20 to-emerald-900/30 border border-emerald-500/30 flex items-center justify-center text-emerald-300 shadow-[0_0_20px_-5px_rgba(16,185,129,0.3)]">
+                            <Users size={28} />
                         </div>
                         <h3 className="text-xl font-bold text-white mb-3">
                             Motor de Reactivación
                         </h3>
-                        <p className="text-slate-400 text-sm leading-relaxed">
+                        <p className="text-slate-300 text-sm leading-relaxed font-medium">
                             Detecta pacientes inactivos y envía mensajes personalizados para traerlos de vuelta automáticamente.
                         </p>
                     </div>
                 </div>
 
-                {/* Card 3: Dashboard (Blue Theme) */}
-                <div className="relative p-[1px] rounded-3xl bg-gradient-to-b from-blue-500/30 to-transparent">
-                    <div className="relative h-full p-8 rounded-[23px] bg-[#0A0A0A] flex flex-col items-center text-center">
-                        <div className="mb-6 w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500/10 to-blue-900/20 border border-blue-500/20 flex items-center justify-center text-blue-400 shadow-[0_0_15px_-3px_rgba(59,130,246,0.15)]">
-                            <BarChart3 size={26} />
+                {/* Card 3: Dashboard (Blue Theme - Glassy) */}
+                <div className="relative p-[1px] rounded-[24px] bg-gradient-to-b from-blue-500/30 to-transparent shadow-lg">
+                    <div className="relative h-full p-8 rounded-[23px] bg-gradient-to-b from-white/[0.08] to-transparent backdrop-blur-xl border border-white/5 flex flex-col items-center text-center">
+                        <div className="mb-6 w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500/20 to-blue-900/30 border border-blue-500/30 flex items-center justify-center text-blue-300 shadow-[0_0_20px_-5px_rgba(59,130,246,0.3)]">
+                            <BarChart3 size={28} />
                         </div>
                         <h3 className="text-xl font-bold text-white mb-3">
                             Dashboard ROI Real
                         </h3>
-                        <p className="text-slate-400 text-sm leading-relaxed">
+                        <p className="text-slate-300 text-sm leading-relaxed font-medium">
                             Visualiza en tiempo real chats activos, citas concretadas y dinero generado. Mide la efectividad exacta.
                         </p>
                     </div>
