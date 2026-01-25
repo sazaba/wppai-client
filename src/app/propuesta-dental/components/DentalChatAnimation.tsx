@@ -2,7 +2,7 @@
 
 import { motion } from 'framer-motion'
 import { useEffect, useState, useRef } from 'react'
-import { Sparkles, Send, Mic, Phone, Video, MoreVertical, ChevronLeft, Paperclip, Smile, Battery, Wifi, Signal, Activity } from 'lucide-react'
+import { Send, Mic, Phone, Video, MoreVertical, ChevronLeft, Paperclip, Smile, Battery, Wifi, Signal, Activity } from 'lucide-react'
 
 export default function DentalChatAnimation() {
   const [step, setStep] = useState(0)
@@ -19,20 +19,19 @@ export default function DentalChatAnimation() {
     }
   }, [step])
 
-  // Secuencia de tiempos del chat (Guion Dental)
+  // Secuencia de tiempos del chat (Guion Dental Ajustado a Estrategia)
   useEffect(() => {
     const timers: NodeJS.Timeout[] = []
     
-    // Tiempos ajustados para una lectura natural
     timers.push(setTimeout(() => setStep(1), 1000))  // Usuario: Hola, tengo dolor...
     timers.push(setTimeout(() => setStep(2), 3000))  // AI Escribiendo...
     timers.push(setTimeout(() => setStep(3), 5000))  // AI: Entiendo, ¿es al frío/calor?
     timers.push(setTimeout(() => setStep(4), 7500))  // Usuario: Al tomar cosas frías...
     timers.push(setTimeout(() => setStep(5), 9500))  // AI Escribiendo...
-    timers.push(setTimeout(() => setStep(6), 12000)) // AI: Podría ser sensibilidad o caries. ¿Mañana 10am o 4pm?
+    timers.push(setTimeout(() => setStep(6), 12000)) // AI: Podría ser sensibilidad... ¿10am o 4pm?
     timers.push(setTimeout(() => setStep(7), 14500)) // Usuario: 10am por favor.
     timers.push(setTimeout(() => setStep(8), 16500)) // AI Escribiendo...
-    timers.push(setTimeout(() => setStep(9), 19000)) // AI: Listo, agendado para valoración...
+    timers.push(setTimeout(() => setStep(9), 19000)) // AI: (MENSAJE NUEVO: Verificando disponibilidad...)
 
     return () => timers.forEach(t => clearTimeout(t))
   }, [])
@@ -73,7 +72,7 @@ export default function DentalChatAnimation() {
           <div className="flex items-center gap-2.5">
             <ChevronLeft className="w-6 h-6 text-cyan-400 -ml-2" />
             <div className="relative">
-              {/* Icono de "Actividad/Salud" o Sparkles para la IA */}
+              {/* Icono de "Actividad/Salud" */}
               <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center text-white shadow-sm ring-2 ring-zinc-900">
                 <Activity className="w-5 h-5" />
               </div>
@@ -155,10 +154,11 @@ export default function DentalChatAnimation() {
 
             {step === 8 && <TypingIndicator />}
 
+            {/* MENSAJE FINAL MODIFICADO SEGÚN ESTRATEGIA */}
             <ChatMessage 
                 isUser={false} 
                 show={step >= 9} 
-                text="¡Listo! ✅ Quedas agendado para valoración por dolor dental mañana a las 10:00 AM con la Dra. Martínez. Te envié la confirmación y ubicación por WhatsApp." 
+                text="Perfecto ✨, dame unos minutos mientras verifico la disponibilidad para ese horario y te confirmo por aquí. ⏳" 
                 time="10:12" 
             />
 
@@ -194,7 +194,6 @@ export default function DentalChatAnimation() {
 }
 
 // --- Subcomponentes (Mensaje y Typing) ---
-// Se mantienen igual en estructura, solo cambian los colores para ajustarse al tema dental (más cian/verde)
 
 function ChatMessage({ isUser, text, time, show }: { isUser: boolean, text: string, time: string, show: boolean }) {
   if (!show) return null;
@@ -209,8 +208,8 @@ function ChatMessage({ isUser, text, time, show }: { isUser: boolean, text: stri
       <div className={`
         max-w-[85%] rounded-[18px] px-3 py-1.5 shadow-[0_1px_2px_rgba(0,0,0,0.2)] text-[14px] leading-snug relative group
         ${isUser 
-          ? 'bg-[#005C4B] text-[#E9EDEF] rounded-tr-none' // Color verde oscuro de WhatsApp para usuario
-          : 'bg-[#202C33] text-[#E9EDEF] rounded-tl-none'} // Color gris oscuro para IA
+          ? 'bg-[#005C4B] text-[#E9EDEF] rounded-tr-none' 
+          : 'bg-[#202C33] text-[#E9EDEF] rounded-tl-none'}
       `}>
         {text}
         <div className="flex justify-end items-end gap-1 mt-0.5 select-none">

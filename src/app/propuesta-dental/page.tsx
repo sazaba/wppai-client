@@ -138,8 +138,8 @@ export default function DentalProposal() {
                     {[
                         "Confirmación automática vía WhatsApp 24h antes.",
                         "Gestión multi-doctor y filtrado por especialista.",
-                        "Alertas inmediatas de cancelación o reprogramación.",
-                        "Bloqueo inteligente de horarios no disponibles."
+                        "Alertas inmediatas de cancelación o reprogramación."
+                        
                     ].map((item, i) => (
                         <li key={i} className="flex items-start gap-4 text-slate-300">
                             <div className="mt-1 bg-purple-500/10 p-1 rounded-full">
