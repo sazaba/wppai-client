@@ -3,7 +3,7 @@
 import React from 'react';
 import { Sparkles, CheckCircle2, Clock, Users, Database, BrainCircuit, BarChart3 } from 'lucide-react';
 import { motion, Variants } from 'framer-motion';
-import Link from 'next/link'; // Importante para la navegación al registro
+import Link from 'next/link';
 
 // IMPORTA TUS COMPONENTES VISUALES
 import CalendarVisual from './components/CalendarVisual'; 
@@ -94,8 +94,6 @@ export default function DentalProposal() {
                     Olvídate de responder lo mismo 100 veces al día. Nuestro asistente IA está entrenado exclusivamente con <strong>terminología odontológica</strong>.
                 </p>
                 <ul className="space-y-5 text-left inline-block"> 
-                {/* Nota: Mantenemos el 'text-left' dentro del 'ul' para que los items se lean bien, 
-                    pero el bloque entero está centrado gracias a 'inline-block' y el padre flex-col items-center */}
                     {[
                         "Responde precios, horarios y ubicación al instante.",
                         "Filtra curiosos: Solo te notifica intención real.",
@@ -138,8 +136,8 @@ export default function DentalProposal() {
                     {[
                         "Confirmación automática vía WhatsApp 24h antes.",
                         "Gestión multi-doctor y filtrado por especialista.",
-                        "Alertas inmediatas de cancelación o reprogramación."
-                        
+                        "Alertas inmediatas de cancelación o reprogramación.",
+                        "Bloqueo inteligente de horarios no disponibles."
                     ].map((item, i) => (
                         <li key={i} className="flex items-start gap-4 text-slate-300">
                             <div className="mt-1 bg-purple-500/10 p-1 rounded-full">
@@ -160,7 +158,7 @@ export default function DentalProposal() {
         </motion.section>
 
 
-        {/* --- FEATURE 3: DATA & DASHBOARD (CARDS CENTRADAS) --- */}
+        {/* --- FEATURE 3: DATA & DASHBOARD (DISEÑO STATIC GLOW) --- */}
         <motion.section 
           initial="hidden"
           whileInView="visible"
@@ -178,42 +176,56 @@ export default function DentalProposal() {
             </div>
 
             <div className="grid md:grid-cols-3 gap-6">
-                {/* Card 1 */}
-                <motion.div whileHover={{ y: -5 }} className="p-8 rounded-3xl bg-[#0A0A0A] border border-white/5 hover:border-cyan-500/30 transition duration-300 group shadow-lg flex flex-col items-center text-center">
-                    <div className="mb-6 w-12 h-12 rounded-xl bg-cyan-900/20 flex items-center justify-center text-cyan-400 group-hover:bg-cyan-900/40 transition">
-                        <Database size={24} />
+                
+                {/* Card 1: Marketing (Cyan Theme) */}
+                <div className="relative p-[1px] rounded-3xl bg-gradient-to-b from-cyan-500/30 to-transparent">
+                    <div className="relative h-full p-8 rounded-[23px] bg-[#0A0A0A] flex flex-col items-center text-center">
+                        <div className="mb-6 w-14 h-14 rounded-2xl bg-gradient-to-br from-cyan-500/10 to-cyan-900/20 border border-cyan-500/20 flex items-center justify-center text-cyan-400 shadow-[0_0_15px_-3px_rgba(6,182,212,0.15)]">
+                            <Database size={26} />
+                        </div>
+                        <h3 className="text-xl font-bold text-white mb-3">
+                            Historial Clínico de Marketing
+                        </h3>
+                        <p className="text-slate-400 text-sm leading-relaxed">
+                            Guarda automáticamente cada interacción. Sabrás cuándo fue su última cita y qué procedimiento se realizó.
+                        </p>
                     </div>
-                    <h3 className="text-xl font-bold text-white mb-3">Historial Clínico de Marketing</h3>
-                    <p className="text-slate-400 text-sm leading-relaxed">
-                        Guarda automáticamente cada interacción. Sabrás cuándo fue su última cita y qué procedimiento se realizó.
-                    </p>
-                </motion.div>
+                </div>
 
-                {/* Card 2 */}
-                <motion.div whileHover={{ y: -5 }} className="p-8 rounded-3xl bg-[#0A0A0A] border border-white/5 hover:border-emerald-500/30 transition duration-300 group shadow-lg flex flex-col items-center text-center">
-                    <div className="mb-6 w-12 h-12 rounded-xl bg-emerald-900/20 flex items-center justify-center text-emerald-400 group-hover:bg-emerald-900/40 transition">
-                        <Users size={24} />
+                {/* Card 2: Reactivación (Emerald Theme) */}
+                <div className="relative p-[1px] rounded-3xl bg-gradient-to-b from-emerald-500/30 to-transparent">
+                    <div className="relative h-full p-8 rounded-[23px] bg-[#0A0A0A] flex flex-col items-center text-center">
+                        <div className="mb-6 w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-500/10 to-emerald-900/20 border border-emerald-500/20 flex items-center justify-center text-emerald-400 shadow-[0_0_15px_-3px_rgba(16,185,129,0.15)]">
+                            <Users size={26} />
+                        </div>
+                        <h3 className="text-xl font-bold text-white mb-3">
+                            Motor de Reactivación
+                        </h3>
+                        <p className="text-slate-400 text-sm leading-relaxed">
+                            Detecta pacientes inactivos y envía mensajes personalizados para traerlos de vuelta automáticamente.
+                        </p>
                     </div>
-                    <h3 className="text-xl font-bold text-white mb-3">Motor de Reactivación</h3>
-                    <p className="text-slate-400 text-sm leading-relaxed">
-                        Detecta pacientes inactivos y envía mensajes personalizados para traerlos de vuelta automáticamente.
-                    </p>
-                </motion.div>
+                </div>
 
-                {/* Card 3 */}
-                <motion.div whileHover={{ y: -5 }} className="p-8 rounded-3xl bg-[#0A0A0A] border border-white/5 hover:border-blue-500/30 transition duration-300 group shadow-lg flex flex-col items-center text-center">
-                    <div className="mb-6 w-12 h-12 rounded-xl bg-blue-900/20 flex items-center justify-center text-blue-400 group-hover:bg-blue-900/40 transition">
-                        <BarChart3 size={24} />
+                {/* Card 3: Dashboard (Blue Theme) */}
+                <div className="relative p-[1px] rounded-3xl bg-gradient-to-b from-blue-500/30 to-transparent">
+                    <div className="relative h-full p-8 rounded-[23px] bg-[#0A0A0A] flex flex-col items-center text-center">
+                        <div className="mb-6 w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500/10 to-blue-900/20 border border-blue-500/20 flex items-center justify-center text-blue-400 shadow-[0_0_15px_-3px_rgba(59,130,246,0.15)]">
+                            <BarChart3 size={26} />
+                        </div>
+                        <h3 className="text-xl font-bold text-white mb-3">
+                            Dashboard ROI Real
+                        </h3>
+                        <p className="text-slate-400 text-sm leading-relaxed">
+                            Visualiza en tiempo real chats activos, citas concretadas y dinero generado. Mide la efectividad exacta.
+                        </p>
                     </div>
-                    <h3 className="text-xl font-bold text-white mb-3">Dashboard ROI Real</h3>
-                    <p className="text-slate-400 text-sm leading-relaxed">
-                        Visualiza en tiempo real chats activos, citas concretadas y dinero generado. Mide la efectividad exacta.
-                    </p>
-                </motion.div>
+                </div>
+                
             </div>
         </motion.section>
 
-        {/* --- CTA FINAL (BOTÓN ACTUALIZADO) --- */}
+        {/* --- CTA FINAL --- */}
         <motion.section 
           initial="hidden"
           whileInView="visible"
@@ -231,7 +243,7 @@ export default function DentalProposal() {
                     Deje de perder pacientes por demoras en respuesta. Implemente la IA hoy mismo.
                 </p>
                 
-                {/* Botón Actualizado con Link */}
+                {/* Botón CTA */}
                 <Link href="/register" className="relative z-10 inline-block">
                     <button className="px-10 py-4 bg-white text-black font-bold rounded-xl hover:scale-105 transition shadow-[0_0_50px_-10px_rgba(255,255,255,0.2)]">
                         Registrar Empresa
