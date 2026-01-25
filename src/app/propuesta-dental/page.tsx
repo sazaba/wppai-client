@@ -1,12 +1,11 @@
 'use client'
 
 import React from 'react';
-import { Sparkles, CheckCircle2, Clock, Users, Database, BrainCircuit, BarChart3 } from 'lucide-react';
+import { Sparkles, CheckCircle2, Clock, Users, Database, BrainCircuit, BarChart3, Search, CalendarCheck } from 'lucide-react';
 import { motion, Variants } from 'framer-motion';
 import Link from 'next/link';
 
 // IMPORTA TUS COMPONENTES VISUALES
-// Asegúrate de que las rutas sean correctas según tu estructura de carpetas
 import CalendarVisual from './components/CalendarVisual'; 
 import DentalChatAnimation from './components/DentalChatAnimation';
 
@@ -61,7 +60,7 @@ export default function DentalProposal() {
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">Sin Perder el Toque Humano</span>
           </h1>
           <p className="text-xl text-slate-400 max-w-2xl mx-auto leading-relaxed">
-            La plataforma que agenda, confirma y reactiva pacientes mientras usted se dedica a la odontología.
+            La plataforma que agenda, confirma y organiza sus pacientes mientras usted se dedica a la odontología.
           </p>
         </motion.section>
 
@@ -159,7 +158,7 @@ export default function DentalProposal() {
         </motion.section>
 
 
-        {/* --- FEATURE 3: EL CEREBRO (BENTO GRID - CORREGIDO) --- */}
+        {/* --- FEATURE 3: EL CEREBRO (BENTO GRID - TEXTOS CORREGIDOS) --- */}
         <section className="mb-40 relative px-6 md:px-0">
             {/* Título de Sección */}
             <div className="text-center max-w-3xl mx-auto mb-12 relative z-10">
@@ -176,14 +175,14 @@ export default function DentalProposal() {
                     El Cerebro Digital de tu Clínica
                 </h2>
                 <p className="text-slate-400 text-lg">
-                    Transformamos datos estáticos en un <span className="text-cyan-400 font-semibold">activo viviente</span>.
+                    Transformamos datos dispersos en <span className="text-cyan-400 font-semibold">control operativo</span>.
                 </p>
             </div>
 
             {/* BENTO GRID LAYOUT */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 max-w-6xl mx-auto relative z-10">
                 
-                {/* 1. MÓDULO CENTRAL (Database) - Ocupa 7 columnas */}
+                {/* 1. MÓDULO CENTRAL (Database) - ENFOQUE: ACCESO MANUAL Y CONSULTA */}
                 <motion.div 
                     initial={{ opacity: 0, x: -20 }}
                     whileInView={{ opacity: 1, x: 0 }}
@@ -195,13 +194,11 @@ export default function DentalProposal() {
                     <div className="absolute -right-20 -top-20 w-64 h-64 bg-cyan-500/10 blur-[80px] rounded-full pointer-events-none" />
                     
                     <div className="relative p-8 md:p-10 h-full flex flex-col gap-8">
-                        {/* Header de la tarjeta más compacto y alineado */}
+                        {/* Header */}
                         <div className="flex items-start justify-between">
                             <div className="p-3 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 shadow-[0_0_15px_rgba(6,182,212,0.2)]">
                                 <Database size={28} />
                             </div>
-                            
-                            {/* Abstract Decor: Lines */}
                             <div className="flex gap-1 opacity-50">
                                 <div className="w-1 h-4 bg-cyan-800 rounded-full" />
                                 <div className="w-1 h-6 bg-cyan-600 rounded-full animate-pulse" />
@@ -212,14 +209,16 @@ export default function DentalProposal() {
                             <h3 className="text-2xl md:text-3xl font-bold text-white mb-3">
                                 Historial Clínico de Marketing
                             </h3>
+                            {/* TEXTO ACTUALIZADO: Enfoque en control manual de la clínica */}
                             <p className="text-slate-400 text-base leading-relaxed max-w-lg">
-                                Un registro vivo de cada interacción. El sistema entiende no solo quién es el paciente, sino en qué etapa de su tratamiento se encuentra para actuar en consecuencia.
+                                Tu base de datos organizada y accesible. Revisa manualmente el perfil de cada paciente, su historial de procedimientos y fechas de atención para tomar decisiones informadas sobre su seguimiento.
                             </p>
                             
-                            {/* Ejemplo visual más sutil */}
+                            {/* Visual Snippet: Simula una búsqueda manual */}
                             <div className="mt-6 inline-flex items-center gap-3 px-4 py-2 rounded-lg bg-white/5 border border-white/5 text-sm text-slate-300">
-                                <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
-                                <span>Última visita: Hace 6 meses → <span className="text-cyan-400 font-medium">Sugerir Profilaxis</span></span>
+                                <Search size={14} className="text-cyan-400"/>
+                                <span className="font-mono text-xs text-slate-400">Buscar:</span>
+                                <span>Juan P. | Última Profilaxis: Hace 6 meses</span>
                             </div>
                         </div>
                     </div>
@@ -228,7 +227,7 @@ export default function DentalProposal() {
                 {/* COLUMNA DERECHA - Ocupa 5 columnas */}
                 <div className="lg:col-span-5 flex flex-col gap-6">
 
-                    {/* 2. MÓDULO REACTIVACIÓN (Top Right) */}
+                    {/* 2. MÓDULO REACTIVACIÓN (Top Right) - ENFOQUE: VISIBILIDAD PARA ACCIÓN */}
                     <motion.div 
                         initial={{ opacity: 0, y: 20 }}
                         whileInView={{ opacity: 1, y: 0 }}
@@ -239,29 +238,29 @@ export default function DentalProposal() {
                         <div className="absolute inset-0 bg-gradient-to-br from-emerald-900/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
                         
                         <div className="relative p-8 h-full flex flex-col justify-between">
-                            {/* Header estandarizado con ROI: Texto Izq / Icono Der */}
                             <div className="flex justify-between items-start mb-2">
                                 <div>
                                     <h3 className="text-xl font-bold text-white">Motor de Reactivación</h3>
-                                    <p className="text-xs text-emerald-400/80 uppercase tracking-wider mt-1">Automatización Ética</p>
+                                    <p className="text-xs text-emerald-400/80 uppercase tracking-wider mt-1">Gestión de Retorno</p>
                                 </div>
                                 <div className="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
                                     <Users size={20} />
                                 </div>
                             </div>
                             
+                            {/* TEXTO ACTUALIZADO: Enfoque en identificar oportunidades */}
                             <p className="text-slate-400 text-sm mt-4">
-                                Detecta pacientes inactivos y envía mensajes personalizados para facilitar su retorno a consulta de forma natural.
+                                Visualiza claramente quiénes son tus pacientes inactivos. La plataforma te entrega la información necesaria para que gestiones su retorno de manera efectiva.
                             </p>
                             
-                            <div className="mt-4 flex items-center gap-2 text-[10px] font-mono text-emerald-500/50">
+                            <div className="mt-4 flex items-center gap-2 text-[10px] font-mono text-emerald-500/70">
                                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                                Database Scan Active
+                                Lista de inactivos disponible
                             </div>
                         </div>
                     </motion.div>
 
-                    {/* 3. MÓDULO ROI (Bottom Right) */}
+                    {/* 3. MÓDULO METRICAS (Bottom Right) - ENFOQUE: CRM / AGENDAMIENTO */}
                     <motion.div 
                         initial={{ opacity: 0, y: 20 }}
                         whileInView={{ opacity: 1, y: 0 }}
@@ -274,24 +273,27 @@ export default function DentalProposal() {
                         <div className="relative p-8 h-full flex flex-col justify-between">
                             <div className="flex justify-between items-start mb-2">
                                 <div>
-                                    <h3 className="text-xl font-bold text-white">Dashboard ROI</h3>
-                                    <p className="text-xs text-blue-400/80 uppercase tracking-wider mt-1">Tiempo Real</p>
+                                    {/* TITULO ACTUALIZADO: Dashboard CRM */}
+                                    <h3 className="text-xl font-bold text-white">Métricas de Citas</h3>
+                                    <p className="text-xs text-blue-400/80 uppercase tracking-wider mt-1">Dashboard CRM</p>
                                 </div>
                                 <div className="p-2 rounded-lg bg-blue-500/10 border border-blue-500/20 text-blue-400">
-                                    <BarChart3 size={20} />
+                                    <CalendarCheck size={20} />
                                 </div>
                             </div>
 
+                            {/* TEXTO ACTUALIZADO: Enfoque operativo */}
                             <p className="text-slate-400 text-sm mt-4 mb-4">
-                                Visualiza dinero generado, no solo likes. Mide la efectividad exacta de cada peso invertido.
+                                Mide el rendimiento de tu clínica. Visualiza cuántas citas se han agendado en el mes y el volumen de pacientes gestionados por el asistente.
                             </p>
 
-                            {/* Mini Chart Abstract */}
+                            {/* Mini Chart Abstract: Barras subiendo */}
                             <div className="flex items-end gap-2 h-8 w-full opacity-60">
-                                <div className="w-1/4 h-[40%] bg-slate-800 rounded-t-sm" />
-                                <div className="w-1/4 h-[60%] bg-slate-700 rounded-t-sm" />
-                                <div className="w-1/4 h-[45%] bg-slate-800 rounded-t-sm" />
-                                <div className="w-1/4 h-[90%] bg-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.5)] rounded-t-sm" />
+                                <div className="w-1/5 h-[30%] bg-slate-800 rounded-t-sm" />
+                                <div className="w-1/5 h-[50%] bg-slate-700 rounded-t-sm" />
+                                <div className="w-1/5 h-[40%] bg-slate-800 rounded-t-sm" />
+                                <div className="w-1/5 h-[70%] bg-slate-700 rounded-t-sm" />
+                                <div className="w-1/5 h-[90%] bg-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.5)] rounded-t-sm" />
                             </div>
                         </div>
                     </motion.div>
