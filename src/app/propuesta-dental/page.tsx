@@ -4,7 +4,7 @@ import { Sparkles, ShieldCheck, BarChart3, ChevronRight, CheckCircle2 } from 'lu
 export default function DentalProposal() {
   return (
     // CONTENEDOR PRINCIPAL: Fuerza modo oscuro y fuente sans
-    <main className="min-h-screen bg-[#050505] text-slate-200 selection:bg-cyan-500 selection:text-black font-sans overflow-x-hidden p-5">
+    <main className="min-h-screen bg-[#050505] text-slate-200 selection:bg-cyan-500 selection:text-black font-sans overflow-x-hidden">
       
       {/* --- BACKGROUND FX (Luces ambientales) --- */}
       <div className="fixed inset-0 z-0 pointer-events-none">
@@ -17,7 +17,7 @@ export default function DentalProposal() {
 
 
         {/* --- HERO SECTION --- */}
-        <section className="text-center mb-32">
+        <section className="text-center mb-32 pt-6">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-cyan-500/30 bg-cyan-950/30 text-cyan-400 text-[10px] uppercase tracking-widest font-bold mb-6 backdrop-blur-sm">
             <Sparkles size={12} /> Tecnología Premium
           </div>
