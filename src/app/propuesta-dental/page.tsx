@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react';
-import { Sparkles, CheckCircle2, Clock, Users, Database, BrainCircuit, CalendarCheck, ChevronRight, FileText, CalendarDays, Zap, Download, Stethoscope } from 'lucide-react';
+import { Sparkles, CheckCircle2, Clock, Users, Database, BrainCircuit, CalendarCheck, ChevronRight, FileText, CalendarDays, Zap, Download, CreditCard, Wifi } from 'lucide-react';
 import { motion, Variants } from 'framer-motion';
 import Link from 'next/link';
 
@@ -58,12 +58,73 @@ const pulseDeep: Variants = {
     }
 };
 
-// --- ICONO DENTAL PERSONALIZADO (SVG) ---
-const ToothIcon = ({ className }: { className?: string }) => (
-  <svg viewBox="0 0 24 24" fill="currentColor" className={className} xmlns="http://www.w3.org/2000/svg">
-    <path d="M19.5 4.5C17.5 2.5 15 2 12 2C9 2 6.5 2.5 4.5 4.5C2.5 6.5 2 9 2 12C2 15 3 17 4 19L6 21.5C6.5 22 7.5 22 8 21.5L9.5 20C10 19.5 10.5 19.5 11 20L12 21L13 20C13.5 19.5 14 19.5 14.5 20L16 21.5C16.5 22 17.5 22 18 21.5L20 19C21 17 22 15 22 12C22 9 21.5 6.5 19.5 4.5ZM8 14C7.45 14 7 13.55 7 13V11C7 10.45 7.45 10 8 10C8.55 10 9 10.45 9 11V13C9 13.55 8.55 14 8 14ZM16 14C15.45 14 15 13.55 15 13V11C15 10.45 15.45 10 16 10C16.55 10 17 10.45 17 11V13C17 13.55 16.55 14 16 14Z" />
-  </svg>
+// --- NUEVOS ICONOS DE AMBIENTACIÓN DENTAL (Sutiles) ---
+const DentalToolsBg = () => (
+  <>
+    {/* Espejo Dental - Arriba Izquierda */}
+    <svg className="absolute top-[5%] left-[2%] w-32 h-32 text-cyan-900/20 rotate-45 blur-[2px] pointer-events-none opacity-40" viewBox="0 0 24 24" fill="currentColor">
+      <path d="M12 2C8.13 2 5 5.13 5 9C5 11.38 6.19 13.47 8 14.74V17C8 17.55 8.45 18 9 18H11V20H13V18H15C15.55 18 16 17.55 16 17V14.74C17.81 13.47 19 11.38 19 9C19 5.13 15.87 2 12 2ZM12 4C14.76 4 17 6.24 17 9C17 11.76 14.76 14 12 14C9.24 14 7 11.76 7 9C7 6.24 9.24 4 12 4Z" />
+    </svg>
+    {/* Sonda Exploradora - Centro Derecha */}
+    <svg className="absolute top-[45%] right-[5%] w-40 h-40 text-purple-900/20 -rotate-12 blur-[3px] pointer-events-none opacity-30" viewBox="0 0 24 24" fill="currentColor">
+       <path d="M6.1,7.19L8.4,12.04C8.58,12.42 8.43,12.87 8.06,13.07L5,14.64L7.59,20.36L6,21.09L2.15,12.64L5.56,10.87C5.94,10.68 6.1,10.23 5.9,9.85L3.74,5.3L6.1,7.19M19.14,8.97L15.56,10.6C15.19,10.77 14.76,10.59 14.59,10.21L10.64,1.5L12.24,0.77L15.84,8.68L18.43,7.5L19.14,8.97Z" />
+    </svg>
+    {/* Muela Estilizada Pequeña - Abajo Izquierda */}
+    <svg className="absolute bottom-[15%] left-[8%] w-24 h-24 text-blue-900/20rotate-[30deg] blur-[1px] pointer-events-none opacity-25" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M17,2H7C4.79,2 3,3.79 3,6V18C3,20.21 4.79,22 7,22H17C19.21,22 21,20.21 21,18V6C21,3.79 19.21,2 17,2M11,6H13V10H17V12H13V18H11V12H7V10H11V6Z" /> 
+    </svg>
+  </>
 );
+
+
+// --- NUEVA TARJETA DE CRÉDITO GENÉRICA (SVG AUTOMATIZADO) ---
+const GenericPaymentCard = () => (
+  <div className="w-full max-w-[320px] md:max-w-[360px] mx-auto relative group/card perspective-1000">
+    <div className="relative w-full aspect-[1.586/1] rounded-2xl overflow-hidden shadow-2xl transition-all duration-500 transform-gpu group-hover/card:scale-[1.02] group-hover/card:rotate-y-[5deg]">
+      {/* Fondo Gradiente de la Tarjeta */}
+      <div className="absolute inset-0 bg-gradient-to-br from-slate-800 via-slate-900 to-black" />
+      <div className="absolute inset-0 bg-[linear-gradient(45deg,transparent_20%,rgba(255,255,255,0.05)_40%,rgba(255,255,255,0.1)_50%,rgba(255,255,255,0.05)_60%,transparent_80%)] bg-[length:200%_200%] animate-shimmer-slow pointer-events-none" />
+      
+      {/* Bordes Brillantes */}
+      <div className="absolute inset-0 rounded-2xl border border-white/10 group-hover/card:border-purple-500/30 transition-colors duration-500" />
+      
+      <div className="relative p-6 h-full flex flex-col justify-between z-10">
+        {/* Top Row: Chip y Contactless */}
+        <div className="flex justify-between items-start">
+          <div className="w-12 h-9 bg-gradient-to-br from-amber-200 via-amber-400 to-amber-600 rounded-md border border-amber-500/50 flex items-center justify-center overflow-hidden relative">
+              <div className="absolute inset-0 opacity-50 bg-[repeating-linear-gradient(90deg,transparent,transparent_2px,#000_2px,#000_4px)]" />
+              <div className="absolute inset-0 opacity-50 bg-[repeating-linear-gradient(0deg,transparent,transparent_2px,#000_2px,#000_4px)]" />
+          </div>
+          <Wifi className="text-white/70 rotate-90" size={24} />
+        </div>
+
+        {/* Middle Row: Texto Principal */}
+        <div className="text-center my-auto pt-4">
+           <p className="text-xs text-purple-300 uppercase tracking-[0.2em] mb-1 font-semibold">Método de Pago Universal</p>
+           <h4 className="text-xl md:text-2xl font-bold text-white tracking-wider bg-clip-text bg-gradient-to-r from-white via-purple-100 to-white drop-shadow-sm">
+             TODAS LAS TARJETAS
+           </h4>
+           <p className="text-sm text-slate-400 uppercase tracking-widest font-medium mt-1">DÉBITO Y CRÉDITO</p>
+        </div>
+
+        {/* Bottom Row: Indicadores Estilizados */}
+        <div className="flex justify-between items-center pt-4 opacity-80">
+            <div className="flex gap-2 items-center">
+                <div className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)] animate-pulse"></div>
+                <span className="text-[10px] font-mono text-slate-300 uppercase">Aceptación Global</span>
+            </div>
+            {/* Simulación de logos abstractos */}
+             <div className="flex -space-x-2 opacity-70 grayscale group-hover/card:grayscale-0 transition-all duration-500">
+                <div className="w-8 h-8 rounded-full bg-red-500/80 border-2 border-white/10 shrink-0" />
+                <div className="w-8 h-8 rounded-full bg-yellow-500/80 border-2 border-white/10 shrink-0" />
+                <div className="w-8 h-8 rounded-full bg-blue-500/80 border-2 border-white/10 shrink-0" />
+            </div>
+        </div>
+      </div>
+    </div>
+  </div>
+);
+
 
 // --- DATOS BENTO GRID ---
 const mockPatients = [
@@ -92,19 +153,18 @@ export default function DentalProposal() {
       {/* Navbar Background Fix */}
       <div className="absolute top-0 left-0 right-0 h-[500px] bg-gradient-to-b from-slate-900/90 via-[#050505] to-[#050505] z-0 pointer-events-none" />
       
-      {/* Background Glows Globales */}
+      {/* Background Glows & Dental Ambient Globales */}
       <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
         <div className="absolute top-[10%] left-[0%] w-[250px] md:w-[600px] h-[250px] md:h-[600px] bg-cyan-900/10 rounded-full blur-[60px] md:blur-[120px] opacity-40 transform-gpu translate-z-0" />
         <div className="absolute bottom-[20%] right-[0%] w-[200px] md:w-[500px] h-[200px] md:h-[500px] bg-purple-900/10 rounded-full blur-[60px] md:blur-[128px] opacity-40 transform-gpu translate-z-0" />
-        {/* Decoración Dental sutil en fondo */}
-        <div className="absolute top-[40%] right-[-5%] opacity-[0.03] rotate-12 scale-150 text-white">
-            <ToothIcon className="w-96 h-96" />
-        </div>
+        
+        {/* NUEVA Ambientación Dental Sutil */}
+        <DentalToolsBg />
       </div>
 
       <div className="relative z-10 max-w-7xl mx-auto px-4 md:px-6 pt-28 md:pt-44 pb-20 md:pb-32">
         
-        {/* --- HERO --- */}
+        {/* --- HERO (TÍTULO CORREGIDO) --- */}
         <motion.section 
           initial="hidden"
           whileInView="visible"
@@ -115,10 +175,13 @@ export default function DentalProposal() {
            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-cyan-500/20 bg-cyan-950/40 text-cyan-300 text-[10px] uppercase tracking-widest font-bold mb-6 md:mb-8 backdrop-blur-md shadow-[0_0_20px_rgba(6,182,212,0.1)]">
             <Sparkles size={12} /> Inteligencia Artificial Odontológica
           </div>
+          
+          {/* TÍTULO EXACTO SOLICITADO */}
           <h1 className="text-4xl sm:text-5xl md:text-7xl font-bold text-white mb-6 tracking-tighter leading-[1.1]">
-            Automatización Clínica <br className="hidden md:block" />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">Odontológica</span>
+            Automatiza tu Clinica Odontologica <br className="hidden md:block" />
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">Sin Perder el Toque Humano</span>
           </h1>
+          
           <p className="text-lg md:text-xl text-slate-400 max-w-2xl mx-auto leading-relaxed px-2">
             La plataforma que agenda, confirma y organiza sus pacientes mientras usted se dedica a la odontología.
           </p>
@@ -386,7 +449,7 @@ export default function DentalProposal() {
         </section>
 
 
-        {/* --- NUEVA SECCIÓN: MEMBRESÍA ÉLITE (REDESIGN) --- */}
+        {/* --- NUEVA SECCIÓN: MEMBRESÍA ÉLITE (REDESIGN CON CORRECCIONES) --- */}
         <motion.section 
           initial="hidden"
           whileInView="visible"
@@ -395,18 +458,16 @@ export default function DentalProposal() {
           className="relative mb-32 md:mb-40 max-w-4xl mx-auto px-2"
         >
           {/* Tarjeta de Membresía Estilo "Reference Card" */}
-          <div className="relative rounded-[32px] overflow-hidden border border-purple-500/20 bg-[#080808] shadow-[0_0_50px_-10px_rgba(168,85,247,0.1)] group">
+          {/* PADDING RESPONSIVE AJUSTADO AQUÍ: p-5 en móvil, md:p-12 en escritorio */}
+          <div className="relative rounded-[32px] overflow-hidden border border-purple-500/20 bg-[#080808] shadow-[0_0_50px_-10px_rgba(168,85,247,0.1)] group p-5 md:p-12">
             
             {/* Efectos de fondo de la tarjeta */}
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(168,85,247,0.15),transparent_40%)] pointer-events-none" />
             <div className="absolute inset-0 bg-[linear-gradient(45deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:20px_20px] opacity-20 pointer-events-none" />
             
-            {/* Elemento Decorativo: Diente Grande en Fondo */}
-            <div className="absolute -bottom-10 -right-10 text-purple-900/10 pointer-events-none">
-                <ToothIcon className="w-64 h-64" />
-            </div>
+            {/* SE ELIMINÓ LA MUELA FANTASMA GRANDE DEL FONDO AQUÍ */}
             
-            <div className="relative p-8 md:p-12 flex flex-col items-center text-center">
+            <div className="relative flex flex-col items-center text-center z-10">
               
               {/* Badge Superior */}
               <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-purple-950/30 border border-purple-500/30 text-purple-200 text-sm font-bold mb-8">
@@ -468,59 +529,13 @@ export default function DentalProposal() {
                 </div>
               </div>
 
-              {/* Iconos de Pago Interactivos (SVG Reales) */}
-              <div className="w-full pt-8 border-t border-white/5 flex flex-col items-center gap-6">
-                <p className="text-xs text-slate-500 uppercase tracking-widest font-semibold">Métodos de Pago Aceptados</p>
-                
-                <div className="flex flex-wrap justify-center gap-6 md:gap-8 items-center opacity-80">
-                   {/* Visa Official */}
-                   <div className="group/icon relative grayscale hover:grayscale-0 transition-all duration-300 hover:scale-110 cursor-pointer" title="Visa">
-                      <svg className="h-6 md:h-7 w-auto" viewBox="0 0 48 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M18.8 0.4L12.4 15.6H8.2L5 3.5C4.8 2.7 4.6 2.5 4 2.1C3 1.6 1.4 1.1 0 0.8L0.1 0.4H6.9C7.8 0.4 8.6 1 8.8 2.1L10.5 11L14.7 0.4H18.8ZM35.3 10.5C35.4 6.6 30.1 6.4 30.1 4.6C30.2 4 30.7 3.4 31.9 3.3C32.5 3.2 34.2 3.2 36.1 4.1L37.4 1.1C35.7 0.5 33.6 0.1 31.5 0.2C27.6 0.2 24.8 2.3 24.8 5.4C24.8 7.7 26.9 8.9 28.5 9.7C30.2 10.5 30.8 11.1 30.8 11.7C30.8 12.7 29.6 13.1 28.6 13.1C26.7 13.1 24.7 12.6 23 11.8L21.7 14.8C23.5 15.7 26.9 16.1 28.9 16.1C33.2 16.1 35.8 14 35.8 10.9L35.3 10.5ZM45.8 0.4H42.1C40.9 0.4 40 0.9 39.5 2L33.7 15.6H38L38.9 13.3H44.8L45.3 15.6H49.1L45.8 0.4ZM40 10.2L42.1 4.4L44.2 10.2H40Z" fill="white"/>
-                      </svg>
-                   </div>
-                   
-                   {/* Mastercard Official */}
-                   <div className="group/icon relative grayscale hover:grayscale-0 transition-all duration-300 hover:scale-110 cursor-pointer" title="Mastercard">
-                       <svg className="h-8 md:h-9 w-auto" viewBox="0 0 36 22" fill="none" xmlns="http://www.w3.org/2000/svg">
-                          <circle cx="11.6" cy="11" r="9" fill="#EB001B"/>
-                          <circle cx="24.4" cy="11" r="9" fill="#F79E1B" style={{ mixBlendMode: 'lighten' }}/>
-                       </svg>
-                   </div>
-
-                   {/* Amex Official */}
-                   <div className="group/icon relative grayscale hover:grayscale-0 transition-all duration-300 hover:scale-110 cursor-pointer" title="American Express">
-                        <svg className="h-8 md:h-9 w-auto" viewBox="0 0 40 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M4.6 0H35.4C37.9 0 40 2.1 40 4.6V19.4C40 21.9 37.9 24 35.4 24H4.6C2.1 24 0 21.9 0 19.4V4.6C0 2.1 2.1 0 4.6 0Z" fill="#006FCF"/>
-                            <path d="M11.3 11.9L8.6 6.3H5.8L10.1 14.4L6.1 20.7H9L11.9 16.2L14.9 20.7H17.7L13.6 14.7L17.8 6.3H14.8L11.3 11.9ZM22.3 20.7H17.8L19.3 17.8H23L22.4 16.3H20L21.2 14H23.6L22.9 12.5H21.9L23.7 9H26L24.6 6.3H17.7L14.2 20.7H22.3V20.7ZM31.3 14.8H29.4L28.9 17.2H31.2L30.6 18.6H28.1L27.3 22.2H35.4V19.3H32.4L33 17H30.7L31.2 15.5H33.6L34.1 13.2H31.8L32.3 10.9H34.7L35.2 8.5H32.9L33.4 6.2H25.4L24.8 8.5H27.1L26.6 10.9H24.2L23.7 13.2H26L25.5 15.5H23.1L22.6 17.9H24.9L24.4 20.2H16.3V23.1H36.8V14.8H31.3Z" fill="white"/>
-                        </svg>
-                   </div>
-
-                   {/* Bancolombia Official */}
-                   <div className="group/icon relative grayscale hover:grayscale-0 transition-all duration-300 hover:scale-110 cursor-pointer" title="Bancolombia">
-                        <svg className="h-6 md:h-8 w-auto" viewBox="0 0 138 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <rect width="138" height="32" fill="transparent"/>
-                            <path d="M27.6 0H20.7V32H27.6V0Z" fill="#FDDA24"/>
-                            <path d="M13.8 0H6.9V32H13.8V0Z" fill="#0033A0"/>
-                            <path d="M0 0H6.9V32H0V0Z" fill="#EC1C24"/>
-                            <path d="M51.6 22.5C51.6 24.2 50.9 25.7 49.6 26.9C48.3 28.2 46.6 28.8 44.5 28.8C42.7 28.8 41.1 28.3 39.7 27.4L40.7 24C42 24.7 43.3 25 44.7 25C45.7 25 46.4 24.8 47 24.3C47.5 23.8 47.8 23.2 47.8 22.4C47.8 21.7 47.6 21.1 47.1 20.6C46.7 20.1 46 19.7 44.9 19.3C43.3 18.8 42 18.3 41.3 17.8C40.5 17.4 40 16.8 39.6 16.2C39.2 15.5 39 14.8 39 13.9C39 12.2 39.6 10.8 40.9 9.6C42.2 8.3 43.9 7.7 45.9 7.7C47.6 7.7 49.1 8.1 50.4 8.9L49.4 12.3C48.2 11.7 47.1 11.4 45.9 11.4C45 11.4 44.3 11.6 43.8 12C43.3 12.5 43.1 13 43.1 13.7C43.1 14.4 43.3 14.9 43.6 15.4C44 15.8 44.8 16.2 45.8 16.6C47.4 17.3 48.7 17.8 49.4 18.2C50.2 18.7 50.8 19.2 51.2 19.9C51.6 20.5 51.9 21.4 51.9 22.5H51.6ZM127.6 28.8C126 28.8 124.6 28.2 123.5 27.1C122.5 26 122 24.5 122 22.7C122 21 122.5 19.5 123.5 18.4C124.6 17.2 126 16.7 127.6 16.7C129.3 16.7 130.6 17.2 131.6 18.4C132.7 19.5 133.2 21 133.2 22.7C133.2 24.5 132.7 26 131.6 27.1C130.6 28.2 129.3 28.8 127.6 28.8ZM127.6 25.7C128.5 25.7 129.2 25.3 129.7 24.7C130.3 24 130.5 23.2 130.5 22.2C130.5 21.2 130.3 20.4 129.7 19.8C129.2 19.1 128.5 18.8 127.6 18.8C126.8 18.8 126.1 19.1 125.6 19.8C125.1 20.4 124.8 21.2 124.8 22.2C124.8 23.2 125.1 24 125.6 24.7C126.1 25.3 126.8 25.7 127.6 25.7Z" fill="white"/>
-                        </svg>
-                   </div>
-
-                   {/* Rappi Official */}
-                   <div className="group/icon relative grayscale hover:grayscale-0 transition-all duration-300 hover:scale-110 cursor-pointer" title="RappiCard">
-                       <svg className="h-6 md:h-8 w-auto" viewBox="0 0 45 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M22.5 0C10.1 0 0 10.1 0 22.5C0 34.9 10.1 45 22.5 45C34.9 45 45 34.9 45 22.5C45 10.1 34.9 0 22.5 0Z" fill="#FF4343"/>
-                            <path d="M12.4 22.5C12.4 24.4 15.6 24.4 15.6 22.5C15.6 20.6 12.4 20.6 12.4 22.5ZM29.4 22.5C29.4 24.4 32.6 24.4 32.6 22.5C32.6 20.6 29.4 20.6 29.4 22.5ZM10 27.5C10 27.5 15.6 27.5 18.1 25C20.6 27.5 25 27.5 25 27.5" stroke="white" strokeWidth="3" strokeLinecap="round"/>
-                            <path d="M11 25.5C11 25.5 18 29.5 22.5 25.5C27 29.5 34 25.5 34 25.5" stroke="white" strokeWidth="3" strokeLinecap="round"/>
-                       </svg>
-                   </div>
-
-                </div>
+              {/* NUEVA SECCIÓN DE PAGO CON TARJETA GENÉRICA AUTOMATIZADA */}
+              <div className="w-full pt-8 border-t border-white/5 flex flex-col items-center gap-8">
+                <GenericPaymentCard />
               </div>
 
               {/* Botón de Descarga PDF */}
-              <div className="mt-8">
+              <div className="mt-10">
                   <button 
                     onClick={handleDownloadPDF}
                     className="flex items-center gap-2 text-sm text-slate-500 hover:text-purple-400 transition-colors py-2 border-b border-transparent hover:border-purple-400/50"
