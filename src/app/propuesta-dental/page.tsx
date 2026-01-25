@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react';
-import { Sparkles, CheckCircle2, Clock, Users, Database, BrainCircuit, BarChart3, Search, CalendarCheck, Activity, ChevronRight, AlertCircle } from 'lucide-react';
+import { Sparkles, CheckCircle2, Clock, Users, Database, BrainCircuit, BarChart3, Search, CalendarCheck, Activity, ChevronRight, FileText, CalendarDays } from 'lucide-react';
 import { motion, Variants } from 'framer-motion';
 import Link from 'next/link';
 
@@ -34,7 +34,7 @@ const listContainer: Variants = {
     visible: {
         opacity: 1,
         transition: {
-            staggerChildren: 0.15
+            staggerChildren: 0.12
         }
     }
 };
@@ -44,12 +44,13 @@ const listItem: Variants = {
     visible: { opacity: 1, x: 0 }
 };
 
-// --- DATOS FICTICIOS PARA LA LISTA ANIMADA ---
+// --- DATOS FICTICIOS BASADOS EN TU DEMO REAL ---
+// Estructura: Paciente, Procedimiento realizado, Fecha
 const mockPatients = [
-    { name: "Juan P.", action: "Profilaxis (6m)", status: "Reactivar", color: "text-amber-400", bg: "bg-amber-500/10", icon: AlertCircle },
-    { name: "Andrea M.", action: "Ortodoncia (15d)", status: "En Curso", color: "text-emerald-400", bg: "bg-emerald-500/10", icon: Activity },
-    { name: "Carlos R.", action: "Valoración (1a)", status: "Inactivo", color: "text-rose-400", bg: "bg-rose-500/10", icon: Users },
-    { name: "Sofia L.", action: "Blanqueamiento", status: "Seguimiento", color: "text-blue-400", bg: "bg-blue-500/10", icon: CheckCircle2 },
+    { initials: "MQ", name: "Manuela Quintero", procedure: "Toxina botulínica", date: "20 Ene", color: "bg-purple-500/20 text-purple-300" },
+    { initials: "AM", name: "Ana Maria Gomez", procedure: "Diseño de Sonrisa", date: "12 Ene", color: "bg-blue-500/20 text-blue-300" },
+    { initials: "JZ", name: "Juan Zappa", procedure: "Limpieza Profunda", date: "06 Dic", color: "bg-cyan-500/20 text-cyan-300" },
+    { initials: "SZ", name: "Santiago Zappa", procedure: "Valoración Ortodoncia", date: "06 Dic", color: "bg-emerald-500/20 text-emerald-300" },
 ];
 
 export default function DentalProposal() {
@@ -181,188 +182,195 @@ export default function DentalProposal() {
         </motion.section>
 
 
-        {/* --- FEATURE 3: EL CEREBRO (BENTO GRID - DISEÑO DISRUPTIVO + LISTA) --- */}
-        <section className="mb-40 relative">
+        {/* --- FEATURE 3: EL CEREBRO (INTEGRADO AL FONDO - SIN CAJA NEGRA) --- */}
+        <section className="mb-40 relative px-6 md:px-0">
             
-            {/* FONDO DISRUPTIVO DEL CONTENEDOR (Cyber Grid) */}
-            <div className="absolute inset-0 -mx-[50vw] left-[50%] w-[100vw] h-full bg-[#080808] border-y border-white/5 z-0">
-                {/* Patrón de rejilla CSS sutil */}
-                <div className="absolute inset-0 opacity-20 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"></div>
-                {/* Máscara radial para desvanecer bordes */}
-                <div className="absolute inset-0 bg-[radial-gradient(circle_800px_at_50%_50%,transparent,black)]"></div>
+            {/* Glow de fondo localizado para unir la sección */}
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[80vw] h-[500px] bg-cyan-900/5 blur-[120px] rounded-full pointer-events-none" />
+
+            {/* Título de Sección */}
+            <div className="text-center max-w-3xl mx-auto mb-16 relative z-10">
+                <motion.div 
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    whileInView={{ opacity: 1, scale: 1 }}
+                    className="inline-block mb-4"
+                >
+                     <span className="px-3 py-1 rounded-full border border-cyan-500/30 bg-cyan-950/30 text-cyan-300 text-xs font-mono tracking-widest uppercase shadow-[0_0_15px_-3px_rgba(6,182,212,0.3)]">
+                        Core System v.2.0
+                     </span>
+                </motion.div>
+                <h2 className="text-4xl md:text-5xl font-bold text-white mb-6 tracking-tight">
+                    El Cerebro Digital de tu Clínica
+                </h2>
+                <p className="text-slate-400 text-lg">
+                    Transformamos datos dispersos en <span className="text-cyan-400 font-semibold">control operativo</span> absoluto.
+                </p>
             </div>
 
-            <div className="relative z-10 px-6 md:px-0 max-w-7xl mx-auto py-20">
+            {/* BENTO GRID LAYOUT */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 max-w-6xl mx-auto relative z-10">
                 
-                {/* Título de Sección */}
-                <div className="text-center max-w-3xl mx-auto mb-16">
-                    <motion.div 
-                        initial={{ opacity: 0, scale: 0.9 }}
-                        whileInView={{ opacity: 1, scale: 1 }}
-                        className="inline-block mb-4"
-                    >
-                         <span className="px-3 py-1 rounded-full border border-cyan-500/30 bg-cyan-950/30 text-cyan-300 text-xs font-mono tracking-widest uppercase shadow-[0_0_15px_-3px_rgba(6,182,212,0.3)]">
-                            Core System v.2.0
-                         </span>
-                    </motion.div>
-                    <h2 className="text-4xl md:text-5xl font-bold text-white mb-6 tracking-tight">
-                        El Cerebro Digital de tu Clínica
-                    </h2>
-                    <p className="text-slate-400 text-lg">
-                        Transformamos datos dispersos en <span className="text-cyan-400 font-semibold">control operativo</span> absoluto.
-                    </p>
-                </div>
-
-                {/* BENTO GRID LAYOUT */}
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 max-w-6xl mx-auto">
+                {/* 1. MÓDULO CENTRAL (Database) - LISTA REALISTA */}
+                <motion.div 
+                    initial={{ opacity: 0, x: -20 }}
+                    whileInView={{ opacity: 1, x: 0 }}
+                    viewport={{ once: true }}
+                    className="lg:col-span-7 group relative rounded-[32px] overflow-hidden bg-white/[0.02] border border-white/10 hover:border-cyan-500/30 transition-all duration-500 flex flex-col backdrop-blur-sm"
+                >
+                    {/* Gradient sutil interno */}
+                    <div className="absolute inset-0 bg-gradient-to-b from-white/[0.02] to-transparent pointer-events-none" />
                     
-                    {/* 1. MÓDULO CENTRAL (Database) - ENFOQUE: LISTA DINÁMICA */}
+                    <div className="relative p-8 md:p-10 h-full flex flex-col">
+                        {/* Header */}
+                        <div className="flex items-start justify-between mb-8">
+                            <div className="p-3 rounded-2xl bg-cyan-950/30 border border-cyan-500/20 text-cyan-400 shadow-[0_0_15px_rgba(6,182,212,0.1)]">
+                                <Database size={28} />
+                            </div>
+                            {/* Decoración Tech */}
+                            <div className="flex gap-1 opacity-30">
+                                <div className="w-1 h-1 bg-white rounded-full" />
+                                <div className="w-1 h-1 bg-white rounded-full" />
+                                <div className="w-8 h-1 bg-white rounded-full" />
+                            </div>
+                        </div>
+
+                        <div className="mb-8">
+                            <h3 className="text-2xl md:text-3xl font-bold text-white mb-3">
+                                Historial Clínico de Marketing
+                            </h3>
+                            <p className="text-slate-400 text-base leading-relaxed max-w-lg">
+                                Tu base de datos organizada y viva. Accede al perfil de cada paciente, visualiza su último procedimiento y toma decisiones basadas en datos reales.
+                            </p>
+                        </div>
+
+                        {/* --- LISTA TIPO DEMO --- */}
+                        <div className="mt-auto border-t border-white/5 pt-6">
+                            <div className="flex justify-between items-center mb-4 px-2">
+                                <span className="text-xs font-mono text-slate-500 uppercase tracking-wider">Pacientes Recientes</span>
+                                <span className="text-xs text-cyan-400 hover:text-cyan-300 cursor-pointer flex items-center gap-1 transition-colors">
+                                    Ver todos <ChevronRight size={12}/>
+                                </span>
+                            </div>
+
+                            <motion.div 
+                                className="space-y-3"
+                                initial="hidden"
+                                whileInView="visible"
+                                viewport={{ once: true }}
+                                variants={listContainer}
+                            >
+                                {mockPatients.map((patient, i) => (
+                                    <motion.div 
+                                        key={i} 
+                                        variants={listItem}
+                                        className="flex items-center justify-between p-3 rounded-xl bg-white/[0.03] border border-white/5 hover:bg-white/[0.06] transition-colors group/item"
+                                    >
+                                        <div className="flex items-center gap-4">
+                                            {/* Avatar (Iniciales) */}
+                                            <div className={`w-10 h-10 rounded-full ${patient.color} flex items-center justify-center font-bold text-sm shadow-inner`}>
+                                                {patient.initials}
+                                            </div>
+                                            
+                                            {/* Info Principal */}
+                                            <div className="flex flex-col">
+                                                <span className="text-sm font-semibold text-slate-200 group-hover/item:text-white transition-colors">
+                                                    {patient.name}
+                                                </span>
+                                                <div className="flex items-center gap-1.5 mt-0.5">
+                                                    <FileText size={10} className="text-slate-500" />
+                                                    <span className="text-xs text-slate-400">
+                                                        {patient.procedure}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Fecha */}
+                                        <div className="flex items-center gap-2 text-slate-500 px-3 py-1 rounded-lg bg-black/20">
+                                            <CalendarDays size={12} />
+                                            <span className="text-xs font-mono">{patient.date}</span>
+                                        </div>
+                                    </motion.div>
+                                ))}
+                            </motion.div>
+                        </div>
+                    </div>
+                </motion.div>
+
+                {/* COLUMNA DERECHA - Ocupa 5 columnas */}
+                <div className="lg:col-span-5 flex flex-col gap-6">
+
+                    {/* 2. MÓDULO REACTIVACIÓN */}
                     <motion.div 
-                        initial={{ opacity: 0, x: -20 }}
-                        whileInView={{ opacity: 1, x: 0 }}
+                        initial={{ opacity: 0, y: 20 }}
+                        whileInView={{ opacity: 1, y: 0 }}
                         viewport={{ once: true }}
-                        className="lg:col-span-7 group relative rounded-[32px] overflow-hidden bg-[#0c0c0c] border border-white/10 hover:border-cyan-500/30 transition-colors duration-500 flex flex-col"
+                        transition={{ delay: 0.1 }}
+                        className="group relative rounded-[32px] overflow-hidden bg-white/[0.02] border border-white/10 hover:border-emerald-500/30 transition-all duration-500 min-h-[240px] flex flex-col backdrop-blur-sm"
                     >
-                        {/* Efecto Glow en Hover */}
-                        <div className="absolute inset-0 bg-gradient-to-br from-cyan-900/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
+                        <div className="absolute inset-0 bg-gradient-to-br from-emerald-900/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
                         
-                        <div className="relative p-8 md:p-10 h-full flex flex-col">
-                            {/* Header */}
-                            <div className="flex items-start justify-between mb-8">
-                                <div className="p-3 rounded-2xl bg-cyan-950/50 border border-cyan-500/20 text-cyan-400 shadow-[0_0_15px_rgba(6,182,212,0.1)]">
-                                    <Database size={28} />
+                        <div className="relative p-8 h-full flex flex-col justify-between">
+                            <div className="flex justify-between items-start mb-2">
+                                <div>
+                                    <h3 className="text-xl font-bold text-white">Motor de Reactivación</h3>
+                                    <p className="text-xs text-emerald-400/80 uppercase tracking-wider mt-1 font-semibold">Gestión de Retorno</p>
                                 </div>
-                                <div className="flex gap-1.5 opacity-40">
-                                    <div className="w-1 h-1 bg-cyan-500 rounded-full animate-pulse" />
-                                    <div className="w-1 h-1 bg-cyan-500 rounded-full animate-pulse delay-75" />
-                                    <div className="w-1 h-1 bg-cyan-500 rounded-full animate-pulse delay-150" />
+                                <div className="p-2 rounded-lg bg-emerald-950/30 border border-emerald-500/20 text-emerald-400">
+                                    <Users size={20} />
                                 </div>
                             </div>
-
-                            <div className="mb-8">
-                                <h3 className="text-2xl md:text-3xl font-bold text-white mb-3">
-                                    Historial Clínico de Marketing
-                                </h3>
-                                <p className="text-slate-400 text-base leading-relaxed max-w-lg">
-                                    Tu base de datos organizada y viva. Accede al perfil de cada paciente para revisar su historial y tomar decisiones de seguimiento.
-                                </p>
-                            </div>
-
-                            {/* --- LISTA ANIMADA DE PACIENTES --- */}
-                            <div className="mt-auto bg-black/40 rounded-2xl border border-white/5 overflow-hidden backdrop-blur-sm">
-                                {/* Header de la "Tabla" */}
-                                <div className="px-5 py-3 border-b border-white/5 flex justify-between text-[10px] font-mono text-slate-500 uppercase tracking-wider">
-                                    <span>Paciente / Acción</span>
-                                    <span>Estado</span>
-                                </div>
-                                {/* Lista con Framer Motion */}
-                                <motion.div 
-                                    className="p-2 space-y-1"
-                                    initial="hidden"
-                                    whileInView="visible"
-                                    viewport={{ once: true }}
-                                    variants={listContainer}
-                                >
-                                    {mockPatients.map((patient, i) => (
-                                        <motion.div 
-                                            key={i} 
-                                            variants={listItem}
-                                            className="group/item flex items-center justify-between p-3 rounded-xl hover:bg-white/5 transition-colors cursor-default"
-                                        >
-                                            <div className="flex items-center gap-3">
-                                                <div className={`w-8 h-8 rounded-full ${patient.bg} flex items-center justify-center ${patient.color}`}>
-                                                    <patient.icon size={14} />
-                                                </div>
-                                                <div>
-                                                    <p className="text-sm font-medium text-slate-200">{patient.name}</p>
-                                                    <p className="text-xs text-slate-500">{patient.action}</p>
-                                                </div>
-                                            </div>
-                                            <div className={`text-xs px-2 py-1 rounded-md border border-white/5 bg-black/50 ${patient.color} font-medium`}>
-                                                {patient.status}
-                                            </div>
-                                        </motion.div>
-                                    ))}
-                                </motion.div>
+                            
+                            <p className="text-slate-400 text-sm mt-2">
+                                Identifica oportunidades. La plataforma resalta quiénes son tus pacientes inactivos para que gestiones su retorno efectivamente.
+                            </p>
+                            
+                            <div className="mt-4 flex items-center gap-2 text-[10px] font-mono text-emerald-500/70 bg-emerald-500/5 px-3 py-1.5 rounded-full w-fit border border-emerald-500/10">
+                                <span className="relative flex h-2 w-2">
+                                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                                </span>
+                                Oportunidades detectadas hoy
                             </div>
                         </div>
                     </motion.div>
 
-                    {/* COLUMNA DERECHA - Ocupa 5 columnas */}
-                    <div className="lg:col-span-5 flex flex-col gap-6">
+                    {/* 3. MÓDULO METRICAS */}
+                    <motion.div 
+                        initial={{ opacity: 0, y: 20 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        viewport={{ once: true }}
+                        transition={{ delay: 0.2 }}
+                        className="group relative rounded-[32px] overflow-hidden bg-white/[0.02] border border-white/10 hover:border-blue-500/30 transition-all duration-500 min-h-[240px] flex flex-col backdrop-blur-sm"
+                    >
+                         <div className="absolute inset-0 bg-gradient-to-br from-blue-900/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
 
-                        {/* 2. MÓDULO REACTIVACIÓN (Top Right) */}
-                        <motion.div 
-                            initial={{ opacity: 0, y: 20 }}
-                            whileInView={{ opacity: 1, y: 0 }}
-                            viewport={{ once: true }}
-                            transition={{ delay: 0.1 }}
-                            className="group relative rounded-[32px] overflow-hidden bg-[#0c0c0c] border border-white/10 hover:border-emerald-500/30 transition-colors duration-500 min-h-[240px] flex flex-col"
-                        >
-                            <div className="absolute inset-0 bg-gradient-to-br from-emerald-900/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
-                            
-                            <div className="relative p-8 h-full flex flex-col justify-between">
-                                <div className="flex justify-between items-start mb-2">
-                                    <div>
-                                        <h3 className="text-xl font-bold text-white">Motor de Reactivación</h3>
-                                        <p className="text-xs text-emerald-400/80 uppercase tracking-wider mt-1 font-semibold">Gestión de Retorno</p>
-                                    </div>
-                                    <div className="p-2 rounded-lg bg-emerald-950/50 border border-emerald-500/20 text-emerald-400">
-                                        <Users size={20} />
-                                    </div>
+                        <div className="relative p-8 h-full flex flex-col justify-between">
+                            <div className="flex justify-between items-start mb-2">
+                                <div>
+                                    <h3 className="text-xl font-bold text-white">Métricas de Citas</h3>
+                                    <p className="text-xs text-blue-400/80 uppercase tracking-wider mt-1 font-semibold">Dashboard CRM</p>
                                 </div>
-                                
-                                <p className="text-slate-400 text-sm mt-2">
-                                    Identifica oportunidades. La plataforma resalta quiénes son tus pacientes inactivos para que gestiones su retorno efectivamente.
-                                </p>
-                                
-                                <div className="mt-4 flex items-center gap-2 text-[10px] font-mono text-emerald-500/70 bg-emerald-500/5 px-3 py-1.5 rounded-full w-fit border border-emerald-500/10">
-                                    <span className="relative flex h-2 w-2">
-                                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                                      <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-                                    </span>
-                                    Oportunidades detectadas hoy
+                                <div className="p-2 rounded-lg bg-blue-950/30 border border-blue-500/20 text-blue-400">
+                                    <CalendarCheck size={20} />
                                 </div>
                             </div>
-                        </motion.div>
 
-                        {/* 3. MÓDULO METRICAS (Bottom Right) */}
-                        <motion.div 
-                            initial={{ opacity: 0, y: 20 }}
-                            whileInView={{ opacity: 1, y: 0 }}
-                            viewport={{ once: true }}
-                            transition={{ delay: 0.2 }}
-                            className="group relative rounded-[32px] overflow-hidden bg-[#0c0c0c] border border-white/10 hover:border-blue-500/30 transition-colors duration-500 min-h-[240px] flex flex-col"
-                        >
-                             <div className="absolute inset-0 bg-gradient-to-br from-blue-900/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
+                            <p className="text-slate-400 text-sm mt-2 mb-4">
+                                Visualiza el rendimiento mensual: Citas agendadas, pacientes nuevos vs. recurrentes y volumen de gestión.
+                            </p>
 
-                            <div className="relative p-8 h-full flex flex-col justify-between">
-                                <div className="flex justify-between items-start mb-2">
-                                    <div>
-                                        <h3 className="text-xl font-bold text-white">Métricas de Citas</h3>
-                                        <p className="text-xs text-blue-400/80 uppercase tracking-wider mt-1 font-semibold">Dashboard CRM</p>
-                                    </div>
-                                    <div className="p-2 rounded-lg bg-blue-950/50 border border-blue-500/20 text-blue-400">
-                                        <CalendarCheck size={20} />
-                                    </div>
-                                </div>
-
-                                <p className="text-slate-400 text-sm mt-2 mb-4">
-                                    Visualiza el rendimiento mensual: Citas agendadas, pacientes nuevos vs. recurrentes y volumen de gestión.
-                                </p>
-
-                                {/* Mini Chart Abstract */}
-                                <div className="flex items-end gap-1.5 h-10 w-full opacity-80 mt-auto">
-                                    <div className="w-full h-[30%] bg-white/5 rounded-t-[2px] hover:bg-blue-500/40 transition-colors duration-300" />
-                                    <div className="w-full h-[50%] bg-white/5 rounded-t-[2px] hover:bg-blue-500/40 transition-colors duration-300" />
-                                    <div className="w-full h-[40%] bg-white/5 rounded-t-[2px] hover:bg-blue-500/40 transition-colors duration-300" />
-                                    <div className="w-full h-[70%] bg-white/10 rounded-t-[2px] hover:bg-blue-500/60 transition-colors duration-300" />
-                                    <div className="w-full h-[90%] bg-gradient-to-t from-blue-600 to-blue-400 shadow-[0_0_15px_rgba(59,130,246,0.3)] rounded-t-[2px]" />
-                                </div>
+                            {/* Mini Chart Abstract */}
+                            <div className="flex items-end gap-1.5 h-10 w-full opacity-80 mt-auto">
+                                <div className="w-full h-[30%] bg-white/5 rounded-t-[2px] hover:bg-blue-500/40 transition-colors duration-300" />
+                                <div className="w-full h-[50%] bg-white/5 rounded-t-[2px] hover:bg-blue-500/40 transition-colors duration-300" />
+                                <div className="w-full h-[40%] bg-white/5 rounded-t-[2px] hover:bg-blue-500/40 transition-colors duration-300" />
+                                <div className="w-full h-[70%] bg-white/10 rounded-t-[2px] hover:bg-blue-500/60 transition-colors duration-300" />
+                                <div className="w-full h-[90%] bg-gradient-to-t from-blue-600 to-blue-400 shadow-[0_0_15px_rgba(59,130,246,0.3)] rounded-t-[2px]" />
                             </div>
-                        </motion.div>
+                        </div>
+                    </motion.div>
 
-                    </div>
                 </div>
             </div>
         </section>
