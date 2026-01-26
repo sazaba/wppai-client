@@ -87,7 +87,7 @@ const testimonials = [
   {
     name: "Dr. Camilo Restrepo",
     role: "Ortodoncista",
-    text: "Lo que más me voló la cabeza fue el dashboard. Ver exactamente cuántos pacientes inactivos tengo y que la IA los contacte sola es otro nivel de negocio.",
+    text: "Antes, mi secretaria pasaba 3 horas al día llamando para confirmar citas. Ahora, el sistema envía recordatorios automáticos por WhatsApp 24 horas antes y procesa las confirmaciones solo. Es como tener un empleado extra que nunca se cansa.",
     metric: "95% Confirmación",
     avatar: "CR",
     color: "from-purple-600 to-indigo-500",
