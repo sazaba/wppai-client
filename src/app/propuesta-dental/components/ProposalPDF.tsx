@@ -1,146 +1,205 @@
 /* src/components/ProposalPDF.tsx */
 import React from 'react';
-import { Document, Page, Text, View, Image, StyleSheet, Font } from '@react-pdf/renderer';
+import { Document, Page, Text, View, Image, StyleSheet } from '@react-pdf/renderer';
 
-// Definimos estilos (CSS-in-JS para PDF)
 const styles = StyleSheet.create({
   page: {
-    flexDirection: 'column',
-    backgroundColor: '#050505', // Fondo oscuro
-    padding: 40,
-    color: '#E2E8F0', // Texto claro
+    padding: 50,
+    backgroundColor: '#050505',
+    color: '#F8FAFC',
     fontFamily: 'Helvetica',
   },
   header: {
-    marginBottom: 30,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F59E0B', // Dorado (Amber-500)
-    paddingBottom: 20,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    marginBottom: 40,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F59E0B',
+    paddingBottom: 20,
   },
   logo: {
-    width: 100, // Ajusta según necesites
+    width: 120,
     height: 'auto',
   },
-  title: {
-    fontSize: 24,
+  proposalInfo: {
+    textAlign: 'right',
+  },
+  mainTitle: {
+    fontSize: 26,
+    fontWeight: 'bold',
     color: '#FFFFFF',
-    marginBottom: 10,
+    marginBottom: 4,
+  },
+  tagline: {
+    fontSize: 10,
+    color: '#F59E0B',
+    textTransform: 'uppercase',
+    letterSpacing: 1.5,
+  },
+  sectionTitle: {
+    fontSize: 14,
+    color: '#F59E0B',
+    marginBottom: 15,
+    marginTop: 20,
     fontWeight: 'bold',
     textTransform: 'uppercase',
   },
-  subtitle: {
-    fontSize: 12,
-    color: '#F59E0B', // Dorado
+  description: {
+    fontSize: 11,
+    color: '#94A3B8',
+    lineHeight: 1.6,
     marginBottom: 20,
-    letterSpacing: 2,
-    textTransform: 'uppercase',
   },
-  section: {
-    margin: 10,
-    padding: 10,
+  // Bento-style grid for features
+  grid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    marginBottom: 30,
   },
-  priceBox: {
+  gridItem: {
+    width: '48%',
+    padding: 12,
+    backgroundColor: '#111111',
+    borderRadius: 6,
+    borderLeftWidth: 2,
+    borderLeftColor: '#3B82F6',
+  },
+  gridTitle: {
+    fontSize: 10,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    marginBottom: 4,
+  },
+  gridText: {
+    fontSize: 9,
+    color: '#94A3B8',
+  },
+  priceSection: {
+    backgroundColor: '#0F172A',
+    borderRadius: 12,
+    padding: 30,
+    alignItems: 'center',
     marginVertical: 20,
-    padding: 20,
     borderWidth: 1,
     borderColor: '#F59E0B',
-    borderRadius: 8,
-    alignItems: 'center',
-    backgroundColor: '#111111',
   },
   priceAmount: {
-    fontSize: 36,
-    color: '#FFFFFF',
+    fontSize: 42,
     fontWeight: 'bold',
+    color: '#FFFFFF',
   },
-  priceLabel: {
+  priceSub: {
     fontSize: 12,
-    color: '#9CA3AF',
+    color: '#F59E0B',
     marginTop: 5,
   },
-  bulletPoint: {
+  bullet: {
     flexDirection: 'row',
     marginBottom: 8,
+    alignItems: 'center',
+  },
+  bulletDot: {
+    width: 4,
+    height: 4,
+    backgroundColor: '#F59E0B',
+    marginRight: 10,
+    borderRadius: 2,
   },
   bulletText: {
-    fontSize: 12,
+    fontSize: 11,
     color: '#CBD5E1',
-    marginLeft: 10,
   },
   footer: {
     position: 'absolute',
-    bottom: 30,
-    left: 40,
-    right: 40,
-    textAlign: 'center',
-    color: '#64748B',
-    fontSize: 10,
+    bottom: 40,
+    left: 50,
+    right: 50,
     borderTopWidth: 1,
-    borderTopColor: '#333',
-    paddingTop: 10,
+    borderTopColor: '#1E293B',
+    paddingTop: 15,
+    textAlign: 'center',
   },
+  footerText: {
+    fontSize: 8,
+    color: '#475569',
+  }
 });
 
-// Importante: Recibimos el objeto de la imagen importada como prop
 interface ProposalPDFProps {
-  logoSrc: string; // Recibirá la ruta del logo
+  logoSrc: string;
 }
 
 const ProposalPDF: React.FC<ProposalPDFProps> = ({ logoSrc }) => (
   <Document>
     <Page size="A4" style={styles.page}>
       
-      {/* HEADER CON LOGO */}
+      {/* HEADER */}
       <View style={styles.header}>
         <View>
-            <Text style={styles.title}>Propuesta Comercial</Text>
-            <Text style={{ fontSize: 10, color: '#aaa' }}>Automatización Clínica</Text>
+          <Text style={styles.mainTitle}>PROPUESTA ELITE</Text>
+          <Text style={styles.tagline}>Inteligencia Artificial Odontológica</Text>
         </View>
-        {/* Aquí renderizamos el logo de Wasaaa */}
-        {/* Nota: react-pdf prefiere rutas strings o urls */}
         <Image style={styles.logo} src={logoSrc} />
       </View>
 
-      {/* CUERPO */}
-      <View style={styles.section}>
-        <Text style={styles.subtitle}>Plan Élite Odontológico</Text>
-        <Text style={{ fontSize: 12, marginBottom: 10, lineHeight: 1.5 }}>
-          Transforme la gestión de su clínica con nuestra solución de Inteligencia Artificial especializada.
-        </Text>
+      {/* INTRODUCCIÓN */}
+      <Text style={styles.sectionTitle}>Resumen de la Solución</Text>
+      <Text style={styles.description}>
+        Implementación de un ecosistema digital diseñado para automatizar la captación, 
+        agendamiento y retención de pacientes, eliminando la carga operativa manual y 
+        optimizando el flujo de caja de la clínica.
+      </Text>
 
-        {/* CAJA DE PRECIO */}
-        <View style={styles.priceBox}>
-            <Text style={styles.priceAmount}>$ 250.000</Text>
-            <Text style={styles.priceLabel}>COP / Mensual</Text>
+      {/* PILARES OPERATIVOS (Extraídos de tu page.tsx) */}
+      <View style={styles.grid}>
+        <View style={styles.gridItem}>
+          <Text style={styles.gridTitle}>Recepcionista IA 24/7</Text>
+          <Text style={styles.gridText}>Atención inmediata en WhatsApp con terminología experta.</Text>
         </View>
+        <View style={styles.gridItem}>
+          <Text style={styles.gridTitle}>Agenda Inteligente</Text>
+          <Text style={styles.gridText}>Confirmación automática y gestión de ausentismo.</Text>
+        </View>
+        <View style={styles.gridItem}>
+          <Text style={styles.gridTitle}>Dashboard de Métricas</Text>
+          <Text style={styles.gridText}>Control absoluto de pacientes nuevos e inactivos.</Text>
+        </View>
+        <View style={styles.gridItem}>
+          <Text style={styles.gridTitle}>Motor de Reactivación</Text>
+          <Text style={styles.gridText}>Identificación de oportunidades de retorno de pacientes.</Text>
+        </View>
+      </View>
 
-        {/* LISTA DE BENEFICIOS */}
-        <View style={{ marginTop: 20 }}>
-            <Text style={{ ...styles.subtitle, color: '#fff', fontSize: 14, marginBottom: 15 }}>
-                INCLUYE:
-            </Text>
-            {[
-                "300 Conversaciones IA Premium al mes",
-                "Agenda Inteligente & Confirmación WhatsApp",
-                "Dashboard de Métricas & Reactivación",
-                "Soporte Técnico Prioritario",
-                "Sin Cláusulas de Permanencia"
-            ].map((item, i) => (
-                <View key={i} style={styles.bulletPoint}>
-                    <Text style={{ color: '#F59E0B' }}>•</Text>
-                    <Text style={styles.bulletText}>{item}</Text>
-                </View>
-            ))}
-        </View>
+      {/* INVERSIÓN MENSUAL */}
+      <View style={styles.priceSection}>
+        <Text style={{ fontSize: 10, color: '#94A3B8', marginBottom: 10 }}>INVERSIÓN MENSUAL</Text>
+        <Text style={styles.priceAmount}>$ 250.000</Text>
+        <Text style={styles.priceSub}>Pesos Colombianos (COP)</Text>
+      </View>
+
+      {/* DETALLES DEL PLAN */}
+      <Text style={styles.sectionTitle}>Beneficios Incluidos</Text>
+      <View>
+        {[
+          "300 Conversaciones IA Premium mensuales",
+          "Recargas adicionales con 80% de descuento",
+          "Gestión multi-doctor y multi-sede",
+          "Soporte técnico prioritario y actualizaciones",
+          "Sin cláusulas de permanencia"
+        ].map((benefit, i) => (
+          <View key={i} style={styles.bullet}>
+            <View style={styles.bulletDot} />
+            <Text style={styles.bulletText}>{benefit}</Text>
+          </View>
+        ))}
       </View>
 
       {/* FOOTER */}
       <View style={styles.footer}>
-        <Text>Documento generado automáticamente por el sistema.</Text>
-        <Text>Este documento es una oferta comercial válida por 15 días.</Text>
+        <Text style={styles.footerText}>Wasaaa AI - Automatización Clínica Profesional</Text>
+        <Text style={styles.footerText}>Válido por 15 días a partir de la fecha de descarga.</Text>
       </View>
     </Page>
   </Document>
