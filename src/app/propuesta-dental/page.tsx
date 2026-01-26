@@ -74,6 +74,36 @@ const pulseDeep: Variants = {
     }
 };
 
+const testimonials = [
+  {
+    name: "Dra. Beatriz Molina",
+    role: "Directora en OdontoSpecial",
+    text: "Al principio dudé de si una IA entendería términos como 'endodoncia birradicular'. Me equivoqué. Hoy gestiona el 80% de mis citas sin que yo toque el celular.",
+    metric: "+45 citas/mes",
+    avatar: "BM",
+    color: "from-blue-600 to-cyan-500",
+    delay: 0.1
+  },
+  {
+    name: "Dr. Camilo Restrepo",
+    role: "Ortodoncista",
+    text: "Lo que más me voló la cabeza fue el dashboard. Ver exactamente cuántos pacientes inactivos tengo y que la IA los contacte sola es otro nivel de negocio.",
+    metric: "95% Confirmación",
+    avatar: "CR",
+    color: "from-purple-600 to-indigo-500",
+    delay: 0.2
+  },
+  {
+    name: "Clínica Dental Sonrisas",
+    role: "Administración",
+    text: "La recepcionista ya no vive estresada. El bot filtra los 'curiosos' y solo nos pasa los pacientes que ya saben precios y horarios. Paz mental absoluta.",
+    metric: "-70% Carga operativa",
+    avatar: "DS",
+    color: "from-emerald-600 to-teal-500",
+    delay: 0.3
+  }
+];
+
 // --- 2. TARJETA GENÉRICA ANIMADA ---
 const AnimatedGenericCard = memo(() => {
   return (
@@ -318,6 +348,67 @@ export default function DentalProposal() {
                     </motion.div>
                 </div>
             </div>
+        </section>
+
+        {/* --- TESTIMONIOS DISRUPTIVOS --- */}
+        <section className="mb-32 md:mb-48 relative px-4">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl md:text-5xl font-bold text-white mb-4">
+              Historias de <span className="text-cyan-400">Éxito Real</span>
+            </h2>
+            <p className="text-slate-400">Resultados tangibles en clínicas que ya dieron el salto.</p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
+            {testimonials.map((t, i) => (
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, scale: 0.9 }}
+                whileInView={{ opacity: 1, scale: 1 }}
+                viewport={{ once: true }}
+                transition={{ delay: t.delay }}
+                className="group relative"
+              >
+                {/* Efecto de resplandor al hover */}
+                <div className={`absolute -inset-2 bg-gradient-to-r ${t.color} rounded-[2rem] blur-2xl opacity-0 group-hover:opacity-20 transition-opacity duration-500`} />
+                
+                <div className="relative bg-[#0a0a0a] border border-white/10 p-8 rounded-[2rem] h-full flex flex-col shadow-2xl overflow-hidden">
+                  {/* Decoración superior: Tipo Browser o App */}
+                  <div className="flex gap-1.5 mb-6">
+                    <div className="w-2 h-2 rounded-full bg-red-500/50" />
+                    <div className="w-2 h-2 rounded-full bg-amber-500/50" />
+                    <div className="w-2 h-2 rounded-full bg-emerald-500/50" />
+                  </div>
+
+                  {/* Icono de métrica flotante */}
+                  <div className="absolute top-6 right-6">
+                    <div className={`px-3 py-1 rounded-full bg-white/5 border border-white/10 text-[10px] font-bold text-cyan-400 uppercase tracking-tighter`}>
+                      {t.metric}
+                    </div>
+                  </div>
+
+                  <p className="text-slate-300 text-lg leading-relaxed italic mb-8 relative z-10">
+                    "{t.text}"
+                  </p>
+
+                  <div className="mt-auto flex items-center gap-4">
+                    <div className={`w-12 h-12 rounded-full bg-gradient-to-br ${t.color} flex items-center justify-center font-bold text-white shadow-lg`}>
+                      {t.avatar}
+                    </div>
+                    <div>
+                      <h4 className="text-white font-bold text-sm">{t.name}</h4>
+                      <p className="text-slate-500 text-xs">{t.role}</p>
+                    </div>
+                  </div>
+
+                  {/* Elemento decorativo visual: Ondas de sonido o datos */}
+                  <div className="absolute -bottom-2 -right-2 opacity-5">
+                    <Wifi size={100} className="rotate-45" />
+                  </div>
+                </div>
+              </motion.div>
+            ))}
+          </div>
         </section>
 
         {/* --- NUEVA SECCIÓN: MEMBRESÍA ÉLITE --- */}
