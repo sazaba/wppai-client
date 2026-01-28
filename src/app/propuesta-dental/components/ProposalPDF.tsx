@@ -22,9 +22,6 @@ const styles = StyleSheet.create({
     width: 120,
     height: 'auto',
   },
-  proposalInfo: {
-    textAlign: 'right',
-  },
   mainTitle: {
     fontSize: 26,
     fontWeight: 'bold',
@@ -51,7 +48,6 @@ const styles = StyleSheet.create({
     lineHeight: 1.6,
     marginBottom: 20,
   },
-  // Bento-style grid for features
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -141,7 +137,8 @@ const ProposalPDF: React.FC<ProposalPDFProps> = ({ logoSrc }) => (
           <Text style={styles.mainTitle}>PROPUESTA ELITE</Text>
           <Text style={styles.tagline}>Inteligencia Artificial Odontológica</Text>
         </View>
-        <Image style={styles.logo} src={logoSrc} />
+        {/* Validamos que exista logoSrc antes de renderizar para evitar errores de PDF vacíos */}
+        {logoSrc && <Image style={styles.logo} src={logoSrc} />}
       </View>
 
       {/* INTRODUCCIÓN */}
@@ -152,7 +149,7 @@ const ProposalPDF: React.FC<ProposalPDFProps> = ({ logoSrc }) => (
         optimizando el flujo de caja de la clínica.
       </Text>
 
-      {/* PILARES OPERATIVOS (Extraídos de tu page.tsx) */}
+      {/* PILARES OPERATIVOS */}
       <View style={styles.grid}>
         <View style={styles.gridItem}>
           <Text style={styles.gridTitle}>Recepcionista IA 24/7</Text>

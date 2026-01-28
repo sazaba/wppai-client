@@ -1,38 +1,40 @@
 'use client'
 
-import React from 'react';
+import React, { memo } from 'react';
 import { ChevronLeft, ChevronRight, Plus, Users } from 'lucide-react';
 
-export default function CalendarVisual() {
-  // Datos simulados (Simplificados para renderizado visual)
-  const days = [
-    { day: 29, status: 'fuera', citas: 0 },
-    { day: 30, status: 'fuera', citas: 0 },
-    { day: 31, status: 'fuera', citas: 0 },
-    { day: 1, status: 'active', citas: 0 },
-    { day: 2, status: 'active', citas: 0 },
-    { day: 3, status: 'active', citas: 0 },
-    { day: 4, status: 'active', citas: 0 },
-    { day: 5, status: 'active', citas: 0 },
-    { day: 6, status: 'active', citas: 0 },
-    { day: 7, status: 'active', citas: 0 },
-    { day: 8, status: 'active', citas: 0 },
-    { day: 9, status: 'active', citas: 0 },
-    { day: 10, status: 'active', citas: 0 },
-    { day: 11, status: 'active', citas: 0 },
-    { day: 12, status: 'active', citas: 0 },
-    { day: 13, status: 'active', citas: 0 },
-    { day: 14, status: 'active', citas: 2, hasAppointment: true }, // Día con cita
-    { day: 15, status: 'active', citas: 0 },
-    { day: 16, status: 'active', citas: 0 },
-    { day: 17, status: 'active', citas: 0 },
-    { day: 18, status: 'active', citas: 0 },
-  ];
+// --- DATOS ESTÁTICOS (Fuera del render para ahorrar memoria) ---
+const DAYS_DATA = [
+  { day: 29, status: 'fuera', citas: 0 },
+  { day: 30, status: 'fuera', citas: 0 },
+  { day: 31, status: 'fuera', citas: 0 },
+  { day: 1, status: 'active', citas: 0 },
+  { day: 2, status: 'active', citas: 0 },
+  { day: 3, status: 'active', citas: 0 },
+  { day: 4, status: 'active', citas: 0 },
+  { day: 5, status: 'active', citas: 0 },
+  { day: 6, status: 'active', citas: 0 },
+  { day: 7, status: 'active', citas: 0 },
+  { day: 8, status: 'active', citas: 0 },
+  { day: 9, status: 'active', citas: 0 },
+  { day: 10, status: 'active', citas: 0 },
+  { day: 11, status: 'active', citas: 0 },
+  { day: 12, status: 'active', citas: 0 },
+  { day: 13, status: 'active', citas: 0 },
+  { day: 14, status: 'active', citas: 2, hasAppointment: true }, // Día con cita
+  { day: 15, status: 'active', citas: 0 },
+  { day: 16, status: 'active', citas: 0 },
+  { day: 17, status: 'active', citas: 0 },
+  { day: 18, status: 'active', citas: 0 },
+];
 
+const WEEK_DAYS = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
+
+const CalendarVisual = memo(() => {
   return (
-    <div className="w-full h-full flex items-center justify-center p-2 sm:p-4">
-        {/* Contenedor Principal: w-full para adaptarse a la columna */}
-        <div className="w-full bg-[#0F1115] border border-white/10 rounded-3xl overflow-hidden shadow-2xl flex flex-col">
+    <div className="w-full h-full flex items-center justify-center p-2 sm:p-4 transform-gpu">
+        {/* Contenedor Principal */}
+        <div className="w-full bg-[#0F1115] border border-white/10 rounded-3xl overflow-hidden shadow-2xl flex flex-col will-change-transform">
             
             {/* Header de la Agenda */}
             <div className="flex flex-col xl:flex-row justify-between items-center p-4 sm:p-6 border-b border-white/5 bg-[#14171F] gap-4">
@@ -66,16 +68,14 @@ export default function CalendarVisual() {
             <div className="p-3 sm:p-5 bg-[#0B0D11]">
                 {/* Días de la semana */}
                 <div className="grid grid-cols-7 gap-1 sm:gap-2 mb-2 text-gray-500 text-[10px] font-medium uppercase tracking-wider text-center">
-                    {['L', 'M', 'M', 'J', 'V', 'S', 'D'].map(d => <div key={d}>{d}</div>)}
+                    {WEEK_DAYS.map(d => <div key={d}>{d}</div>)}
                 </div>
 
                 {/* Días numéricos - Grid Fluido */}
                 <div className="grid grid-cols-7 gap-1.5 sm:gap-2">
-                    {days.map((d, i) => (
+                    {DAYS_DATA.map((d, i) => (
                         <div 
                             key={i} 
-                            // aspect-square asegura que sean cuadrados perfectos sin importar el ancho
-                            // min-h-[80px] evita que se aplasten demasiado en móviles
                             className={`
                                 relative aspect-[4/5] sm:aspect-square p-1.5 sm:p-2 rounded-lg sm:rounded-xl border transition-all duration-300 group flex flex-col justify-between
                                 ${d.hasAppointment 
@@ -91,7 +91,6 @@ export default function CalendarVisual() {
                                 )}
                             </div>
 
-                            {/* Contenido Central (Solo visible si hay espacio) */}
                             <div className="flex-1 flex flex-col justify-center gap-1">
                                 {d.citas > 0 ? (
                                     <div className="px-1.5 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[9px] sm:text-[10px] font-medium truncate text-center">
@@ -104,7 +103,6 @@ export default function CalendarVisual() {
                                 )}
                             </div>
                             
-                            {/* Texto inferior */}
                              <div className="text-[8px] sm:text-[9px] text-gray-600 font-medium text-center opacity-0 group-hover:opacity-100 transition-opacity hidden sm:block">
                                 +
                             </div>
@@ -115,4 +113,7 @@ export default function CalendarVisual() {
         </div>
     </div>
   )
-}
+});
+
+CalendarVisual.displayName = 'CalendarVisual';
+export default CalendarVisual;
