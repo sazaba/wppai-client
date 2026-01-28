@@ -13,33 +13,36 @@ import amex from '../images/american-express.webp';
 import mastercard from '../images/mastercard-logo.webp';
 import wasaaaLogo from '../images/Logo-Wasaaa.webp';
 
-// --- IMPORTACIÓN DE COMPONENTES ---
-import CalendarVisual from './components/CalendarVisual'; 
-import DentalChatAnimation from './components/DentalChatAnimation';
+// --- IMPORTACIÓN DINÁMICA (LA CLAVE PARA SAFARI) ---
+// Al usar 'dynamic' con 'ssr: false', estos componentes NO se cargan en el servidor.
+// El navegador descarga el HTML ligero primero, pinta la pantalla, y LUEGO hidrata esto.
 
-// --- IMPORTACIÓN DINÁMICA DEL BOTÓN ---
+const CalendarVisual = dynamic(() => import('./components/CalendarVisual'), {
+  ssr: false,
+  loading: () => (
+    // Placeholder que reserva el espacio exacto para evitar saltos (CLS)
+    <div className="w-full max-w-xl h-[350px] bg-white/5 border border-white/5 rounded-3xl animate-pulse mx-auto" />
+  )
+});
+
+const DentalChatAnimation = dynamic(() => import('./components/DentalChatAnimation'), {
+  ssr: false,
+  loading: () => (
+    // Placeholder con forma de celular
+    <div className="w-[300px] h-[580px] bg-zinc-900 rounded-[3.5rem] border-4 border-zinc-800 animate-pulse mx-auto opacity-50" />
+  )
+});
+
 const DownloadButton = dynamic(() => import('./components/DownloadButton'), {
   ssr: false,
   loading: () => <span className="text-xs text-slate-500 animate-pulse">Cargando opción de descarga...</span>,
 });
 
-// --- CONSTANTES DE DATOS ---
+// --- CONSTANTES ---
 const TESTIMONIALS = [
-  {
-    name: "Dra. Beatriz Molina", role: "Directora en OdontoSpecial",
-    text: "Al principio dudé de si una IA entendería términos como 'endodoncia birradicular'. Me equivoqué. Hoy gestiona el 80% de mis citas sin que yo toque el celular.",
-    metric: "+45 citas/mes", avatar: "BM", color: "from-blue-600 to-cyan-500", delay: 0.1
-  },
-  {
-    name: "Dr. Camilo Restrepo", role: "Ortodoncista",
-    text: "Antes, mi secretaria pasaba 3 horas al día llamando. Ahora, el sistema envía recordatorios y procesa confirmaciones. Es como tener un empleado extra que nunca se cansa.",
-    metric: "95% Confirmación", avatar: "CR", color: "from-purple-600 to-indigo-500", delay: 0.2
-  },
-  {
-    name: "Clínica Dental Sonrisas", role: "Administración",
-    text: "La recepcionista ya no vive estresada. El bot filtra los 'curiosos' y solo nos pasa los pacientes que ya saben precios y horarios. Paz mental absoluta.",
-    metric: "-70% Carga operativa", avatar: "DS", color: "from-emerald-600 to-teal-500", delay: 0.3
-  }
+  { name: "Dra. Beatriz Molina", role: "Directora en OdontoSpecial", text: "Al principio dudé de si una IA entendería términos como 'endodoncia birradicular'. Me equivoqué. Hoy gestiona el 80% de mis citas.", metric: "+45 citas/mes", avatar: "BM", color: "from-blue-600 to-cyan-500", delay: 0.1 },
+  { name: "Dr. Camilo Restrepo", role: "Ortodoncista", text: "Antes, mi secretaria pasaba 3 horas al día llamando. Ahora, el sistema envía recordatorios y procesa confirmaciones solo.", metric: "95% Confirmación", avatar: "CR", color: "from-purple-600 to-indigo-500", delay: 0.2 },
+  { name: "Clínica Dental Sonrisas", role: "Administración", text: "La recepcionista ya no vive estresada. El bot filtra los 'curiosos' y solo nos pasa los pacientes que ya saben precios.", metric: "-70% Carga", avatar: "DS", color: "from-emerald-600 to-teal-500", delay: 0.3 }
 ];
 
 const MOCK_PATIENTS = [
@@ -49,15 +52,7 @@ const MOCK_PATIENTS = [
     { initials: "JL", name: "Jorge López", procedure: "Profilaxis", date: "Hace 1sem", color: "bg-emerald-500/20 text-emerald-300 font-bold" },
 ];
 
-// --- VARIANTES DE ANIMACIÓN ---
-const drawVariants: Variants = {
-  hidden: { pathLength: 0, opacity: 0 },
-  visible: (i = 1) => ({
-    pathLength: 1, opacity: 1,
-    transition: { pathLength: { delay: i * 0.2, type: "spring", duration: 1.5, bounce: 0 }, opacity: { delay: i * 0.2, duration: 0.01 } }
-  })
-};
-
+// --- VARIANTES FRAMER MOTION (Solo para scroll) ---
 const fadeInUp: Variants = {
   hidden: { opacity: 0, y: 15 },
   visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: "easeOut" } }
@@ -84,7 +79,15 @@ const pulseDeep: Variants = {
     }
 };
 
-// --- TARJETA GENÉRICA ANIMADA ---
+const drawVariants: Variants = {
+  hidden: { pathLength: 0, opacity: 0 },
+  visible: (i = 1) => ({
+    pathLength: 1, opacity: 1,
+    transition: { pathLength: { delay: i * 0.2, type: "spring", duration: 1.5, bounce: 0 }, opacity: { delay: i * 0.2, duration: 0.01 } }
+  })
+};
+
+// --- TARJETA GENÉRICA MEMOIZADA ---
 const AnimatedGenericCard = memo(() => {
   return (
     <div className="w-full max-w-[320px] md:max-w-[360px] mx-auto relative group perspective-1000">
@@ -145,11 +148,9 @@ export default function DentalProposal() {
   return (
     <main className="min-h-screen bg-[#050505] text-slate-200 selection:bg-cyan-500 selection:text-black font-sans overflow-x-hidden relative transform-gpu">
       
-      {/* Navbar Background Fix */}
-      <div className="absolute top-0 left-0 right-0 h-[500px] bg-gradient-to-b from-slate-900/90 via-[#050505] to-[#050505] z-0 pointer-events-none" />
-      
-      {/* Background Glows */}
+      {/* Background Glows (Optimizados con will-change) */}
       <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden will-change-transform">
+        <div className="absolute top-0 left-0 right-0 h-[500px] bg-gradient-to-b from-slate-900/90 via-[#050505] to-[#050505]" />
         <div className="absolute top-[10%] left-[0%] w-[250px] md:w-[600px] h-[250px] md:h-[600px] bg-cyan-900/10 rounded-full blur-[60px] md:blur-[120px] opacity-40 transform-gpu translate-z-0" />
         <div className="absolute bottom-[20%] right-[0%] w-[200px] md:w-[500px] h-[200px] md:h-[500px] bg-purple-900/10 rounded-full blur-[60px] md:blur-[128px] opacity-40 transform-gpu translate-z-0" />
       </div>
@@ -170,12 +171,12 @@ export default function DentalProposal() {
           </p>
         </section>
 
-        {/* --- FEATURE 1 --- */}
+        {/* --- FEATURE 1 (Chat Lazy Loaded) --- */}
         <motion.section 
           initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-50px" }} variants={staggerContainer}
-          className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center mb-32 md:mb-48"
+          className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center mb-32 md:mb-48 content-visibility-auto"
         >
-            <motion.div variants={fadeInUp} className="order-2 lg:order-1 relative flex justify-center transform-gpu">
+            <motion.div variants={fadeInUp} className="order-2 lg:order-1 relative flex justify-center transform-gpu min-h-[580px]">
                 <div className="absolute inset-0 bg-indigo-500/10 blur-[50px] md:blur-[90px] rounded-full" />
                 <div className="relative w-full max-w-[350px] md:max-w-none transform scale-100 lg:scale-110 transition-transform duration-700">
                     <DentalChatAnimation/>
@@ -197,10 +198,10 @@ export default function DentalProposal() {
             </motion.div>
         </motion.section>
 
-        {/* --- FEATURE 2 --- */}
+        {/* --- FEATURE 2 (Calendar Lazy Loaded) --- */}
         <motion.section 
           initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-50px" }} variants={staggerContainer}
-          className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center mb-32 md:mb-48"
+          className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center mb-32 md:mb-48 content-visibility-auto"
         >
             <motion.div variants={fadeInUp} className="order-1 flex flex-col items-center text-center px-2">
                 <div className="w-12 h-12 md:w-14 md:h-14 rounded-2xl bg-gradient-to-br from-purple-500 to-pink-600 flex items-center justify-center mb-6 md:mb-8 shadow-lg shadow-purple-500/30 mx-auto">
@@ -223,7 +224,7 @@ export default function DentalProposal() {
         </motion.section>
 
         {/* --- FEATURE 3 (BENTO GRID) --- */}
-        <section className="mb-32 md:mb-40 relative">
+        <section className="mb-32 md:mb-40 relative content-visibility-auto">
             <div className="absolute top-0 left-[-20%] w-[300px] md:w-[600px] h-[300px] md:h-[600px] bg-purple-600/10 blur-[80px] md:blur-[130px] rounded-full -z-10 pointer-events-none transform-gpu translate-z-0" />
             <div className="absolute bottom-0 right-[-20%] w-[300px] md:w-[600px] h-[300px] md:h-[600px] bg-blue-500/10 blur-[80px] md:blur-[130px] rounded-full -z-10 pointer-events-none transform-gpu translate-z-0" />
 
@@ -306,8 +307,8 @@ export default function DentalProposal() {
             </div>
         </section>
 
-        {/* --- TESTIMONIOS --- */}
-        <section className="mb-32 md:mb-48 relative px-4">
+        {/* --- TESTIMONIOS DISRUPTIVOS --- */}
+        <section className="mb-32 md:mb-48 relative px-4 content-visibility-auto">
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-5xl font-bold text-white mb-4">
               Historias de <span className="text-cyan-400">Éxito Real</span>
@@ -342,25 +343,52 @@ export default function DentalProposal() {
           </div>
         </section>
 
-        {/* --- MEMBRESÍA & DOWNLOAD --- */}
+        {/* --- NUEVA SECCIÓN: MEMBRESÍA ÉLITE --- */}
         <motion.section 
           initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={fadeInUp}
-          className="relative mb-32 md:mb-40 max-w-4xl mx-auto px-2"
+          className="relative mb-32 md:mb-40 max-w-4xl mx-auto px-2 content-visibility-auto"
         >
           <div className="relative rounded-[32px] overflow-hidden border border-amber-500/20 bg-[#080808] shadow-[0_0_60px_-15px_rgba(217,119,6,0.15)] group p-5 md:p-12">
+            
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(251,191,36,0.1),transparent_50%)] pointer-events-none" />
+            <div className="absolute inset-0 bg-[linear-gradient(45deg,rgba(251,191,36,0.03)_1px,transparent_1px)] bg-[size:20px_20px] opacity-20 pointer-events-none" />
+            
             <div className="relative flex flex-col items-center text-center z-10">
               <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-amber-950/30 border border-amber-500/30 text-amber-200 text-sm font-bold mb-8 shadow-[0_0_15px_rgba(251,191,36,0.1)]">
                 <Sparkles size={16} className="fill-amber-200 text-amber-400" /> Plan Premium Todo Incluido
               </div>
+
               <div className="flex items-start justify-center gap-1 mb-2">
                 <span className="text-2xl md:text-3xl font-bold text-amber-500 mt-2">$</span>
                 <h3 className="text-5xl md:text-6xl font-extrabold text-transparent bg-clip-text bg-gradient-to-b from-amber-200 via-amber-400 to-amber-600 tracking-tight drop-shadow-sm">250.000</h3>
               </div>
               <p className="text-xl text-amber-200/60 font-normal mb-6">COP/mes</p>
-              
-              {/* Tarjetas de Crédito Optimizadas (sizes added) */}
-              <div className="w-full pt-8 border-t border-white/5 flex flex-col items-center gap-8 mt-10">
+              <p className="text-slate-300 mb-10 max-w-md mx-auto text-lg">Diseñado para <strong>clínicas odontológicas</strong> y negocios de alto flujo que no pueden perder ni un solo paciente.</p>
+
+              {/* Lista de Beneficios */}
+              <div className="w-full max-w-2xl mb-12 text-left p-6 md:p-8 rounded-2xl bg-amber-900/5 border border-amber-500/10 backdrop-blur-sm">
+                <div className="flex items-center gap-2 mb-6">
+                  <Zap className="text-amber-500 fill-amber-500/20" size={20} />
+                  <h4 className="text-lg font-bold text-white">Lo que incluye tu membresía:</h4>
+                </div>
+                <div className="grid gap-4">
+                  <div className="flex items-start gap-3 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20">
+                    <CheckCircle2 className="text-amber-400 shrink-0 mt-0.5" size={20} />
+                    <div><span className="text-base md:text-lg font-bold text-white block">300 Conversaciones Premium</span><span className="text-sm text-slate-400">Incluidas cada mes con IA avanzada.</span></div>
+                  </div>
+                  <div className="flex items-start gap-3 p-3 rounded-xl bg-amber-500/5 border border-amber-500/20 relative overflow-hidden">
+                    <div className="absolute top-0 right-0 bg-amber-500 text-black text-[10px] font-bold px-2 py-0.5 rounded-bl-lg">AHORRO</div>
+                    <CheckCircle2 className="text-amber-400 shrink-0 mt-0.5" size={20} />
+                    <div><span className="text-base md:text-lg font-bold text-white block">Recargas con 80% OFF</span><span className="text-sm text-slate-400">Si necesitas más, paga una fracción del costo.</span></div>
+                  </div>
+                  {["Dashboard de métricas avanzado", "Agenda y confirmación de citas", "Soporte técnico prioritario", "Actualizaciones Semanales", "Sin contratos forzosos"].map((feature, i) => (
+                    <div key={i} className="flex items-center gap-3 text-slate-300 px-3"><CheckCircle2 className="text-amber-400 shrink-0" size={18} /><span className="text-sm md:text-base font-medium">{feature}</span></div>
+                  ))}
+                </div>
+              </div>
+
+              {/* SECCIÓN PAGO: Tarjeta Genérica + Logos IMAGENES REALES */}
+              <div className="w-full pt-8 border-t border-white/5 flex flex-col items-center gap-8">
                 <AnimatedGenericCard />
                 <div className="w-full flex justify-center items-center gap-8 opacity-60 hover:opacity-100 transition-opacity duration-500">
                     <div className="h-8 w-auto relative">
@@ -375,12 +403,13 @@ export default function DentalProposal() {
                 </div>
               </div>
 
-              {/* Botón de Descarga PDF */}
+              {/* Botón de Descarga PDF (AISLADO PARA SAFARI) */}
               <div className="mt-10 min-h-[40px] w-full flex justify-center">
                   {isMounted && (
                     <DownloadButton logoSrc={wasaaaLogo.src} />
                   )}
               </div>
+
             </div>
           </div>
         </motion.section>
@@ -388,18 +417,25 @@ export default function DentalProposal() {
         {/* --- CTA FINAL --- */}
         <motion.section 
           initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.3 }} variants={fadeInUp}
-          className="relative py-20 md:py-32 group"
+          className="relative py-20 md:py-32 group content-visibility-auto"
         >
             <div className="absolute inset-0 pointer-events-none">
                 <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-full md:w-[70%] h-[200px] md:h-[300px] bg-blue-900/10 blur-[80px] md:blur-[150px] rounded-full transform-gpu translate-z-0" />
+                <motion.div variants={pulseDeep} animate="animate" className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full md:w-[80%] h-full md:h-[80%] bg-indigo-900/05 blur-[100px] md:blur-[180px] rounded-full opacity-60 transform-gpu translate-z-0"/>
             </div>
+
             <div className="relative z-10 max-w-3xl mx-auto text-center px-4 md:px-6">
                 <div className="bg-white/[0.02] backdrop-blur-lg md:backdrop-blur-2xl p-8 md:p-12 rounded-[24px] md:rounded-[32px] border border-white/10 shadow-xl shadow-black/30 relative overflow-hidden transition-all duration-500 hover:border-white/20 isolation-isolate">
+                    <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent" />
                     <h2 className="text-3xl md:text-5xl font-bold text-white mb-4 md:mb-6 tracking-tight drop-shadow-sm">¿Listo para el <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-indigo-300">Siguiente Nivel</span>?</h2>
+                    <p className="text-slate-400 max-w-xl mx-auto mb-8 md:mb-10 text-base md:text-lg leading-relaxed font-medium">Deje que la IA maneje la rutina con precisión. Recupere su tiempo y enfóquese en la excelencia clínica.</p>
                     <Link href="/register" className="relative z-10 inline-block group/btn w-full md:w-auto">
-                        <button className="relative w-full md:w-auto bg-white text-black font-bold text-base md:text-lg px-8 md:px-10 py-4 rounded-xl hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 shadow-lg shadow-blue-900/20 flex items-center justify-center gap-2 mx-auto">
-                            <Zap className="text-amber-500" size={18} /> Iniciar Transformación <ChevronRight className="group-hover/btn:translate-x-1 transition-transform text-blue-600" size={20} />
-                        </button>
+                        <div className="relative">
+                            <div className="absolute -inset-2 bg-gradient-to-r from-blue-700 to-indigo-700 rounded-2xl blur-xl opacity-30 group-hover/btn:opacity-50 transition-opacity duration-500" />
+                            <button className="relative w-full md:w-auto bg-white text-black font-bold text-base md:text-lg px-8 md:px-10 py-4 rounded-xl hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 shadow-lg shadow-blue-900/20 flex items-center justify-center gap-2 mx-auto">
+                                <Zap className="text-amber-500" size={18} /> Iniciar Transformación <ChevronRight className="group-hover/btn:translate-x-1 transition-transform text-blue-600" size={20} />
+                            </button>
+                        </div>
                     </Link>
                 </div>
             </div>
