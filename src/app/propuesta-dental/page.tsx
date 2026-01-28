@@ -13,8 +13,9 @@ import amex from '../images/american-express.webp';
 import mastercard from '../images/mastercard-logo.webp';
 import wasaaaLogo from '../images/Logo-Wasaaa.webp';
 
-// --- IMPORTACIÓN DINÁMICA (LA CLAVE PARA SAFARI) ---
-// Estos componentes se cargan "lazy" para que la página aparezca instantánea.
+// --- IMPORTACIÓN DINÁMICA (OPTIMIZADA PARA SAFARI) ---
+// ssr: false -> No se renderiza en servidor (ahorra HTML inicial)
+// loading -> Muestra un esqueleto visual inmediato para evitar saltos (CLS) y pantalla blanca
 
 const CalendarVisual = dynamic(() => import('./components/CalendarVisual'), {
   ssr: false,
@@ -26,6 +27,7 @@ const CalendarVisual = dynamic(() => import('./components/CalendarVisual'), {
 const DentalChatAnimation = dynamic(() => import('./components/DentalChatAnimation'), {
   ssr: false,
   loading: () => (
+    // Placeholder con forma de celular para mantener el layout estable
     <div className="w-[300px] h-[580px] bg-zinc-900 rounded-[3.5rem] border-4 border-zinc-800 animate-pulse mx-auto opacity-50" />
   )
 });
@@ -145,23 +147,16 @@ export default function DentalProposal() {
   return (
     <main className="min-h-screen bg-[#050505] text-slate-200 selection:bg-cyan-500 selection:text-black font-sans overflow-x-hidden relative transform-gpu">
       
-      {/* === FONDO ORIGINAL RESTAURADO (OPTIMIZADO) === 
-          Hemos mantenido tus brillos exactos pero agregamos 'transform-gpu' y 'will-change-transform'.
-          Esto le dice a Safari: "Usa la tarjeta gráfica, no el CPU", evitando la pantalla blanca.
-      */}
-      
-      {/* 1. Sombra superior del Navbar */}
-      <div className="absolute top-0 left-0 right-0 h-[500px] bg-gradient-to-b from-slate-900/90 via-[#050505] to-[#050505] z-0 pointer-events-none" />
-      
-      {/* 2. Blobs de Luz (Cian y Morado) */}
+      {/* Background Glows (Optimizados con will-change) */}
       <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden will-change-transform">
+        <div className="absolute top-0 left-0 right-0 h-[500px] bg-gradient-to-b from-slate-900/90 via-[#050505] to-[#050505]" />
         <div className="absolute top-[10%] left-[0%] w-[250px] md:w-[600px] h-[250px] md:h-[600px] bg-cyan-900/10 rounded-full blur-[60px] md:blur-[120px] opacity-40 transform-gpu translate-z-0" />
         <div className="absolute bottom-[20%] right-[0%] w-[200px] md:w-[500px] h-[200px] md:h-[500px] bg-purple-900/10 rounded-full blur-[60px] md:blur-[128px] opacity-40 transform-gpu translate-z-0" />
       </div>
 
       <div className="relative z-10 max-w-7xl mx-auto px-4 md:px-6 pt-28 md:pt-44 pb-20 md:pb-32">
         
-        {/* --- HERO SECTION (OPTIMIZADO LCP: CSS PURO) --- */}
+        {/* --- HERO SECTION (OPTIMIZADO: CSS PURO PARA LCP) --- */}
         <section className="text-center mb-24 md:mb-40 pt-10">
            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-cyan-500/20 bg-cyan-950/40 text-cyan-300 text-[10px] uppercase tracking-widest font-bold mb-6 md:mb-8 backdrop-blur-md shadow-[0_0_20px_rgba(6,182,212,0.1)] animate-fade-in-up">
             <Sparkles size={12} /> Inteligencia Artificial Odontológica
