@@ -2,8 +2,7 @@
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://wppai-server.onrender.com'
 
 const nextConfig = {
-    // 1. Evita errores en build (útil para despliegues rápidos en Vercel/Render)
-    eslint: { ignoreDuringBuilds: true },
+   
     typescript: { ignoreBuildErrors: true },
 
     // 2. OPTIMIZACIÓN DE IMÁGENES (Vital para el puntaje Speed Insights)
