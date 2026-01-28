@@ -14,13 +14,9 @@ import mastercard from '../images/mastercard-logo.webp';
 import wasaaaLogo from '../images/Logo-Wasaaa.webp';
 
 // --- IMPORTACIÓN DINÁMICA (LA CLAVE PARA SAFARI) ---
-// Al usar 'dynamic' con 'ssr: false', estos componentes NO se cargan en el servidor.
-// El navegador descarga el HTML ligero primero, pinta la pantalla, y LUEGO hidrata esto.
-
 const CalendarVisual = dynamic(() => import('./components/CalendarVisual'), {
   ssr: false,
   loading: () => (
-    // Placeholder que reserva el espacio exacto para evitar saltos (CLS)
     <div className="w-full max-w-xl h-[350px] bg-white/5 border border-white/5 rounded-3xl animate-pulse mx-auto" />
   )
 });
@@ -28,7 +24,6 @@ const CalendarVisual = dynamic(() => import('./components/CalendarVisual'), {
 const DentalChatAnimation = dynamic(() => import('./components/DentalChatAnimation'), {
   ssr: false,
   loading: () => (
-    // Placeholder con forma de celular
     <div className="w-[300px] h-[580px] bg-zinc-900 rounded-[3.5rem] border-4 border-zinc-800 animate-pulse mx-auto opacity-50" />
   )
 });
@@ -52,7 +47,7 @@ const MOCK_PATIENTS = [
     { initials: "JL", name: "Jorge López", procedure: "Profilaxis", date: "Hace 1sem", color: "bg-emerald-500/20 text-emerald-300 font-bold" },
 ];
 
-// --- VARIANTES FRAMER MOTION (Solo para scroll) ---
+// --- VARIANTES FRAMER MOTION ---
 const fadeInUp: Variants = {
   hidden: { opacity: 0, y: 15 },
   visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: "easeOut" } }
@@ -146,22 +141,17 @@ export default function DentalProposal() {
   }, []);
 
   return (
-    <main className="min-h-screen bg-[#050505] text-slate-200 selection:bg-cyan-500 selection:text-black font-sans overflow-x-hidden relative transform-gpu">
+    // Sin fondo local. Usamos el fondo del Layout.
+    <main className="min-h-screen text-slate-200 selection:bg-cyan-500 selection:text-black font-sans overflow-x-hidden relative transform-gpu">
       
-      {/* Background Glows (Optimizados con will-change) */}
-      <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden will-change-transform">
-        <div className="absolute top-0 left-0 right-0 h-[500px] bg-gradient-to-b from-slate-900/90 via-[#050505] to-[#050505]" />
-        <div className="absolute top-[10%] left-[0%] w-[250px] md:w-[600px] h-[250px] md:h-[600px] bg-cyan-900/10 rounded-full blur-[60px] md:blur-[120px] opacity-40 transform-gpu translate-z-0" />
-        <div className="absolute bottom-[20%] right-[0%] w-[200px] md:w-[500px] h-[200px] md:h-[500px] bg-purple-900/10 rounded-full blur-[60px] md:blur-[128px] opacity-40 transform-gpu translate-z-0" />
-      </div>
-
       <div className="relative z-10 max-w-7xl mx-auto px-4 md:px-6 pt-28 md:pt-44 pb-20 md:pb-32">
         
-        {/* --- HERO SECTION (OPTIMIZADO: CSS PURO PARA LCP) --- */}
+        {/* --- HERO SECTION (OPTIMIZADO LCP: CSS PURO) --- */}
         <section className="text-center mb-24 md:mb-40 pt-10">
            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-cyan-500/20 bg-cyan-950/40 text-cyan-300 text-[10px] uppercase tracking-widest font-bold mb-6 md:mb-8 backdrop-blur-md shadow-[0_0_20px_rgba(6,182,212,0.1)] animate-fade-in-up">
             <Sparkles size={12} /> Inteligencia Artificial Odontológica
           </div>
+          {/* Título sin animación JS para aparecer instantáneo */}
           <h1 className="text-4xl sm:text-5xl md:text-7xl font-bold text-white mb-6 tracking-tighter leading-[1.1] animate-fade-in-up [animation-delay:100ms] opacity-0 fill-mode-forwards">
             Automatiza tu Clínica <br className="hidden md:block" />
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">Sin Perder el Toque Humano</span>
@@ -177,7 +167,8 @@ export default function DentalProposal() {
           className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center mb-32 md:mb-48 content-visibility-auto"
         >
             <motion.div variants={fadeInUp} className="order-2 lg:order-1 relative flex justify-center transform-gpu min-h-[580px]">
-                <div className="absolute inset-0 bg-indigo-500/10 blur-[50px] md:blur-[90px] rounded-full" />
+                {/* Fondo sutil solo para esta sección si es necesario, o dejar transparente */}
+                <div className="absolute inset-0 bg-indigo-500/10 blur-[50px] md:blur-[90px] rounded-full opacity-50" />
                 <div className="relative w-full max-w-[350px] md:max-w-none transform scale-100 lg:scale-110 transition-transform duration-700">
                     <DentalChatAnimation/>
                 </div>
@@ -218,16 +209,16 @@ export default function DentalProposal() {
                 </ul>
             </motion.div>
             <motion.div variants={fadeInUp} className="order-2 relative w-full flex justify-center transform-gpu">
-                  <div className="absolute inset-0 bg-purple-500/10 blur-[50px] md:blur-[90px] rounded-full" />
+                  <div className="absolute inset-0 bg-purple-500/10 blur-[50px] md:blur-[90px] rounded-full opacity-50" />
                   <div className="w-full max-w-[350px] md:max-w-xl"><CalendarVisual /></div>
             </motion.div>
         </motion.section>
 
         {/* --- FEATURE 3 (BENTO GRID) --- */}
         <section className="mb-32 md:mb-40 relative content-visibility-auto">
-            <div className="absolute top-0 left-[-20%] w-[300px] md:w-[600px] h-[300px] md:h-[600px] bg-purple-600/10 blur-[80px] md:blur-[130px] rounded-full -z-10 pointer-events-none transform-gpu translate-z-0" />
-            <div className="absolute bottom-0 right-[-20%] w-[300px] md:w-[600px] h-[300px] md:h-[600px] bg-blue-500/10 blur-[80px] md:blur-[130px] rounded-full -z-10 pointer-events-none transform-gpu translate-z-0" />
-
+            {/* Luces locales sutiles para esta sección, no globales */}
+            <div className="absolute top-0 left-[-20%] w-[300px] h-[300px] bg-purple-600/10 blur-[80px] rounded-full pointer-events-none transform-gpu" />
+            
             <div className="text-center max-w-3xl mx-auto mb-12 md:mb-16 relative z-10 px-4">
                 <motion.div initial={{ opacity: 0, scale: 0.9 }} whileInView={{ opacity: 1, scale: 1 }} viewport={{ once: true }} className="inline-block mb-4">
                       <span className="px-3 py-1 rounded-full border border-cyan-500/30 bg-cyan-950/30 text-cyan-300 text-[10px] md:text-xs font-mono tracking-widest uppercase shadow-[0_0_15px_-3px_rgba(6,182,212,0.3)]">Core System v.2.0</span>
@@ -237,7 +228,7 @@ export default function DentalProposal() {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 md:gap-6 max-w-6xl mx-auto relative z-10">
-                <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, amount: 0.2 }} className="lg:col-span-7 group relative rounded-[24px] md:rounded-[32px] overflow-hidden bg-white/[0.03] border border-white/10 hover:border-cyan-500/30 transition-all duration-500 flex flex-col backdrop-blur-lg md:backdrop-blur-xl shadow-2xl shadow-black/20 isolation-isolate transform-gpu translate-z-0">
+                <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, amount: 0.2 }} className="lg:col-span-7 group relative rounded-[24px] md:rounded-[32px] overflow-hidden bg-white/[0.03] border border-white/10 hover:border-cyan-500/30 transition-all duration-500 flex flex-col backdrop-blur-lg shadow-2xl shadow-black/20 isolation-isolate transform-gpu translate-z-0">
                     <div className="absolute inset-0 bg-gradient-to-b from-white/[0.02] to-transparent pointer-events-none" />
                     <div className="relative p-6 md:p-10 h-full flex flex-col">
                         <div className="flex items-start justify-between mb-6 md:mb-8">
@@ -272,7 +263,7 @@ export default function DentalProposal() {
                 </motion.div>
 
                 <div className="lg:col-span-5 flex flex-col gap-4 md:gap-6">
-                    <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, amount: 0.2 }} transition={{ delay: 0.1 }} className="group relative rounded-[24px] md:rounded-[32px] overflow-hidden bg-white/[0.03] border border-white/10 hover:border-emerald-500/30 transition-all duration-500 min-h-[200px] md:min-h-[240px] flex flex-col backdrop-blur-lg md:backdrop-blur-xl shadow-2xl shadow-black/20 transform-gpu translate-z-0">
+                    <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, amount: 0.2 }} transition={{ delay: 0.1 }} className="group relative rounded-[24px] md:rounded-[32px] overflow-hidden bg-white/[0.03] border border-white/10 hover:border-emerald-500/30 transition-all duration-500 min-h-[200px] md:min-h-[240px] flex flex-col backdrop-blur-lg shadow-2xl shadow-black/20 transform-gpu translate-z-0">
                         <div className="absolute inset-0 bg-gradient-to-br from-emerald-900/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
                         <div className="relative p-6 md:p-8 h-full flex flex-col justify-between">
                             <div className="flex justify-between items-start mb-2">
@@ -286,7 +277,7 @@ export default function DentalProposal() {
                         </div>
                     </motion.div>
 
-                    <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, amount: 0.2 }} transition={{ delay: 0.2 }} className="group relative rounded-[24px] md:rounded-[32px] overflow-hidden bg-white/[0.03] border border-white/10 hover:border-blue-500/30 transition-all duration-500 min-h-[200px] md:min-h-[240px] flex flex-col backdrop-blur-lg md:backdrop-blur-xl shadow-2xl shadow-black/20 transform-gpu translate-z-0">
+                    <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, amount: 0.2 }} transition={{ delay: 0.2 }} className="group relative rounded-[24px] md:rounded-[32px] overflow-hidden bg-white/[0.03] border border-white/10 hover:border-blue-500/30 transition-all duration-500 min-h-[200px] md:min-h-[240px] flex flex-col backdrop-blur-lg shadow-2xl shadow-black/20 transform-gpu translate-z-0">
                          <div className="absolute inset-0 bg-gradient-to-br from-blue-900/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
                         <div className="relative p-6 md:p-8 h-full flex flex-col justify-between">
                             <div className="flex justify-between items-start mb-2">
