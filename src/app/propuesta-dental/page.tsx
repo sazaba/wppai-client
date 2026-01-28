@@ -17,14 +17,13 @@ import wasaaaLogo from '../images/Logo-Wasaaa.webp';
 import CalendarVisual from './components/CalendarVisual'; 
 import DentalChatAnimation from './components/DentalChatAnimation';
 
-// --- IMPORTACIÓN DINÁMICA DEL BOTÓN (CRÍTICO PARA PERFORMANCE) ---
-// Se carga solo cuando es necesario y su lógica interna evita bloquear el hilo principal
+// --- IMPORTACIÓN DINÁMICA DEL BOTÓN ---
 const DownloadButton = dynamic(() => import('./components/DownloadButton'), {
   ssr: false,
   loading: () => <span className="text-xs text-slate-500 animate-pulse">Cargando opción de descarga...</span>,
 });
 
-// --- CONSTANTES DE DATOS (Optimizadas fuera del render) ---
+// --- CONSTANTES DE DATOS ---
 const TESTIMONIALS = [
   {
     name: "Dra. Beatriz Molina", role: "Directora en OdontoSpecial",
@@ -50,7 +49,7 @@ const MOCK_PATIENTS = [
     { initials: "JL", name: "Jorge López", procedure: "Profilaxis", date: "Hace 1sem", color: "bg-emerald-500/20 text-emerald-300 font-bold" },
 ];
 
-// --- VARIANTES DE ANIMACIÓN (Para secciones bajo el fold) ---
+// --- VARIANTES DE ANIMACIÓN ---
 const drawVariants: Variants = {
   hidden: { pathLength: 0, opacity: 0 },
   visible: (i = 1) => ({
@@ -85,7 +84,7 @@ const pulseDeep: Variants = {
     }
 };
 
-// --- TARJETA GENÉRICA ANIMADA (Memoizada) ---
+// --- TARJETA GENÉRICA ANIMADA ---
 const AnimatedGenericCard = memo(() => {
   return (
     <div className="w-full max-w-[320px] md:max-w-[360px] mx-auto relative group perspective-1000">
@@ -149,7 +148,7 @@ export default function DentalProposal() {
       {/* Navbar Background Fix */}
       <div className="absolute top-0 left-0 right-0 h-[500px] bg-gradient-to-b from-slate-900/90 via-[#050505] to-[#050505] z-0 pointer-events-none" />
       
-      {/* Background Glows (Optimizados) */}
+      {/* Background Glows */}
       <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden will-change-transform">
         <div className="absolute top-[10%] left-[0%] w-[250px] md:w-[600px] h-[250px] md:h-[600px] bg-cyan-900/10 rounded-full blur-[60px] md:blur-[120px] opacity-40 transform-gpu translate-z-0" />
         <div className="absolute bottom-[20%] right-[0%] w-[200px] md:w-[500px] h-[200px] md:h-[500px] bg-purple-900/10 rounded-full blur-[60px] md:blur-[128px] opacity-40 transform-gpu translate-z-0" />
@@ -157,8 +156,7 @@ export default function DentalProposal() {
 
       <div className="relative z-10 max-w-7xl mx-auto px-4 md:px-6 pt-28 md:pt-44 pb-20 md:pb-32">
         
-        {/* --- HERO SECTION (OPTIMIZADO LCP - CSS PURO) --- */}
-        {/* Usamos clases CSS nativas para el renderizado inicial rápido, evitando JS pesado aquí */}
+        {/* --- HERO SECTION (OPTIMIZADO: CSS PURO PARA LCP) --- */}
         <section className="text-center mb-24 md:mb-40 pt-10">
            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-cyan-500/20 bg-cyan-950/40 text-cyan-300 text-[10px] uppercase tracking-widest font-bold mb-6 md:mb-8 backdrop-blur-md shadow-[0_0_20px_rgba(6,182,212,0.1)] animate-fade-in-up">
             <Sparkles size={12} /> Inteligencia Artificial Odontológica
@@ -238,7 +236,6 @@ export default function DentalProposal() {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 md:gap-6 max-w-6xl mx-auto relative z-10">
-                {/* Panel Grande: Historial Clínico */}
                 <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, amount: 0.2 }} className="lg:col-span-7 group relative rounded-[24px] md:rounded-[32px] overflow-hidden bg-white/[0.03] border border-white/10 hover:border-cyan-500/30 transition-all duration-500 flex flex-col backdrop-blur-lg md:backdrop-blur-xl shadow-2xl shadow-black/20 isolation-isolate transform-gpu translate-z-0">
                     <div className="absolute inset-0 bg-gradient-to-b from-white/[0.02] to-transparent pointer-events-none" />
                     <div className="relative p-6 md:p-10 h-full flex flex-col">
@@ -274,7 +271,6 @@ export default function DentalProposal() {
                 </motion.div>
 
                 <div className="lg:col-span-5 flex flex-col gap-4 md:gap-6">
-                    {/* Panel Reactivación */}
                     <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, amount: 0.2 }} transition={{ delay: 0.1 }} className="group relative rounded-[24px] md:rounded-[32px] overflow-hidden bg-white/[0.03] border border-white/10 hover:border-emerald-500/30 transition-all duration-500 min-h-[200px] md:min-h-[240px] flex flex-col backdrop-blur-lg md:backdrop-blur-xl shadow-2xl shadow-black/20 transform-gpu translate-z-0">
                         <div className="absolute inset-0 bg-gradient-to-br from-emerald-900/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
                         <div className="relative p-6 md:p-8 h-full flex flex-col justify-between">
@@ -289,7 +285,6 @@ export default function DentalProposal() {
                         </div>
                     </motion.div>
 
-                    {/* Panel Métricas */}
                     <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, amount: 0.2 }} transition={{ delay: 0.2 }} className="group relative rounded-[24px] md:rounded-[32px] overflow-hidden bg-white/[0.03] border border-white/10 hover:border-blue-500/30 transition-all duration-500 min-h-[200px] md:min-h-[240px] flex flex-col backdrop-blur-lg md:backdrop-blur-xl shadow-2xl shadow-black/20 transform-gpu translate-z-0">
                          <div className="absolute inset-0 bg-gradient-to-br from-blue-900/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
                         <div className="relative p-6 md:p-8 h-full flex flex-col justify-between">
@@ -311,7 +306,7 @@ export default function DentalProposal() {
             </div>
         </section>
 
-        {/* --- TESTIMONIOS DISRUPTIVOS --- */}
+        {/* --- TESTIMONIOS --- */}
         <section className="mb-32 md:mb-48 relative px-4">
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-5xl font-bold text-white mb-4">
@@ -327,9 +322,7 @@ export default function DentalProposal() {
                 initial={{ opacity: 0, scale: 0.9 }} whileInView={{ opacity: 1, scale: 1 }} viewport={{ once: true }} transition={{ delay: t.delay }}
                 className="group relative"
               >
-                {/* Efecto de resplandor al hover */}
                 <div className={`absolute -inset-2 bg-gradient-to-r ${t.color} rounded-[2rem] blur-2xl opacity-0 group-hover:opacity-20 transition-opacity duration-500`} />
-                
                 <div className="relative bg-[#0a0a0a] border border-white/10 p-8 rounded-[2rem] h-full flex flex-col shadow-2xl overflow-hidden">
                   <div className="flex gap-1.5 mb-6">
                     <div className="w-2 h-2 rounded-full bg-red-500/50" /><div className="w-2 h-2 rounded-full bg-amber-500/50" /><div className="w-2 h-2 rounded-full bg-emerald-500/50" />
@@ -349,68 +342,45 @@ export default function DentalProposal() {
           </div>
         </section>
 
-        {/* --- NUEVA SECCIÓN: MEMBRESÍA ÉLITE --- */}
+        {/* --- MEMBRESÍA & DOWNLOAD --- */}
         <motion.section 
           initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={fadeInUp}
           className="relative mb-32 md:mb-40 max-w-4xl mx-auto px-2"
         >
-          {/* Tarjeta Black & Gold */}
           <div className="relative rounded-[32px] overflow-hidden border border-amber-500/20 bg-[#080808] shadow-[0_0_60px_-15px_rgba(217,119,6,0.15)] group p-5 md:p-12">
-            
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(251,191,36,0.1),transparent_50%)] pointer-events-none" />
-            <div className="absolute inset-0 bg-[linear-gradient(45deg,rgba(251,191,36,0.03)_1px,transparent_1px)] bg-[size:20px_20px] opacity-20 pointer-events-none" />
-            
             <div className="relative flex flex-col items-center text-center z-10">
               <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-amber-950/30 border border-amber-500/30 text-amber-200 text-sm font-bold mb-8 shadow-[0_0_15px_rgba(251,191,36,0.1)]">
                 <Sparkles size={16} className="fill-amber-200 text-amber-400" /> Plan Premium Todo Incluido
               </div>
-
               <div className="flex items-start justify-center gap-1 mb-2">
                 <span className="text-2xl md:text-3xl font-bold text-amber-500 mt-2">$</span>
                 <h3 className="text-5xl md:text-6xl font-extrabold text-transparent bg-clip-text bg-gradient-to-b from-amber-200 via-amber-400 to-amber-600 tracking-tight drop-shadow-sm">250.000</h3>
               </div>
               <p className="text-xl text-amber-200/60 font-normal mb-6">COP/mes</p>
-              <p className="text-slate-300 mb-10 max-w-md mx-auto text-lg">Diseñado para <strong>clínicas odontológicas</strong> y negocios de alto flujo que no pueden perder ni un solo paciente.</p>
-
-              {/* Lista de Beneficios */}
-              <div className="w-full max-w-2xl mb-12 text-left p-6 md:p-8 rounded-2xl bg-amber-900/5 border border-amber-500/10 backdrop-blur-sm">
-                <div className="flex items-center gap-2 mb-6">
-                  <Zap className="text-amber-500 fill-amber-500/20" size={20} />
-                  <h4 className="text-lg font-bold text-white">Lo que incluye tu membresía:</h4>
-                </div>
-                <div className="grid gap-4">
-                  <div className="flex items-start gap-3 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20">
-                    <CheckCircle2 className="text-amber-400 shrink-0 mt-0.5" size={20} />
-                    <div><span className="text-base md:text-lg font-bold text-white block">300 Conversaciones Premium</span><span className="text-sm text-slate-400">Incluidas cada mes con IA avanzada.</span></div>
-                  </div>
-                  <div className="flex items-start gap-3 p-3 rounded-xl bg-amber-500/5 border border-amber-500/20 relative overflow-hidden">
-                    <div className="absolute top-0 right-0 bg-amber-500 text-black text-[10px] font-bold px-2 py-0.5 rounded-bl-lg">AHORRO</div>
-                    <CheckCircle2 className="text-amber-400 shrink-0 mt-0.5" size={20} />
-                    <div><span className="text-base md:text-lg font-bold text-white block">Recargas con 80% OFF</span><span className="text-sm text-slate-400">Si necesitas más, paga una fracción del costo.</span></div>
-                  </div>
-                  {["Dashboard de métricas avanzado", "Agenda y confirmación de citas", "Soporte técnico prioritario", "Actualizaciones Semanales", "Sin contratos forzosos"].map((feature, i) => (
-                    <div key={i} className="flex items-center gap-3 text-slate-300 px-3"><CheckCircle2 className="text-amber-400 shrink-0" size={18} /><span className="text-sm md:text-base font-medium">{feature}</span></div>
-                  ))}
-                </div>
-              </div>
-
-              {/* SECCIÓN PAGO: Tarjeta Genérica + Logos IMAGENES REALES */}
-              <div className="w-full pt-8 border-t border-white/5 flex flex-col items-center gap-8">
+              
+              {/* Tarjetas de Crédito Optimizadas (sizes added) */}
+              <div className="w-full pt-8 border-t border-white/5 flex flex-col items-center gap-8 mt-10">
                 <AnimatedGenericCard />
                 <div className="w-full flex justify-center items-center gap-8 opacity-60 hover:opacity-100 transition-opacity duration-500">
-                    <div className="h-8 w-auto relative"><Image src={visa} alt="Visa" height={32} className="object-contain w-auto h-full grayscale hover:grayscale-0 transition-all duration-300" /></div>
-                    <div className="h-8 w-auto relative"><Image src={mastercard} alt="Mastercard" height={32} className="object-contain w-auto h-full grayscale hover:grayscale-0 transition-all duration-300" /></div>
-                    <div className="h-8 w-auto relative"><Image src={amex} alt="American Express" height={32} className="object-contain w-auto h-full grayscale hover:grayscale-0 transition-all duration-300" /></div>
+                    <div className="h-8 w-auto relative">
+                        <Image src={visa} alt="Visa" height={32} width={50} sizes="(max-width: 768px) 50px, 60px" className="object-contain w-auto h-full grayscale hover:grayscale-0 transition-all duration-300" />
+                    </div>
+                    <div className="h-8 w-auto relative">
+                        <Image src={mastercard} alt="Mastercard" height={32} width={50} sizes="(max-width: 768px) 50px, 60px" className="object-contain w-auto h-full grayscale hover:grayscale-0 transition-all duration-300" />
+                    </div>
+                    <div className="h-8 w-auto relative">
+                        <Image src={amex} alt="American Express" height={32} width={50} sizes="(max-width: 768px) 50px, 60px" className="object-contain w-auto h-full grayscale hover:grayscale-0 transition-all duration-300" />
+                    </div>
                 </div>
               </div>
 
-              {/* Botón de Descarga PDF (AISLADO PARA SAFARI) */}
+              {/* Botón de Descarga PDF */}
               <div className="mt-10 min-h-[40px] w-full flex justify-center">
                   {isMounted && (
                     <DownloadButton logoSrc={wasaaaLogo.src} />
                   )}
               </div>
-
             </div>
           </div>
         </motion.section>
@@ -422,21 +392,14 @@ export default function DentalProposal() {
         >
             <div className="absolute inset-0 pointer-events-none">
                 <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-full md:w-[70%] h-[200px] md:h-[300px] bg-blue-900/10 blur-[80px] md:blur-[150px] rounded-full transform-gpu translate-z-0" />
-                <motion.div variants={pulseDeep} animate="animate" className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full md:w-[80%] h-full md:h-[80%] bg-indigo-900/05 blur-[100px] md:blur-[180px] rounded-full opacity-60 transform-gpu translate-z-0"/>
             </div>
-
             <div className="relative z-10 max-w-3xl mx-auto text-center px-4 md:px-6">
                 <div className="bg-white/[0.02] backdrop-blur-lg md:backdrop-blur-2xl p-8 md:p-12 rounded-[24px] md:rounded-[32px] border border-white/10 shadow-xl shadow-black/30 relative overflow-hidden transition-all duration-500 hover:border-white/20 isolation-isolate">
-                    <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent" />
                     <h2 className="text-3xl md:text-5xl font-bold text-white mb-4 md:mb-6 tracking-tight drop-shadow-sm">¿Listo para el <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-indigo-300">Siguiente Nivel</span>?</h2>
-                    <p className="text-slate-400 max-w-xl mx-auto mb-8 md:mb-10 text-base md:text-lg leading-relaxed font-medium">Deje que la IA maneje la rutina con precisión. Recupere su tiempo y enfóquese en la excelencia clínica.</p>
                     <Link href="/register" className="relative z-10 inline-block group/btn w-full md:w-auto">
-                        <div className="relative">
-                            <div className="absolute -inset-2 bg-gradient-to-r from-blue-700 to-indigo-700 rounded-2xl blur-xl opacity-30 group-hover/btn:opacity-50 transition-opacity duration-500" />
-                            <button className="relative w-full md:w-auto bg-white text-black font-bold text-base md:text-lg px-8 md:px-10 py-4 rounded-xl hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 shadow-lg shadow-blue-900/20 flex items-center justify-center gap-2 mx-auto">
-                                <Zap className="text-amber-500" size={18} /> Iniciar Transformación <ChevronRight className="group-hover/btn:translate-x-1 transition-transform text-blue-600" size={20} />
-                            </button>
-                        </div>
+                        <button className="relative w-full md:w-auto bg-white text-black font-bold text-base md:text-lg px-8 md:px-10 py-4 rounded-xl hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 shadow-lg shadow-blue-900/20 flex items-center justify-center gap-2 mx-auto">
+                            <Zap className="text-amber-500" size={18} /> Iniciar Transformación <ChevronRight className="group-hover/btn:translate-x-1 transition-transform text-blue-600" size={20} />
+                        </button>
                     </Link>
                 </div>
             </div>
