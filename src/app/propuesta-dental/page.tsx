@@ -1,7 +1,7 @@
 'use client'
 
 import React, { memo, useEffect, useState } from 'react';
-import { Sparkles, CheckCircle2, Clock, Users, Database, BrainCircuit, CalendarCheck, ChevronRight, FileText, CalendarDays, Zap, Wifi, Download } from 'lucide-react';
+import { Sparkles, CheckCircle2, Clock, Users, Database, BrainCircuit, CalendarCheck, ChevronRight, FileText, CalendarDays, Zap, Wifi } from 'lucide-react';
 import { motion, Variants } from 'framer-motion';
 import Link from 'next/link';
 import Image from 'next/image'; 
@@ -17,8 +17,8 @@ import wasaaaLogo from '../images/Logo-Wasaaa.webp';
 import CalendarVisual from './components/CalendarVisual'; 
 import DentalChatAnimation from './components/DentalChatAnimation';
 
-// --- IMPORTACIÓN DINÁMICA DEL BOTÓN (CRÍTICO PARA SAFARI) ---
-// Esto aísla la carga pesada del PDF para que no bloquee el navegador móvil
+// --- IMPORTACIÓN DINÁMICA DEL BOTÓN (CRÍTICO PARA PERFORMANCE) ---
+// Se carga solo cuando es necesario y su lógica interna evita bloquear el hilo principal
 const DownloadButton = dynamic(() => import('./components/DownloadButton'), {
   ssr: false,
   loading: () => <span className="text-xs text-slate-500 animate-pulse">Cargando opción de descarga...</span>,
@@ -50,7 +50,7 @@ const MOCK_PATIENTS = [
     { initials: "JL", name: "Jorge López", procedure: "Profilaxis", date: "Hace 1sem", color: "bg-emerald-500/20 text-emerald-300 font-bold" },
 ];
 
-// --- VARIANTES DE ANIMACIÓN (Restauradas Originales) ---
+// --- VARIANTES DE ANIMACIÓN (Para secciones bajo el fold) ---
 const drawVariants: Variants = {
   hidden: { pathLength: 0, opacity: 0 },
   visible: (i = 1) => ({
@@ -85,7 +85,7 @@ const pulseDeep: Variants = {
     }
 };
 
-// --- TARJETA GENÉRICA ANIMADA (Memoizada para rendimiento) ---
+// --- TARJETA GENÉRICA ANIMADA (Memoizada) ---
 const AnimatedGenericCard = memo(() => {
   return (
     <div className="w-full max-w-[320px] md:max-w-[360px] mx-auto relative group perspective-1000">
@@ -149,7 +149,7 @@ export default function DentalProposal() {
       {/* Navbar Background Fix */}
       <div className="absolute top-0 left-0 right-0 h-[500px] bg-gradient-to-b from-slate-900/90 via-[#050505] to-[#050505] z-0 pointer-events-none" />
       
-      {/* Background Glows (Optimizados con will-change para Safari) */}
+      {/* Background Glows (Optimizados) */}
       <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden will-change-transform">
         <div className="absolute top-[10%] left-[0%] w-[250px] md:w-[600px] h-[250px] md:h-[600px] bg-cyan-900/10 rounded-full blur-[60px] md:blur-[120px] opacity-40 transform-gpu translate-z-0" />
         <div className="absolute bottom-[20%] right-[0%] w-[200px] md:w-[500px] h-[200px] md:h-[500px] bg-purple-900/10 rounded-full blur-[60px] md:blur-[128px] opacity-40 transform-gpu translate-z-0" />
@@ -157,22 +157,20 @@ export default function DentalProposal() {
 
       <div className="relative z-10 max-w-7xl mx-auto px-4 md:px-6 pt-28 md:pt-44 pb-20 md:pb-32">
         
-        {/* --- HERO --- */}
-        <motion.section 
-          initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.3 }} variants={fadeInUp}
-          className="text-center mb-24 md:mb-40"
-        >
-           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-cyan-500/20 bg-cyan-950/40 text-cyan-300 text-[10px] uppercase tracking-widest font-bold mb-6 md:mb-8 backdrop-blur-md shadow-[0_0_20px_rgba(6,182,212,0.1)]">
+        {/* --- HERO SECTION (OPTIMIZADO LCP - CSS PURO) --- */}
+        {/* Usamos clases CSS nativas para el renderizado inicial rápido, evitando JS pesado aquí */}
+        <section className="text-center mb-24 md:mb-40 pt-10">
+           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-cyan-500/20 bg-cyan-950/40 text-cyan-300 text-[10px] uppercase tracking-widest font-bold mb-6 md:mb-8 backdrop-blur-md shadow-[0_0_20px_rgba(6,182,212,0.1)] animate-fade-in-up">
             <Sparkles size={12} /> Inteligencia Artificial Odontológica
           </div>
-          <h1 className="text-4xl sm:text-5xl md:text-7xl font-bold text-white mb-6 tracking-tighter leading-[1.1]">
-            Automatiza tu Clinica Odontologica <br className="hidden md:block" />
+          <h1 className="text-4xl sm:text-5xl md:text-7xl font-bold text-white mb-6 tracking-tighter leading-[1.1] animate-fade-in-up [animation-delay:100ms] opacity-0 fill-mode-forwards">
+            Automatiza tu Clínica <br className="hidden md:block" />
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">Sin Perder el Toque Humano</span>
           </h1>
-          <p className="text-lg md:text-xl text-slate-400 max-w-2xl mx-auto leading-relaxed px-2">
+          <p className="text-lg md:text-xl text-slate-400 max-w-2xl mx-auto leading-relaxed px-2 animate-fade-in-up [animation-delay:200ms] opacity-0 fill-mode-forwards">
             La plataforma que agenda, confirma y organiza sus pacientes mientras usted se dedica a la odontología.
           </p>
-        </motion.section>
+        </section>
 
         {/* --- FEATURE 1 --- */}
         <motion.section 
@@ -226,7 +224,7 @@ export default function DentalProposal() {
             </motion.div>
         </motion.section>
 
-        {/* --- FEATURE 3 (BENTO GRID RESTAURADO AL 100%) --- */}
+        {/* --- FEATURE 3 (BENTO GRID) --- */}
         <section className="mb-32 md:mb-40 relative">
             <div className="absolute top-0 left-[-20%] w-[300px] md:w-[600px] h-[300px] md:h-[600px] bg-purple-600/10 blur-[80px] md:blur-[130px] rounded-full -z-10 pointer-events-none transform-gpu translate-z-0" />
             <div className="absolute bottom-0 right-[-20%] w-[300px] md:w-[600px] h-[300px] md:h-[600px] bg-blue-500/10 blur-[80px] md:blur-[130px] rounded-full -z-10 pointer-events-none transform-gpu translate-z-0" />
@@ -407,7 +405,7 @@ export default function DentalProposal() {
               </div>
 
               {/* Botón de Descarga PDF (AISLADO PARA SAFARI) */}
-              <div className="mt-10 min-h-[40px]">
+              <div className="mt-10 min-h-[40px] w-full flex justify-center">
                   {isMounted && (
                     <DownloadButton logoSrc={wasaaaLogo.src} />
                   )}
