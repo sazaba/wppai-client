@@ -1,65 +1,60 @@
-import type { Metadata, Viewport } from 'next'
-import { Inter } from 'next/font/google'
+'use client'
+
 import './globals.css'
 import { AuthProvider } from './context/AuthContext'
 import Navbar from './components/Navbar'
 import Footer from './components/Footer'
+import { usePathname } from 'next/navigation'
+import { Inter } from 'next/font/google' // Importamos una fuente premium
 import clsx from 'clsx'
 
-const inter = Inter({ 
-  subsets: ['latin'], 
-  variable: '--font-inter',
-  display: 'swap', 
-})
-
-export const metadata: Metadata = {
-  title: 'AI WhatsApp Manager',
-  description: 'SaaS de automatización con IA para negocios que pautan en redes',
-  metadataBase: new URL('https://www.wasaaa.com'),
-  openGraph: {
-    title: 'AI WhatsApp Manager',
-    description: 'SaaS de automatización con IA para negocios que pautan en redes',
-    url: 'https://www.wasaaa.com',
-    siteName: 'Wasaaa',
-    images: [{ url: '/logo.webp', width: 800, height: 600 }],
-    type: 'website',
-  },
-  other: { 'fb:app_id': '1491280195185816' },
-}
-
-// CORRECCIÓN 1: Viewport amigable para accesibilidad (Google penaliza si bloqueas el zoom)
-export const viewport: Viewport = {
-  width: 'device-width',
-  initialScale: 1,
-  maximumScale: 5, // Permitir zoom mejora puntaje de accesibilidad
-  themeColor: '#09090b',
-}
+// Usamos Inter o Plus Jakarta Sans para un look SaaS moderno
+const inter = Inter({ subsets: ['latin'], variable: '--font-inter' })
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname()
+  const hideNavbar = pathname.startsWith('/dashboard')
+
   return (
     <html lang="es" className="h-full scroll-smooth">
-      <body className={clsx(inter.className, "h-full bg-[#050505] text-slate-200 antialiased selection:bg-indigo-500 selection:text-white")}>
+      <head>
+        <meta property="fb:app_id" content="1491280195185816" />
+        <meta property="og:title" content="AI WhatsApp Manager" />
+        <meta property="og:description" content="SaaS de automatización con IA para negocios que pautan en redes" />
+        <meta property="og:image" content="https://www.wasaaa.com/logo.webp" />
+        <meta property="og:url" content="https://www.wasaaa.com" />
+        <meta property="og:type" content="website" />
+        <link rel="icon" href="/logo.webp" />
+      </head>
+      
+      {/* CAMBIOS CLAVE:
+        1. bg-zinc-50 dark:bg-zinc-950: Color base más rico que el blanco/negro puro.
+        2. text-zinc-900 dark:text-zinc-100: Texto con alto contraste pero suave.
+      */}
+      <body className={clsx(inter.className, "h-full bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 antialiased selection:bg-indigo-500 selection:text-white")}>
         
-        {/* CORRECCIÓN 2: Fondo CSS Puro (Sin divs múltiples ni blur pesado para Safari) */}
-        <div 
-          className="fixed inset-0 z-[-1] pointer-events-none"
-          style={{
-            background: `
-              radial-gradient(circle at 0% 0%, rgba(79, 70, 229, 0.15) 0%, transparent 50%),
-              radial-gradient(circle at 100% 100%, rgba(147, 51, 234, 0.15) 0%, transparent 50%),
-              #050505
-            `
-          }}
-        />
-        {/* Textura sutil superpuesta */}
-        <div className="fixed inset-0 z-[-1] opacity-[0.03] bg-[url('/grid-pattern.svg')] pointer-events-none" style={{ backgroundSize: '30px 30px' }} />
+        {/* --- FONDO AMBIENTAL PREMIUM --- */}
+        {/* Esto crea las luces moradas/azules detrás de todo el sitio */}
+        <div className="fixed inset-0 z-[-1] overflow-hidden pointer-events-none">
+            {/* Luz superior izquierda */}
+            <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-indigo-500/10 blur-[120px] mix-blend-multiply dark:mix-blend-screen animate-pulse-slow" />
+            {/* Luz superior derecha */}
+            <div className="absolute top-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-purple-500/10 blur-[120px] mix-blend-multiply dark:mix-blend-screen" />
+            {/* Luz inferior central */}
+            <div className="absolute bottom-[-20%] left-[20%] w-[60%] h-[40%] rounded-full bg-blue-500/10 blur-[120px] mix-blend-multiply dark:mix-blend-screen" />
+            
+            {/* Patrón de Grid sutil para textura técnica */}
+            <div className="absolute inset-0 bg-[url('/grid-pattern.svg')] opacity-[0.03] dark:opacity-[0.05]" style={{ backgroundSize: '30px 30px' }}></div>
+        </div>
 
         <AuthProvider>
-          <Navbar /> 
+          {!hideNavbar && <Navbar />}
+          
           <main className="relative flex min-h-screen flex-col">
             {children}
           </main>
-          <Footer />
+          
+          {!hideNavbar && <Footer />}
         </AuthProvider>
       </body>
     </html>
