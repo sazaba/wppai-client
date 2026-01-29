@@ -1,6 +1,6 @@
 'use client'
 
-import React, { memo, useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Sparkles, CheckCircle2, Clock, Users, Database, BrainCircuit, CalendarCheck, ChevronRight, FileText, CalendarDays, Zap, Wifi } from 'lucide-react';
 import { motion, Variants } from 'framer-motion';
 import Link from 'next/link';
@@ -13,22 +13,25 @@ import amex from '../images/american-express.webp';
 import mastercard from '../images/mastercard-logo.webp';
 import wasaaaLogo from '../images/Logo-Wasaaa.webp';
 
-// --- IMPORTACIÓN DINÁMICA (OPTIMIZADA PARA SAFARI) ---
-// ssr: false -> No se renderiza en servidor (ahorra HTML inicial)
-// loading -> Muestra un esqueleto visual inmediato para evitar saltos (CLS) y pantalla blanca
+// --- IMPORTACIÓN DINÁMICA (LA CLAVE PARA SAFARI) ---
+// Estos componentes pesados no se cargan hasta que el navegador está listo.
 
 const CalendarVisual = dynamic(() => import('./components/CalendarVisual'), {
   ssr: false,
-  loading: () => (
-    <div className="w-full max-w-xl h-[350px] bg-white/5 border border-white/5 rounded-3xl animate-pulse mx-auto" />
-  )
+  loading: () => <div className="w-full max-w-xl h-[350px] bg-white/5 border border-white/5 rounded-3xl animate-pulse mx-auto" />
 });
 
 const DentalChatAnimation = dynamic(() => import('./components/DentalChatAnimation'), {
   ssr: false,
+  loading: () => <div className="w-[300px] h-[580px] bg-zinc-900 rounded-[3.5rem] border-4 border-zinc-800 animate-pulse mx-auto opacity-50" />
+});
+
+// AQUI ESTÁ EL FIX: Importamos la tarjeta dinámicamente en lugar de definirla aquí
+const AnimatedGenericCard = dynamic(() => import('./components/AnimatedGenericCard'), {
+  ssr: false,
   loading: () => (
-    // Placeholder con forma de celular para mantener el layout estable
-    <div className="w-[300px] h-[580px] bg-zinc-900 rounded-[3.5rem] border-4 border-zinc-800 animate-pulse mx-auto opacity-50" />
+    // Placeholder del tamaño exacto de la tarjeta para evitar saltos
+    <div className="w-full max-w-[320px] aspect-[1.586/1] bg-white/5 rounded-2xl border border-white/10 animate-pulse mx-auto" />
   )
 });
 
@@ -62,101 +65,27 @@ const staggerContainer: Variants = {
   visible: { opacity: 1, transition: { staggerChildren: 0.1, delayChildren: 0.1 } }
 };
 
-const listContainer: Variants = {
-    visible: { opacity: 1, transition: { staggerChildren: 0.08 } }
-};
-
-const listItem: Variants = {
-    hidden: { opacity: 0, x: -5 },
-    visible: { opacity: 1, x: 0 }
-};
-
-const pulseDeep: Variants = {
-    animate: {
-        opacity: [0.3, 0.45, 0.3], scale: [1, 1.02, 1],
-        transition: { duration: 8, repeat: Infinity, ease: "easeInOut" }
-    }
-};
-
-const drawVariants: Variants = {
-  hidden: { pathLength: 0, opacity: 0 },
-  visible: (i = 1) => ({
-    pathLength: 1, opacity: 1,
-    transition: { pathLength: { delay: i * 0.2, type: "spring", duration: 1.5, bounce: 0 }, opacity: { delay: i * 0.2, duration: 0.01 } }
-  })
-};
-
-// --- TARJETA GENÉRICA MEMOIZADA ---
-const AnimatedGenericCard = memo(() => {
-  return (
-    <div className="w-full max-w-[320px] md:max-w-[360px] mx-auto relative group perspective-1000">
-      <motion.div 
-        initial={{ rotateY: 0 }} whileHover={{ rotateY: 5, scale: 1.02 }} transition={{ duration: 0.5 }}
-        className="relative w-full aspect-[1.586/1] rounded-2xl overflow-hidden shadow-[0_0_30px_-5px_rgba(245,158,11,0.15)] bg-gradient-to-br from-[#111] via-[#0a0a0a] to-black border border-amber-500/20"
-      >
-        <div className="absolute inset-0 opacity-10 bg-[url('https://grainy-gradients.vercel.app/noise.svg')]" />
-        <div className="absolute -inset-[100%] bg-gradient-to-r from-transparent via-amber-400/5 to-transparent rotate-45 translate-x-[-100%] animate-[shimmer_6s_infinite]" />
-
-        <div className="relative p-6 h-full flex flex-col justify-between z-10">
-          <div className="flex justify-between items-start">
-            <motion.svg width="45" height="32" viewBox="0 0 50 35" className="stroke-amber-400/80 fill-none stroke-[1.5]" initial="hidden" whileInView="visible" viewport={{ once: true }}>
-              <motion.rect x="2" y="2" width="46" height="31" rx="6" variants={drawVariants} custom={1} />
-              <motion.path d="M15 2 V 33" variants={drawVariants} custom={2} />
-              <motion.path d="M35 2 V 33" variants={drawVariants} custom={2} />
-              <motion.path d="M2 17 H 48" variants={drawVariants} custom={3} />
-              <motion.path d="M15 10 H 35" variants={drawVariants} custom={4} className="stroke-[0.5]" />
-              <motion.path d="M15 25 H 35" variants={drawVariants} custom={4} className="stroke-[0.5]" />
-            </motion.svg>
-            <motion.svg width="24" height="24" viewBox="0 0 24 24" className="stroke-amber-200 fill-none stroke-2" initial="hidden" whileInView="visible" viewport={{ once: true }}>
-               <motion.path d="M5 12.55a11 11 0 0 1 14.08 0" variants={drawVariants} custom={3} />
-               <motion.path d="M1.42 9a16 16 0 0 1 21.16 0" variants={drawVariants} custom={4} />
-               <motion.path d="M8.53 16.11a6 6 0 0 1 6.95 0" variants={drawVariants} custom={2} />
-               <motion.line x1="12" y1="20" x2="12.01" y2="20" variants={drawVariants} custom={1} strokeLinecap="round" />
-            </motion.svg>
-          </div>
-          <div className="text-center pt-2">
-             <p className="text-[10px] text-amber-200/50 uppercase tracking-[0.3em] mb-1">Universal Access</p>
-             <h4 className="text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-white via-amber-100 to-white tracking-widest drop-shadow-sm">ALL CARDS</h4>
-          </div>
-          <div className="flex justify-between items-end opacity-90">
-              <motion.svg height="8" width="110" viewBox="0 0 120 10" className="stroke-white/20 fill-none stroke-[2] stroke-linecap-round" initial="hidden" whileInView="visible" viewport={{ once: true }}>
-                  <motion.line x1="0" y1="5" x2="20" y2="5" variants={drawVariants} custom={5} />
-                  <motion.line x1="30" y1="5" x2="50" y2="5" variants={drawVariants} custom={5.5} />
-                  <motion.line x1="60" y1="5" x2="80" y2="5" variants={drawVariants} custom={6} />
-                  <motion.line x1="90" y1="5" x2="110" y2="5" variants={drawVariants} custom={6.5} />
-              </motion.svg>
-              <div className="flex -space-x-2">
-                 <div className="w-6 h-6 rounded-full border border-white/10 bg-white/10 backdrop-blur-sm" />
-                 <div className="w-6 h-6 rounded-full border border-white/10 bg-white/5 backdrop-blur-sm" />
-              </div>
-          </div>
-        </div>
-      </motion.div>
-    </div>
-  );
-});
-AnimatedGenericCard.displayName = "AnimatedGenericCard";
+const listContainer: Variants = { visible: { opacity: 1, transition: { staggerChildren: 0.08 } } };
+const listItem: Variants = { hidden: { opacity: 0, x: -5 }, visible: { opacity: 1, x: 0 } };
+const pulseDeep: Variants = { animate: { opacity: [0.3, 0.45, 0.3], scale: [1, 1.02, 1], transition: { duration: 8, repeat: Infinity, ease: "easeInOut" } } };
 
 export default function DentalProposal() {
   const [isMounted, setIsMounted] = useState(false);
-
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
+  useEffect(() => setIsMounted(true), []);
 
   return (
     <main className="min-h-screen bg-[#050505] text-slate-200 selection:bg-cyan-500 selection:text-black font-sans overflow-x-hidden relative transform-gpu">
       
-      {/* Background Glows (Optimizados con will-change) */}
-      <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden will-change-transform">
+      {/* Background Glows (Optimizados con will-change para Safari) */}
+      <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden will-change-transform translate-z-0">
         <div className="absolute top-0 left-0 right-0 h-[500px] bg-gradient-to-b from-slate-900/90 via-[#050505] to-[#050505]" />
-        <div className="absolute top-[10%] left-[0%] w-[250px] md:w-[600px] h-[250px] md:h-[600px] bg-cyan-900/10 rounded-full blur-[60px] md:blur-[120px] opacity-40 transform-gpu translate-z-0" />
-        <div className="absolute bottom-[20%] right-[0%] w-[200px] md:w-[500px] h-[200px] md:h-[500px] bg-purple-900/10 rounded-full blur-[60px] md:blur-[128px] opacity-40 transform-gpu translate-z-0" />
+        <div className="absolute top-[10%] left-[0%] w-[250px] md:w-[600px] h-[250px] md:h-[600px] bg-cyan-900/10 rounded-full blur-[80px] opacity-40 mix-blend-screen" />
+        <div className="absolute bottom-[20%] right-[0%] w-[200px] md:w-[500px] h-[200px] md:h-[500px] bg-purple-900/10 rounded-full blur-[80px] opacity-40 mix-blend-screen" />
       </div>
 
       <div className="relative z-10 max-w-7xl mx-auto px-4 md:px-6 pt-28 md:pt-44 pb-20 md:pb-32">
         
-        {/* --- HERO SECTION (OPTIMIZADO: CSS PURO PARA LCP) --- */}
+        {/* --- HERO (CSS PURO = Carga Inmediata) --- */}
         <section className="text-center mb-24 md:mb-40 pt-10">
            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-cyan-500/20 bg-cyan-950/40 text-cyan-300 text-[10px] uppercase tracking-widest font-bold mb-6 md:mb-8 backdrop-blur-md shadow-[0_0_20px_rgba(6,182,212,0.1)] animate-fade-in-up">
             <Sparkles size={12} /> Inteligencia Artificial Odontológica
@@ -388,7 +317,9 @@ export default function DentalProposal() {
 
               {/* SECCIÓN PAGO: Tarjeta Genérica + Logos IMAGENES REALES */}
               <div className="w-full pt-8 border-t border-white/5 flex flex-col items-center gap-8">
+                {/* 🚀 COMPONENTE IMPORTADO DINÁMICAMENTE PARA NO BLOQUEAR SAFARI */}
                 <AnimatedGenericCard />
+                
                 <div className="w-full flex justify-center items-center gap-8 opacity-60 hover:opacity-100 transition-opacity duration-500">
                     <div className="h-8 w-auto relative">
                         <Image src={visa} alt="Visa" height={32} width={50} sizes="(max-width: 768px) 50px, 60px" className="object-contain w-auto h-full grayscale hover:grayscale-0 transition-all duration-300" />
