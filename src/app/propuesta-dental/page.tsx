@@ -70,22 +70,16 @@ export default function DentalProposal() {
   return (
     <main className="min-h-screen bg-[#050505] text-slate-200 selection:bg-cyan-500 selection:text-black font-sans overflow-x-hidden relative">
       
-      {/* === FONDO LOCAL OPTIMIZADO === 
-          Este fondo SOLO existe en esta página. Reemplaza al global que acabamos de desactivar.
-          Usa gradientes simples en lugar de 'mix-blend-mode' para evitar el bloqueo de 10s.
-      */}
+      {/* === FONDO LOCAL OPTIMIZADO === */}
       <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
-        {/* Fondo base */}
         <div className="absolute inset-0 bg-[#050505]" />
-        {/* Gradiente Cian (Simulado) */}
         <div className="absolute top-0 left-0 w-[800px] h-[800px] bg-[radial-gradient(circle_at_center,rgba(22,78,99,0.15)_0%,transparent_70%)] -translate-x-1/2 -translate-y-1/2" />
-        {/* Gradiente Morado (Simulado) */}
         <div className="absolute bottom-0 right-0 w-[800px] h-[800px] bg-[radial-gradient(circle_at_center,rgba(88,28,135,0.15)_0%,transparent_70%)] translate-x-1/3 translate-y-1/3" />
-        {/* Grid Pattern sutil */}
         <div className="absolute inset-0 bg-[url('/grid-pattern.svg')] opacity-[0.03]" style={{ backgroundSize: '30px 30px' }}></div>
       </div>
 
-      <div className="relative z-10 max-w-7xl mx-auto px-4 md:px-6 pt-28 md:pt-44 pb-20 md:pb-32">
+      {/* AJUSTE DE PADDING AQUÍ: pt-8 (móvil) y pt-12 (escritorio) para subir el contenido */}
+      <div className="relative z-10 max-w-7xl mx-auto px-4 md:px-6 pt-8 md:pt-12 pb-20 md:pb-32">
         
         {/* --- HERO --- */}
         <section className="text-center mb-24 md:mb-40 pt-10">
@@ -202,7 +196,7 @@ export default function DentalProposal() {
 
                 <div className="lg:col-span-5 flex flex-col gap-4 md:gap-6">
                     <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, amount: 0.2 }} transition={{ delay: 0.1 }} className="group relative rounded-[24px] md:rounded-[32px] overflow-hidden bg-white/[0.03] border border-white/10 hover:border-emerald-500/30 transition-all duration-500 min-h-[200px] md:min-h-[240px] flex flex-col backdrop-blur-lg md:backdrop-blur-xl shadow-2xl shadow-black/20 transform-gpu translate-z-0">
-                        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(16,185,129,0.05)_0%,transparent_60%)]" />
+                        <div className="absolute inset-0 bg-gradient-to-br from-emerald-900/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
                         <div className="relative p-6 md:p-8 h-full flex flex-col justify-between">
                             <div className="flex justify-between items-start mb-2">
                                 <div><h3 className="text-lg md:text-xl font-bold text-white">Motor de Reactivación</h3><p className="text-[10px] md:text-xs text-emerald-400/80 uppercase tracking-wider mt-1 font-semibold">Gestión de Retorno</p></div>
@@ -216,7 +210,7 @@ export default function DentalProposal() {
                     </motion.div>
 
                     <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, amount: 0.2 }} transition={{ delay: 0.2 }} className="group relative rounded-[24px] md:rounded-[32px] overflow-hidden bg-white/[0.03] border border-white/10 hover:border-blue-500/30 transition-all duration-500 min-h-[200px] md:min-h-[240px] flex flex-col backdrop-blur-lg md:backdrop-blur-xl shadow-2xl shadow-black/20 transform-gpu translate-z-0">
-                         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(59,130,246,0.05)_0%,transparent_60%)]" />
+                         <div className="absolute inset-0 bg-gradient-to-br from-blue-900/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
                         <div className="relative p-6 md:p-8 h-full flex flex-col justify-between">
                             <div className="flex justify-between items-start mb-2">
                                 <div><h3 className="text-lg md:text-xl font-bold text-white">Métricas de Citas</h3><p className="text-[10px] md:text-xs text-blue-400/80 uppercase tracking-wider mt-1 font-semibold">Dashboard CRM</p></div>
