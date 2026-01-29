@@ -27,26 +27,32 @@ export const metadata: Metadata = {
   other: { 'fb:app_id': '1491280195185816' },
 }
 
+// CORRECCIÓN 1: Viewport amigable para accesibilidad (Google penaliza si bloqueas el zoom)
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  maximumScale: 1,
-  themeColor: '#09090b', // Forzamos oscuro para evitar flash blanco
+  maximumScale: 5, // Permitir zoom mejora puntaje de accesibilidad
+  themeColor: '#09090b',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="es" className="h-full scroll-smooth">
-      <body className={clsx(inter.className, "h-full bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 antialiased selection:bg-indigo-500 selection:text-white")}>
+      <body className={clsx(inter.className, "h-full bg-[#050505] text-slate-200 antialiased selection:bg-indigo-500 selection:text-white")}>
         
-        {/* --- FONDO OPTIMIZADO (ESTÁTICO) --- */}
-        {/* Eliminamos 'animate-pulse-slow' y usamos 'transform-gpu' para que la tarjeta gráfica lo pinte una sola vez */}
-        <div className="fixed inset-0 z-[-1] overflow-hidden pointer-events-none transform-gpu translate-z-0">
-            <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-indigo-500/10 blur-[100px] mix-blend-screen" />
-            <div className="absolute top-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-purple-500/10 blur-[100px] mix-blend-screen" />
-            <div className="absolute bottom-[-20%] left-[20%] w-[60%] h-[40%] rounded-full bg-blue-500/10 blur-[100px] mix-blend-screen" />
-            <div className="absolute inset-0 bg-[url('/grid-pattern.svg')] opacity-[0.03] dark:opacity-[0.05]" style={{ backgroundSize: '30px 30px' }}></div>
-        </div>
+        {/* CORRECCIÓN 2: Fondo CSS Puro (Sin divs múltiples ni blur pesado para Safari) */}
+        <div 
+          className="fixed inset-0 z-[-1] pointer-events-none"
+          style={{
+            background: `
+              radial-gradient(circle at 0% 0%, rgba(79, 70, 229, 0.15) 0%, transparent 50%),
+              radial-gradient(circle at 100% 100%, rgba(147, 51, 234, 0.15) 0%, transparent 50%),
+              #050505
+            `
+          }}
+        />
+        {/* Textura sutil superpuesta */}
+        <div className="fixed inset-0 z-[-1] opacity-[0.03] bg-[url('/grid-pattern.svg')] pointer-events-none" style={{ backgroundSize: '30px 30px' }} />
 
         <AuthProvider>
           <Navbar /> 

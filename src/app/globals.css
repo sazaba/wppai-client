@@ -197,3 +197,32 @@ body {
 .fill-mode-forwards {
   animation-fill-mode: forwards;
 }
+
+
+/* Animación de entrada suave (Reemplaza a Framer Motion) */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Clase para elementos que se animan al entrar en viewport */
+.reveal-on-scroll {
+  opacity: 0; /* Invisible inicial */
+  animation-fill-mode: forwards; /* Se queda visible al terminar */
+}
+
+/* Cuando la clase 'visible' se agrega con JS (IntersectionObserver) */
+.reveal-on-scroll.is-visible {
+  animation: fadeInUp 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+}
+
+/* Stagger (retraso) manual para listas */
+.delay-100 { animation-delay: 100ms; }
+.delay-200 { animation-delay: 200ms; }
+.delay-300 { animation-delay: 300ms; }
