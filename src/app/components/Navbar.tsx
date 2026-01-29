@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useState, useCallback, memo } from 'react'
+import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { Menu, Sparkles, LogOut, ChevronRight, User } from 'lucide-react'
@@ -12,6 +12,8 @@ import Image from 'next/image'
 import { useRouter, usePathname } from 'next/navigation'
 import { Dialog } from '@headlessui/react'
 import { motion, AnimatePresence } from 'framer-motion'
+// @ts-ignore
+import confetti from 'canvas-confetti'
 
 const navLinks = [
   { name: 'Funcionalidades', href: '/#features' },
@@ -21,12 +23,11 @@ const navLinks = [
   { name: 'Contacto', href: '/#contact' },
 ]
 
-// Lista de rutas oscuras memoizada fuera del componente
-const DARK_ROUTES = ['/login', '/register', '/forgot-password', '/delete-my-data', '/propuesta-dental'];
-
-function Navbar() {
+export default function Navbar() {
   const [isScrolled, setIsScrolled] = useState(false)
-  const [isVisible, setIsVisible] = useState(true)
+  const [isVisible, setIsVisible] = useState(true) // Nuevo estado para visibilidad
+  const [lastScrollY, setLastScrollY] = useState(0) // Para guardar la posición anterior
+  
   const [openSheet, setOpenSheet] = useState(false)
   const [showLogoutModal, setShowLogoutModal] = useState(false)
 
@@ -34,48 +35,35 @@ function Navbar() {
   const router = useRouter()
   const pathname = usePathname()
 
-  const isDarkPage = DARK_ROUTES.includes(pathname || ''); 
+  const darkRoutes = ['/login', '/register', '/forgot-password', '/delete-my-data', '/propuesta-dental'];
+  const isDarkPage = darkRoutes.includes(pathname || ''); 
 
-  // --- 1. OPTIMIZACIÓN DE SCROLL (RequestAnimationFrame) ---
+  // Control del Scroll (Color y Visibilidad)
   useEffect(() => {
-    let lastScrollY = window.scrollY;
-    let ticking = false;
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY;
+      
+      // 1. Lógica de fondo (Glassmorphism)
+      setIsScrolled(currentScrollY > 20);
 
-    const updateScrollDir = () => {
-      const scrollY = window.scrollY;
-
-      // Lógica de fondo (Glassmorphism) - Umbral bajo
-      if (Math.abs(scrollY - lastScrollY) > 5 || scrollY < 20) { // Pequeña histéresis
-         setIsScrolled(scrollY > 20);
-      }
-
-      // Lógica de Visibilidad - Solo ocultar si bajamos más de 100px y hacemos scroll down
-      if (scrollY > lastScrollY && scrollY > 100) {
+      // 2. Lógica de Esconder/Mostrar Navbar
+      if (currentScrollY > lastScrollY && currentScrollY > 100) {
+        // Si bajamos y pasamos 100px, escondemos
         setIsVisible(false);
-      } else if (scrollY < lastScrollY || scrollY < 100) {
+      } else {
+        // Si subimos, mostramos
         setIsVisible(true);
       }
-
-      lastScrollY = scrollY;
-      ticking = false;
-    };
-
-    const onScroll = () => {
-      if (!ticking) {
-        window.requestAnimationFrame(updateScrollDir);
-        ticking = true;
-      }
-    };
-
-    window.addEventListener("scroll", onScroll);
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
-
-  // --- 2. LOGOUT OPTIMIZADO CON CONFETTI DINÁMICO ---
-  const handleLogoutEffect = useCallback(async () => {
-      // Importación dinámica: Ahorra KB en la carga inicial
-      const confetti = (await import('canvas-confetti')).default;
       
+      setLastScrollY(currentScrollY);
+    }
+
+    window.addEventListener('scroll', handleScroll)
+    return () => window.removeEventListener('scroll', handleScroll)
+  }, [lastScrollY])
+
+  useEffect(() => {
+    if (showLogoutModal) {
       const duration = 2.5 * 1000
       const end = Date.now() + duration
 
@@ -86,18 +74,14 @@ function Navbar() {
       }
       frame()
 
-      setTimeout(() => {
+      const timeout = setTimeout(() => {
         logout()
         router.push('/')
         setShowLogoutModal(false)
       }, 2500)
-  }, [logout, router]);
-
-  useEffect(() => {
-    if (showLogoutModal) {
-        handleLogoutEffect();
+      return () => clearTimeout(timeout)
     }
-  }, [showLogoutModal, handleLogoutEffect])
+  }, [showLogoutModal, logout, router])
 
   // Lógica de colores dinámica
   const textColorClass = isScrolled 
@@ -116,28 +100,27 @@ function Navbar() {
     <>
       <header
         className={clsx(
-          'fixed w-full top-0 z-50 transition-transform duration-300 ease-in-out border-b will-change-transform transform-gpu', // GPU Acceleration
-          // Estilos visuales
+          'fixed w-full top-0 z-50 transition-all duration-300 ease-in-out border-b', // Duration 300 para suavizar la ocultación
+          // Lógica de estilos visuales
           isScrolled
             ? 'bg-white/70 dark:bg-black/70 backdrop-blur-xl border-gray-200/50 dark:border-white/10 shadow-sm'
             : 'bg-transparent border-transparent py-2',
-          // Visibilidad
+          // Lógica de visibilidad (Transform)
           isVisible ? 'translate-y-0' : '-translate-y-full'
         )}
       >
         <div className="max-w-7xl mx-auto px-4 md:px-6 h-20 flex items-center justify-between">
           
-          {/* Logo - Priority loading para LCP */}
+          {/* Logo */}
           <Link href="/" className="relative group z-50 flex items-center gap-3">
             <div className="relative">
                 <div className="absolute inset-0 bg-indigo-500/20 blur-xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
                 <Image
-                    src={logo}
-                    alt="Wasaaa Logo"
-                    width={64} 
-                    height={64}
-                    priority // Importante para evitar CLS en el header
-                    className="relative h-14 w-14 md:h-16 md:w-16 object-contain transition-transform duration-300 group-hover:scale-105"
+                src={logo}
+                alt="Wasaaa Logo"
+                width={80} 
+                height={80}
+                className="relative h-14 w-14 md:h-16 md:w-16 object-contain transition-transform duration-300 group-hover:scale-105"
                 />
             </div>
             <span className={clsx("font-bold text-2xl tracking-tight block transition-colors", logoTextClass)}>
@@ -171,7 +154,7 @@ function Navbar() {
                 {empresa ? (
                   <div className="flex items-center gap-3 animate-in fade-in duration-500">
                     <span className={clsx("text-sm font-medium hidden lg:block", textColorClass)}>
-                      Hola, {empresa.nombre?.split(' ')[0] || 'Usuario'}
+                      Hola, {empresa.nombre.split(' ')[0]}
                     </span>
                     <Link href="/dashboard">
                       <Button className="rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-500/20 transition-all hover:scale-105">
@@ -240,7 +223,7 @@ function Navbar() {
                         key={link.name}
                         initial={{ opacity: 0, x: -10 }}
                         animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: 0.1 + (i * 0.05), duration: 0.2 }}
+                        transition={{ delay: 0.2 + (i * 0.05), duration: 0.3, ease: "easeOut" }}
                         href={link.href}
                         onClick={() => setOpenSheet(false)}
                         className="flex items-center justify-between p-3 rounded-xl text-lg font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all"
@@ -249,10 +232,16 @@ function Navbar() {
                         <ChevronRight className="h-4 w-4 opacity-30" />
                       </motion.a>
                     ))}
-                    <div className="my-4 border-t border-gray-100 dark:border-white/5 pt-4">
+                    <motion.div 
+                        initial={{ opacity: 0 }} 
+                        animate={{ opacity: 1 }} 
+                        transition={{ delay: 0.5 }}
+                        className="my-4"
+                    >
+                        <div className="h-px bg-gray-100 dark:bg-white/5 mb-4" />
                         <Link href="/politica" onClick={() => setOpenSheet(false)} className="block text-sm text-muted-foreground px-3 mb-2">Privacidad</Link>
                         <Link href="/terminos" onClick={() => setOpenSheet(false)} className="block text-sm text-muted-foreground px-3">Términos</Link>
-                    </div>
+                    </motion.div>
                   </nav>
 
                   <div className="flex flex-col gap-3 mt-4">
@@ -342,6 +331,3 @@ function Navbar() {
     </>
   )
 }
-
-// Memoizamos el componente completo para evitar re-renders por cambios en padres que no afecten props
-export default memo(Navbar);

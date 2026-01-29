@@ -1,28 +1,15 @@
 'use client'
 
-import React, { memo } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import logo from '../images/Logo-Wasaaa.webp'
 import { Instagram, Linkedin, Twitter, Facebook } from 'lucide-react'
 
-// Subcomponente memoizado
-const SocialLink = memo(({ href, icon: Icon }: { href: string; icon: any }) => (
-    <a 
-        href={href} 
-        className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-gray-400 hover:bg-indigo-100 dark:hover:bg-indigo-500/20 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all"
-    >
-        <Icon className="w-4 h-4" />
-    </a>
-))
-SocialLink.displayName = 'SocialLink';
-
-function Footer() {
+export default function Footer() {
   const currentYear = new Date().getFullYear()
 
   return (
-    // "content-visibility-auto" es CLAVE aquí: El navegador no renderiza esto hasta que es visible
-    <footer className="relative z-10 border-t border-gray-200/50 dark:border-white/5 bg-white/40 dark:bg-zinc-950/40 backdrop-blur-lg content-visibility-auto contain-paint">
+    <footer className="relative z-10 border-t border-gray-200/50 dark:border-white/5 bg-white/40 dark:bg-zinc-950/40 backdrop-blur-lg">
       <div className="max-w-7xl mx-auto px-6 py-12 md:py-16">
         
         <div className="grid grid-cols-1 md:grid-cols-12 gap-12 mb-12">
@@ -45,6 +32,7 @@ function Footer() {
               Automatización inteligente para WhatsApp. Ayudamos a negocios a escalar sus ventas y mejorar la atención al cliente con IA entrenada a medida.
             </p>
             
+            {/* Redes Sociales (Placeholders decorativos) */}
             <div className="flex items-center gap-4 pt-2">
                 <SocialLink href="#" icon={Instagram} />
                 <SocialLink href="#" icon={Twitter} />
@@ -53,7 +41,7 @@ function Footer() {
             </div>
           </div>
 
-          {/* Columna 2: Producto */}
+          {/* Columna 2: Producto (Enlaces rápidos) */}
           <div className="md:col-span-3">
             <h4 className="font-semibold text-gray-900 dark:text-white mb-4">Producto</h4>
             <ul className="space-y-3 text-sm text-gray-500 dark:text-gray-400">
@@ -68,14 +56,26 @@ function Footer() {
           <div className="md:col-span-4">
             <h4 className="font-semibold text-gray-900 dark:text-white mb-4">Legal</h4>
             <ul className="space-y-3 text-sm text-gray-500 dark:text-gray-400">
-              <li><Link href="/terminos" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">Términos y Condiciones</Link></li>
-              <li><Link href="/politica" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">Política de Privacidad</Link></li>
-              <li><Link href="/delete-my-data" className="hover:text-red-600 dark:hover:text-red-400 transition-colors flex items-center gap-2">Eliminar mis datos</Link></li>
+              <li>
+                <Link href="/terminos" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
+                  Términos y Condiciones
+                </Link>
+              </li>
+              <li>
+                <Link href="/politica" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
+                  Política de Privacidad
+                </Link>
+              </li>
+              <li>
+                <Link href="/delete-my-data" className="hover:text-red-600 dark:hover:text-red-400 transition-colors flex items-center gap-2">
+                  Eliminar mis datos
+                </Link>
+              </li>
             </ul>
           </div>
         </div>
 
-        {/* Barra Inferior */}
+        {/* Barra Inferior: Copyright */}
         <div className="pt-8 border-t border-gray-200/50 dark:border-white/5 flex flex-col md:flex-row justify-between items-center gap-4 text-xs text-gray-400 dark:text-gray-500">
           <p>© {currentYear} Wasaaa Inc. Todos los derechos reservados.</p>
           <div className="flex items-center gap-6">
@@ -88,4 +88,14 @@ function Footer() {
   )
 }
 
-export default memo(Footer);
+// Componente auxiliar para botones sociales
+function SocialLink({ href, icon: Icon }: { href: string; icon: any }) {
+    return (
+        <a 
+            href={href} 
+            className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-gray-400 hover:bg-indigo-100 dark:hover:bg-indigo-500/20 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all"
+        >
+            <Icon className="w-4 h-4" />
+        </a>
+    )
+}
