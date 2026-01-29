@@ -13,9 +13,12 @@ const inter = Inter({ subsets: ['latin'], variable: '--font-inter' })
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   
-  // Lógica: Ocultar navbar en dashboard, y ocultar fondo pesado en propuesta dental
-  const hideNavbar = pathname.startsWith('/dashboard')
+  // 1. DETECTAR RUTA DE LA LANDING
   const isOptimizedLanding = pathname === '/propuesta-dental'
+
+  // 2. LÓGICA PARA OCULTAR NAVBAR Y FOOTER
+  // Ocultamos si estamos en el dashboard O SI estamos en la propuesta dental
+  const hideLayoutElements = pathname.startsWith('/dashboard') || isOptimizedLanding
 
   return (
     <html lang="es" className="h-full scroll-smooth">
@@ -31,8 +34,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       
       <body className={clsx(inter.className, "h-full bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 antialiased selection:bg-indigo-500 selection:text-white")}>
         
-        {/* --- FONDO AMBIENTAL (SOLO SI NO ESTAMOS EN LA LANDING OPTIMIZADA) --- */}
-        {/* Esto evita que Safari se congele en la propuesta dental, pero mantiene el diseño en el resto del app */}
+        {/* --- FONDO GLOBAL (CONDICIONAL) --- */}
+        {/* Se apaga en la landing para que Safari vuele, se mantiene en el resto para que se vea premium */}
         {!isOptimizedLanding && (
             <div className="fixed inset-0 z-[-1] overflow-hidden pointer-events-none">
                 <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-indigo-500/10 blur-[120px] mix-blend-multiply dark:mix-blend-screen animate-pulse-slow" />
@@ -43,13 +46,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         )}
 
         <AuthProvider>
-          {!hideNavbar && <Navbar />}
+          {/* Solo mostramos Navbar si NO estamos en dashboard NI en landing */}
+          {!hideLayoutElements && <Navbar />}
           
           <main className="relative flex min-h-screen flex-col">
             {children}
           </main>
           
-          {!hideNavbar && <Footer />}
+          {/* Solo mostramos Footer si NO estamos en dashboard NI en landing */}
+          {!hideLayoutElements && <Footer />}
         </AuthProvider>
       </body>
     </html>
