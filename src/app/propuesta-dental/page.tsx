@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useEffect, useState } from 'react';
+import React, { memo, useEffect, useState } from 'react';
 import { Sparkles, CheckCircle2, Clock, Users, Database, BrainCircuit, CalendarCheck, ChevronRight, FileText, CalendarDays, Zap, Wifi } from 'lucide-react';
 import { motion, Variants } from 'framer-motion';
 import Link from 'next/link';
@@ -13,9 +13,7 @@ import amex from '../images/american-express.webp';
 import mastercard from '../images/mastercard-logo.webp';
 import wasaaaLogo from '../images/Logo-Wasaaa.webp';
 
-// --- IMPORTACIÓN DINÁMICA (LA CLAVE PARA SAFARI) ---
-// Estos componentes pesados no se cargan hasta que el navegador está listo.
-
+// --- IMPORTACIÓN DINÁMICA ---
 const CalendarVisual = dynamic(() => import('./components/CalendarVisual'), {
   ssr: false,
   loading: () => <div className="w-full max-w-xl h-[350px] bg-white/5 border border-white/5 rounded-3xl animate-pulse mx-auto" />
@@ -26,18 +24,14 @@ const DentalChatAnimation = dynamic(() => import('./components/DentalChatAnimati
   loading: () => <div className="w-[300px] h-[580px] bg-zinc-900 rounded-[3.5rem] border-4 border-zinc-800 animate-pulse mx-auto opacity-50" />
 });
 
-// AQUI ESTÁ EL FIX: Importamos la tarjeta dinámicamente en lugar de definirla aquí
 const AnimatedGenericCard = dynamic(() => import('./components/AnimatedGenericCard'), {
   ssr: false,
-  loading: () => (
-    // Placeholder del tamaño exacto de la tarjeta para evitar saltos
-    <div className="w-full max-w-[320px] aspect-[1.586/1] bg-white/5 rounded-2xl border border-white/10 animate-pulse mx-auto" />
-  )
+  loading: () => <div className="w-full max-w-[320px] aspect-[1.586/1] bg-white/5 rounded-2xl animate-pulse mx-auto border border-white/10" />
 });
 
 const DownloadButton = dynamic(() => import('./components/DownloadButton'), {
   ssr: false,
-  loading: () => <span className="text-xs text-slate-500 animate-pulse">Cargando opción de descarga...</span>,
+  loading: () => <span className="text-xs text-slate-500 animate-pulse">Cargando...</span>,
 });
 
 // --- CONSTANTES ---
@@ -54,7 +48,7 @@ const MOCK_PATIENTS = [
     { initials: "JL", name: "Jorge López", procedure: "Profilaxis", date: "Hace 1sem", color: "bg-emerald-500/20 text-emerald-300 font-bold" },
 ];
 
-// --- VARIANTES FRAMER MOTION ---
+// --- VARIANTES ---
 const fadeInUp: Variants = {
   hidden: { opacity: 0, y: 15 },
   visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: "easeOut" } }
@@ -74,20 +68,29 @@ export default function DentalProposal() {
   useEffect(() => setIsMounted(true), []);
 
   return (
-    <main className="min-h-screen bg-[#050505] text-slate-200 selection:bg-cyan-500 selection:text-black font-sans overflow-x-hidden relative transform-gpu">
+    <main className="min-h-screen bg-[#050505] text-slate-200 selection:bg-cyan-500 selection:text-black font-sans overflow-x-hidden relative">
       
-      {/* Background Glows (Optimizados con will-change para Safari) */}
-      <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden will-change-transform translate-z-0">
-        <div className="absolute top-0 left-0 right-0 h-[500px] bg-gradient-to-b from-slate-900/90 via-[#050505] to-[#050505]" />
-        <div className="absolute top-[10%] left-[0%] w-[250px] md:w-[600px] h-[250px] md:h-[600px] bg-cyan-900/10 rounded-full blur-[80px] opacity-40 mix-blend-screen" />
-        <div className="absolute bottom-[20%] right-[0%] w-[200px] md:w-[500px] h-[200px] md:h-[500px] bg-purple-900/10 rounded-full blur-[80px] opacity-40 mix-blend-screen" />
+      {/* === OPTIMIZACIÓN CRÍTICA PARA SAFARI === 
+          Reemplazamos 'blur-[100px]' por Gradientes Radiales.
+          Safari renderiza gradientes instantáneamente, pero se congela calculando blurs.
+      */}
+      <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
+        {/* Gradiente Superior Izquierdo (Cian) */}
+        <div className="absolute top-0 left-0 w-[800px] h-[800px] bg-[radial-gradient(circle_at_center,rgba(22,78,99,0.15)_0%,transparent_70%)] -translate-x-1/2 -translate-y-1/2" />
+        
+        {/* Gradiente Inferior Derecho (Morado) */}
+        <div className="absolute bottom-0 right-0 w-[800px] h-[800px] bg-[radial-gradient(circle_at_center,rgba(88,28,135,0.15)_0%,transparent_70%)] translate-x-1/3 translate-y-1/3" />
+        
+        {/* Sombra Superior Navbar */}
+        <div className="absolute top-0 left-0 right-0 h-[300px] bg-gradient-to-b from-[#050505] to-transparent opacity-90" />
       </div>
 
       <div className="relative z-10 max-w-7xl mx-auto px-4 md:px-6 pt-28 md:pt-44 pb-20 md:pb-32">
         
-        {/* --- HERO (CSS PURO = Carga Inmediata) --- */}
+        {/* --- HERO --- */}
         <section className="text-center mb-24 md:mb-40 pt-10">
-           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-cyan-500/20 bg-cyan-950/40 text-cyan-300 text-[10px] uppercase tracking-widest font-bold mb-6 md:mb-8 backdrop-blur-md shadow-[0_0_20px_rgba(6,182,212,0.1)] animate-fade-in-up">
+           {/* Eliminado backdrop-blur del badge para más velocidad */}
+           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-cyan-500/20 bg-cyan-950/40 text-cyan-300 text-[10px] uppercase tracking-widest font-bold mb-6 shadow-lg animate-fade-in-up">
             <Sparkles size={12} /> Inteligencia Artificial Odontológica
           </div>
           <h1 className="text-4xl sm:text-5xl md:text-7xl font-bold text-white mb-6 tracking-tighter leading-[1.1] animate-fade-in-up [animation-delay:100ms] opacity-0 fill-mode-forwards">
@@ -99,19 +102,20 @@ export default function DentalProposal() {
           </p>
         </section>
 
-        {/* --- FEATURE 1 (Chat Lazy Loaded) --- */}
+        {/* --- FEATURE 1 --- */}
         <motion.section 
           initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-50px" }} variants={staggerContainer}
           className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center mb-32 md:mb-48 content-visibility-auto"
         >
-            <motion.div variants={fadeInUp} className="order-2 lg:order-1 relative flex justify-center transform-gpu min-h-[580px]">
-                <div className="absolute inset-0 bg-indigo-500/10 blur-[50px] md:blur-[90px] rounded-full" />
+            <motion.div variants={fadeInUp} className="order-2 lg:order-1 relative flex justify-center min-h-[580px]">
+                {/* Reemplazo de Blur por imagen estática o gradiente simple */}
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(99,102,241,0.1)_0%,transparent_70%)]" />
                 <div className="relative w-full max-w-[350px] md:max-w-none transform scale-100 lg:scale-110 transition-transform duration-700">
                     <DentalChatAnimation/>
                 </div>
             </motion.div>
             <motion.div variants={fadeInUp} className="order-1 lg:order-2 flex flex-col items-center text-center lg:items-center lg:text-center px-2">
-                <div className="w-12 h-12 md:w-14 md:h-14 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center mb-6 md:mb-8 shadow-lg shadow-indigo-500/30 mx-auto">
+                <div className="w-12 h-12 rounded-2xl bg-indigo-500/20 flex items-center justify-center mb-6 md:mb-8 shadow-lg shadow-indigo-500/30 mx-auto">
                     <BrainCircuit className="text-white" size={24} />
                 </div>
                 <h2 className="text-3xl md:text-5xl font-bold text-white mb-4 md:mb-6 tracking-tight">Tu Recepcionista Experta <br/><span className="text-indigo-400">Disponible 24/7</span></h2>
@@ -126,7 +130,7 @@ export default function DentalProposal() {
             </motion.div>
         </motion.section>
 
-        {/* --- FEATURE 2 (Calendar Lazy Loaded) --- */}
+        {/* --- FEATURE 2 --- */}
         <motion.section 
           initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-50px" }} variants={staggerContainer}
           className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center mb-32 md:mb-48 content-visibility-auto"
@@ -145,17 +149,17 @@ export default function DentalProposal() {
                     ))}
                 </ul>
             </motion.div>
-            <motion.div variants={fadeInUp} className="order-2 relative w-full flex justify-center transform-gpu">
-                  <div className="absolute inset-0 bg-purple-500/10 blur-[50px] md:blur-[90px] rounded-full" />
+            <motion.div variants={fadeInUp} className="order-2 relative w-full flex justify-center">
+                  <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(168,85,247,0.1)_0%,transparent_70%)]" />
                   <div className="w-full max-w-[350px] md:max-w-xl"><CalendarVisual /></div>
             </motion.div>
         </motion.section>
 
-        {/* --- FEATURE 3 (BENTO GRID) --- */}
+        {/* --- BENTO GRID --- */}
         <section className="mb-32 md:mb-40 relative content-visibility-auto">
-            <div className="absolute top-0 left-[-20%] w-[300px] md:w-[600px] h-[300px] md:h-[600px] bg-purple-600/10 blur-[80px] md:blur-[130px] rounded-full -z-10 pointer-events-none transform-gpu translate-z-0" />
-            <div className="absolute bottom-0 right-[-20%] w-[300px] md:w-[600px] h-[300px] md:h-[600px] bg-blue-500/10 blur-[80px] md:blur-[130px] rounded-full -z-10 pointer-events-none transform-gpu translate-z-0" />
-
+            {/* Luces estáticas simples */}
+            <div className="absolute top-0 left-[-20%] w-[600px] h-[600px] bg-[radial-gradient(circle_at_center,rgba(147,51,234,0.05)_0%,transparent_70%)] pointer-events-none" />
+            
             <div className="text-center max-w-3xl mx-auto mb-12 md:mb-16 relative z-10 px-4">
                 <motion.div initial={{ opacity: 0, scale: 0.9 }} whileInView={{ opacity: 1, scale: 1 }} viewport={{ once: true }} className="inline-block mb-4">
                       <span className="px-3 py-1 rounded-full border border-cyan-500/30 bg-cyan-950/30 text-cyan-300 text-[10px] md:text-xs font-mono tracking-widest uppercase shadow-[0_0_15px_-3px_rgba(6,182,212,0.3)]">Core System v.2.0</span>
@@ -201,7 +205,7 @@ export default function DentalProposal() {
 
                 <div className="lg:col-span-5 flex flex-col gap-4 md:gap-6">
                     <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, amount: 0.2 }} transition={{ delay: 0.1 }} className="group relative rounded-[24px] md:rounded-[32px] overflow-hidden bg-white/[0.03] border border-white/10 hover:border-emerald-500/30 transition-all duration-500 min-h-[200px] md:min-h-[240px] flex flex-col backdrop-blur-lg md:backdrop-blur-xl shadow-2xl shadow-black/20 transform-gpu translate-z-0">
-                        <div className="absolute inset-0 bg-gradient-to-br from-emerald-900/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
+                        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(16,185,129,0.05)_0%,transparent_60%)]" />
                         <div className="relative p-6 md:p-8 h-full flex flex-col justify-between">
                             <div className="flex justify-between items-start mb-2">
                                 <div><h3 className="text-lg md:text-xl font-bold text-white">Motor de Reactivación</h3><p className="text-[10px] md:text-xs text-emerald-400/80 uppercase tracking-wider mt-1 font-semibold">Gestión de Retorno</p></div>
@@ -215,7 +219,7 @@ export default function DentalProposal() {
                     </motion.div>
 
                     <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, amount: 0.2 }} transition={{ delay: 0.2 }} className="group relative rounded-[24px] md:rounded-[32px] overflow-hidden bg-white/[0.03] border border-white/10 hover:border-blue-500/30 transition-all duration-500 min-h-[200px] md:min-h-[240px] flex flex-col backdrop-blur-lg md:backdrop-blur-xl shadow-2xl shadow-black/20 transform-gpu translate-z-0">
-                         <div className="absolute inset-0 bg-gradient-to-br from-blue-900/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
+                         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(59,130,246,0.05)_0%,transparent_60%)]" />
                         <div className="relative p-6 md:p-8 h-full flex flex-col justify-between">
                             <div className="flex justify-between items-start mb-2">
                                 <div><h3 className="text-lg md:text-xl font-bold text-white">Métricas de Citas</h3><p className="text-[10px] md:text-xs text-blue-400/80 uppercase tracking-wider mt-1 font-semibold">Dashboard CRM</p></div>
@@ -317,9 +321,7 @@ export default function DentalProposal() {
 
               {/* SECCIÓN PAGO: Tarjeta Genérica + Logos IMAGENES REALES */}
               <div className="w-full pt-8 border-t border-white/5 flex flex-col items-center gap-8">
-                {/* 🚀 COMPONENTE IMPORTADO DINÁMICAMENTE PARA NO BLOQUEAR SAFARI */}
                 <AnimatedGenericCard />
-                
                 <div className="w-full flex justify-center items-center gap-8 opacity-60 hover:opacity-100 transition-opacity duration-500">
                     <div className="h-8 w-auto relative">
                         <Image src={visa} alt="Visa" height={32} width={50} sizes="(max-width: 768px) 50px, 60px" className="object-contain w-auto h-full grayscale hover:grayscale-0 transition-all duration-300" />
