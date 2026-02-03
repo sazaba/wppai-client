@@ -51,9 +51,9 @@ import dynamic from 'next/dynamic';
 import LandingFAQ from "./components/LandingFAQ"; 
 
 // --- IMPORTACIÓN DE IMÁGENES ---
-import visa from '../images/visa-logo.webp';
-import amex from '../images/american-express.webp';
-import mastercard from '../images/mastercard-logo.webp';
+import visa from './images/visa-logo.webp';
+import amex from './images/american-express.webp';
+import mastercard from './images/mastercard-logo.webp';
 
 // --- IMPORTACIÓN DINÁMICA DE LOS COMPONENTES NUEVOS ---
 const CalendarVisual = dynamic(() => import('./components/CalendarVisual'), {
