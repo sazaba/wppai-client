@@ -69,7 +69,7 @@ export default function HomePageContent() {
          <div className="absolute inset-0 bg-[url('/grid-pattern.svg')] opacity-[0.03]" style={{ backgroundSize: '30px 30px' }}></div>
       </div>
 
-      <div className="relative z-10 max-w-7xl mx-auto px-4 md:px-6 pt-32 pb-20 md:pb-32">
+      <div className="relative z-10 max-w-7xl mx-auto px-4 md:px-6 pt-36 pb-20 md:pb-32">
         
         {/* --- HERO --- */}
         <section className="text-center mb-24 md:mb-40">
