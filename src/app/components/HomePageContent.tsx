@@ -72,20 +72,20 @@ const CONTENT: Record<'aesthetic' | 'dental', IndustryContent> = {
     buttonGradient: 'from-rose-700 to-purple-700',
     heroBadge: 'Gestión Clínica Inteligente',
     heroTitle: <>Automatiza tu <span className="text-transparent bg-clip-text bg-gradient-to-r from-rose-400 to-purple-500">Centro Estético</span> <br className="hidden md:block" /> Y Deja de Perder Pacientes</>,
-    heroDesc: 'Elimina el caos administrativo. Centraliza citas, historias clínicas y ventas en una plataforma que trabaja mientras tú atiendes en consulta.',
+    heroDesc: 'Elimina el caos administrativo. Filtra curiosos, califica pacientes reales y entrégalos listos para agendar a tu equipo.',
     chatComponent: AestheticChatAnimation,
     feature1Title: <>Recepción Inteligente <br/><span className="text-rose-400">Sin Esperas</span></>,
-    feature1Desc: 'Tu recepcionista no puede responder a las 11 PM. Nuestra IA sí. Filtra "curiosos", educa sobre tratamientos y agenda valoraciones automáticamente.',
-    feature2Title: <>Agenda Blindada <br/><span className="text-purple-400">Control de Salas</span></>,
-    feature2Desc: 'Evita cruces de horarios. Gestiona la disponibilidad de tus doctores, salas y equipos en tiempo real.',
+    feature1Desc: 'Tu recepcionista no puede responder a las 3 AM. Nuestra IA sí. Resuelve dudas de precios, filtra a los interesados y te deja el agendamiento "en bandeja de plata".',
+    feature2Title: <>Agenda Organizada <br/><span className="text-purple-400">Control Total</span></>,
+    feature2Desc: 'Olvídate del "¿Confirmó?". El sistema etiqueta automáticamente quién viene, quién canceló y quién necesita reagendar. Tu equipo solo llena huecos.',
     pricingTitle: 'Plan Clínicas Pro',
-    pricingDesc: 'Diseñado para centros estéticos que buscan escalar sin caos operativo.',
+    pricingDesc: 'Diseñado para centros estéticos que quieren escalar su facturación sin volverse locos con la logística.',
     pricingPrice: '250.000',
-    pricingFeatures: ["Gestión de salas/consultorios", "Recordatorios automáticos", "Soporte Prioritario", "Sin cláusula de permanencia"],
+    pricingFeatures: ["Filtrado de pacientes cualificados", "Etiquetado automático de citas", "Soporte Prioritario", "Sin cláusula de permanencia"],
     testimonials: [
-      { name: "Dra. Valentina H.", role: "Directora Médica", text: "El problema no eran los precios, era la velocidad. Con la IA, el paciente recibe info al instante y agenda.", metric: "+40% Ingresos", avatar: "VH", color: "from-rose-600 to-pink-500" },
-      { name: "Clínica Piel & Ser", role: "Gerencia", text: "La reactivación de base de datos es impresionante. El sistema trajo de vuelta pacientes inactivos.", metric: "+30% Retornos", avatar: "PS", color: "from-amber-600 to-orange-500" },
-      { name: "Dr. Andrés Meza", role: "Cirujano", text: "Antes tenía huecos en la agenda y aparatología quieta. Ahora el sistema llena esos espacios.", metric: "Agenda Llena", avatar: "AM", color: "from-purple-600 to-indigo-500" }
+      { name: "Dra. Valentina H.", role: "Directora Médica", text: "Antes perdía horas respondiendo precios. Ahora la IA me filtra los pacientes serios y yo solo entro a cerrar la venta.", metric: "+40% Cierres", avatar: "VH", color: "from-rose-600 to-pink-500" },
+      { name: "Clínica Piel & Ser", role: "Gerencia", text: "La base de datos es una mina de oro. Puedo ver el historial de cada paciente y reactivar a los que no volvieron.", metric: "+30% Retornos", avatar: "PS", color: "from-amber-600 to-orange-500" },
+      { name: "Dr. Andrés Meza", role: "Cirujano", text: "El sistema de etiquetas en la agenda es genial. Mi secretaria sabe exactamente a quién llamar para confirmar.", metric: "Agenda Llena", avatar: "AM", color: "from-purple-600 to-indigo-500" }
     ],
     mockPatients: [
       { initials: "SC", name: "Sofía C.", procedure: "Toxina Botulínica", date: "Hoy, 11:00 AM", color: "bg-rose-500/20 text-rose-300" },
@@ -100,20 +100,20 @@ const CONTENT: Record<'aesthetic' | 'dental', IndustryContent> = {
     buttonGradient: 'from-cyan-700 to-blue-700',
     heroBadge: 'Inteligencia Artificial Odontológica',
     heroTitle: <>Automatiza tu <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">Clínica Dental</span> <br className="hidden md:block" /> Sin Perder el Toque Humano</>,
-    heroDesc: 'La plataforma que agenda, confirma y organiza sus pacientes mientras usted se dedica a la odontología. Cero ausentismo, máximo control.',
+    heroDesc: 'La plataforma que filtra, organiza y prepara a tus pacientes para que tú solo tengas que confirmar la cita. Cero chats sin responder.',
     chatComponent: DentalChatAnimation,
     feature1Title: <>Tu Recepcionista Experta <br/><span className="text-cyan-400">Disponible 24/7</span></>,
-    feature1Desc: 'Olvídate de responder lo mismo 100 veces. Nuestro asistente IA entiende términos como "endodoncia" y filtra pacientes reales de curiosos.',
-    feature2Title: <>Agenda que Trabaja Sola <br/><span className="text-blue-400">Cero Ausentismo</span></>,
-    feature2Desc: 'Evita cruces de horarios. Gestiona la disponibilidad de tus doctores, sillones y equipos en tiempo real.',
+    feature1Desc: 'Olvídate de responder lo mismo 100 veces. Nuestro asistente IA entiende tus tratamientos, da precios y filtra a los pacientes listos para ir a consulta.',
+    feature2Title: <>Agenda Inteligente <br/><span className="text-blue-400">Estado Real</span></>,
+    feature2Desc: 'Visualiza al instante quién confirmó asistencia y quién no. Usa las etiquetas inteligentes para gestionar reagendamientos en segundos.',
     pricingTitle: 'Plan Dental Premium',
-    pricingDesc: 'Diseñado para clínicas odontológicas de alto flujo que no pueden perder ni un solo paciente.',
+    pricingDesc: 'Diseñado para clínicas odontológicas que necesitan llenar sus sillones con pacientes cualificados, no solo curiosos.',
     pricingPrice: '250.000',
-    pricingFeatures: ["Gestión multi-doctor", "Confirmación WhatsApp", "Bloqueo de sillones", "Sin contratos forzosos"],
+    pricingFeatures: ["Filtrado por tratamiento", "Confirmación vía WhatsApp", "Historial clínico en chat", "Sin contratos forzosos"],
     testimonials: [
-      { name: "Dra. Beatriz Molina", role: "OdontoSpecial", text: "Dudé si una IA entendería términos clínicos. Me equivoqué. Hoy gestiona el 80% de mis citas.", metric: "+45 citas/mes", avatar: "BM", color: "from-blue-600 to-cyan-500" },
-      { name: "Dr. Camilo Restrepo", role: "Ortodoncista", text: "Antes mi secretaria pasaba 3 horas llamando. Ahora el sistema confirma solo.", metric: "95% Asistencia", avatar: "CR", color: "from-purple-600 to-indigo-500" },
-      { name: "Dental Sonrisas", role: "Admin", text: "El bot filtra a los que solo preguntan precio y nos pasa los pacientes listos para agendar.", metric: "-70% Carga", avatar: "DS", color: "from-emerald-600 to-teal-500" }
+      { name: "Dra. Beatriz Molina", role: "OdontoSpecial", text: "Dudé si una IA entendería. Me equivoqué. Hoy me entrega los pacientes con el tratamiento elegido, listos para agendar.", metric: "+45 citas/mes", avatar: "BM", color: "from-blue-600 to-cyan-500" },
+      { name: "Dr. Camilo Restrepo", role: "Ortodoncista", text: "Antes mi secretaria se enredaba con tantos chats. Ahora solo atiende a los que la IA ya filtró y etiquetó.", metric: "95% Efectividad", avatar: "CR", color: "from-purple-600 to-indigo-500" },
+      { name: "Dental Sonrisas", role: "Admin", text: "Ningún paciente se queda en 'visto'. La IA responde a todos y nos avisa cuáles son urgentes.", metric: "-70% Carga", avatar: "DS", color: "from-emerald-600 to-teal-500" }
     ],
     mockPatients: [
       { initials: "LG", name: "Laura G.", procedure: "Control Ortodoncia", date: "Hoy, 10:30 AM", color: "bg-blue-500/20 text-blue-300" },
@@ -156,7 +156,7 @@ export default function HomePageContent() {
       {/* PADDING AJUSTADO: Se redujo pt-32 a pt-28 */}
       <div className="relative z-10 max-w-7xl mx-auto px-4 md:px-6 pt-28 pb-16 md:pb-24">
         
-        {/* --- HERO (Espaciado normalizado mb-16) --- */}
+        {/* --- HERO --- */}
         <section className="text-center mb-16 md:mb-24">
            
            <div className="flex justify-center mb-10">
@@ -195,12 +195,11 @@ export default function HomePageContent() {
           </p>
         </section>
 
-        {/* --- FEATURES (Espaciado normalizado) --- */}
+        {/* --- FEATURES --- */}
         <section id="features" className="relative scroll-mt-24 content-visibility-auto contain-paint">
             <motion.div 
               key={industry} 
               initial="hidden" whileInView="visible" viewport={{ once: true, margin: "200px" }} variants={staggerContainer}
-              // Normalizado: mb-24 md:mb-32 (antes 48)
               className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center mb-24 md:mb-32"
             >
                 <div className="order-2 lg:order-1 relative flex justify-center min-h-[650px] items-center">
@@ -216,7 +215,7 @@ export default function HomePageContent() {
                     <h2 className="text-3xl md:text-5xl font-bold text-white mb-4 md:mb-6 tracking-tight">{content.feature1Title}</h2>
                     <p className="text-slate-300 text-base md:text-lg mb-8 leading-relaxed max-w-lg">{content.feature1Desc}</p>
                     <ul className="space-y-4 md:space-y-5 text-left inline-block"> 
-                        {["Respuesta inmediata 24/7", "Clasificación de leads", "Agendamiento automático", "Reducción de inasistencias"].map((item, i) => (
+                        {["Respuesta inmediata 24/7", "Filtrado de clientes reales", "Agendamiento organizado", "Reducción de inasistencias"].map((item, i) => (
                             <li key={i} className="flex items-start gap-3 md:gap-4 text-slate-300 text-sm md:text-base">
                                 <div className={clsx("mt-0.5 p-1 rounded-full shrink-0", isAesthetic ? "bg-rose-500/10 text-rose-500" : "bg-cyan-500/10 text-cyan-500")}><CheckCircle2 size={14} /></div><span>{item}</span>
                             </li>
@@ -227,7 +226,6 @@ export default function HomePageContent() {
 
             <motion.div 
               initial="hidden" whileInView="visible" viewport={{ once: true, margin: "200px" }} variants={staggerContainer}
-              // Normalizado: mb-24 md:mb-32
               className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center mb-24 md:mb-32"
             >
                 <div className="order-1 flex flex-col items-center text-center px-2">
@@ -262,8 +260,8 @@ export default function HomePageContent() {
                             <div className={clsx("p-2.5 rounded-2xl border", isAesthetic ? "bg-rose-950/30 border-rose-500/20 text-rose-400" : "bg-cyan-950/30 border-cyan-500/20 text-cyan-400")}><Database size={24} /></div>
                         </div>
                         <div className="mb-6 md:mb-8">
-                            <h3 className="text-xl md:text-3xl font-bold text-white mb-2 md:mb-3">CRM de Pacientes</h3>
-                            <p className="text-slate-300 text-sm md:text-base leading-relaxed max-w-lg">Base de datos viva. Historial de tratamientos, fotos y evolución clínica en un solo lugar.</p>
+                            <h3 className="text-xl md:text-3xl font-bold text-white mb-2 md:mb-3">Historial de Pacientes</h3>
+                            <p className="text-slate-300 text-sm md:text-base leading-relaxed max-w-lg">Tu base de datos organizada. Historial de procedimientos y conversaciones en un solo lugar.</p>
                         </div>
                         <div className="mt-auto border-t border-white/5 pt-5 md:pt-6">
                             <motion.div key={industry} className="space-y-2 md:space-y-3" initial="hidden" whileInView="visible" viewport={{ once: true }} variants={listContainer}>
@@ -290,14 +288,14 @@ export default function HomePageContent() {
                             <div><h3 className="text-lg font-bold text-white">Reactivación</h3><p className="text-xs text-emerald-400 font-semibold uppercase mt-1">Ingresos Pasivos</p></div>
                             <div className="p-2 rounded-lg bg-emerald-950/30 text-emerald-400"><TrendingUp size={20} /></div>
                         </div>
-                        <p className="text-slate-400 text-xs mt-2">El sistema detecta pacientes inactivos y les escribe automáticamente para agendar control.</p>
+                        <p className="text-slate-400 text-xs mt-2">El sistema te ayuda a identificar a quién volver a escribir para agendar un control o nuevo procedimiento.</p>
                     </motion.div>
                     <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} className="group relative rounded-[32px] p-6 md:p-8 bg-white/[0.03] border border-white/10 flex flex-col justify-between min-h-[200px]">
                         <div className="flex justify-between items-start">
                             <div><h3 className="text-lg font-bold text-white">Reportes</h3><p className="text-xs text-purple-400 font-semibold uppercase mt-1">Control Total</p></div>
                             <div className="p-2 rounded-lg bg-purple-950/30 text-purple-400"><CalendarCheck size={20} /></div>
                         </div>
-                        <p className="text-slate-400 text-xs mt-2">Métricas de asistencia, tratamientos más vendidos y facturación en tiempo real.</p>
+                        <p className="text-slate-400 text-xs mt-2">Métricas claras de asistencia y facturación para que tomes mejores decisiones.</p>
                     </motion.div>
                 </div>
             </div>
@@ -309,7 +307,7 @@ export default function HomePageContent() {
             <h2 className="text-3xl md:text-5xl font-bold text-white mb-4">
               Historias de <span className={accentText}>Éxito Real</span>
             </h2>
-            <p className="text-slate-300">Resultados tangibles en clínicas que priorizan el orden.</p>
+            <p className="text-slate-300">Resultados tangibles en clínicas que decidieron organizarse.</p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
@@ -349,7 +347,7 @@ export default function HomePageContent() {
           </div>
         </section>
 
-        {/* --- PRICING --- */}
+        {/* --- PRICING (CORREGIDO: Sin shadow en mobile) --- */}
         <section id="pricing" className="relative scroll-mt-24 mb-24 md:mb-32 content-visibility-auto">
           <motion.div
             key={industry}
@@ -358,7 +356,8 @@ export default function HomePageContent() {
           >
             <div className={clsx("absolute -inset-1 bg-gradient-to-r rounded-[2.5rem] blur-xl opacity-30 animate-pulse-slow", glowColor)} />
 
-            <div className="relative bg-[#080808]/90 backdrop-blur-2xl border border-white/10 rounded-[2rem] p-6 md:p-12 shadow-2xl overflow-hidden">
+            {/* CORRECCIÓN: shadow-none en mobile, shadow-2xl en md+ */}
+            <div className="relative bg-[#080808]/90 backdrop-blur-2xl border border-white/10 rounded-[2rem] p-6 md:p-12 shadow-none md:shadow-2xl overflow-hidden">
                 <div className={clsx("absolute top-0 right-0 w-64 h-64 rounded-full blur-3xl -mr-32 -mt-32 pointer-events-none opacity-20 bg-current", accentText)} />
 
                 <div className="grid md:grid-cols-2 gap-8 md:gap-12 items-center">
@@ -448,15 +447,15 @@ export default function HomePageContent() {
           </div>
         </section>
 
-        {/* --- CTA FINAL (Copy Mejorado & Neutro) --- */}
+        {/* --- CTA FINAL --- */}
         <motion.section 
           initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.3 }} variants={fadeInUp}
           className="relative py-16 md:py-24 group content-visibility-auto contain-paint"
         >
             <div className="relative z-10 max-w-3xl mx-auto text-center px-4 md:px-6">
                 <div className="bg-white/[0.02] backdrop-blur-lg md:backdrop-blur-xl p-8 md:p-12 rounded-[24px] md:rounded-[32px] border border-white/10 shadow-xl shadow-black/30 relative overflow-hidden transition-all duration-500 hover:border-white/20 isolation-isolate">
-                    <h2 className="text-3xl md:text-5xl font-bold text-white mb-4 md:mb-6 tracking-tight drop-shadow-sm">¿Listos para Escalar <span className={clsx("text-transparent bg-clip-text bg-gradient-to-r", content.accentGradient)}>su Clínica</span>?</h2>
-                    <p className="text-slate-300 max-w-xl mx-auto mb-8 md:mb-10 text-base md:text-lg leading-relaxed font-medium">Deje de perder pacientes por no responder a tiempo. Automatice su agenda, fidelice a sus clientes y aumente su facturación sin trabajar más horas.</p>
+                    <h2 className="text-3xl md:text-5xl font-bold text-white mb-4 md:mb-6 tracking-tight drop-shadow-sm">¿Listos para Escalar <span className={clsx("text-transparent bg-clip-text bg-gradient-to-r", content.accentGradient)}>tu Clínica</span>?</h2>
+                    <p className="text-slate-300 max-w-xl mx-auto mb-8 md:mb-10 text-base md:text-lg leading-relaxed font-medium">Deja de perder pacientes por no responder a tiempo. Automatiza tu agenda, fideliza a tus clientes y aumenta tu facturación sin trabajar más horas.</p>
                     <Link href="/register" className="relative z-10 inline-block group/btn w-full md:w-auto">
                         <div className="relative">
                             <div className={clsx("absolute -inset-2 bg-gradient-to-r rounded-2xl blur-xl opacity-30 group-hover/btn:opacity-50 transition-opacity duration-500", content.buttonGradient)} />
