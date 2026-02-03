@@ -4,7 +4,7 @@ import React, { useEffect, useState, useRef, memo } from 'react'
 import { motion, AnimatePresence, useInView } from 'framer-motion'
 import { Mic, ChevronLeft, Activity } from 'lucide-react'
 
-// Subcomponentes memoizados (Igual que AestheticChat)
+// Subcomponentes memoizados
 const ChatMessage = memo(({ isUser, text, time, show }: { isUser: boolean, text: string, time: string, show: boolean }) => {
   if (!show) return null;
   return (
@@ -36,7 +36,22 @@ export default function DentalChatAnimation() {
 
   useEffect(() => {
     if (!isInView) return;
-    const sequence = [{ t: 500, s: 1 }, { t: 2000, s: 2 }, { t: 3500, s: 3 }, { t: 5500, s: 4 }, { t: 7000, s: 5 }, { t: 9000, s: 6 }, { t: 11000, s: 7 }, { t: 12500, s: 8 }, { t: 14500, s: 9 }];
+    
+    // --- SECUENCIA RÁPIDA ---
+    // 0ms - 800ms: Aparece el historial (Msg 1 al 4) de golpe
+    // 2000ms+: Ocurre la interacción final en tiempo real
+    const sequence = [
+        { t: 100, s: 1 },  // Msg 1 (User)
+        { t: 300, s: 3 },  // Msg 2 (Bot) - Saltamos typing (s=2)
+        { t: 500, s: 4 },  // Msg 3 (User)
+        { t: 700, s: 6 },  // Msg 4 (Bot) - Saltamos typing (s=5)
+        
+        // --- PAUSA DE LECTURA (Usuario lee el historial) ---
+        { t: 2200, s: 7 }, // Msg 5 (User: "A las 10...") -> EN VIVO
+        { t: 3200, s: 8 }, // Typing... -> EN VIVO
+        { t: 5000, s: 9 }  // Msg 6 (Bot: Confirmación) -> FIN
+    ];
+
     const timers = sequence.map(({ t, s }) => setTimeout(() => setStep(s), t));
     return () => timers.forEach(clearTimeout);
   }, [isInView])
@@ -56,12 +71,16 @@ export default function DentalChatAnimation() {
           <div className="absolute inset-0 opacity-[0.03] pointer-events-none bg-[url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png')] bg-repeat bg-[length:300px_auto]" />
           <div className="flex-1 overflow-y-auto p-3 space-y-3 relative z-10 scrollbar-hide">
             <div className="flex justify-center py-2 mb-2"><span className="bg-zinc-800/80 text-zinc-400 text-[10px] px-2 py-0.5 rounded-md font-medium border border-white/5">Hoy</span></div>
+            
+            {/* HISTORIAL (Carga Rápida) */}
             <ChatMessage isUser={true} show={step >= 1} text="Hola, necesito una cita urgente. Me duele una muela." time="10:10" />
             <AnimatePresence>{step === 2 && <TypingIndicator />}</AnimatePresence>
             <ChatMessage isUser={false} show={step >= 3} text="¡Hola! 👋 Entiendo. ¿El dolor es constante o al comer algo frío?" time="10:10" />
             <ChatMessage isUser={true} show={step >= 4} text="Es más al tomar cosas frías. Es bastante molesto." time="10:11" />
             <AnimatePresence>{step === 5 && <TypingIndicator />}</AnimatePresence>
             <ChatMessage isUser={false} show={step >= 6} text="Podría ser sensibilidad. ¿Te queda bien mañana a las 10:00 AM?" time="10:11" />
+            
+            {/* INTERACCIÓN EN VIVO (Carga Lenta) */}
             <ChatMessage isUser={true} show={step >= 7} text="A las 10:00 AM por favor." time="10:12" />
             <AnimatePresence>{step === 8 && <TypingIndicator />}</AnimatePresence>
             <ChatMessage isUser={false} show={step >= 9} text="Perfecto ✨, agendado. Te envío la confirmación." time="10:12" />
