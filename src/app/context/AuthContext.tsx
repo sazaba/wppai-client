@@ -39,24 +39,42 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    // 1. Cargar todo del LocalStorage INMEDIATAMENTE
     const storedToken = localStorage.getItem('token')
     const storedUser = localStorage.getItem('usuario')
+    const storedEmpresa = localStorage.getItem('empresa') // NUEVO: Cacheamos empresa también
   
     if (storedToken && storedUser) {
       setToken(storedToken)
       setUsuario(JSON.parse(storedUser))
+      
+      if (storedEmpresa) {
+        setEmpresa(JSON.parse(storedEmpresa))
+      }
+
+      // 🔥 CLAVE DE LA OPTIMIZACIÓN 🔥
+      // Liberamos la UI de inmediato si tenemos datos locales.
+      // No esperamos a que el backend responda para mostrar la web.
+      setLoading(false) 
   
+      // 2. Actualización en Background (Silenciosa)
+      // Si el backend tarda 15s, no importa, el usuario ya está viendo la página.
       axios
         .get(`${process.env.NEXT_PUBLIC_API_URL}/api/empresa`, {
           headers: { Authorization: `Bearer ${storedToken}` }
         })
         .then((res) => {
           setEmpresa(res.data)
+          // Actualizamos el cache local para la próxima vez
+          localStorage.setItem('empresa', JSON.stringify(res.data))
         })
         .catch((err) => {
-          console.error('[AuthContext] Error al cargar empresa:', err)
+          console.error('[AuthContext] Error background sync:', err)
+          // Si el token es inválido, podríamos cerrar sesión aquí si quisiéramos
+          if (err.response?.status === 401) {
+             logout()
+          }
         })
-        .finally(() => setLoading(false))
     } else {
       setLoading(false)
     }
@@ -71,7 +89,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
       const { token } = res.data
 
-      const payload = JSON.parse(atob(token.split('.')[1]))
+      // Decodificar payload (asegúrate que tu JWT tenga esta estructura)
+      const base64Url = token.split('.')[1]
+      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/')
+      const jsonPayload = decodeURIComponent(window.atob(base64).split('').map(function(c) {
+          return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)
+      }).join(''))
+      
+      const payload = JSON.parse(jsonPayload)
+
       const usuario: Usuario = {
         id: payload.id,
         email: payload.email,
@@ -79,6 +105,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         empresaId: payload.empresaId
       }
 
+      // Guardar en Storage
       localStorage.setItem('token', token)
       localStorage.setItem('usuario', JSON.stringify(usuario))
       localStorage.setItem('empresaId', usuario.empresaId.toString())
@@ -86,11 +113,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setToken(token)
       setUsuario(usuario)
 
-      // Cargar empresa después del login
-      const empresaRes = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/empresa`, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
-      setEmpresa(empresaRes.data)
+      // Fetch Empresa y guardar en Storage
+      try {
+          const empresaRes = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/empresa`, {
+            headers: { Authorization: `Bearer ${token}` }
+          })
+          setEmpresa(empresaRes.data)
+          localStorage.setItem('empresa', JSON.stringify(empresaRes.data)) // Cachear
+      } catch (e) {
+          console.warn('No se pudo cargar la empresa inmediatamente', e)
+      }
 
       return true
     } catch (err) {
@@ -102,6 +134,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const logout = () => {
     localStorage.removeItem('token')
     localStorage.removeItem('usuario')
+    localStorage.removeItem('empresaId')
+    localStorage.removeItem('empresa') // Limpiar cache
     setToken(null)
     setUsuario(null)
     setEmpresa(null)
@@ -117,9 +151,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         loading,
         login,
         logout,
-        setToken,    // ⬅️ ahora disponible en el contexto
-        setUsuario,  // ⬅️ ahora disponible en el contexto
-        setEmpresa   // ⬅️ ahora disponible en el contexto
+        setToken,
+        setUsuario,
+        setEmpresa
       }}
     >
       {children}
