@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { Menu, Sparkles, LogOut, ChevronRight, User } from 'lucide-react'
@@ -12,8 +12,8 @@ import Image from 'next/image'
 import { useRouter, usePathname } from 'next/navigation'
 import { Dialog } from '@headlessui/react'
 import { motion, AnimatePresence } from 'framer-motion'
-// @ts-ignore
-import confetti from 'canvas-confetti'
+
+// NOTA: Eliminamos el import estático de 'canvas-confetti' para que no pese al inicio.
 
 const navLinks = [
   { name: 'Funcionalidades', href: '/#features' },
@@ -35,49 +35,68 @@ export default function Navbar() {
   const router = useRouter()
   const pathname = usePathname()
 
-  // CORRECCIÓN: Agregué '/' para que el home también se detecte como "página oscura"
   const darkRoutes = ['/', '/login', '/register', '/forgot-password', '/delete-my-data', '/propuesta-dental'];
   const isDarkPage = darkRoutes.includes(pathname || ''); 
 
-  // Control del Scroll
+  // Optimización de Scroll con requestAnimationFrame para evitar lag en Safari
   useEffect(() => {
+    let ticking = false;
+
     const handleScroll = () => {
       const currentScrollY = window.scrollY;
-      setIsScrolled(currentScrollY > 20);
 
-      if (currentScrollY > lastScrollY && currentScrollY > 100) {
-        setIsVisible(false);
-      } else {
-        setIsVisible(true);
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          setIsScrolled(currentScrollY > 20);
+          
+          // Lógica de esconder navbar (solo si scrolleamos bastante hacia abajo)
+          if (currentScrollY > lastScrollY && currentScrollY > 100) {
+            setIsVisible(false);
+          } else {
+            setIsVisible(true);
+          }
+          
+          setLastScrollY(currentScrollY);
+          ticking = false;
+        });
+        ticking = true;
       }
-      setLastScrollY(currentScrollY);
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true }); // 'passive: true' mejora rendimiento en móviles
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [lastScrollY]);
+
+  // Manejo de Logout con IMPORTACIÓN DINÁMICA (Lazy Load)
+  const handleLogoutFlow = useCallback(async () => {
+    // 1. Mostrar modal inmediatamente
+    setShowLogoutModal(true)
+
+    // 2. Importar la librería SOLO AHORA (ahorra peso inicial)
+    const confetti = (await import('canvas-confetti')).default;
+
+    // 3. Ejecutar animación
+    const duration = 2.5 * 1000
+    const end = Date.now() + duration
+
+    const frame = () => {
+      confetti({ particleCount: 3, angle: 60, spread: 55, origin: { x: 0 }, colors: ['#6366f1', '#ec4899'] })
+      confetti({ particleCount: 3, angle: 120, spread: 55, origin: { x: 1 }, colors: ['#6366f1', '#ec4899'] })
+      if (Date.now() < end) requestAnimationFrame(frame)
     }
+    frame()
 
-    window.addEventListener('scroll', handleScroll)
-    return () => window.removeEventListener('scroll', handleScroll)
-  }, [lastScrollY])
+    // 4. Logout real
+    const timeout = setTimeout(() => {
+      logout()
+      router.push('/')
+      setShowLogoutModal(false)
+    }, 2500)
+    
+    return () => clearTimeout(timeout)
+  }, [logout, router]);
 
-  // ... (Efecto Logout igual) ...
-  useEffect(() => {
-    if (showLogoutModal) {
-      const duration = 2.5 * 1000
-      const end = Date.now() + duration
-      const frame = () => {
-        confetti({ particleCount: 3, angle: 60, spread: 55, origin: { x: 0 }, colors: ['#6366f1', '#ec4899'] })
-        confetti({ particleCount: 3, angle: 120, spread: 55, origin: { x: 1 }, colors: ['#6366f1', '#ec4899'] })
-        if (Date.now() < end) requestAnimationFrame(frame)
-      }
-      frame()
-      const timeout = setTimeout(() => {
-        logout()
-        router.push('/')
-        setShowLogoutModal(false)
-      }, 2500)
-      return () => clearTimeout(timeout)
-    }
-  }, [showLogoutModal, logout, router])
-
-  // Lógica de colores dinámica
+  // Colores dinámicos
   const textColorClass = isScrolled 
     ? "text-gray-600 dark:text-gray-300" 
     : isDarkPage 
@@ -87,14 +106,14 @@ export default function Navbar() {
   const logoTextClass = isScrolled
     ? "text-gray-900 dark:text-white"
     : isDarkPage
-      ? "text-white" // Esto ahora aplicará en el Home
+      ? "text-white"
       : "text-gray-900 dark:text-white"
 
   return (
     <>
       <header
         className={clsx(
-          'fixed w-full top-0 z-50 transition-all duration-300 ease-in-out border-b',
+          'fixed w-full top-0 z-50 transition-transform duration-300 ease-in-out border-b', // Usamos transform para mejor performance
           isScrolled
             ? 'bg-white/70 dark:bg-black/70 backdrop-blur-xl border-gray-200/50 dark:border-white/10 shadow-sm'
             : 'bg-transparent border-transparent py-2',
@@ -108,11 +127,12 @@ export default function Navbar() {
             <div className="relative">
                 <div className="absolute inset-0 bg-indigo-500/20 blur-xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
                 <Image
-                src={logo}
-                alt="Wasaaa Logo"
-                width={80} 
-                height={80}
-                className="relative h-14 w-14 md:h-16 md:w-16 object-contain transition-transform duration-300 group-hover:scale-105"
+                  src={logo}
+                  alt="Wasaaa Logo"
+                  width={80} 
+                  height={80}
+                  priority // Importante para el LCP (Largest Contentful Paint)
+                  className="relative h-14 w-14 md:h-16 md:w-16 object-contain transition-transform duration-300 group-hover:scale-105"
                 />
             </div>
             <span className={clsx("font-bold text-2xl tracking-tight block transition-colors", logoTextClass)}>
@@ -141,12 +161,15 @@ export default function Navbar() {
 
           {/* Acciones Desktop */}
           <div className="hidden md:flex items-center gap-4">
-            {!loading && (
+            {/* Si está cargando, mostramos un esqueleto o nada, pero NO bloqueamos la UI */}
+            {loading ? (
+               <div className="w-24 h-10 bg-white/5 rounded-full animate-pulse" />
+            ) : (
               <>
                 {empresa ? (
                   <div className="flex items-center gap-3 animate-in fade-in duration-500">
                     <span className={clsx("text-sm font-medium hidden lg:block", textColorClass)}>
-                      Hola, {empresa.nombre.split(' ')[0]}
+                      Hola, {empresa.nombre?.split(' ')[0]}
                     </span>
                     <Link href="/dashboard">
                       <Button className="rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-500/20 transition-all hover:scale-105">
@@ -156,7 +179,7 @@ export default function Navbar() {
                     <Button
                       variant="ghost"
                       size="icon"
-                      onClick={() => setShowLogoutModal(true)}
+                      onClick={handleLogoutFlow}
                       className={clsx(
                           "rounded-full transition-colors",
                           isDarkPage && !isScrolled ? "text-white/70 hover:text-white hover:bg-white/10" : "text-gray-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20"
@@ -237,7 +260,9 @@ export default function Navbar() {
                   </nav>
 
                   <div className="flex flex-col gap-3 mt-4">
-                    {!loading && empresa ? (
+                    {loading ? (
+                        <div className="w-full h-12 bg-white/5 rounded-xl animate-pulse" />
+                    ) : empresa ? (
                         <>
                             <div className="flex items-center gap-3 px-3 mb-2">
                                 <div className="h-10 w-10 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
@@ -253,7 +278,7 @@ export default function Navbar() {
                             </Link>
                             <Button 
                                 variant="outline" 
-                                onClick={() => { setOpenSheet(false); setShowLogoutModal(true); }}
+                                onClick={() => { setOpenSheet(false); handleLogoutFlow(); }}
                                 className="w-full rounded-xl h-12 border-red-200 dark:border-red-900/50 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
                             >
                                 Cerrar Sesión
