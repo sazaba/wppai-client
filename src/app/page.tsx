@@ -1,8 +1,10 @@
+export const dynamic = 'force-static';
+
 import React from 'react'; // Eliminamos 'use client' del tope para poder exportar metadata
 import { Sparkles, CheckCircle2, Clock, Users, Database, BrainCircuit, CalendarCheck, ChevronRight, FileText, CalendarDays, Zap, Wifi, Star, TrendingUp, ShieldCheck } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image'; 
-import dynamic from 'next/dynamic';
+
 import { Metadata } from 'next'; // Importamos tipos de metadata
 
 // --- COMPONENTES DE CLIENTE (Motion) ---
