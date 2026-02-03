@@ -1,27 +1,37 @@
 'use client'
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Sparkles, CheckCircle2, Clock, Users, Database, BrainCircuit, CalendarCheck, ChevronRight, FileText, CalendarDays, Zap, Wifi, Star, TrendingUp, ShieldCheck } from 'lucide-react';
 import { motion, Variants } from 'framer-motion';
 import Link from 'next/link';
 import Image from 'next/image'; 
 import dynamic from 'next/dynamic';
 
-// --- IMÁGENES ---
+// FAQ es pesado, lo cargamos solo cuando se necesite
+const LandingFAQ = dynamic(() => import('./LandingFAQ'), { ssr: false });
+
 import visa from '../images/visa-logo.webp';
 import amex from '../images/american-express.webp';
 import mastercard from '../images/mastercard-logo.webp';
 
-// --- OPTIMIZACIÓN EXTREMA: Skeletons ultra-ligeros ---
-const SkeletonBox = () => <div className="w-full h-[300px] bg-white/5 rounded-3xl animate-pulse border border-white/5" />;
+// --- OPTIMIZACIÓN MÓVIL EXTREMA ---
+const LoadingSkeleton = () => <div className="w-full h-[300px] bg-white/5 rounded-3xl animate-pulse" />;
 
-// Imports Dinámicos (Lazy Load real)
-const CalendarVisual = dynamic(() => import('./CalendarVisual'), { ssr: false, loading: SkeletonBox });
-const AestheticChatAnimation = dynamic(() => import('./AestheticChatAnimation'), { ssr: false, loading: SkeletonBox });
-const AnimatedGenericCard = dynamic(() => import('./AnimatedGenericCard'), { ssr: false, loading: () => <div className="h-[200px] bg-white/5 rounded-2xl animate-pulse" /> });
-const LandingFAQ = dynamic(() => import('./LandingFAQ'), { ssr: false });
+const CalendarVisual = dynamic(() => import('./CalendarVisual'), {
+  ssr: false,
+  loading: LoadingSkeleton
+});
 
-// --- DATOS ---
+const AestheticChatAnimation = dynamic(() => import('./AestheticChatAnimation'), {
+  ssr: false,
+  loading: () => <div className="w-[300px] h-[580px] bg-zinc-900 rounded-[3.5rem] opacity-50" />
+});
+
+const AnimatedGenericCard = dynamic(() => import('./AnimatedGenericCard'), {
+  ssr: false,
+  loading: () => <div className="w-full h-[200px] bg-white/5 rounded-2xl" />
+});
+
 const TESTIMONIALS = [
   { name: "Dra. Valentina H.", role: "Directora Médica", text: "El problema no eran los precios, era la velocidad. Con la IA, el paciente recibe info al instante y agenda. Mi facturación subió un 40%.", metric: "+40% Ingresos", avatar: "VH", color: "from-rose-600 to-pink-500", delay: 0.1 },
   { name: "Dr. Andrés Meza", role: "Cirujano Plástico", text: "Antes tenía huecos en la agenda y aparatología costosa quieta. Ahora el sistema llena esos espacios automáticamente.", metric: "Agenda Llena", avatar: "AM", color: "from-purple-600 to-indigo-500", delay: 0.2 },
@@ -48,45 +58,60 @@ const staggerContainer: Variants = {
 const listContainer: Variants = { visible: { opacity: 1, transition: { staggerChildren: 0.08 } } };
 const listItem: Variants = { hidden: { opacity: 0, x: -5 }, visible: { opacity: 1, x: 0 } };
 
+
 export default function HomePageContent() {
   return (
     <main className="min-h-screen bg-[#050505] text-slate-200 selection:bg-rose-500 selection:text-white font-sans overflow-x-hidden relative">
       
-      {/* Fondo Global */}
+      {/* Fondo Global LIGERO */}
       <div className="fixed inset-0 z-0 pointer-events-none">
          <div className="absolute inset-0 bg-[#050505]" />
-         {/* Quitamos gradientes pesados aquí, usamos una imagen sutil repetida que es muy rápida */}
          <div className="absolute inset-0 bg-[url('/grid-pattern.svg')] opacity-[0.03]" style={{ backgroundSize: '30px 30px' }}></div>
       </div>
 
       <div className="relative z-10 max-w-7xl mx-auto px-4 md:px-6 pt-32 pb-20 md:pb-32">
         
-        {/* --- HERO (LCP Optimizado: Sin Framer Motion para Texto) --- */}
+        {/* --- HERO --- */}
         <section className="text-center mb-24 md:mb-40">
-           {/* Badge con animación CSS pura (más ligera) */}
-           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-rose-500/20 bg-rose-950/40 text-rose-300 text-[10px] uppercase tracking-widest font-bold mb-6 shadow-lg animate-fade-in-up">
+           <motion.div 
+             initial={{ opacity: 0, y: -10 }}
+             animate={{ opacity: 1, y: 0 }}
+             transition={{ duration: 0.5 }}
+             className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-rose-500/20 bg-rose-950/40 text-rose-300 text-[10px] uppercase tracking-widest font-bold mb-6 shadow-lg"
+           >
             <ShieldCheck size={12} /> Gestión Clínica Inteligente
-          </div>
+          </motion.div>
           
-          {/* Título: Texto plano HTML/CSS (Renderizado instantáneo) */}
-          <h1 className="text-4xl sm:text-5xl md:text-7xl font-bold text-white mb-6 tracking-tighter leading-[1.1] animate-fade-in-up [animation-delay:100ms] opacity-0 fill-mode-forwards">
+          <motion.h1 
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }} // ✅ CORREGIDO: Se eliminó 'priority: true'
+            className="text-4xl sm:text-5xl md:text-7xl font-bold text-white mb-6 tracking-tighter leading-[1.1]"
+          >
             Automatiza tu Centro Estético <br className="hidden md:block" />
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-rose-400 to-purple-500">Y Deja de Perder Pacientes</span>
-          </h1>
+          </motion.h1>
           
-          <p className="text-lg md:text-xl text-slate-300 max-w-2xl mx-auto leading-relaxed px-2 animate-fade-in-up [animation-delay:200ms] opacity-0 fill-mode-forwards">
+          <motion.p 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.2, duration: 0.5 }}
+            className="text-lg md:text-xl text-slate-300 max-w-2xl mx-auto leading-relaxed px-2"
+          >
             Elimina el caos administrativo. Centraliza citas, historias clínicas y ventas en una plataforma que trabaja mientras tú atiendes en consulta.
-          </p>
+          </motion.p>
         </section>
 
-        {/* --- FEATURES (Lazy Loaded) --- */}
-        {/* 'content-visibility-auto' hace que el navegador ignore esto hasta que haces scroll */}
-        <section id="features" className="relative scroll-mt-24 content-visibility-auto contain-paint">
+        {/* --- FEATURES (Chat & Calendar) --- */}
+        {/* ✅ CORREGIDO: Se eliminó 'contain-paint' para evitar el corte en móviles */}
+        <section id="features" className="relative scroll-mt-24 content-visibility-auto">
+            
             <motion.div 
               initial="hidden" whileInView="visible" viewport={{ once: true, margin: "200px" }} variants={staggerContainer}
               className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center mb-32 md:mb-48"
             >
-                <div className="order-2 lg:order-1 relative flex justify-center min-h-[580px]">
+                {/* ✅ CORREGIDO: Aumentamos altura mínima a 650px para evitar cortes */}
+                <div className="order-2 lg:order-1 relative flex justify-center min-h-[650px] items-center">
                     <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(244,63,94,0.08)_0%,transparent_70%)]" />
                     <div className="relative w-full max-w-[350px] md:max-w-none transform scale-100 lg:scale-110">
                         <AestheticChatAnimation/>
@@ -135,7 +160,7 @@ export default function HomePageContent() {
         </section>
 
         {/* --- HOW (Bento Grid) --- */}
-        <section id="how" className="relative scroll-mt-24 mb-32 md:mb-40 content-visibility-auto contain-paint">
+        <section id="how" className="relative scroll-mt-24 mb-32 md:mb-40 content-visibility-auto">
             <div className="text-center max-w-3xl mx-auto mb-12 md:mb-16 relative z-10 px-4">
                 <div className="inline-block mb-4">
                       <span className="px-3 py-1 rounded-full border border-rose-500/30 bg-rose-950/30 text-rose-300 text-[10px] md:text-xs font-mono tracking-widest uppercase shadow-[0_0_15px_-3px_rgba(244,63,94,0.3)]">Software Médico v.2.0</span>
@@ -146,11 +171,11 @@ export default function HomePageContent() {
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 md:gap-6 max-w-6xl mx-auto relative z-10">
                 {/* CRM CARD */}
-                <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, amount: 0.2 }} className="lg:col-span-7 group relative rounded-[24px] md:rounded-[32px] overflow-hidden bg-white/[0.03] border border-white/10 hover:border-rose-500/30 transition-all duration-500 flex flex-col backdrop-blur-lg shadow-2xl shadow-black/20 isolation-isolate transform-gpu translate-z-0">
+                <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, amount: 0.2 }} className="lg:col-span-7 group relative rounded-[24px] md:rounded-[32px] overflow-hidden bg-white/[0.03] border border-white/10 hover:border-rose-500/30 transition-all duration-500 flex flex-col backdrop-blur-lg md:backdrop-blur-xl shadow-2xl shadow-black/20 isolation-isolate transform-gpu translate-z-0">
                     <div className="absolute inset-0 bg-gradient-to-b from-white/[0.02] to-transparent pointer-events-none" />
                     <div className="relative p-6 md:p-10 h-full flex flex-col">
                         <div className="flex items-start justify-between mb-6 md:mb-8">
-                            <div className="p-2.5 md:p-3 rounded-2xl bg-rose-950/30 border border-rose-500/20 text-rose-400"><Database size={24} /></div>
+                            <div className="p-2.5 md:p-3 rounded-2xl bg-rose-950/30 border border-rose-500/20 text-rose-400 shadow-[0_0_15px_rgba(244,63,94,0.1)]"><Database size={24} /></div>
                             <div className="flex gap-1 opacity-30"><div className="w-1 h-1 bg-white rounded-full" /><div className="w-1 h-1 bg-white rounded-full" /><div className="w-6 md:w-8 h-1 bg-white rounded-full" /></div>
                         </div>
                         <div className="mb-6 md:mb-8">
@@ -187,7 +212,7 @@ export default function HomePageContent() {
                         <div className="relative p-6 md:p-8 h-full flex flex-col justify-between">
                             <div className="flex justify-between items-start mb-2">
                                 <div><h3 className="text-lg md:text-xl font-bold text-white">Reactivación</h3><p className="text-[10px] md:text-xs text-emerald-400/80 uppercase tracking-wider mt-1 font-semibold">Fidelización</p></div>
-                                <div className="p-2 rounded-lg bg-emerald-950/30 border border-emerald-500/20 text-emerald-400"><TrendingUp className="w-[18px] h-[18px] md:w-[20px] md:h-[20px]" /></div>
+                                <div className="p-2 rounded-lg bg-emerald-950/30 border border-emerald-500/20 text-emerald-400"><Users className="w-[18px] h-[18px] md:w-[20px] md:h-[20px]" /></div>
                             </div>
                             <p className="text-slate-300 text-xs md:text-sm mt-2">Sistema automático: "Paciente X requiere retoque de Botox (6 meses)". Recupera ingresos sin esfuerzo.</p>
                             <div className="mt-4 flex items-center gap-2 text-[10px] font-mono text-emerald-500/70 bg-emerald-500/5 px-3 py-1.5 rounded-full w-fit border border-emerald-500/10">
@@ -219,7 +244,7 @@ export default function HomePageContent() {
         </section>
 
         {/* ... Testimonios ... */}
-        <section className="mb-32 md:mb-48 relative px-4 content-visibility-auto contain-paint">
+        <section className="mb-32 md:mb-48 relative px-4 content-visibility-auto">
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-5xl font-bold text-white mb-4">
               Historias de <span className="text-rose-400">Éxito Real</span>
@@ -255,7 +280,7 @@ export default function HomePageContent() {
         </section>
 
         {/* ... Pricing (Rediseñado) ... */}
-        <section id="pricing" className="relative scroll-mt-24 mb-32 md:mb-40 max-w-4xl mx-auto px-2 content-visibility-auto contain-paint">
+        <section id="pricing" className="relative scroll-mt-24 mb-32 md:mb-40 max-w-4xl mx-auto px-2 content-visibility-auto">
           <motion.div 
              initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={fadeInUp}
              className="relative rounded-[32px] overflow-hidden border border-fuchsia-500/30 bg-[#080808] shadow-[0_0_60px_-15px_rgba(236,72,153,0.15)] group p-5 md:p-12"
@@ -299,7 +324,6 @@ export default function HomePageContent() {
               <div className="w-full pt-8 border-t border-white/5 flex flex-col items-center gap-8">
                 <AnimatedGenericCard />
                 <div className="w-full flex justify-center items-center gap-8 opacity-60 hover:opacity-100 transition-opacity duration-500">
-                    {/* OPTIMIZACIÓN: unoptimized para que sean más livianas en Next.js estático */}
                     <div className="h-8 w-auto relative">
                         <Image src={visa} alt="Visa" height={32} width={50} unoptimized className="object-contain w-auto h-full grayscale hover:grayscale-0 transition-all duration-300" />
                     </div>
@@ -315,10 +339,10 @@ export default function HomePageContent() {
           </motion.div>
         </section>
 
-        {/* ... CTA Final ... */}
+        {/* ... CTA ... */}
         <motion.section 
           initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.3 }} variants={fadeInUp}
-          className="relative py-20 md:py-32 group content-visibility-auto contain-paint"
+          className="relative py-20 md:py-32 group content-visibility-auto"
         >
             <div className="absolute inset-0 pointer-events-none">
                 <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-full md:w-[70%] h-[200px] md:h-[300px] bg-rose-900/10 blur-[80px] md:blur-[150px] rounded-full transform-gpu translate-z-0" />
