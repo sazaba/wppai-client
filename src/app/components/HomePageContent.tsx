@@ -17,7 +17,7 @@ import visa from '../images/visa-logo.webp';
 import amex from '../images/american-express.webp';
 import mastercard from '../images/mastercard-logo.webp';
 
-// --- INTERFAZ DE TIPADO (ESTO SOLUCIONA EL ERROR DEL MAP) ---
+// --- INTERFACES ---
 interface Testimonial {
   name: string;
   role: string;
@@ -46,11 +46,11 @@ interface IndustryContent {
   feature1Title: ReactNode;
   feature1Desc: string;
   feature2Title: ReactNode;
-  feature2Desc: string; // Agregado faltante
+  feature2Desc: string;
   pricingTitle: string;
   pricingDesc: string;
   pricingPrice: string;
-  pricingFeatures: string[]; // ¡Aquí definimos que SIEMPRE es un array de strings!
+  pricingFeatures: string[];
   testimonials: Testimonial[];
   mockPatients: MockPatient[];
 }
@@ -64,7 +64,7 @@ const DentalChatAnimation = dynamic(() => import('./DentalChatAnimation'), { ssr
 const AnimatedGenericCard = dynamic(() => import('./AnimatedGenericCard'), { ssr: false, loading: () => <div className="w-full h-[200px] bg-white/5 rounded-2xl" /> });
 const LandingFAQ = dynamic(() => import('./LandingFAQ'), { ssr: false });
 
-// --- CONFIGURACIÓN DE CONTENIDO (TIPADA) ---
+// --- CONFIGURACIÓN DE CONTENIDO ---
 const CONTENT: Record<'aesthetic' | 'dental', IndustryContent> = {
   aesthetic: {
     themeColor: 'rose', 
@@ -124,7 +124,7 @@ const CONTENT: Record<'aesthetic' | 'dental', IndustryContent> = {
   }
 };
 
-// Variants (Optimizadas, SIN priority)
+// Variants
 const fadeInUp: Variants = { hidden: { opacity: 0, y: 15 }, visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: "easeOut" } } };
 const staggerContainer: Variants = { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.1 } } };
 const listContainer: Variants = { visible: { opacity: 1, transition: { staggerChildren: 0.08 } } };
@@ -148,16 +148,17 @@ export default function HomePageContent() {
   return (
     <main className="min-h-screen bg-[#050505] text-slate-200 selection:bg-white/20 selection:text-white font-sans overflow-x-hidden relative">
       
-      {/* Fondo Global */}
       <div className="fixed inset-0 z-0 pointer-events-none">
          <div className="absolute inset-0 bg-[#050505]" />
          <div className="absolute inset-0 bg-[url('/grid-pattern.svg')] opacity-[0.03]" style={{ backgroundSize: '30px 30px' }}></div>
       </div>
 
-      <div className="relative z-10 max-w-7xl mx-auto px-4 md:px-6 pt-32 pb-20 md:pb-32">
+      {/* PADDING AJUSTADO: Se redujo pt-32 a pt-28 */}
+      <div className="relative z-10 max-w-7xl mx-auto px-4 md:px-6 pt-28 pb-16 md:pb-24">
         
-        {/* --- HERO --- */}
-        <section className="text-center mb-16 md:mb-32">
+        {/* --- HERO (Espaciado normalizado mb-16) --- */}
+        <section className="text-center mb-16 md:mb-24">
+           
            <div className="flex justify-center mb-10">
               <div className="p-1 bg-white/5 border border-white/10 rounded-full flex gap-1 backdrop-blur-sm">
                   <button 
@@ -194,12 +195,13 @@ export default function HomePageContent() {
           </p>
         </section>
 
-        {/* --- FEATURES --- */}
+        {/* --- FEATURES (Espaciado normalizado) --- */}
         <section id="features" className="relative scroll-mt-24 content-visibility-auto contain-paint">
             <motion.div 
               key={industry} 
               initial="hidden" whileInView="visible" viewport={{ once: true, margin: "200px" }} variants={staggerContainer}
-              className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center mb-32 md:mb-48"
+              // Normalizado: mb-24 md:mb-32 (antes 48)
+              className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center mb-24 md:mb-32"
             >
                 <div className="order-2 lg:order-1 relative flex justify-center min-h-[650px] items-center">
                     <div className={clsx("absolute inset-0 bg-[radial-gradient(circle_at_center,var(--tw-gradient-stops))] opacity-10", isAesthetic ? "from-rose-500 via-transparent" : "from-cyan-500 via-transparent")} />
@@ -225,7 +227,8 @@ export default function HomePageContent() {
 
             <motion.div 
               initial="hidden" whileInView="visible" viewport={{ once: true, margin: "200px" }} variants={staggerContainer}
-              className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center mb-32 md:mb-48"
+              // Normalizado: mb-24 md:mb-32
+              className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center mb-24 md:mb-32"
             >
                 <div className="order-1 flex flex-col items-center text-center px-2">
                     <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center mb-6 text-white shadow-lg shadow-purple-500/30 mx-auto">
@@ -243,7 +246,7 @@ export default function HomePageContent() {
         </section>
 
         {/* --- HOW (Bento) --- */}
-        <section id="how" className="relative scroll-mt-24 mb-32 md:mb-40 content-visibility-auto contain-paint">
+        <section id="how" className="relative scroll-mt-24 mb-24 md:mb-32 content-visibility-auto contain-paint">
             <div className="text-center max-w-3xl mx-auto mb-12 md:mb-16 relative z-10 px-4">
                 <div className="inline-block mb-4">
                       <span className={clsx("px-3 py-1 rounded-full border text-[10px] md:text-xs font-mono tracking-widest uppercase shadow-lg", isAesthetic ? "border-rose-500/30 bg-rose-950/30 text-rose-300" : "border-cyan-500/30 bg-cyan-950/30 text-cyan-300")}>Software Médico v.2.0</span>
@@ -300,8 +303,8 @@ export default function HomePageContent() {
             </div>
         </section>
 
-        {/* --- TESTIMONIOS (CORREGIDO: Layout Fluido) --- */}
-        <section className="mb-32 md:mb-48 relative px-4 content-visibility-auto contain-paint">
+        {/* --- TESTIMONIOS (Espaciado normalizado) --- */}
+        <section className="mb-24 md:mb-32 relative px-4 content-visibility-auto contain-paint">
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-5xl font-bold text-white mb-4">
               Historias de <span className={accentText}>Éxito Real</span>
@@ -319,7 +322,6 @@ export default function HomePageContent() {
                 <div className={`absolute -inset-2 bg-gradient-to-r ${t.color} rounded-[2rem] blur-xl opacity-0 group-hover:opacity-20 transition-opacity duration-500`} />
                 <div className="relative bg-[#0a0a0a] border border-white/10 p-8 rounded-[2rem] h-full flex flex-col shadow-2xl overflow-hidden">
                   
-                  {/* HEADER FLEX: Soluciona el solapamiento en móvil */}
                   <div className="flex justify-between items-center mb-6">
                       <div className="flex gap-1.5">
                         <div className="w-2 h-2 rounded-full bg-red-500/50" />
@@ -347,24 +349,20 @@ export default function HomePageContent() {
           </div>
         </section>
 
-        {/* --- PRICING REIMAGINADO (2 COLUMNAS + TIPADO) --- */}
-        <section id="pricing" className="relative scroll-mt-24 mb-32 md:mb-40 content-visibility-auto">
+        {/* --- PRICING --- */}
+        <section id="pricing" className="relative scroll-mt-24 mb-24 md:mb-32 content-visibility-auto">
           <motion.div
             key={industry}
             initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={fadeInUp}
             className="relative max-w-5xl mx-auto"
           >
-            {/* Glow Background */}
             <div className={clsx("absolute -inset-1 bg-gradient-to-r rounded-[2.5rem] blur-xl opacity-30 animate-pulse-slow", glowColor)} />
 
-            {/* Main Card */}
             <div className="relative bg-[#080808]/90 backdrop-blur-2xl border border-white/10 rounded-[2rem] p-6 md:p-12 shadow-2xl overflow-hidden">
-                
                 <div className={clsx("absolute top-0 right-0 w-64 h-64 rounded-full blur-3xl -mr-32 -mt-32 pointer-events-none opacity-20 bg-current", accentText)} />
 
                 <div className="grid md:grid-cols-2 gap-8 md:gap-12 items-center">
                     
-                    {/* Columna Izquierda */}
                     <div className="space-y-6 text-center md:text-left">
                         <div className={clsx("inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-semibold border", badgeBg, badgeBorder, badgeText)}>
                             <Sparkles className="w-4 h-4" /> {content.pricingTitle}
@@ -395,7 +393,6 @@ export default function HomePageContent() {
                         <p className="text-xs text-slate-500">Sin contratos forzosos. Cancela cuando quieras.</p>
                     </div>
 
-                    {/* Columna Derecha: Beneficios (TIPADO CORREGIDO) */}
                     <div className="bg-white/5 rounded-3xl p-6 md:p-8 border border-white/5 text-left">
                         <h3 className="font-bold text-lg text-white mb-6 flex items-center gap-2">
                             <Zap className="w-5 h-5 text-amber-500 fill-amber-500" />
@@ -403,7 +400,6 @@ export default function HomePageContent() {
                         </h3>
                         
                         <ul className="space-y-4">
-                            {/* Item Fijo 1 */}
                             <li className="flex items-start gap-3">
                                 <div className={clsx("flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center mt-0.5", badgeBg)}>
                                     <Check className={clsx("w-4 h-4", badgeText)} strokeWidth={3} />
@@ -414,7 +410,6 @@ export default function HomePageContent() {
                                 </div>
                             </li>
 
-                            {/* Item Fijo 2 */}
                             <li className="flex items-start gap-3 relative">
                                 <div className="absolute -left-2 -top-2 w-[calc(100%+1rem)] h-[calc(100%+1rem)] bg-green-500/5 rounded-xl -z-10 border border-green-500/20" />
                                 <div className="flex-shrink-0 w-6 h-6 rounded-full bg-green-500/20 flex items-center justify-center mt-0.5">
@@ -429,7 +424,6 @@ export default function HomePageContent() {
                                 </div>
                             </li>
 
-                            {/* Features Dinámicos (Array map) */}
                             {content.pricingFeatures.map((feature: string, i: number) => (
                                 <li key={i} className="flex items-start gap-3">
                                     <div className="flex-shrink-0 w-6 h-6 rounded-full bg-white/10 flex items-center justify-center mt-0.5">
@@ -454,20 +448,20 @@ export default function HomePageContent() {
           </div>
         </section>
 
-        {/* --- CTA FINAL --- */}
+        {/* --- CTA FINAL (Copy Mejorado & Neutro) --- */}
         <motion.section 
           initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.3 }} variants={fadeInUp}
-          className="relative py-20 md:py-32 group content-visibility-auto contain-paint"
+          className="relative py-16 md:py-24 group content-visibility-auto contain-paint"
         >
             <div className="relative z-10 max-w-3xl mx-auto text-center px-4 md:px-6">
                 <div className="bg-white/[0.02] backdrop-blur-lg md:backdrop-blur-xl p-8 md:p-12 rounded-[24px] md:rounded-[32px] border border-white/10 shadow-xl shadow-black/30 relative overflow-hidden transition-all duration-500 hover:border-white/20 isolation-isolate">
-                    <h2 className="text-3xl md:text-5xl font-bold text-white mb-4 md:mb-6 tracking-tight drop-shadow-sm">¿Lista para Ordenar <span className={clsx("text-transparent bg-clip-text bg-gradient-to-r", content.accentGradient)}>tu Clínica</span>?</h2>
-                    <p className="text-slate-300 max-w-xl mx-auto mb-8 md:mb-10 text-base md:text-lg leading-relaxed font-medium">Deje que la tecnología maneje la parte operativa. Recupere su tiempo y enfoque su energía en sus pacientes.</p>
+                    <h2 className="text-3xl md:text-5xl font-bold text-white mb-4 md:mb-6 tracking-tight drop-shadow-sm">¿Listos para Escalar <span className={clsx("text-transparent bg-clip-text bg-gradient-to-r", content.accentGradient)}>su Clínica</span>?</h2>
+                    <p className="text-slate-300 max-w-xl mx-auto mb-8 md:mb-10 text-base md:text-lg leading-relaxed font-medium">Deje de perder pacientes por no responder a tiempo. Automatice su agenda, fidelice a sus clientes y aumente su facturación sin trabajar más horas.</p>
                     <Link href="/register" className="relative z-10 inline-block group/btn w-full md:w-auto">
                         <div className="relative">
                             <div className={clsx("absolute -inset-2 bg-gradient-to-r rounded-2xl blur-xl opacity-30 group-hover/btn:opacity-50 transition-opacity duration-500", content.buttonGradient)} />
                             <button className="relative w-full md:w-auto bg-white text-black font-bold text-base md:text-lg px-8 md:px-10 py-4 rounded-xl hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 shadow-lg flex items-center justify-center gap-2 mx-auto">
-                                <Zap className={isAesthetic ? "text-rose-500" : "text-cyan-600"} size={18} /> Iniciar Prueba Gratis <ChevronRight className={isAesthetic ? "text-rose-600" : "text-cyan-600"} size={20} />
+                                <Zap className={isAesthetic ? "text-rose-500" : "text-cyan-600"} size={18} /> Quiero Automatizar mi Clínica <ChevronRight className={isAesthetic ? "text-rose-600" : "text-cyan-600"} size={20} />
                             </button>
                         </div>
                     </Link>
