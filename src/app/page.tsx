@@ -18,22 +18,23 @@ import mastercard from './images/mastercard-logo.webp';
 // --- IMPORTACIÓN DINÁMICA (CLAVE PARA SAFARI/MÓVIL) ---
 const CalendarVisual = dynamic(() => import('./components/CalendarVisual'), {
   ssr: false,
-  loading: () => <div className="w-full max-w-xl h-[350px] bg-white/5 border border-white/5 rounded-3xl animate-pulse mx-auto" />
+  // Skeleton más ligero
+  loading: () => <div className="w-full max-w-xl h-[300px] bg-white/5 rounded-3xl" />
 });
 
 const AestheticChatAnimation = dynamic(() => import('./components/AestheticChatAnimation'), {
   ssr: false,
-  loading: () => <div className="w-[300px] h-[580px] bg-zinc-900 rounded-[3.5rem] border-4 border-zinc-800 animate-pulse mx-auto opacity-50" />
+  loading: () => <div className="w-[300px] h-[580px] bg-zinc-900 rounded-[3.5rem] border-4 border-zinc-800 opacity-50" />
 });
 
 const AnimatedGenericCard = dynamic(() => import('./components/AnimatedGenericCard'), {
   ssr: false,
-  loading: () => <div className="w-full max-w-[320px] aspect-[1.586/1] bg-white/5 rounded-2xl animate-pulse mx-auto border border-white/10" />
+  loading: () => <div className="w-full max-w-[320px] aspect-[1.586/1] bg-white/5 rounded-2xl border border-white/10" />
 });
 
-// --- DATOS Y CONFIGURACIÓN ---
+// --- DATOS ---
 const TESTIMONIALS = [
-  { name: "Dra. Valentina H.", role: "Directora Médica", text: "El problema no eran los precios, era la velocidad de respuesta. Con la IA, el paciente que pregunta recibe info al instante y agenda. Mi facturación subió un 40%.", metric: "+40% Ingresos", avatar: "VH", color: "from-rose-600 to-pink-500", delay: 0.1 },
+  { name: "Dra. Valentina H.", role: "Directora Médica", text: "El problema no eran los precios, era la velocidad. Con la IA, el paciente recibe info al instante y agenda. Mi facturación subió un 40%.", metric: "+40% Ingresos", avatar: "VH", color: "from-rose-600 to-pink-500", delay: 0.1 },
   { name: "Dr. Andrés Meza", role: "Cirujano Plástico", text: "Antes tenía huecos en la agenda y aparatología costosa quieta. Ahora el sistema llena esos espacios automáticamente.", metric: "Agenda Llena", avatar: "AM", color: "from-purple-600 to-indigo-500", delay: 0.2 },
   { name: "Clínica Piel & Ser", role: "Gerencia", text: "La reactivación de base de datos es impresionante. El sistema trajo de vuelta pacientes que no venían hace un año.", metric: "+30% Retornos", avatar: "PS", color: "from-amber-600 to-orange-500", delay: 0.3 }
 ];
@@ -45,20 +46,19 @@ const MOCK_PATIENTS = [
     { initials: "CR", name: "Carolina R.", procedure: "Valoración Corporal", date: "Hace 1sem", color: "bg-emerald-500/20 text-emerald-300 font-bold" },
 ];
 
-// --- FRAMER MOTION VARIANTS ---
+// --- VARIANTS SIMPLIFICADOS (Menos carga en JS) ---
 const fadeInUp: Variants = {
-  hidden: { opacity: 0, y: 15 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: "easeOut" } }
+  hidden: { opacity: 0, y: 10 }, // Reducido el movimiento de 15 a 10
+  visible: { opacity: 1, y: 0, transition: { duration: 0.4, ease: "easeOut" } } // Duración reducida
 };
 
 const staggerContainer: Variants = {
   hidden: { opacity: 0 },
-  visible: { opacity: 1, transition: { staggerChildren: 0.1, delayChildren: 0.1 } }
+  visible: { opacity: 1, transition: { staggerChildren: 0.1 } }
 };
 
-const listContainer: Variants = { visible: { opacity: 1, transition: { staggerChildren: 0.08 } } };
+const listContainer: Variants = { visible: { opacity: 1, transition: { staggerChildren: 0.05 } } };
 const listItem: Variants = { hidden: { opacity: 0, x: -5 }, visible: { opacity: 1, x: 0 } };
-const pulseDeep: Variants = { animate: { opacity: [0.3, 0.45, 0.3], scale: [1, 1.02, 1], transition: { duration: 8, repeat: Infinity, ease: "easeInOut" } } };
 
 export default function HomePage() {
   const [isMounted, setIsMounted] = useState(false);
@@ -67,45 +67,57 @@ export default function HomePage() {
   return (
     <main className="min-h-screen bg-[#050505] text-slate-200 selection:bg-rose-500 selection:text-white font-sans overflow-x-hidden relative">
       
-      {/* === FONDO GLOBAL === */}
-      <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
-        <div className="absolute inset-0 bg-[#050505]" />
-        <div className="absolute top-0 left-0 w-[800px] h-[800px] bg-[radial-gradient(circle_at_center,rgba(225,29,72,0.10)_0%,transparent_70%)] -translate-x-1/2 -translate-y-1/2" />
-        <div className="absolute bottom-0 right-0 w-[800px] h-[800px] bg-[radial-gradient(circle_at_center,rgba(147,51,234,0.15)_0%,transparent_70%)] translate-x-1/3 translate-y-1/3" />
-        <div className="absolute inset-0 bg-[url('/grid-pattern.svg')] opacity-[0.03]" style={{ backgroundSize: '30px 30px' }}></div>
-      </div>
-
-      <div className="relative z-10 max-w-7xl mx-auto px-4 md:px-6 pt-32 pb-20 md:pb-32">
+      {/* PADDING AJUSTADO: pt-28 es suficiente para móviles */}
+      <div className="relative z-10 max-w-7xl mx-auto px-4 md:px-6 pt-28 pb-20 md:pb-32">
         
-        {/* --- HERO (Profesional y enfocado en dolor) --- */}
-        <section className="text-center mb-24 md:mb-40">
-           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-rose-500/20 bg-rose-950/40 text-rose-300 text-[10px] uppercase tracking-widest font-bold mb-6 shadow-lg animate-fade-in-up">
+        {/* --- HERO (OPTIMIZADO LCP) --- */}
+        <section className="text-center mb-20 md:mb-32">
+           <motion.div 
+             initial={{ opacity: 0, y: -10 }}
+             animate={{ opacity: 1, y: 0 }}
+             transition={{ duration: 0.3 }}
+             className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-rose-500/20 bg-rose-950/40 text-rose-300 text-[10px] uppercase tracking-widest font-bold mb-6 shadow-lg"
+           >
             <ShieldCheck size={12} /> Gestión Clínica Inteligente
-          </div>
-          <h1 className="text-4xl sm:text-5xl md:text-7xl font-bold text-white mb-6 tracking-tighter leading-[1.1] animate-fade-in-up [animation-delay:100ms] opacity-0 fill-mode-forwards">
-            Automatiza tu Centro Estético <br className="hidden md:block" />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-rose-400 to-purple-500">Y Deja de Perder Pacientes</span>
-          </h1>
-          <p className="text-lg md:text-xl text-slate-400 max-w-2xl mx-auto leading-relaxed px-2 animate-fade-in-up [animation-delay:200ms] opacity-0 fill-mode-forwards">
+          </motion.div>
+          
+          {/* ELIMINADO 'opacity-0' y clases personalizadas. Usamos framer simple para asegurar visibilidad */}
+    <motion.h1 
+  initial={{ opacity: 0, y: 10 }}
+  animate={{ opacity: 1, y: 0 }}
+  transition={{ duration: 0.5 }} // <--- SOLO DEJA EL DURATION
+  className="text-4xl sm:text-5xl md:text-7xl font-bold text-white mb-6 tracking-tighter leading-[1.1]"
+>
+  Automatiza tu Centro Estético <br className="hidden md:block" />
+  <span className="text-transparent bg-clip-text bg-gradient-to-r from-rose-400 to-purple-500">Y Deja de Perder Pacientes</span>
+</motion.h1>
+          
+          <motion.p 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.2, duration: 0.5 }}
+            className="text-lg md:text-xl text-slate-400 max-w-2xl mx-auto leading-relaxed px-2"
+          >
             Elimina el caos administrativo. Centraliza citas, historias clínicas y ventas en una plataforma que trabaja mientras tú atiendes en consulta.
-          </p>
+          </motion.p>
         </section>
 
 
-        {/* ================= ID: FEATURES (CHAT + CALENDAR) ================= */}
+        {/* ================= FEATURES ================= */}
         <section id="features" className="relative scroll-mt-24">
             
-            {/* FEATURE 1: CHAT (Enfoque: Filtrado y Venta) */}
+            {/* FEATURE 1: CHAT */}
             <motion.div 
               initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-50px" }} variants={staggerContainer}
               className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center mb-32 md:mb-48 content-visibility-auto"
             >
-                <motion.div variants={fadeInUp} className="order-2 lg:order-1 relative flex justify-center min-h-[580px]">
-                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(244,63,94,0.1)_0%,transparent_70%)]" />
-                    <div className="relative w-full max-w-[350px] md:max-w-none transform scale-100 lg:scale-110 transition-transform duration-700">
+                <div className="order-2 lg:order-1 relative flex justify-center min-h-[580px]">
+                    {/* Gradiente estático optimizado */}
+                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(244,63,94,0.08)_0%,transparent_70%)]" />
+                    <div className="relative w-full max-w-[350px] md:max-w-none transform scale-100 lg:scale-110">
                         <AestheticChatAnimation/>
                     </div>
-                </motion.div>
+                </div>
                 <motion.div variants={fadeInUp} className="order-1 lg:order-2 flex flex-col items-center text-center lg:items-center lg:text-center px-2">
                     <div className="w-12 h-12 rounded-2xl bg-rose-500/20 flex items-center justify-center mb-6 md:mb-8 shadow-lg shadow-rose-500/30 mx-auto">
                         <BrainCircuit className="text-white" size={24} />
@@ -122,7 +134,7 @@ export default function HomePage() {
                 </motion.div>
             </motion.div>
 
-            {/* FEATURE 2: CALENDARIO (Enfoque: Salas y Equipos) */}
+            {/* FEATURE 2: CALENDARIO */}
             <motion.div 
               initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-50px" }} variants={staggerContainer}
               className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center mb-32 md:mb-48 content-visibility-auto"
@@ -131,44 +143,42 @@ export default function HomePage() {
                     <div className="w-12 h-12 md:w-14 md:h-14 rounded-2xl bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center mb-6 md:mb-8 shadow-lg shadow-purple-500/30 mx-auto">
                         <Clock className="text-white" size={24} />
                     </div>
-                    <h2 className="text-3xl md:text-5xl font-bold text-white mb-4 md:mb-6 tracking-tight">Agenda Blindada <br/><span className="text-purple-400">Control de Salas y Equipos</span></h2>
+                    <h2 className="text-3xl md:text-5xl font-bold text-white mb-4 md:mb-6 tracking-tight">Agenda Blindada <br/><span className="text-purple-400">Control de Salas</span></h2>
                     <p className="text-slate-400 text-base md:text-lg mb-8 leading-relaxed max-w-lg">Evita cruces de horarios. Gestiona la disponibilidad de tus doctores, salas de procedimiento y aparatología en tiempo real.</p>
                     <ul className="space-y-4 md:space-y-5 text-left inline-block">
-                        {["Confirmación automática vía WhatsApp.", "Asignación inteligente de box/consultorio.", "Control de uso de aparatología.", "Lista de espera automatizada para huecos libres."].map((item, i) => (
+                        {["Confirmación automática vía WhatsApp.", "Asignación inteligente de box/consultorio.", "Control de uso de aparatología.", "Lista de espera automatizada."].map((item, i) => (
                             <li key={i} className="flex items-start gap-3 md:gap-4 text-slate-300 text-sm md:text-base">
                                 <div className="mt-0.5 bg-purple-500/10 p-1 rounded-full shrink-0"><CheckCircle2 className="text-purple-500" size={14} /></div><span>{item}</span>
                             </li>
                         ))}
                     </ul>
                 </motion.div>
-                <motion.div variants={fadeInUp} className="order-2 relative w-full flex justify-center">
-                      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(168,85,247,0.1)_0%,transparent_70%)]" />
+                <div className="order-2 relative w-full flex justify-center">
+                      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(168,85,247,0.08)_0%,transparent_70%)]" />
                       <div className="w-full max-w-[350px] md:max-w-xl"><CalendarVisual /></div>
-                </motion.div>
+                </div>
             </motion.div>
 
         </section>
 
 
-        {/* ================= ID: HOW (BENTO GRID - DATOS) ================= */}
+        {/* ================= HOW (BENTO GRID) ================= */}
         <section id="how" className="relative scroll-mt-24 mb-32 md:mb-40 content-visibility-auto">
-            <div className="absolute top-0 left-[-20%] w-[600px] h-[600px] bg-[radial-gradient(circle_at_center,rgba(244,63,94,0.05)_0%,transparent_70%)] pointer-events-none" />
             
             <div className="text-center max-w-3xl mx-auto mb-12 md:mb-16 relative z-10 px-4">
-                <motion.div initial={{ opacity: 0, scale: 0.9 }} whileInView={{ opacity: 1, scale: 1 }} viewport={{ once: true }} className="inline-block mb-4">
+                <div className="inline-block mb-4">
                       <span className="px-3 py-1 rounded-full border border-rose-500/30 bg-rose-950/30 text-rose-300 text-[10px] md:text-xs font-mono tracking-widest uppercase shadow-[0_0_15px_-3px_rgba(244,63,94,0.3)]">Software Médico v.2.0</span>
-                </motion.div>
+                </div>
                 <h2 className="text-3xl md:text-5xl font-bold text-white mb-4 md:mb-6 tracking-tight">El Cerebro Digital de tu Clínica</h2>
                 <p className="text-slate-400 text-base md:text-lg px-2">Transformamos datos dispersos en <span className="text-rose-400 font-semibold">rentabilidad y control</span>.</p>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 md:gap-6 max-w-6xl mx-auto relative z-10">
                 {/* CRM CARD */}
-                <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, amount: 0.2 }} className="lg:col-span-7 group relative rounded-[24px] md:rounded-[32px] overflow-hidden bg-white/[0.03] border border-white/10 hover:border-rose-500/30 transition-all duration-500 flex flex-col backdrop-blur-lg md:backdrop-blur-xl shadow-2xl shadow-black/20 isolation-isolate transform-gpu translate-z-0">
-                    <div className="absolute inset-0 bg-gradient-to-b from-white/[0.02] to-transparent pointer-events-none" />
+                <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, amount: 0.2 }} className="lg:col-span-7 group relative rounded-[24px] md:rounded-[32px] overflow-hidden bg-white/[0.03] border border-white/10 hover:border-rose-500/30 transition-all duration-500 flex flex-col backdrop-blur-lg shadow-2xl shadow-black/20 transform-gpu translate-z-0">
                     <div className="relative p-6 md:p-10 h-full flex flex-col">
                         <div className="flex items-start justify-between mb-6 md:mb-8">
-                            <div className="p-2.5 md:p-3 rounded-2xl bg-rose-950/30 border border-rose-500/20 text-rose-400 shadow-[0_0_15px_rgba(244,63,94,0.1)]"><Database size={24} /></div>
+                            <div className="p-2.5 md:p-3 rounded-2xl bg-rose-950/30 border border-rose-500/20 text-rose-400"><Database size={24} /></div>
                             <div className="flex gap-1 opacity-30"><div className="w-1 h-1 bg-white rounded-full" /><div className="w-1 h-1 bg-white rounded-full" /><div className="w-6 md:w-8 h-1 bg-white rounded-full" /></div>
                         </div>
                         <div className="mb-6 md:mb-8">
@@ -180,9 +190,9 @@ export default function HomePage() {
                                 <span className="text-[10px] md:text-xs font-mono text-slate-500 uppercase tracking-wider">Pacientes Recientes</span>
                                 <span className="text-[10px] md:text-xs text-rose-400 hover:text-rose-300 cursor-pointer flex items-center gap-1 transition-colors">Ver Todo <ChevronRight size={12}/></span>
                             </div>
-                            <motion.div className="space-y-2 md:space-y-3" initial="hidden" whileInView="visible" viewport={{ once: true }} variants={listContainer}>
+                            <div className="space-y-2 md:space-y-3">
                                 {MOCK_PATIENTS.map((patient, i) => (
-                                    <motion.div key={i} variants={listItem} className="flex items-center justify-between p-2.5 md:p-3 rounded-xl bg-white/[0.03] border border-white/5 hover:bg-white/[0.06] transition-colors group/item transform-gpu translate-z-0">
+                                    <div key={i} className="flex items-center justify-between p-2.5 md:p-3 rounded-xl bg-white/[0.03] border border-white/5 hover:bg-white/[0.06] transition-colors group/item transform-gpu translate-z-0">
                                         <div className="flex items-center gap-3 md:gap-4 overflow-hidden">
                                             <div className={`w-8 h-8 md:w-10 md:h-10 shrink-0 rounded-full ${patient.color} flex items-center justify-center text-xs md:text-sm shadow-sm`}>{patient.initials}</div>
                                             <div className="flex flex-col min-w-0">
@@ -191,16 +201,16 @@ export default function HomePage() {
                                             </div>
                                         </div>
                                         <div className="hidden sm:flex items-center gap-2 text-slate-500 px-2 md:px-3 py-1 rounded-lg bg-black/20 shrink-0"><CalendarDays size={12} /><span className="text-[10px] md:text-xs font-mono">{patient.date}</span></div>
-                                    </motion.div>
+                                    </div>
                                 ))}
-                            </motion.div>
+                            </div>
                         </div>
                     </div>
                 </motion.div>
 
                 <div className="lg:col-span-5 flex flex-col gap-4 md:gap-6">
                     {/* REACTIVACIÓN CARD */}
-                    <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, amount: 0.2 }} transition={{ delay: 0.1 }} className="group relative rounded-[24px] md:rounded-[32px] overflow-hidden bg-white/[0.03] border border-white/10 hover:border-emerald-500/30 transition-all duration-500 min-h-[200px] md:min-h-[240px] flex flex-col backdrop-blur-lg md:backdrop-blur-xl shadow-2xl shadow-black/20 transform-gpu translate-z-0">
+                    <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, amount: 0.2 }} transition={{ delay: 0.1 }} className="group relative rounded-[24px] md:rounded-[32px] overflow-hidden bg-white/[0.03] border border-white/10 hover:border-emerald-500/30 transition-all duration-500 min-h-[200px] md:min-h-[240px] flex flex-col backdrop-blur-lg shadow-2xl shadow-black/20 transform-gpu translate-z-0">
                         <div className="absolute inset-0 bg-gradient-to-br from-emerald-900/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
                         <div className="relative p-6 md:p-8 h-full flex flex-col justify-between">
                             <div className="flex justify-between items-start mb-2">
@@ -215,7 +225,7 @@ export default function HomePage() {
                     </motion.div>
 
                     {/* METRICAS CARD */}
-                    <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, amount: 0.2 }} transition={{ delay: 0.2 }} className="group relative rounded-[24px] md:rounded-[32px] overflow-hidden bg-white/[0.03] border border-white/10 hover:border-purple-500/30 transition-all duration-500 min-h-[200px] md:min-h-[240px] flex flex-col backdrop-blur-lg md:backdrop-blur-xl shadow-2xl shadow-black/20 transform-gpu translate-z-0">
+                    <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, amount: 0.2 }} transition={{ delay: 0.2 }} className="group relative rounded-[24px] md:rounded-[32px] overflow-hidden bg-white/[0.03] border border-white/10 hover:border-purple-500/30 transition-all duration-500 min-h-[200px] md:min-h-[240px] flex flex-col backdrop-blur-lg shadow-2xl shadow-black/20 transform-gpu translate-z-0">
                          <div className="absolute inset-0 bg-gradient-to-br from-purple-900/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
                         <div className="relative p-6 md:p-8 h-full flex flex-col justify-between">
                             <div className="flex justify-between items-start mb-2">
@@ -237,7 +247,7 @@ export default function HomePage() {
         </section>
 
 
-        {/* ================= TESTIMONIOS (SIN ID ESPECÍFICO) ================= */}
+        {/* ================= TESTIMONIOS ================= */}
         <section className="mb-32 md:mb-48 relative px-4 content-visibility-auto">
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-5xl font-bold text-white mb-4">
@@ -253,7 +263,7 @@ export default function HomePage() {
                 initial={{ opacity: 0, scale: 0.9 }} whileInView={{ opacity: 1, scale: 1 }} viewport={{ once: true }} transition={{ delay: t.delay }}
                 className="group relative"
               >
-                <div className={`absolute -inset-2 bg-gradient-to-r ${t.color} rounded-[2rem] blur-2xl opacity-0 group-hover:opacity-20 transition-opacity duration-500`} />
+                <div className={`absolute -inset-2 bg-gradient-to-r ${t.color} rounded-[2rem] blur-xl opacity-0 group-hover:opacity-20 transition-opacity duration-500`} />
                 <div className="relative bg-[#0a0a0a] border border-white/10 p-8 rounded-[2rem] h-full flex flex-col shadow-2xl overflow-hidden">
                   <div className="flex gap-1.5 mb-6">
                     <div className="w-2 h-2 rounded-full bg-red-500/50" /><div className="w-2 h-2 rounded-full bg-amber-500/50" /><div className="w-2 h-2 rounded-full bg-emerald-500/50" />
@@ -274,7 +284,7 @@ export default function HomePage() {
         </section>
 
 
-        {/* ================= ID: PRICING (MEMBRESÍA ÉLITE) ================= */}
+        {/* ================= PRICING ================= */}
         <section id="pricing" className="relative scroll-mt-24 mb-32 md:mb-40 max-w-4xl mx-auto px-2 content-visibility-auto">
           <motion.div 
              initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={fadeInUp}
@@ -320,14 +330,15 @@ export default function HomePage() {
               <div className="w-full pt-8 border-t border-white/5 flex flex-col items-center gap-8">
                 <AnimatedGenericCard />
                 <div className="w-full flex justify-center items-center gap-8 opacity-60 hover:opacity-100 transition-opacity duration-500">
+                    {/* OPTIMIZACIÓN: unoptimized para que sean más livianas */}
                     <div className="h-8 w-auto relative">
-                        <Image src={visa} alt="Visa" height={32} width={50} sizes="(max-width: 768px) 50px, 60px" className="object-contain w-auto h-full grayscale hover:grayscale-0 transition-all duration-300" />
+                        <Image src={visa} alt="Visa" height={32} width={50} unoptimized className="object-contain w-auto h-full grayscale hover:grayscale-0 transition-all duration-300" />
                     </div>
                     <div className="h-8 w-auto relative">
-                        <Image src={mastercard} alt="Mastercard" height={32} width={50} sizes="(max-width: 768px) 50px, 60px" className="object-contain w-auto h-full grayscale hover:grayscale-0 transition-all duration-300" />
+                        <Image src={mastercard} alt="Mastercard" height={32} width={50} unoptimized className="object-contain w-auto h-full grayscale hover:grayscale-0 transition-all duration-300" />
                     </div>
                     <div className="h-8 w-auto relative">
-                        <Image src={amex} alt="American Express" height={32} width={50} sizes="(max-width: 768px) 50px, 60px" className="object-contain w-auto h-full grayscale hover:grayscale-0 transition-all duration-300" />
+                        <Image src={amex} alt="American Express" height={32} width={50} unoptimized className="object-contain w-auto h-full grayscale hover:grayscale-0 transition-all duration-300" />
                     </div>
                 </div>
               </div>
@@ -343,11 +354,10 @@ export default function HomePage() {
         >
             <div className="absolute inset-0 pointer-events-none">
                 <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-full md:w-[70%] h-[200px] md:h-[300px] bg-rose-900/10 blur-[80px] md:blur-[150px] rounded-full transform-gpu translate-z-0" />
-                <motion.div variants={pulseDeep} animate="animate" className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full md:w-[80%] h-full md:h-[80%] bg-purple-900/05 blur-[100px] md:blur-[180px] rounded-full opacity-60 transform-gpu translate-z-0"/>
             </div>
 
             <div className="relative z-10 max-w-3xl mx-auto text-center px-4 md:px-6">
-                <div className="bg-white/[0.02] backdrop-blur-lg md:backdrop-blur-2xl p-8 md:p-12 rounded-[24px] md:rounded-[32px] border border-white/10 shadow-xl shadow-black/30 relative overflow-hidden transition-all duration-500 hover:border-white/20 isolation-isolate">
+                <div className="bg-white/[0.02] backdrop-blur-lg md:backdrop-blur-xl p-8 md:p-12 rounded-[24px] md:rounded-[32px] border border-white/10 shadow-xl shadow-black/30 relative overflow-hidden transition-all duration-500 hover:border-white/20 isolation-isolate">
                     <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent" />
                     <h2 className="text-3xl md:text-5xl font-bold text-white mb-4 md:mb-6 tracking-tight drop-shadow-sm">¿Lista para Ordenar <span className="text-transparent bg-clip-text bg-gradient-to-r from-rose-400 to-purple-300">tu Clínica</span>?</h2>
                     <p className="text-slate-400 max-w-xl mx-auto mb-8 md:mb-10 text-base md:text-lg leading-relaxed font-medium">Deje que la tecnología maneje la parte operativa. Recupere su tiempo y enfoque su energía en sus pacientes.</p>
