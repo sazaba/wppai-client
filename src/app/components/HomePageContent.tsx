@@ -18,14 +18,14 @@ const LoadingSkeleton = () => <div className="w-full h-[300px] bg-white/5 rounde
 
 const CalendarVisual = dynamic(() => import('./CalendarVisual'), { ssr: false, loading: LoadingSkeleton });
 const AestheticChatAnimation = dynamic(() => import('./AestheticChatAnimation'), { ssr: false, loading: LoadingSkeleton });
-const DentalChatAnimation = dynamic(() => import('./DentalChatAnimation'), { ssr: false, loading: LoadingSkeleton }); // Nuevo componente
+const DentalChatAnimation = dynamic(() => import('./DentalChatAnimation'), { ssr: false, loading: LoadingSkeleton }); 
 const AnimatedGenericCard = dynamic(() => import('./AnimatedGenericCard'), { ssr: false, loading: () => <div className="w-full h-[200px] bg-white/5 rounded-2xl" /> });
 const LandingFAQ = dynamic(() => import('./LandingFAQ'), { ssr: false });
 
 // --- CONFIGURACIÓN DE CONTENIDO (DATA) ---
 const CONTENT = {
   aesthetic: {
-    themeColor: 'rose', // Para clases dinámicas
+    themeColor: 'rose', 
     accentGradient: 'from-rose-400 to-purple-500',
     buttonGradient: 'from-rose-700 to-purple-700',
     heroBadge: 'Gestión Clínica Inteligente',
@@ -80,7 +80,7 @@ const CONTENT = {
   }
 };
 
-// Variants (Simplificados)
+// Variants
 const fadeInUp: Variants = { hidden: { opacity: 0, y: 15 }, visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: "easeOut" } } };
 const staggerContainer: Variants = { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.1 } } };
 const listContainer: Variants = { visible: { opacity: 1, transition: { staggerChildren: 0.08 } } };
@@ -91,7 +91,6 @@ export default function HomePageContent() {
   const content = CONTENT[industry];
   const ChatComponent = content.chatComponent;
 
-  // Renderizado
   return (
     <main className="min-h-screen bg-[#050505] text-slate-200 selection:bg-white/20 selection:text-white font-sans overflow-x-hidden relative">
       
@@ -106,7 +105,7 @@ export default function HomePageContent() {
         {/* --- HERO --- */}
         <section className="text-center mb-16 md:mb-32">
            
-           {/* SWITCH DE INDUSTRIA (EL TOGGLE) */}
+           {/* SWITCH TOGGLE */}
            <div className="flex justify-center mb-10">
               <div className="p-1 bg-white/5 border border-white/10 rounded-full flex gap-1 backdrop-blur-sm">
                   <button 
@@ -130,7 +129,6 @@ export default function HomePageContent() {
               </div>
            </div>
 
-           {/* TEXTOS DINÁMICOS (Key para re-animar) */}
            <motion.div key={`${industry}-badge`} initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-white/10 bg-white/5 text-slate-300 text-[10px] uppercase tracking-widest font-bold mb-6">
                 <ShieldCheck size={12} /> {content.heroBadge}
            </motion.div>
@@ -144,10 +142,10 @@ export default function HomePageContent() {
           </p>
         </section>
 
-        {/* --- FEATURES (CHAT CAMALEÓNICO) --- */}
+        {/* --- FEATURES --- */}
         <section id="features" className="relative scroll-mt-24 content-visibility-auto contain-paint">
             <motion.div 
-              key={industry} // Re-render al cambiar
+              key={industry} 
               initial="hidden" whileInView="visible" viewport={{ once: true, margin: "200px" }} variants={staggerContainer}
               className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center mb-32 md:mb-48"
             >
@@ -173,7 +171,6 @@ export default function HomePageContent() {
                 </div>
             </motion.div>
 
-            {/* Feature 2: Calendario (Genérico pero adaptable) */}
             <motion.div 
               initial="hidden" whileInView="visible" viewport={{ once: true, margin: "200px" }} variants={staggerContainer}
               className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center mb-32 md:mb-48"
@@ -187,14 +184,13 @@ export default function HomePageContent() {
                 </div>
                 <div className="order-2 relative w-full flex justify-center">
                       <div className="w-full max-w-[350px] md:max-w-xl">
-                          {/* Pasamos el modo al calendario para que cambie colores si quieres, o déjalo genérico */}
                           <CalendarVisual mode={industry} /> 
                       </div>
                 </div>
             </motion.div>
         </section>
 
-        {/* --- HOW (Bento Grid Dinámico) --- */}
+        {/* --- HOW (Bento) --- */}
         <section id="how" className="relative scroll-mt-24 mb-32 md:mb-40 content-visibility-auto contain-paint">
             <div className="text-center max-w-3xl mx-auto mb-12 md:mb-16 relative z-10 px-4">
                 <div className="inline-block mb-4">
@@ -234,7 +230,7 @@ export default function HomePageContent() {
                     </div>
                 </motion.div>
 
-                {/* CARDS LATERALES (Simplificadas para ahorrar espacio visual) */}
+                {/* CARDS LATERALES */}
                 <div className="lg:col-span-5 flex flex-col gap-4 md:gap-6">
                     <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} className="group relative rounded-[32px] p-6 md:p-8 bg-white/[0.03] border border-white/10 flex flex-col justify-between min-h-[200px]">
                         <div className="flex justify-between items-start">
@@ -254,7 +250,7 @@ export default function HomePageContent() {
             </div>
         </section>
 
-        {/* --- TESTIMONIOS (DINÁMICOS) --- */}
+        {/* --- TESTIMONIOS (CORREGIDO: Layout Fluido) --- */}
         <section className="mb-32 md:mb-48 relative px-4 content-visibility-auto contain-paint">
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-5xl font-bold text-white mb-4">
@@ -266,27 +262,47 @@ export default function HomePageContent() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
             {content.testimonials.map((t, i) => (
               <motion.div
-                key={`${industry}-${i}`} // Clave para cambiar suavemente
+                key={`${industry}-${i}`}
                 initial={{ opacity: 0, scale: 0.9 }} whileInView={{ opacity: 1, scale: 1 }} viewport={{ once: true }} transition={{ delay: 0.1 * i }}
                 className="group relative"
               >
                 <div className={`absolute -inset-2 bg-gradient-to-r ${t.color} rounded-[2rem] blur-xl opacity-0 group-hover:opacity-20 transition-opacity duration-500`} />
                 <div className="relative bg-[#0a0a0a] border border-white/10 p-8 rounded-[2rem] h-full flex flex-col shadow-2xl overflow-hidden">
-                  <div className="absolute top-6 right-6">
-                    <div className={`px-3 py-1 rounded-full bg-white/5 border border-white/10 text-[10px] font-bold uppercase tracking-tighter`}>{t.metric}</div>
+                  
+                  {/* --- CORRECCIÓN AQUÍ: Flex Header en vez de Absolute --- */}
+                  <div className="flex justify-between items-start mb-6">
+                      {/* Puntos Decorativos */}
+                      <div className="flex gap-1.5 pt-1">
+                        <div className="w-2 h-2 rounded-full bg-red-500/50" />
+                        <div className="w-2 h-2 rounded-full bg-amber-500/50" />
+                        <div className="w-2 h-2 rounded-full bg-emerald-500/50" />
+                      </div>
+                      
+                      {/* Etiqueta (Badge) AHORA DENTRO DEL FLUJO */}
+                      <div className="px-3 py-1 rounded-full bg-white/5 border border-white/10 text-[10px] font-bold uppercase tracking-tighter whitespace-nowrap">
+                          {t.metric}
+                      </div>
                   </div>
+
                   <p className="text-slate-300 text-lg leading-relaxed italic mb-8 relative z-10">"{t.text}"</p>
+                  
                   <div className="mt-auto flex items-center gap-4">
-                    <div className={`w-12 h-12 rounded-full bg-gradient-to-br ${t.color} flex items-center justify-center font-bold text-white shadow-lg`}>{t.avatar}</div>
-                    <div><h4 className="text-white font-bold text-sm">{t.name}</h4><p className="text-slate-500 text-xs">{t.role}</p></div>
+                    <div className={`w-12 h-12 rounded-full bg-gradient-to-br ${t.color} flex items-center justify-center font-bold text-white shadow-lg shrink-0`}>{t.avatar}</div>
+                    <div className="min-w-0">
+                        <h4 className="text-white font-bold text-sm truncate">{t.name}</h4>
+                        <p className="text-slate-500 text-xs truncate">{t.role}</p>
+                    </div>
                   </div>
+                  
+                  {/* Decoración Wifi */}
+                  <div className="absolute -bottom-2 -right-2 opacity-5 pointer-events-none"><Wifi size={100} className="rotate-45" /></div>
                 </div>
               </motion.div>
             ))}
           </div>
         </section>
 
-        {/* --- PRICING (DINÁMICO) --- */}
+        {/* --- PRICING --- */}
         <section id="pricing" className="relative scroll-mt-24 mb-32 md:mb-40 max-w-4xl mx-auto px-2 content-visibility-auto contain-paint">
           <motion.div 
              key={industry}
