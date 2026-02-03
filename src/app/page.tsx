@@ -1,42 +1,3 @@
-// import HeroSection from "./components/HeroSection"
-// import FeaturesSection from "./components/FeaturesSection"
-// import HowItWorksSection from "./components/HowItWorksSection"
-// import PricingSection from "./components/PricingSection"
-// import Testimony from "./components/Testimony"
-// import KeyBenefits from "./components/KeyBenefits"
-// import LandingFAQ from "./components/LandingFAQ"
-
-// export default function HomePage() {
-//   return (
-//     // CAMBIO: Redujimos gap-12/gap-24 a gap-8/gap-16
-//     <div className="w-full flex flex-col gap-8 md:gap-16 pb-16 overflow-x-hidden"> 
-      
-//       <HeroSection />
-
-//       <section id="features" className="relative scroll-mt-20">
-//         <FeaturesSection />
-//       </section>
-
-//       <section id="how" className="relative scroll-mt-20">
-//         <HowItWorksSection />
-//       </section>
-
-//       <section id="pricing" className="relative scroll-mt-20">
-//         <PricingSection />
-//       </section>
-
-//       <Testimony />
-      
-//       <KeyBenefits />
-
-//       <section id="faqs" className="relative scroll-mt-20">
-//         <LandingFAQ />
-//       </section>
-//     </div>
-//   )
-// }
-
-
 'use client'
 
 import React, { useEffect, useState } from 'react';
@@ -47,7 +8,6 @@ import Image from 'next/image';
 import dynamic from 'next/dynamic';
 
 // --- IMPORTAMOS TU COMPONENTE DE FAQ ORIGINAL ---
-// (Asegúrate de que la ruta sea correcta)
 import LandingFAQ from "./components/LandingFAQ"; 
 
 // --- IMPORTACIÓN DE IMÁGENES ---
@@ -115,21 +75,22 @@ export default function HomePage() {
         <div className="absolute inset-0 bg-[url('/grid-pattern.svg')] opacity-[0.03]" style={{ backgroundSize: '30px 30px' }}></div>
       </div>
 
-      <div className="relative z-10 max-w-7xl mx-auto px-4 md:px-6 pt-8 md:pt-12 pb-20 md:pb-32">
+      {/* CORRECCIÓN DE PADDING: pt-32 para separar del navbar fijo */}
+      <div className="relative z-10 max-w-7xl mx-auto px-4 md:px-6 pt-32 pb-20 md:pb-32">
         
-    {/* --- HERO --- */}
-<section className="text-center mb-24 md:mb-40 pt-10">
-   <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-rose-500/20 bg-rose-950/40 text-rose-300 text-[10px] uppercase tracking-widest font-bold mb-6 shadow-lg animate-fade-in-up">
-    <Sparkles size={12} /> Inteligencia Artificial para Clínicas
-  </div>
-  <h1 className="text-4xl sm:text-5xl md:text-7xl font-bold text-white mb-6 tracking-tighter leading-[1.1] animate-fade-in-up [animation-delay:100ms] opacity-0 fill-mode-forwards">
-    Automatiza tu <span className="text-transparent bg-clip-text bg-gradient-to-r from-rose-400 to-purple-500">Clínica Estética</span> <br className="hidden md:block" />
-    <span className="text-white">Sin Perder el Glamour</span>
-  </h1>
-  <p className="text-lg md:text-xl text-slate-400 max-w-2xl mx-auto leading-relaxed px-2 animate-fade-in-up [animation-delay:200ms] opacity-0 fill-mode-forwards">
-    La plataforma que gestiona pacientes, cabinas y recordatorios de tu centro estético mientras tú te enfocas en realizar tratamientos.
-  </p>
-</section>
+        {/* --- HERO --- */}
+        <section className="text-center mb-24 md:mb-40">
+           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-rose-500/20 bg-rose-950/40 text-rose-300 text-[10px] uppercase tracking-widest font-bold mb-6 shadow-lg animate-fade-in-up">
+            <Sparkles size={12} /> Inteligencia Artificial para Clínicas
+          </div>
+          <h1 className="text-4xl sm:text-5xl md:text-7xl font-bold text-white mb-6 tracking-tighter leading-[1.1] animate-fade-in-up [animation-delay:100ms] opacity-0 fill-mode-forwards">
+            Automatiza tu <span className="text-transparent bg-clip-text bg-gradient-to-r from-rose-400 to-purple-500">Clínica Estética</span> <br className="hidden md:block" />
+            <span className="text-white">Sin Perder el Glamour</span>
+          </h1>
+          <p className="text-lg md:text-xl text-slate-400 max-w-2xl mx-auto leading-relaxed px-2 animate-fade-in-up [animation-delay:200ms] opacity-0 fill-mode-forwards">
+            La plataforma que gestiona pacientes, cabinas y recordatorios de tu centro estético mientras tú te enfocas en realizar tratamientos.
+          </p>
+        </section>
 
 
         {/* ================= ID: FEATURES (CHAT + CALENDAR) ================= */}
@@ -311,51 +272,53 @@ export default function HomePage() {
         </section>
 
 
-        {/* ================= ID: PRICING (MEMBRESÍA ÉLITE) ================= */}
+        {/* ================= ID: PRICING (MEMBRESÍA ÉLITE - REDISEÑADA) ================= */}
+        {/* SE HA ELIMINADO EL COLOR DORADO PARA SIEMPRE. AHORA ES ROSA/FUCHSIA/PURPLE */}
         <section id="pricing" className="relative scroll-mt-24 mb-32 md:mb-40 max-w-4xl mx-auto px-2 content-visibility-auto">
           <motion.div 
              initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={fadeInUp}
-             className="relative rounded-[32px] overflow-hidden border border-amber-500/20 bg-[#080808] shadow-[0_0_60px_-15px_rgba(217,119,6,0.15)] group p-5 md:p-12"
+             className="relative rounded-[32px] overflow-hidden border border-fuchsia-500/30 bg-[#080808] shadow-[0_0_60px_-15px_rgba(236,72,153,0.15)] group p-5 md:p-12"
           >
             
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(251,191,36,0.1),transparent_50%)] pointer-events-none" />
-            <div className="absolute inset-0 bg-[linear-gradient(45deg,rgba(251,191,36,0.03)_1px,transparent_1px)] bg-[size:20px_20px] opacity-20 pointer-events-none" />
+            {/* Fondo con resplandor Rosa/Fuchsia */}
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(236,72,153,0.1),transparent_50%)] pointer-events-none" />
+            <div className="absolute inset-0 bg-[linear-gradient(45deg,rgba(236,72,153,0.03)_1px,transparent_1px)] bg-[size:20px_20px] opacity-20 pointer-events-none" />
             
             <div className="relative flex flex-col items-center text-center z-10">
-              <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-amber-950/30 border border-amber-500/30 text-amber-200 text-sm font-bold mb-8 shadow-[0_0_15px_rgba(251,191,36,0.1)]">
-                <Sparkles size={16} className="fill-amber-200 text-amber-400" /> Plan Gold Estético
+              <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-rose-950/30 border border-rose-500/30 text-rose-200 text-sm font-bold mb-8 shadow-[0_0_15px_rgba(244,63,94,0.1)]">
+                <Sparkles size={16} className="fill-rose-200 text-rose-400" /> Plan Élite Estético
               </div>
 
               <div className="flex items-start justify-center gap-1 mb-2">
-                <span className="text-2xl md:text-3xl font-bold text-amber-500 mt-2">$</span>
-                <h3 className="text-5xl md:text-6xl font-extrabold text-transparent bg-clip-text bg-gradient-to-b from-amber-200 via-amber-400 to-amber-600 tracking-tight drop-shadow-sm">250.000</h3>
+                <span className="text-2xl md:text-3xl font-bold text-rose-500 mt-2">$</span>
+                <h3 className="text-5xl md:text-6xl font-extrabold text-transparent bg-clip-text bg-gradient-to-b from-rose-200 via-fuchsia-400 to-rose-600 tracking-tight drop-shadow-sm">250.000</h3>
               </div>
-              <p className="text-xl text-amber-200/60 font-normal mb-6">COP/mes</p>
+              <p className="text-xl text-rose-200/60 font-normal mb-6">COP/mes</p>
               <p className="text-slate-300 mb-10 max-w-md mx-auto text-lg">Diseñado para <strong>clínicas estéticas y spas</strong> que necesitan llenar su agenda sin esfuerzo.</p>
 
-              {/* Lista de Beneficios */}
-              <div className="w-full max-w-2xl mb-12 text-left p-6 md:p-8 rounded-2xl bg-amber-900/5 border border-amber-500/10 backdrop-blur-sm">
+              {/* Lista de Beneficios REDISEÑADA */}
+              <div className="w-full max-w-2xl mb-12 text-left p-6 md:p-8 rounded-2xl bg-fuchsia-900/5 border border-fuchsia-500/10 backdrop-blur-sm">
                 <div className="flex items-center gap-2 mb-6">
-                  <Zap className="text-amber-500 fill-amber-500/20" size={20} />
+                  <Zap className="text-fuchsia-500 fill-fuchsia-500/20" size={20} />
                   <h4 className="text-lg font-bold text-white">Tu membresía incluye:</h4>
                 </div>
                 <div className="grid gap-4">
-                  <div className="flex items-start gap-3 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20">
-                    <CheckCircle2 className="text-amber-400 shrink-0 mt-0.5" size={20} />
+                  <div className="flex items-start gap-3 p-3 rounded-xl bg-fuchsia-500/10 border border-fuchsia-500/20">
+                    <CheckCircle2 className="text-fuchsia-400 shrink-0 mt-0.5" size={20} />
                     <div><span className="text-base md:text-lg font-bold text-white block">300 Conversaciones IA</span><span className="text-sm text-slate-400">Entrenada para vender Botox y aparatología.</span></div>
                   </div>
-                  <div className="flex items-start gap-3 p-3 rounded-xl bg-amber-500/5 border border-amber-500/20 relative overflow-hidden">
-                    <div className="absolute top-0 right-0 bg-amber-500 text-black text-[10px] font-bold px-2 py-0.5 rounded-bl-lg">AHORRO</div>
-                    <CheckCircle2 className="text-amber-400 shrink-0 mt-0.5" size={20} />
+                  <div className="flex items-start gap-3 p-3 rounded-xl bg-fuchsia-500/5 border border-fuchsia-500/20 relative overflow-hidden">
+                    <div className="absolute top-0 right-0 bg-gradient-to-r from-rose-500 to-purple-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-bl-lg">AHORRO</div>
+                    <CheckCircle2 className="text-fuchsia-400 shrink-0 mt-0.5" size={20} />
                     <div><span className="text-base md:text-lg font-bold text-white block">Recargas con 80% OFF</span><span className="text-sm text-slate-400">Escala tu campaña publicitaria sin miedo.</span></div>
                   </div>
                   {["Dashboard de pacientes", "Agenda multicabina", "Soporte VIP", "Actualizaciones de tratamientos", "Sin permanencia"].map((feature, i) => (
-                    <div key={i} className="flex items-center gap-3 text-slate-300 px-3"><CheckCircle2 className="text-amber-400 shrink-0" size={18} /><span className="text-sm md:text-base font-medium">{feature}</span></div>
+                    <div key={i} className="flex items-center gap-3 text-slate-300 px-3"><CheckCircle2 className="text-fuchsia-400 shrink-0" size={18} /><span className="text-sm md:text-base font-medium">{feature}</span></div>
                   ))}
                 </div>
               </div>
 
-              {/* SECCIÓN PAGO: Tarjeta Genérica + Logos */}
+              {/* SECCIÓN PAGO */}
               <div className="w-full pt-8 border-t border-white/5 flex flex-col items-center gap-8">
                 <AnimatedGenericCard />
                 <div className="w-full flex justify-center items-center gap-8 opacity-60 hover:opacity-100 transition-opacity duration-500">
@@ -394,7 +357,7 @@ export default function HomePage() {
                         <div className="relative">
                             <div className="absolute -inset-2 bg-gradient-to-r from-rose-700 to-purple-700 rounded-2xl blur-xl opacity-30 group-hover/btn:opacity-50 transition-opacity duration-500" />
                             <button className="relative w-full md:w-auto bg-white text-black font-bold text-base md:text-lg px-8 md:px-10 py-4 rounded-xl hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 shadow-lg shadow-rose-900/20 flex items-center justify-center gap-2 mx-auto">
-                                <Zap className="text-amber-500" size={18} /> Iniciar Transformación <ChevronRight className="group-hover/btn:translate-x-1 transition-transform text-rose-600" size={20} />
+                                <Zap className="text-rose-500" size={18} /> Iniciar Transformación <ChevronRight className="group-hover/btn:translate-x-1 transition-transform text-rose-600" size={20} />
                             </button>
                         </div>
                     </Link>

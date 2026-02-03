@@ -25,8 +25,8 @@ const navLinks = [
 
 export default function Navbar() {
   const [isScrolled, setIsScrolled] = useState(false)
-  const [isVisible, setIsVisible] = useState(true) // Nuevo estado para visibilidad
-  const [lastScrollY, setLastScrollY] = useState(0) // Para guardar la posición anterior
+  const [isVisible, setIsVisible] = useState(true)
+  const [lastScrollY, setLastScrollY] = useState(0)
   
   const [openSheet, setOpenSheet] = useState(false)
   const [showLogoutModal, setShowLogoutModal] = useState(false)
@@ -35,26 +35,21 @@ export default function Navbar() {
   const router = useRouter()
   const pathname = usePathname()
 
-  const darkRoutes = ['/login', '/register', '/forgot-password', '/delete-my-data', '/propuesta-dental'];
+  // CORRECCIÓN: Agregué '/' para que el home también se detecte como "página oscura"
+  const darkRoutes = ['/', '/login', '/register', '/forgot-password', '/delete-my-data', '/propuesta-dental'];
   const isDarkPage = darkRoutes.includes(pathname || ''); 
 
-  // Control del Scroll (Color y Visibilidad)
+  // Control del Scroll
   useEffect(() => {
     const handleScroll = () => {
       const currentScrollY = window.scrollY;
-      
-      // 1. Lógica de fondo (Glassmorphism)
       setIsScrolled(currentScrollY > 20);
 
-      // 2. Lógica de Esconder/Mostrar Navbar
       if (currentScrollY > lastScrollY && currentScrollY > 100) {
-        // Si bajamos y pasamos 100px, escondemos
         setIsVisible(false);
       } else {
-        // Si subimos, mostramos
         setIsVisible(true);
       }
-      
       setLastScrollY(currentScrollY);
     }
 
@@ -62,18 +57,17 @@ export default function Navbar() {
     return () => window.removeEventListener('scroll', handleScroll)
   }, [lastScrollY])
 
+  // ... (Efecto Logout igual) ...
   useEffect(() => {
     if (showLogoutModal) {
       const duration = 2.5 * 1000
       const end = Date.now() + duration
-
       const frame = () => {
         confetti({ particleCount: 3, angle: 60, spread: 55, origin: { x: 0 }, colors: ['#6366f1', '#ec4899'] })
         confetti({ particleCount: 3, angle: 120, spread: 55, origin: { x: 1 }, colors: ['#6366f1', '#ec4899'] })
         if (Date.now() < end) requestAnimationFrame(frame)
       }
       frame()
-
       const timeout = setTimeout(() => {
         logout()
         router.push('/')
@@ -93,19 +87,17 @@ export default function Navbar() {
   const logoTextClass = isScrolled
     ? "text-gray-900 dark:text-white"
     : isDarkPage
-      ? "text-white"
+      ? "text-white" // Esto ahora aplicará en el Home
       : "text-gray-900 dark:text-white"
 
   return (
     <>
       <header
         className={clsx(
-          'fixed w-full top-0 z-50 transition-all duration-300 ease-in-out border-b', // Duration 300 para suavizar la ocultación
-          // Lógica de estilos visuales
+          'fixed w-full top-0 z-50 transition-all duration-300 ease-in-out border-b',
           isScrolled
             ? 'bg-white/70 dark:bg-black/70 backdrop-blur-xl border-gray-200/50 dark:border-white/10 shadow-sm'
             : 'bg-transparent border-transparent py-2',
-          // Lógica de visibilidad (Transform)
           isVisible ? 'translate-y-0' : '-translate-y-full'
         )}
       >
