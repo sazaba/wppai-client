@@ -23,13 +23,18 @@ const AnimatedGenericCard = memo(() => {
         initial={{ rotateY: 0 }} 
         whileHover={{ rotateY: 5, scale: 1.02 }} 
         transition={{ duration: 0.5 }}
-        className="relative w-full aspect-[1.586/1] rounded-2xl overflow-hidden shadow-[0_0_30px_-5px_rgba(245,158,11,0.15)] bg-gradient-to-br from-[#111] via-[#0a0a0a] to-black border border-amber-500/20"
+        // CAMBIO: Fondo con gradiente potente Fuchsia/Violeta y borde brillante
+        className="relative w-full aspect-[1.586/1] rounded-2xl overflow-hidden shadow-[0_0_40px_-10px_rgba(192,38,211,0.5)] bg-gradient-to-br from-[#1a1a1a] via-[#0f0f0f] to-black border border-fuchsia-500/50"
       >
-        <div className="absolute inset-0 opacity-10 bg-[url('https://grainy-gradients.vercel.app/noise.svg')]" />
+        <div className="absolute inset-0 opacity-20 bg-[url('https://grainy-gradients.vercel.app/noise.svg')]" />
         
+        {/* Efecto de brillo de fondo colorido */}
+        <div className="absolute top-[-50%] left-[-50%] w-[200%] h-[200%] bg-[radial-gradient(circle_at_center,rgba(236,72,153,0.15),transparent_50%)] animate-pulse pointer-events-none" />
+
         <div className="relative p-6 h-full flex flex-col justify-between z-10">
           <div className="flex justify-between items-start">
-            <motion.svg width="45" height="32" viewBox="0 0 50 35" className="stroke-amber-400/80 fill-none stroke-[1.5]" initial="hidden" whileInView="visible" viewport={{ once: true }}>
+            {/* Logo de chip rediseñado en tonos frios/rosas */}
+            <motion.svg width="45" height="32" viewBox="0 0 50 35" className="stroke-fuchsia-400 fill-none stroke-[1.5]" initial="hidden" whileInView="visible" viewport={{ once: true }}>
               <motion.rect x="2" y="2" width="46" height="31" rx="6" variants={drawVariants} custom={1} />
               <motion.path d="M15 2 V 33" variants={drawVariants} custom={2} />
               <motion.path d="M35 2 V 33" variants={drawVariants} custom={2} />
@@ -37,11 +42,12 @@ const AnimatedGenericCard = memo(() => {
               <motion.path d="M15 10 H 35" variants={drawVariants} custom={4} className="stroke-[0.5]" />
               <motion.path d="M15 25 H 35" variants={drawVariants} custom={4} className="stroke-[0.5]" />
             </motion.svg>
-            <Wifi className="text-amber-200/50" />
+            <Wifi className="text-fuchsia-200/50" />
           </div>
           <div className="text-center pt-2">
-             <p className="text-[10px] text-amber-200/50 uppercase tracking-[0.3em] mb-1">Universal Access</p>
-             <h4 className="text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-white via-amber-100 to-white tracking-widest drop-shadow-sm">ALL CARDS</h4>
+             <p className="text-[10px] text-fuchsia-200/50 uppercase tracking-[0.3em] mb-1">Universal Access</p>
+             {/* Texto degradado llamativo */}
+             <h4 className="text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-fuchsia-300 via-purple-300 to-cyan-300 tracking-widest drop-shadow-sm">ALL CARDS</h4>
           </div>
           <div className="flex justify-between items-end opacity-90">
               <motion.svg height="8" width="110" viewBox="0 0 120 10" className="stroke-white/20 fill-none stroke-[2] stroke-linecap-round" initial="hidden" whileInView="visible" viewport={{ once: true }}>

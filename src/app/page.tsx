@@ -117,19 +117,19 @@ export default function HomePage() {
 
       <div className="relative z-10 max-w-7xl mx-auto px-4 md:px-6 pt-8 md:pt-12 pb-20 md:pb-32">
         
-        {/* ================= HERO SECTION ================= */}
-        <section className="text-center mb-24 md:mb-40 pt-10">
-           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-rose-500/20 bg-rose-950/40 text-rose-300 text-[10px] uppercase tracking-widest font-bold mb-6 shadow-lg animate-fade-in-up">
-            <Sparkles size={12} /> Inteligencia Artificial Estética
-          </div>
-          <h1 className="text-4xl sm:text-5xl md:text-7xl font-bold text-white mb-6 tracking-tighter leading-[1.1] animate-fade-in-up [animation-delay:100ms] opacity-0 fill-mode-forwards">
-            Automatiza tu Centro <br className="hidden md:block" />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-rose-400 to-purple-500">Sin Perder el Glamour</span>
-          </h1>
-          <p className="text-lg md:text-xl text-slate-400 max-w-2xl mx-auto leading-relaxed px-2 animate-fade-in-up [animation-delay:200ms] opacity-0 fill-mode-forwards">
-            La plataforma que gestiona pacientes, cabinas y recordatorios mientras tú te enfocas en realizar tratamientos.
-          </p>
-        </section>
+    {/* --- HERO --- */}
+<section className="text-center mb-24 md:mb-40 pt-10">
+   <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-rose-500/20 bg-rose-950/40 text-rose-300 text-[10px] uppercase tracking-widest font-bold mb-6 shadow-lg animate-fade-in-up">
+    <Sparkles size={12} /> Inteligencia Artificial para Clínicas
+  </div>
+  <h1 className="text-4xl sm:text-5xl md:text-7xl font-bold text-white mb-6 tracking-tighter leading-[1.1] animate-fade-in-up [animation-delay:100ms] opacity-0 fill-mode-forwards">
+    Automatiza tu <span className="text-transparent bg-clip-text bg-gradient-to-r from-rose-400 to-purple-500">Clínica Estética</span> <br className="hidden md:block" />
+    <span className="text-white">Sin Perder el Glamour</span>
+  </h1>
+  <p className="text-lg md:text-xl text-slate-400 max-w-2xl mx-auto leading-relaxed px-2 animate-fade-in-up [animation-delay:200ms] opacity-0 fill-mode-forwards">
+    La plataforma que gestiona pacientes, cabinas y recordatorios de tu centro estético mientras tú te enfocas en realizar tratamientos.
+  </p>
+</section>
 
 
         {/* ================= ID: FEATURES (CHAT + CALENDAR) ================= */}

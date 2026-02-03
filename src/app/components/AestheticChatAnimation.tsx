@@ -4,7 +4,7 @@ import React, { useEffect, useState, useRef, memo } from 'react'
 import { motion, AnimatePresence, useInView } from 'framer-motion'
 import { Mic, ChevronLeft, Sparkles, Activity } from 'lucide-react'
 
-// --- SUBCOMPONENTES MEMOIZADOS ---
+// --- SUBCOMPONENTES ---
 
 const ChatMessage = memo(({ isUser, text, time, show }: { isUser: boolean, text: string, time: string, show: boolean }) => {
   if (!show) return null;
@@ -18,14 +18,14 @@ const ChatMessage = memo(({ isUser, text, time, show }: { isUser: boolean, text:
       <div className={`
         max-w-[85%] rounded-[18px] px-3 py-1.5 shadow-sm text-[13px] leading-snug relative group
         ${isUser 
-          ? 'bg-rose-600 text-white rounded-tr-none' 
+          ? 'bg-rose-400 text-white rounded-tr-none' // CAMBIO: Color pastel/suave (rose-400)
           : 'bg-[#202C33] text-[#E9EDEF] rounded-tl-none'}
       `}>
         {text}
         <div className="flex justify-end items-end gap-1 mt-0.5 select-none">
             <span className="text-[10px] text-white/60 font-normal">{time}</span>
             {isUser && (
-                <span className="text-rose-200">
+                <span className="text-rose-100">
                 <svg viewBox="0 0 16 11" className="w-[12px] h-[8px] fill-current"><path d="M11.5 0L4.5 7L2.5 5L0 7.5L4.5 11L16 2L11.5 0Z"/></svg>
                 </span>
             )}
@@ -96,16 +96,16 @@ export default function AestheticChatAnimation() {
         {/* Header Chat */}
         <div className="bg-zinc-900/95 pt-10 pb-3 px-4 flex items-center justify-between border-b border-white/5 z-30">
           <div className="flex items-center gap-2">
-            <ChevronLeft className="w-5 h-5 text-rose-400 -ml-2" />
+            <ChevronLeft className="w-5 h-5 text-rose-300 -ml-2" />
             <div className="relative">
-              <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-rose-500 to-purple-600 flex items-center justify-center text-white">
+              <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-rose-300 to-rose-400 flex items-center justify-center text-white">
                 <Sparkles className="w-4 h-4" />
               </div>
               <div className="absolute bottom-0 right-0 w-2 h-2 bg-green-500 border-2 border-zinc-900 rounded-full"></div>
             </div>
             <div className="flex flex-col">
-              <h3 className="text-sm font-semibold text-white leading-none">Asistente Estético</h3>
-              <p className="text-[10px] text-rose-400 font-medium mt-0.5">En línea</p>
+              <h3 className="text-sm font-semibold text-white leading-none">Asistente Estética</h3>
+              <p className="text-[10px] text-rose-300 font-medium mt-0.5">En línea</p>
             </div>
           </div>
         </div>
@@ -133,7 +133,7 @@ export default function AestheticChatAnimation() {
           {/* Footer Input */}
           <div className="bg-[#202C33] px-2 py-2 flex items-center gap-2 z-20 pb-6">
             <div className="flex-1 bg-[#2A3942] rounded-full h-9 px-4 flex items-center text-xs text-zinc-500">Mensaje...</div>
-            <div className="w-9 h-9 rounded-full bg-rose-600 flex items-center justify-center text-white"><Mic className="w-4 h-4" /></div>
+            <div className="w-9 h-9 rounded-full bg-rose-400 flex items-center justify-center text-white"><Mic className="w-4 h-4" /></div>
           </div>
         </div>
       </div>

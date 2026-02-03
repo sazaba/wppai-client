@@ -6,24 +6,24 @@ import { Sparkles } from "lucide-react"
 
 const faqs = [
   {
-    question: "¿Qué es exactamente Wasaaa?",
-    answer: "Es un SaaS que conecta tu WhatsApp Business con una Inteligencia Artificial entrenada específicamente con tus datos. Atiende clientes 24/7, agenda citas, resuelve dudas y clasifica leads sin intervención humana.",
+    question: "¿La IA sabe responder preguntas médicas?",
+    answer: "Está entrenada para responder dudas frecuentes sobre tratamientos, cuidados pre y post operatorios básicos y precios. Para consultas médicas complejas, la IA deriva inmediatamente al especialista.",
   },
   {
-    question: "¿Necesito saber programar?",
-    answer: "Para nada. Nuestra plataforma es 'No-Code'. Solo escaneas un código QR (o conectas la API), subes tus documentos/reglas y listo. En 10 minutos puedes tener tu IA funcionando.",
+    question: "¿Es difícil de configurar para mi clínica?",
+    answer: "No. Solo necesitas subir tus PDFs de servicios (Botox, Ácido Hialurónico, etc.) y tu lista de precios. Nosotros nos encargamos del entrenamiento inicial.",
   },
   {
-    question: "¿Puedo entrenar la IA con mis propios datos?",
-    answer: "Sí, es su principal fortaleza. Puedes cargar tus PDFs de servicios, listas de precios, horarios y reglas de negocio. La IA responderá basándose estrictamente en esa información.",
+    question: "¿Puedo ver las conversaciones?",
+    answer: "Sí, tienes un panel de control donde ves en tiempo real cómo la IA atiende a tus pacientes. Puedes intervenir en cualquier momento si lo deseas.",
   },
   {
-    question: "¿Qué pasa si la IA no sabe la respuesta?",
-    answer: "El sistema está diseñado para ser honesto. Si no tiene la información o detecta un cliente frustrado, marca la conversación como 'Requiere Humano' y te notifica para que intervengas.",
+    question: "¿Qué pasa si un paciente pide hablar con un humano?",
+    answer: "El sistema detecta la intención y transfiere el chat a tu recepcionista o al doctor encargado, enviando una alerta a tu celular.",
   },
   {
-    question: "¿Cómo funciona el límite de conversaciones?",
-    answer: "El plan incluye 300 conversaciones completas al mes. Si te excedes, el sistema sigue funcionando y puedes adquirir paquetes de conversaciones adicionales con un 80% de descuento.",
+    question: "¿Cumple con la confidencialidad del paciente?",
+    answer: "Absolutamente. No almacenamos datos sensibles médicos para entrenamiento público. Tu base de datos es privada y segura.",
   },
 ]
 
@@ -57,9 +57,9 @@ export default function LandingFAQ() {
             initial={{ opacity: 0, scale: 0.9 }}
             whileInView={{ opacity: 1, scale: 1 }}
             viewport={{ once: true }}
-            className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 text-sm font-semibold border border-indigo-500/20 mb-4"
+            className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-rose-500/10 text-rose-400 text-sm font-semibold border border-rose-500/20 mb-4"
           >
-            <Sparkles className="w-4 h-4 fill-indigo-500/20" />
+            <Sparkles className="w-4 h-4 fill-rose-500/20" />
             Preguntas Frecuentes
           </motion.div>
           
@@ -67,9 +67,9 @@ export default function LandingFAQ() {
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="text-3xl md:text-4xl font-extrabold text-gray-900 dark:text-white"
+            className="text-3xl md:text-4xl font-extrabold text-white"
           >
-            Resuelve tus dudas en segundos
+            Resuelve tus dudas sobre la <span className="text-transparent bg-clip-text bg-gradient-to-r from-rose-400 to-purple-400">Automatización</span>
           </motion.h2>
         </div>
 
@@ -85,16 +85,14 @@ export default function LandingFAQ() {
               <motion.div key={index} variants={itemVariants}>
                 <AccordionItem 
                   value={`item-${index}`} 
-                  // Estilo Cápsula de Cristal:
-                  // 1. Sin borde inferior default (border-b-0)
-                  // 2. Fondo traslúcido (bg-white/50)
-                  // 3. Borde completo redondeado (rounded-2xl)
-                  className="group border border-gray-200/50 dark:border-white/5 bg-white/50 dark:bg-zinc-900/50 backdrop-blur-sm rounded-2xl px-6 transition-all duration-200 hover:border-indigo-500/30 dark:hover:border-indigo-500/30 data-[state=open]:bg-white/80 dark:data-[state=open]:bg-zinc-800/80 data-[state=open]:shadow-lg"
+                  // ESTILO DARK MODE ADAPTADO:
+                  // Fondo oscuro muy sutil, borde casi invisible que se ilumina en rosa al hover
+                  className="group border border-white/10 bg-white/[0.03] rounded-2xl px-6 transition-all duration-300 hover:border-rose-500/30 hover:bg-white/[0.05] data-[state=open]:bg-white/[0.08] data-[state=open]:border-rose-500/20"
                 >
-                  <AccordionTrigger className="text-left text-base md:text-lg font-semibold text-gray-800 dark:text-gray-100 py-6 hover:no-underline hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
+                  <AccordionTrigger className="text-left text-base md:text-lg font-semibold text-slate-200 py-6 hover:no-underline hover:text-rose-400 transition-colors">
                     {faq.question}
                   </AccordionTrigger>
-                  <AccordionContent className="text-base text-gray-600 dark:text-gray-300 pb-6 leading-relaxed">
+                  <AccordionContent className="text-base text-slate-400 pb-6 leading-relaxed">
                     {faq.answer}
                   </AccordionContent>
                 </AccordionItem>
