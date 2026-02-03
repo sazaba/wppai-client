@@ -13,7 +13,7 @@ import { useRouter, usePathname } from 'next/navigation'
 import { Dialog } from '@headlessui/react'
 import { motion, AnimatePresence } from 'framer-motion'
 
-// NOTA: Eliminamos el import estático de 'canvas-confetti' para que no pese al inicio.
+// NOTA: Eliminamos el import estático de 'canvas-confetti' para que no bloquee la carga inicial.
 
 const navLinks = [
   { name: 'Funcionalidades', href: '/#features' },
@@ -35,10 +35,11 @@ export default function Navbar() {
   const router = useRouter()
   const pathname = usePathname()
 
+  // Lista de rutas donde el navbar debe comportarse como "página oscura" (texto blanco inicial)
   const darkRoutes = ['/', '/login', '/register', '/forgot-password', '/delete-my-data', '/propuesta-dental'];
   const isDarkPage = darkRoutes.includes(pathname || ''); 
 
-  // Optimización de Scroll con requestAnimationFrame para evitar lag en Safari
+  // --- 1. Optimización de Scroll (Performance en Móviles) ---
   useEffect(() => {
     let ticking = false;
 
@@ -49,7 +50,7 @@ export default function Navbar() {
         window.requestAnimationFrame(() => {
           setIsScrolled(currentScrollY > 20);
           
-          // Lógica de esconder navbar (solo si scrolleamos bastante hacia abajo)
+          // Lógica de esconder navbar al bajar (si scrolleamos > 100px)
           if (currentScrollY > lastScrollY && currentScrollY > 100) {
             setIsVisible(false);
           } else {
@@ -63,19 +64,19 @@ export default function Navbar() {
       }
     };
 
-    window.addEventListener('scroll', handleScroll, { passive: true }); // 'passive: true' mejora rendimiento en móviles
+    window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, [lastScrollY]);
 
-  // Manejo de Logout con IMPORTACIÓN DINÁMICA (Lazy Load)
+  // --- 2. Manejo de Logout con Lazy Load (Ahorro de JS inicial) ---
   const handleLogoutFlow = useCallback(async () => {
-    // 1. Mostrar modal inmediatamente
+    // A. Mostrar modal inmediatamente para feedback visual rápido
     setShowLogoutModal(true)
 
-    // 2. Importar la librería SOLO AHORA (ahorra peso inicial)
+    // B. Importar la librería pesada SOLO cuando se necesita
     const confetti = (await import('canvas-confetti')).default;
 
-    // 3. Ejecutar animación
+    // C. Ejecutar animación
     const duration = 2.5 * 1000
     const end = Date.now() + duration
 
@@ -86,7 +87,7 @@ export default function Navbar() {
     }
     frame()
 
-    // 4. Logout real
+    // D. Logout real y redirección
     const timeout = setTimeout(() => {
       logout()
       router.push('/')
@@ -96,7 +97,7 @@ export default function Navbar() {
     return () => clearTimeout(timeout)
   }, [logout, router]);
 
-  // Colores dinámicos
+  // --- 3. Lógica de Colores Dinámicos ---
   const textColorClass = isScrolled 
     ? "text-gray-600 dark:text-gray-300" 
     : isDarkPage 
@@ -113,7 +114,7 @@ export default function Navbar() {
     <>
       <header
         className={clsx(
-          'fixed w-full top-0 z-50 transition-transform duration-300 ease-in-out border-b', // Usamos transform para mejor performance
+          'fixed w-full top-0 z-50 transition-all duration-300 ease-in-out border-b',
           isScrolled
             ? 'bg-white/70 dark:bg-black/70 backdrop-blur-xl border-gray-200/50 dark:border-white/10 shadow-sm'
             : 'bg-transparent border-transparent py-2',
@@ -131,7 +132,7 @@ export default function Navbar() {
                   alt="Wasaaa Logo"
                   width={80} 
                   height={80}
-                  priority // Importante para el LCP (Largest Contentful Paint)
+                  priority // Importante para LCP
                   className="relative h-14 w-14 md:h-16 md:w-16 object-contain transition-transform duration-300 group-hover:scale-105"
                 />
             </div>
@@ -161,7 +162,7 @@ export default function Navbar() {
 
           {/* Acciones Desktop */}
           <div className="hidden md:flex items-center gap-4">
-            {/* Si está cargando, mostramos un esqueleto o nada, pero NO bloqueamos la UI */}
+            {/* SKELETON LOADING: Evita que el layout salte mientras cargamos auth */}
             {loading ? (
                <div className="w-24 h-10 bg-white/5 rounded-full animate-pulse" />
             ) : (
@@ -180,6 +181,7 @@ export default function Navbar() {
                       variant="ghost"
                       size="icon"
                       onClick={handleLogoutFlow}
+                      aria-label="Cerrar sesión"
                       className={clsx(
                           "rounded-full transition-colors",
                           isDarkPage && !isScrolled ? "text-white/70 hover:text-white hover:bg-white/10" : "text-gray-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20"
@@ -216,7 +218,11 @@ export default function Navbar() {
           <div className="md:hidden">
             <Sheet open={openSheet} onOpenChange={setOpenSheet}>
               <SheetTrigger asChild>
-                <Button variant="ghost" size="icon" className={clsx(
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  aria-label="Abrir menú"
+                  className={clsx(
                     "rounded-full w-10 h-10 shrink-0 hover:bg-white/10",
                     isDarkPage && !isScrolled ? "text-white" : "hover:bg-gray-100 dark:hover:bg-white/10 text-gray-700 dark:text-white"
                 )}>
