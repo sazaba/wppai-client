@@ -4,7 +4,7 @@ import React, { useState, ReactNode } from 'react';
 import { 
   Sparkles, CheckCircle2, Clock, Users, Database, BrainCircuit, 
   CalendarCheck, ChevronRight, FileText, CalendarDays, Zap, Wifi, 
-  TrendingUp, ShieldCheck, Check, HelpCircle 
+  TrendingUp, ShieldCheck, Check, HelpCircle, XCircle, AlertCircle
 } from 'lucide-react';
 import { motion, Variants } from 'framer-motion';
 import Link from 'next/link';
@@ -64,24 +64,25 @@ const DentalChatAnimation = dynamic(() => import('./DentalChatAnimation'), { ssr
 const AnimatedGenericCard = dynamic(() => import('./AnimatedGenericCard'), { ssr: false, loading: () => <div className="w-full h-[200px] bg-white/5 rounded-2xl" /> });
 const LandingFAQ = dynamic(() => import('./LandingFAQ'), { ssr: false });
 
-// --- CONFIGURACIÓN DE CONTENIDO ---
+// --- CONFIGURACIÓN DE CONTENIDO (COPYWRITING PARA ADS) ---
 const CONTENT: Record<'aesthetic' | 'dental', IndustryContent> = {
   aesthetic: {
     themeColor: 'rose', 
     accentGradient: 'from-rose-400 to-purple-500',
     buttonGradient: 'from-rose-700 to-purple-700',
-    heroBadge: 'Gestión Clínica Inteligente',
-    heroTitle: <>Automatiza tu <span className="text-transparent bg-clip-text bg-gradient-to-r from-rose-400 to-purple-500">Centro Estético</span> <br className="hidden md:block" /> Y Deja de Perder Pacientes</>,
-    heroDesc: 'Elimina el caos administrativo. Filtra curiosos, califica pacientes reales y entrégalos listos para agendar a tu equipo.',
+    heroBadge: 'Sistema de Filtrado Inteligente',
+    // HOOK: Dolor inmediato (Perder pacientes)
+    heroTitle: <>Deja de Perder Pacientes por <span className="text-transparent bg-clip-text bg-gradient-to-r from-rose-400 to-purple-500">Demorarte en Responder</span></>,
+    heroDesc: 'Tu publicidad atrae, pero tu velocidad vende. Filtra curiosos, califica pacientes reales y entrégalos listos para agendar a tu equipo.',
     chatComponent: AestheticChatAnimation,
-    feature1Title: <>Recepción Inteligente <br/><span className="text-rose-400">Sin Esperas</span></>,
-    feature1Desc: 'Tu recepcionista no puede responder a las 3 AM. Nuestra IA sí. Resuelve dudas de precios, filtra a los interesados y te deja el agendamiento "en bandeja de plata".',
-    feature2Title: <>Agenda Organizada <br/><span className="text-purple-400">Control Total</span></>,
-    feature2Desc: 'Olvídate del "¿Confirmó?". El sistema etiqueta automáticamente quién viene, quién canceló y quién necesita reagendar. Tu equipo solo llena huecos.',
+    feature1Title: <>Recepción que <br/><span className="text-rose-400">Sí Vende</span></>,
+    feature1Desc: 'Tu recepcionista no puede responder a las 11 PM. Nuestra IA sí. Filtra a quienes solo preguntan precio y prioriza a quienes ya quieren su procedimiento.',
+    feature2Title: <>Agenda Organizada <br/><span className="text-purple-400">Sin Caos</span></>,
+    feature2Desc: 'El sistema etiqueta cada chat: "Confirmado", "Por Reagendar" o "Cancelado". Tu equipo deja de adivinar y se enfoca en llenar los espacios vacíos.',
     pricingTitle: 'Plan Clínicas Pro',
-    pricingDesc: 'Diseñado para centros estéticos que quieren escalar su facturación sin volverse locos con la logística.',
+    pricingDesc: 'Recupera la inversión con UN solo tratamiento agendado. El resto es ganancia pura.',
     pricingPrice: '250.000',
-    pricingFeatures: ["Filtrado de pacientes cualificados", "Etiquetado automático de citas", "Soporte Prioritario", "Sin cláusula de permanencia"],
+    pricingFeatures: ["Filtrado de pacientes cualificados", "Etiquetas de estado en agenda", "Base de datos de historial", "Sin cláusula de permanencia"],
     testimonials: [
       { name: "Dra. Valentina H.", role: "Directora Médica", text: "Antes perdía horas respondiendo precios. Ahora la IA me filtra los pacientes serios y yo solo entro a cerrar la venta.", metric: "+40% Cierres", avatar: "VH", color: "from-rose-600 to-pink-500" },
       { name: "Clínica Piel & Ser", role: "Gerencia", text: "La base de datos es una mina de oro. Puedo ver el historial de cada paciente y reactivar a los que no volvieron.", metric: "+30% Retornos", avatar: "PS", color: "from-amber-600 to-orange-500" },
@@ -99,15 +100,16 @@ const CONTENT: Record<'aesthetic' | 'dental', IndustryContent> = {
     accentGradient: 'from-cyan-400 to-blue-500',
     buttonGradient: 'from-cyan-700 to-blue-700',
     heroBadge: 'Inteligencia Artificial Odontológica',
-    heroTitle: <>Automatiza tu <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">Clínica Dental</span> <br className="hidden md:block" /> Sin Perder el Toque Humano</>,
-    heroDesc: 'La plataforma que filtra, organiza y prepara a tus pacientes para que tú solo tengas que confirmar la cita. Cero chats sin responder.',
+    // HOOK: Enfoque en sillas vacías
+    heroTitle: <>Tus Sillones Vacíos te <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">Cuestan Millones</span> al Mes</>,
+    heroDesc: 'Automatiza la confirmación de citas y detecta pacientes que necesitan volver. Que tu equipo se dedique a la clínica, no al chat.',
     chatComponent: DentalChatAnimation,
-    feature1Title: <>Tu Recepcionista Experta <br/><span className="text-cyan-400">Disponible 24/7</span></>,
-    feature1Desc: 'Olvídate de responder lo mismo 100 veces. Nuestro asistente IA entiende tus tratamientos, da precios y filtra a los pacientes listos para ir a consulta.',
-    feature2Title: <>Agenda Inteligente <br/><span className="text-blue-400">Estado Real</span></>,
-    feature2Desc: 'Visualiza al instante quién confirmó asistencia y quién no. Usa las etiquetas inteligentes para gestionar reagendamientos en segundos.',
+    feature1Title: <>Filtro de <br/><span className="text-cyan-400">Pacientes Reales</span></>,
+    feature1Desc: 'Olvídate de responder lo mismo 100 veces. La IA entiende tus tratamientos, da precios y te pasa solo a los pacientes listos para agendar.',
+    feature2Title: <>Control Total <br/><span className="text-blue-400">de tu Agenda</span></>,
+    feature2Desc: 'Visualiza al instante quién confirmó asistencia y quién no mediante etiquetas inteligentes. Reduce el ausentismo drásticamente.',
     pricingTitle: 'Plan Dental Premium',
-    pricingDesc: 'Diseñado para clínicas odontológicas que necesitan llenar sus sillones con pacientes cualificados, no solo curiosos.',
+    pricingDesc: 'Con agendar una sola profilaxis o valoración al mes, el sistema se paga solo.',
     pricingPrice: '250.000',
     pricingFeatures: ["Filtrado por tratamiento", "Confirmación vía WhatsApp", "Historial clínico en chat", "Sin contratos forzosos"],
     testimonials: [
@@ -153,12 +155,10 @@ export default function HomePageContent() {
          <div className="absolute inset-0 bg-[url('/grid-pattern.svg')] opacity-[0.03]" style={{ backgroundSize: '30px 30px' }}></div>
       </div>
 
-      {/* PADDING AJUSTADO: Se redujo pt-32 a pt-28 */}
       <div className="relative z-10 max-w-7xl mx-auto px-4 md:px-6 pt-28 pb-16 md:pb-24">
         
         {/* --- HERO --- */}
         <section className="text-center mb-16 md:mb-24">
-           
            <div className="flex justify-center mb-10">
               <div className="p-1 bg-white/5 border border-white/10 rounded-full flex gap-1 backdrop-blur-sm">
                   <button 
@@ -215,7 +215,7 @@ export default function HomePageContent() {
                     <h2 className="text-3xl md:text-5xl font-bold text-white mb-4 md:mb-6 tracking-tight">{content.feature1Title}</h2>
                     <p className="text-slate-300 text-base md:text-lg mb-8 leading-relaxed max-w-lg">{content.feature1Desc}</p>
                     <ul className="space-y-4 md:space-y-5 text-left inline-block"> 
-                        {["Respuesta inmediata 24/7", "Filtrado de clientes reales", "Agendamiento organizado", "Reducción de inasistencias"].map((item, i) => (
+                        {["Respuesta inmediata 24/7", "Filtrado de pacientes reales", "Agendamiento organizado", "Reducción de inasistencias"].map((item, i) => (
                             <li key={i} className="flex items-start gap-3 md:gap-4 text-slate-300 text-sm md:text-base">
                                 <div className={clsx("mt-0.5 p-1 rounded-full shrink-0", isAesthetic ? "bg-rose-500/10 text-rose-500" : "bg-cyan-500/10 text-cyan-500")}><CheckCircle2 size={14} /></div><span>{item}</span>
                             </li>
@@ -243,6 +243,44 @@ export default function HomePageContent() {
             </motion.div>
         </section>
 
+        {/* --- COMPARATIVA DE VALOR (NUEVA SECCIÓN: ADS KILLER) --- */}
+        <section className="mb-24 md:mb-32 relative px-4 content-visibility-auto">
+            <div className="text-center mb-12">
+                <h2 className="text-2xl md:text-4xl font-bold text-white mb-4">¿Por qué cambiar?</h2>
+                <p className="text-slate-400">La matemática es simple.</p>
+            </div>
+            <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+                {/* Opción Tradicional */}
+                <div className="p-6 md:p-8 rounded-3xl border border-white/5 bg-white/[0.02] flex flex-col">
+                    <div className="flex items-center gap-3 mb-6 opacity-70">
+                        <Users className="text-slate-400" size={24} />
+                        <h3 className="text-xl font-bold text-slate-300">Recepcionista Humana</h3>
+                    </div>
+                    <ul className="space-y-4 mb-8 flex-1">
+                        <li className="flex items-start gap-3 text-slate-400 text-sm"><XCircle className="text-red-900/50 shrink-0" size={18} /> Costo: $1.8M - $2.5M / mes</li>
+                        <li className="flex items-start gap-3 text-slate-400 text-sm"><XCircle className="text-red-900/50 shrink-0" size={18} /> Horario: 8 horas (No fines de semana)</li>
+                        <li className="flex items-start gap-3 text-slate-400 text-sm"><XCircle className="text-red-900/50 shrink-0" size={18} /> Se enferma, renuncia o se cansa.</li>
+                        <li className="flex items-start gap-3 text-slate-400 text-sm"><XCircle className="text-red-900/50 shrink-0" size={18} /> Olvida hacer seguimiento a prospectos.</li>
+                    </ul>
+                </div>
+
+                {/* Opción Wasaaa */}
+                <div className={clsx("p-6 md:p-8 rounded-3xl border relative overflow-hidden flex flex-col", isAesthetic ? "bg-rose-900/10 border-rose-500/30" : "bg-cyan-900/10 border-cyan-500/30")}>
+                    <div className={clsx("absolute top-0 right-0 px-3 py-1 rounded-bl-xl text-[10px] font-bold uppercase tracking-wider", isAesthetic ? "bg-rose-500 text-white" : "bg-cyan-500 text-black")}>Opción Inteligente</div>
+                    <div className="flex items-center gap-3 mb-6">
+                        <Zap className={isAesthetic ? "text-rose-400" : "text-cyan-400"} size={24} />
+                        <h3 className="text-xl font-bold text-white">Tu IA Wasaaa</h3>
+                    </div>
+                    <ul className="space-y-4 mb-8 flex-1">
+                        <li className="flex items-start gap-3 text-white text-sm"><CheckCircle2 className={isAesthetic ? "text-rose-500 shrink-0" : "text-cyan-500 shrink-0"} size={18} /> Costo: $250.000 / mes (Ahorras 90%)</li>
+                        <li className="flex items-start gap-3 text-white text-sm"><CheckCircle2 className={isAesthetic ? "text-rose-500 shrink-0" : "text-cyan-500 shrink-0"} size={18} /> Horario: 24/7 (Vende mientras duermes)</li>
+                        <li className="flex items-start gap-3 text-white text-sm"><CheckCircle2 className={isAesthetic ? "text-rose-500 shrink-0" : "text-cyan-500 shrink-0"} size={18} /> Siempre amable, nunca se cansa.</li>
+                        <li className="flex items-start gap-3 text-white text-sm"><CheckCircle2 className={isAesthetic ? "text-rose-500 shrink-0" : "text-cyan-500 shrink-0"} size={18} /> Filtra curiosos y cierra ventas automáticamente.</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
         {/* --- HOW (Bento) --- */}
         <section id="how" className="relative scroll-mt-24 mb-24 md:mb-32 content-visibility-auto contain-paint">
             <div className="text-center max-w-3xl mx-auto mb-12 md:mb-16 relative z-10 px-4">
@@ -260,8 +298,8 @@ export default function HomePageContent() {
                             <div className={clsx("p-2.5 rounded-2xl border", isAesthetic ? "bg-rose-950/30 border-rose-500/20 text-rose-400" : "bg-cyan-950/30 border-cyan-500/20 text-cyan-400")}><Database size={24} /></div>
                         </div>
                         <div className="mb-6 md:mb-8">
-                            <h3 className="text-xl md:text-3xl font-bold text-white mb-2 md:mb-3">Historial de Pacientes</h3>
-                            <p className="text-slate-300 text-sm md:text-base leading-relaxed max-w-lg">Tu base de datos organizada. Historial de procedimientos y conversaciones en un solo lugar.</p>
+                            <h3 className="text-xl md:text-3xl font-bold text-white mb-2 md:mb-3">Base de Datos Viva</h3>
+                            <p className="text-slate-300 text-sm md:text-base leading-relaxed max-w-lg">Ten el historial de cada paciente organizado. Procedimientos pasados, conversaciones y notas en un solo lugar.</p>
                         </div>
                         <div className="mt-auto border-t border-white/5 pt-5 md:pt-6">
                             <motion.div key={industry} className="space-y-2 md:space-y-3" initial="hidden" whileInView="visible" viewport={{ once: true }} variants={listContainer}>
@@ -288,14 +326,14 @@ export default function HomePageContent() {
                             <div><h3 className="text-lg font-bold text-white">Reactivación</h3><p className="text-xs text-emerald-400 font-semibold uppercase mt-1">Ingresos Pasivos</p></div>
                             <div className="p-2 rounded-lg bg-emerald-950/30 text-emerald-400"><TrendingUp size={20} /></div>
                         </div>
-                        <p className="text-slate-400 text-xs mt-2">El sistema te ayuda a identificar a quién volver a escribir para agendar un control o nuevo procedimiento.</p>
+                        <p className="text-slate-400 text-xs mt-2">Identifica a pacientes antiguos y escríbeles automáticamente para agendar un control o nuevo procedimiento.</p>
                     </motion.div>
                     <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} className="group relative rounded-[32px] p-6 md:p-8 bg-white/[0.03] border border-white/10 flex flex-col justify-between min-h-[200px]">
                         <div className="flex justify-between items-start">
                             <div><h3 className="text-lg font-bold text-white">Reportes</h3><p className="text-xs text-purple-400 font-semibold uppercase mt-1">Control Total</p></div>
                             <div className="p-2 rounded-lg bg-purple-950/30 text-purple-400"><CalendarCheck size={20} /></div>
                         </div>
-                        <p className="text-slate-400 text-xs mt-2">Métricas claras de asistencia y facturación para que tomes mejores decisiones.</p>
+                        <p className="text-slate-400 text-xs mt-2">Métricas claras de asistencia, tratamientos más vendidos y facturación para tomar mejores decisiones.</p>
                     </motion.div>
                 </div>
             </div>
@@ -447,15 +485,15 @@ export default function HomePageContent() {
           </div>
         </section>
 
-        {/* --- CTA FINAL --- */}
+        {/* --- CTA FINAL (Copy Mejorado & Neutro) --- */}
         <motion.section 
           initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.3 }} variants={fadeInUp}
           className="relative py-16 md:py-24 group content-visibility-auto contain-paint"
         >
             <div className="relative z-10 max-w-3xl mx-auto text-center px-4 md:px-6">
                 <div className="bg-white/[0.02] backdrop-blur-lg md:backdrop-blur-xl p-8 md:p-12 rounded-[24px] md:rounded-[32px] border border-white/10 shadow-xl shadow-black/30 relative overflow-hidden transition-all duration-500 hover:border-white/20 isolation-isolate">
-                    <h2 className="text-3xl md:text-5xl font-bold text-white mb-4 md:mb-6 tracking-tight drop-shadow-sm">¿Listos para Escalar <span className={clsx("text-transparent bg-clip-text bg-gradient-to-r", content.accentGradient)}>tu Clínica</span>?</h2>
-                    <p className="text-slate-300 max-w-xl mx-auto mb-8 md:mb-10 text-base md:text-lg leading-relaxed font-medium">Deja de perder pacientes por no responder a tiempo. Automatiza tu agenda, fideliza a tus clientes y aumenta tu facturación sin trabajar más horas.</p>
+                    <h2 className="text-3xl md:text-5xl font-bold text-white mb-4 md:mb-6 tracking-tight drop-shadow-sm">¿Listos para Escalar <span className={clsx("text-transparent bg-clip-text bg-gradient-to-r", content.accentGradient)}>su Clínica</span>?</h2>
+                    <p className="text-slate-300 max-w-xl mx-auto mb-8 md:mb-10 text-base md:text-lg leading-relaxed font-medium">Deje de perder pacientes por no responder a tiempo. Automatice su agenda, fidelice a sus clientes y aumente su facturación sin trabajar más horas.</p>
                     <Link href="/register" className="relative z-10 inline-block group/btn w-full md:w-auto">
                         <div className="relative">
                             <div className={clsx("absolute -inset-2 bg-gradient-to-r rounded-2xl blur-xl opacity-30 group-hover/btn:opacity-50 transition-opacity duration-500", content.buttonGradient)} />
