@@ -2,16 +2,22 @@
 
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import { motion, Variants } from "framer-motion"
-import { Sparkles } from "lucide-react"
+import { Sparkles, Zap } from "lucide-react"
+import clsx from 'clsx'
+
+interface LandingFAQProps {
+  industry?: 'aesthetic' | 'dental';
+}
 
 const faqs = [
   {
     question: "¿La IA sabe responder preguntas médicas?",
-    answer: "Está entrenada para responder dudas frecuentes sobre tratamientos, cuidados pre y post operatorios básicos y precios. Para consultas médicas complejas, la IA deriva inmediatamente al especialista.",
+    answer: "Está entrenada para responder dudas frecuentes sobre tratamientos, cuidados y precios. Para consultas médicas complejas, la IA deriva inmediatamente al especialista.",
   },
   {
     question: "¿Es difícil de configurar para mi clínica?",
-    answer: "No. Solo necesitas subir tus PDFs de servicios (Botox, Ácido Hialurónico, etc.) y tu lista de precios. Nosotros nos encargamos del entrenamiento inicial.",
+    // CORRECCIÓN: Texto actualizado (Base de datos en vez de PDF)
+    answer: "No. Es muy sencillo. Solo necesitas ingresar tu información básica (servicios, precios y doctores) en nuestra base de datos. La IA se entrena automáticamente con esa estructura en minutos.",
   },
   {
     question: "¿Puedo ver las conversaciones?",
@@ -31,9 +37,7 @@ const containerVariants: Variants = {
   hidden: { opacity: 0 },
   visible: {
     opacity: 1,
-    transition: {
-      staggerChildren: 0.1
-    }
+    transition: { staggerChildren: 0.1 }
   }
 }
 
@@ -46,7 +50,21 @@ const itemVariants: Variants = {
   }
 }
 
-export default function LandingFAQ() {
+export default function LandingFAQ({ industry = 'aesthetic' }: LandingFAQProps) {
+  // Lógica de colores dinámica según la industria
+  const isDental = industry === 'dental';
+  const accentColor = isDental ? 'text-cyan-400' : 'text-rose-400';
+  const hoverColor = isDental ? 'hover:text-cyan-400' : 'hover:text-rose-400';
+  const badgeClass = isDental 
+    ? 'bg-cyan-500/10 border-cyan-500/20 text-cyan-400' 
+    : 'bg-rose-500/10 border-rose-500/20 text-rose-400';
+  const gradientText = isDental 
+    ? 'from-cyan-400 to-blue-500' 
+    : 'from-rose-400 to-purple-400';
+  const borderHover = isDental 
+    ? 'hover:border-cyan-500/30 data-[state=open]:border-cyan-500/20' 
+    : 'hover:border-rose-500/30 data-[state=open]:border-rose-500/20';
+
   return (
     <section className="py-24 relative z-10" id="faqs">
       <div className="max-w-3xl mx-auto px-6">
@@ -57,9 +75,9 @@ export default function LandingFAQ() {
             initial={{ opacity: 0, scale: 0.9 }}
             whileInView={{ opacity: 1, scale: 1 }}
             viewport={{ once: true }}
-            className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-rose-500/10 text-rose-400 text-sm font-semibold border border-rose-500/20 mb-4"
+            className={clsx("inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-semibold border mb-4", badgeClass)}
           >
-            <Sparkles className="w-4 h-4 fill-rose-500/20" />
+            {isDental ? <Zap className="w-4 h-4" /> : <Sparkles className="w-4 h-4" />}
             Preguntas Frecuentes
           </motion.div>
           
@@ -69,7 +87,7 @@ export default function LandingFAQ() {
             viewport={{ once: true }}
             className="text-3xl md:text-4xl font-extrabold text-white"
           >
-            Resuelve tus dudas sobre la <span className="text-transparent bg-clip-text bg-gradient-to-r from-rose-400 to-purple-400">Automatización</span>
+            Resuelve tus dudas sobre la <span className={clsx("text-transparent bg-clip-text bg-gradient-to-r", gradientText)}>Automatización</span>
           </motion.h2>
         </div>
 
@@ -85,11 +103,12 @@ export default function LandingFAQ() {
               <motion.div key={index} variants={itemVariants}>
                 <AccordionItem 
                   value={`item-${index}`} 
-                  // ESTILO DARK MODE ADAPTADO:
-                  // Fondo oscuro muy sutil, borde casi invisible que se ilumina en rosa al hover
-                  className="group border border-white/10 bg-white/[0.03] rounded-2xl px-6 transition-all duration-300 hover:border-rose-500/30 hover:bg-white/[0.05] data-[state=open]:bg-white/[0.08] data-[state=open]:border-rose-500/20"
+                  className={clsx(
+                    "group border border-white/10 bg-white/[0.03] rounded-2xl px-6 transition-all duration-300 hover:bg-white/[0.05] data-[state=open]:bg-white/[0.08]",
+                    borderHover
+                  )}
                 >
-                  <AccordionTrigger className="text-left text-base md:text-lg font-semibold text-slate-200 py-6 hover:no-underline hover:text-rose-400 transition-colors">
+                  <AccordionTrigger className={clsx("text-left text-base md:text-lg font-semibold text-slate-200 py-6 hover:no-underline transition-colors", hoverColor)}>
                     {faq.question}
                   </AccordionTrigger>
                   <AccordionContent className="text-base text-slate-400 pb-6 leading-relaxed">

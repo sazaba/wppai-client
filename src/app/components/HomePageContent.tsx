@@ -350,7 +350,7 @@ export default function HomePageContent() {
         </motion.section>
 
         <section id="faqs" className="relative scroll-mt-24 mt-20 content-visibility-auto">
-             <LandingFAQ />
+             <LandingFAQ industry={industry} />
         </section>
 
       </div>
