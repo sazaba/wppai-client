@@ -490,10 +490,10 @@ export default function HomePageContent() {
           initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.3 }} variants={fadeInUp}
           className="relative py-16 md:py-24 group content-visibility-auto contain-paint"
         >
-            <div className="relative z-10 max-w-3xl mx-auto text-center px-4 md:px-6">
-                <div className="bg-white/[0.02] backdrop-blur-lg md:backdrop-blur-xl p-8 md:p-12 rounded-[24px] md:rounded-[32px] border border-white/10 shadow-xl shadow-black/30 relative overflow-hidden transition-all duration-500 hover:border-white/20 isolation-isolate">
-                    <h2 className="text-3xl md:text-5xl font-bold text-white mb-4 md:mb-6 tracking-tight drop-shadow-sm">¿Listos para Escalar <span className={clsx("text-transparent bg-clip-text bg-gradient-to-r", content.accentGradient)}>su Clínica</span>?</h2>
-                    <p className="text-slate-300 max-w-xl mx-auto mb-8 md:mb-10 text-base md:text-lg leading-relaxed font-medium">Deje de perder pacientes por no responder a tiempo. Automatice su agenda, fidelice a sus clientes y aumente su facturación sin trabajar más horas.</p>
+            <div className="relative z-10 max-w-3xl mx-auto text-center px-2 md:px-6">
+                <div className="bg-white/[0.02] backdrop-blur-lg md:backdrop-blur-xl p-6 md:p-10 rounded-[24px] md:rounded-[32px] border border-white/10 shadow-xl shadow-black/30 relative overflow-hidden transition-all duration-500 hover:border-white/20 isolation-isolate">
+                    <h2 className="text-3xl md:text-5xl font-bold text-white mb-4 md:mb-6 tracking-tight drop-shadow-sm">¿Listos para Escalar <span className={clsx("text-transparent bg-clip-text bg-gradient-to-r", content.accentGradient)}>tu Clínica</span>?</h2>
+                    <p className="text-slate-300 max-w-xl mx-auto mb-8 md:mb-10 text-base md:text-lg leading-relaxed font-medium">Deja de perder pacientes por no responder a tiempo. Automatiza tu agenda, fideliza a tus clientes y aumenta tu facturación sin trabajar más horas.</p>
                     <Link href="/register" className="relative z-10 inline-block group/btn w-full md:w-auto">
                         <div className="relative">
                             <div className={clsx("absolute -inset-2 bg-gradient-to-r rounded-2xl blur-xl opacity-30 group-hover/btn:opacity-50 transition-opacity duration-500", content.buttonGradient)} />
