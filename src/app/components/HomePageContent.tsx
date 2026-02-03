@@ -168,7 +168,7 @@ export default function HomePageContent() {
                         isAesthetic ? "bg-rose-600 text-white shadow-lg shadow-rose-900/50" : "text-slate-400 hover:text-white"
                     )}
                   >
-                    <Sparkles size={14} /> Estética
+                    <Sparkles size={14} /> Clinica Estética
                   </button>
                   <button 
                     onClick={() => setIndustry('dental')}
@@ -177,7 +177,7 @@ export default function HomePageContent() {
                         !isAesthetic ? "bg-cyan-600 text-white shadow-lg shadow-cyan-900/50" : "text-slate-400 hover:text-white"
                     )}
                   >
-                    <div className="rotate-45"><Zap size={14} /></div> Odontología
+                    <div className="rotate-45"><Zap size={14} /></div> Clinica Odontologica
                   </button>
               </div>
            </div>
