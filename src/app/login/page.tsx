@@ -153,8 +153,8 @@ export default function LoginPage() {
               <div className="flex justify-between items-center ml-1 flex-wrap gap-1">
                 <label className="text-xs font-medium text-zinc-300 uppercase tracking-wider">Contraseña</label>
                 <Link href="/forgot-password" className="text-xs text-indigo-400 hover:text-indigo-300 hover:underline transition-colors">
-                    ¿Olvidaste tu contraseña?
-                </Link>
+    ¿Olvidaste tu contraseña?
+</Link>
               </div>
               <div className="relative group">
                 <LockClosedIcon className="w-5 h-5 absolute left-3 top-3 text-zinc-500 group-focus-within:text-indigo-400 transition-colors" />
