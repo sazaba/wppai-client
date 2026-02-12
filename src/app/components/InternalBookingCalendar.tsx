@@ -1,18 +1,19 @@
 'use client'
 
 import React, { useState } from 'react';
-import { ChevronLeft, ChevronRight, Clock, Calendar as CalendarIcon, CheckCircle2, User, Mail, Phone } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Clock, Calendar as CalendarIcon, CheckCircle2, User, Mail, Phone, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import clsx from 'clsx';
+// Importamos SweetAlert2
+import Swal from 'sweetalert2';
 
-// Utilería simple para generar fechas (simulación de próximos 14 días)
+// Utilería simple para generar fechas
 const getNextDays = (days: number) => {
   const dates = [];
   const today = new Date();
   for (let i = 0; i < days; i++) {
     const date = new Date(today);
     date.setDate(today.getDate() + i);
-    // Saltar fines de semana si quieres (opcional)
     if (date.getDay() !== 0 && date.getDay() !== 6) { 
         dates.push(date);
     }
@@ -20,47 +21,105 @@ const getNextDays = (days: number) => {
   return dates;
 };
 
-// Horarios disponibles simulados
 const TIME_SLOTS = [
   "09:00 AM", "09:30 AM", "10:00 AM", "11:00 AM", 
   "02:00 PM", "03:30 PM", "04:00 PM", "05:00 PM"
 ];
 
-interface BookingData {
-  date: Date | null;
-  time: string | null;
-  name: string;
-  email: string;
-  phone: string;
-}
-
 export default function InternalBookingCalendar({ onComplete }: { onComplete?: () => void }) {
-  const [step, setStep] = useState<1 | 2 | 3>(1); // 1: Fecha/Hora, 2: Datos, 3: Éxito
+  const [step, setStep] = useState<1 | 2 | 3>(1);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [formData, setFormData] = useState({ name: '', email: '', phone: '' });
   const [dates] = useState(getNextDays(14));
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleTimeSelect = (time: string) => {
     setSelectedTime(time);
-    // Pequeño delay para UX
     setTimeout(() => setStep(2), 200);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    // AQUÍ CONECTAREMOS EL BACKEND MÁS ADELANTE
-    console.log("Datos listos para enviar a DB:", { date: selectedDate, time: selectedTime, ...formData });
-    setStep(3);
-    if (onComplete) setTimeout(onComplete, 3000); // Cerrar automático opcional
+  // --- CONFIGURACIÓN DE ALERTAS PREMIUM ---
+  const showSuccessAlert = () => {
+    Swal.fire({
+      title: '<span class="text-white font-bold text-2xl">¡Cita Confirmada!</span>',
+      html: `
+        <div class="text-slate-300 text-sm">
+          Hemos agendado tu auditoría para el <br/>
+          <strong class="text-cyan-400 text-lg">${selectedDate?.toLocaleDateString()}</strong> a las <strong class="text-cyan-400 text-lg">${selectedTime}</strong>.
+        </div>
+      `,
+      icon: 'success',
+      iconColor: '#06b6d4', // Cyan 500
+      background: '#0F0F0F', // Fondo Dark Premium
+      confirmButtonText: 'Genial, continuar',
+      confirmButtonColor: '#06b6d4', // Botón Cyan
+      buttonsStyling: false,
+      customClass: {
+        popup: 'border border-white/10 rounded-[2rem] shadow-2xl font-sans',
+        confirmButton: 'px-6 py-3 rounded-xl bg-gradient-to-r from-cyan-600 to-blue-600 text-white font-bold shadow-lg hover:scale-105 transition-transform'
+      }
+    }).then(() => {
+        // Al cerrar la alerta, ejecutamos la acción final
+        if (onComplete) onComplete();
+    });
   };
 
-  // --- RENDERIZADO DE PASOS ---
+  const showErrorAlert = (msg: string) => {
+    Swal.fire({
+      title: '<span class="text-white font-bold">Ups, algo pasó</span>',
+      text: msg,
+      icon: 'error',
+      iconColor: '#ef4444', // Red 500
+      background: '#0F0F0F',
+      confirmButtonColor: '#333',
+      confirmButtonText: 'Intentar de nuevo',
+      customClass: {
+        popup: 'border border-white/10 rounded-[2rem] shadow-2xl font-sans'
+      }
+    });
+  };
 
-  // Paso 1: Selector de Fecha y Hora
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedDate || !selectedTime) return;
+
+    setIsSubmitting(true);
+
+    try {
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+
+      const response = await fetch(`${API_URL}/api/demo-booking`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          date: selectedDate,
+          time: selectedTime,
+          name: formData.name,
+          email: formData.email,
+          phone: formData.phone
+        }),
+      });
+
+      if (response.ok) {
+        setStep(3); // Mostramos pantalla final interna
+        showSuccessAlert(); // Disparamos SweetAlert Premium
+      } else {
+        const errorData = await response.json();
+        showErrorAlert(errorData.error || "No pudimos agendar tu cita. Intenta nuevamente.");
+      }
+    } catch (error) {
+      console.error("Error de red:", error);
+      showErrorAlert("Error de conexión. Verifica tu internet.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // --- RENDERIZADO ---
+
   const renderStep1 = () => (
     <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="flex flex-col md:flex-row gap-6 h-full">
-      {/* Columna Fechas */}
       <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar">
         <h3 className="text-white font-bold mb-4 flex items-center gap-2 sticky top-0 bg-[#111] py-2 z-10">
           <CalendarIcon size={18} className="text-cyan-400" /> Selecciona un día
@@ -86,7 +145,6 @@ export default function InternalBookingCalendar({ onComplete }: { onComplete?: (
         </div>
       </div>
 
-      {/* Columna Horas (Aparece al seleccionar fecha) */}
       <div className="flex-1 border-t md:border-t-0 md:border-l border-white/10 md:pl-6 pt-4 md:pt-0 flex flex-col">
         <h3 className={clsx("font-bold mb-4 flex items-center gap-2 transition-colors", selectedDate ? "text-white" : "text-slate-600")}>
           <Clock size={18} className={selectedDate ? "text-cyan-400" : "text-slate-600"} /> Horarios disponibles
@@ -113,7 +171,6 @@ export default function InternalBookingCalendar({ onComplete }: { onComplete?: (
     </motion.div>
   );
 
-  // Paso 2: Formulario de Datos
   const renderStep2 = () => (
     <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="max-w-md mx-auto w-full">
       <div className="mb-6 bg-cyan-950/30 border border-cyan-500/20 p-4 rounded-xl flex items-center gap-4">
@@ -173,14 +230,17 @@ export default function InternalBookingCalendar({ onComplete }: { onComplete?: (
             </div>
         </div>
 
-        <button type="submit" className="w-full bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold py-3 rounded-xl shadow-lg shadow-cyan-900/40 transition-all transform active:scale-95 mt-4">
-            Confirmar Reserva
+        <button 
+            type="submit" 
+            disabled={isSubmitting}
+            className="w-full bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold py-3 rounded-xl shadow-lg shadow-cyan-900/40 transition-all transform active:scale-95 mt-4 flex items-center justify-center gap-2"
+        >
+            {isSubmitting ? <Loader2 className="animate-spin" /> : "Confirmar Reserva"}
         </button>
       </form>
     </motion.div>
   );
 
-  // Paso 3: Confirmación
   const renderStep3 = () => (
     <div className="flex flex-col items-center justify-center h-full text-center p-6">
         <motion.div 
@@ -191,7 +251,7 @@ export default function InternalBookingCalendar({ onComplete }: { onComplete?: (
         </motion.div>
         <h3 className="text-2xl font-bold text-white mb-2">¡Agenda Confirmada!</h3>
         <p className="text-slate-300 max-w-xs mx-auto mb-6">
-            Te hemos enviado un correo con los detalles. Nos vemos el <span className="text-cyan-400 font-semibold">{selectedDate?.toLocaleDateString()}</span> a las <span className="text-cyan-400 font-semibold">{selectedTime}</span>.
+            Te hemos enviado un correo con los detalles.
         </p>
         <div className="p-4 bg-white/5 rounded-xl border border-white/10 text-sm text-slate-400">
             Pronto un experto de Wasaaa te contactará para la configuración.
