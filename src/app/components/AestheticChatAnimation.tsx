@@ -9,7 +9,7 @@ const ChatMessage = memo(({ isUser, text, time, show }: { isUser: boolean, text:
   if (!show) return null;
   return (
     <motion.div initial={{ opacity: 0, y: 10, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} className={`flex w-full relative z-10 ${isUser ? 'justify-end' : 'justify-start'}`}>
-      <div className={`max-w-[85%] rounded-[18px] px-3 py-1.5 shadow-sm text-[13px] leading-snug relative group ${isUser ? 'bg-rose-400 text-white rounded-tr-none' : 'bg-[#202C33] text-[#E9EDEF] rounded-tl-none'}`}>
+      <div className={`max-w-[85%] rounded-[18px] px-3 py-1.5 shadow-sm text-[13px] leading-snug relative group ${isUser ? 'bg-cyan-600 text-white rounded-tr-none' : 'bg-[#202C33] text-[#E9EDEF] rounded-tl-none'}`}>
         {text}
         <div className="flex justify-end items-end gap-1 mt-0.5 select-none"><span className="text-[10px] text-white/60 font-normal">{time}</span></div>
       </div>
@@ -60,9 +60,9 @@ export default function AestheticChatAnimation() {
       <div className="relative bg-black rounded-[2.5rem] shadow-2xl overflow-hidden h-[550px] flex flex-col ring-4 ring-zinc-900 border border-zinc-800 z-10">
         <div className="bg-zinc-900/95 pt-10 pb-3 px-4 flex items-center justify-between border-b border-white/5 z-30">
           <div className="flex items-center gap-2">
-            <ChevronLeft className="w-5 h-5 text-rose-300 -ml-2" />
-            <div className="relative"><div className="w-8 h-8 rounded-full bg-gradient-to-tr from-rose-300 to-rose-400 flex items-center justify-center text-white"><Sparkles className="w-4 h-4" /></div><div className="absolute bottom-0 right-0 w-2 h-2 bg-green-500 border-2 border-zinc-900 rounded-full"></div></div>
-            <div className="flex flex-col"><h3 className="text-sm font-semibold text-white leading-none">Asistente Estética</h3><p className="text-[10px] text-rose-300 font-medium mt-0.5">En línea</p></div>
+            <ChevronLeft className="w-5 h-5 text-cyan-400 -ml-2" />
+            <div className="relative"><div className="w-8 h-8 rounded-full bg-gradient-to-tr from-cyan-400 to-blue-500 flex items-center justify-center text-white"><Sparkles className="w-4 h-4" /></div><div className="absolute bottom-0 right-0 w-2 h-2 bg-green-500 border-2 border-zinc-900 rounded-full"></div></div>
+            <div className="flex flex-col"><h3 className="text-sm font-semibold text-white leading-none">Asistente Estética</h3><p className="text-[10px] text-cyan-400 font-medium mt-0.5">En línea</p></div>
           </div>
         </div>
         <div className="flex-1 bg-[#0B141A] relative overflow-hidden flex flex-col">
@@ -83,7 +83,7 @@ export default function AestheticChatAnimation() {
           </div>
           <div className="bg-[#202C33] px-2 py-2 flex items-center gap-2 z-20 pb-6">
             <div className="flex-1 bg-[#2A3942] rounded-full h-9 px-4 flex items-center text-xs text-zinc-500">Mensaje...</div>
-            <div className="w-9 h-9 rounded-full bg-rose-400 flex items-center justify-center text-white"><Mic className="w-4 h-4" /></div>
+            <div className="w-9 h-9 rounded-full bg-cyan-600 flex items-center justify-center text-white"><Mic className="w-4 h-4" /></div>
           </div>
         </div>
       </div>
