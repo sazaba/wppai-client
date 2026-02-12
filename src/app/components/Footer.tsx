@@ -3,15 +3,18 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import logo from '../images/Logo-Wasaaa.webp'
-import { Instagram, Linkedin, Twitter, Facebook } from 'lucide-react'
+import { Instagram, Linkedin, Twitter, Facebook, Heart } from 'lucide-react'
 
 export default function Footer() {
   const currentYear = new Date().getFullYear()
 
   return (
-    // CAMBIO: bg-[#050505] para coincidir con el body, borde sutil white/10
-    <footer className="relative z-10 border-t border-white/10 bg-[#050505] pt-16 pb-8">
-      <div className="max-w-7xl mx-auto px-6">
+    <footer className="relative z-10 border-t border-white/10 bg-[#050505] pt-20 pb-10 overflow-hidden">
+      
+      {/* Luz ambiental de fondo para dar profundidad */}
+      <div className="absolute top-0 left-1/4 w-96 h-96 bg-blue-600/10 rounded-full blur-[128px] pointer-events-none" />
+
+      <div className="max-w-7xl mx-auto px-6 relative z-10">
         
         <div className="grid grid-cols-1 md:grid-cols-12 gap-12 mb-16">
           
@@ -20,24 +23,25 @@ export default function Footer() {
             <Link href="/" className="inline-block group">
                 <div className="flex items-center gap-3">
                     <div className="relative">
-                        <div className="absolute inset-0 bg-rose-500 blur-[20px] opacity-20 group-hover:opacity-40 transition-opacity" />
+                        {/* Glow Cyan detrás del logo */}
+                        <div className="absolute inset-0 bg-cyan-500 blur-[25px] opacity-20 group-hover:opacity-50 transition-opacity duration-500" />
                         <Image 
                             src={logo} 
                             alt="Wasaaa Logo" 
-                            width={40} 
-                            height={40} 
-                            className="w-10 h-10 object-contain relative z-10"
+                            width={42} 
+                            height={42} 
+                            className="w-10 h-10 md:w-12 md:h-12 object-contain relative z-10 transition-transform group-hover:scale-105"
                         />
                     </div>
-                    <span className="text-xl font-bold text-white tracking-tight group-hover:text-rose-400 transition-colors">Wasaaa</span>
+                    <span className="text-2xl font-bold text-white tracking-tight group-hover:text-cyan-400 transition-colors">Wasaaa</span>
                 </div>
             </Link>
-            <p className="text-slate-400 text-sm leading-relaxed max-w-sm">
-              IA conversacional especializada en clínicas estéticas. Convierte consultas en pacientes y llena tu agenda mientras duermes.
+            <p className="text-slate-400 text-sm leading-relaxed max-w-sm font-medium">
+              El primer sistema de triaje y agendamiento automático para clínicas que valoran su tiempo. Deja que la IA llene tu agenda.
             </p>
             
             {/* Redes Sociales */}
-            <div className="flex items-center gap-4 pt-2">
+            <div className="flex items-center gap-3 pt-2">
                 <SocialLink href="#" icon={Instagram} />
                 <SocialLink href="#" icon={Twitter} />
                 <SocialLink href="#" icon={Linkedin} />
@@ -47,32 +51,32 @@ export default function Footer() {
 
           {/* Columna 2: Producto */}
           <div className="md:col-span-3">
-            <h4 className="font-semibold text-white mb-6">Plataforma</h4>
+            <h4 className="font-bold text-white mb-6 tracking-wide">Plataforma</h4>
             <ul className="space-y-4 text-sm text-slate-400">
-                <li><Link href="#features" className="hover:text-rose-400 transition-colors">Funcionalidades</Link></li>
-                <li><Link href="#how" className="hover:text-rose-400 transition-colors">Cómo funciona</Link></li>
-                <li><Link href="#pricing" className="hover:text-rose-400 transition-colors">Membresía Gold</Link></li>
-                <li><Link href="#faqs" className="hover:text-rose-400 transition-colors">Preguntas Frecuentes</Link></li>
+                <li><Link href="#features" className="hover:text-cyan-400 transition-colors duration-200 block w-fit">Funcionalidades</Link></li>
+                <li><Link href="#how" className="hover:text-cyan-400 transition-colors duration-200 block w-fit">Cómo funciona</Link></li>
+                <li><Link href="#pricing" className="hover:text-cyan-400 transition-colors duration-200 block w-fit">Planes y Precios</Link></li>
+                <li><Link href="#faqs" className="hover:text-cyan-400 transition-colors duration-200 block w-fit">Preguntas Frecuentes</Link></li>
             </ul>
           </div>
 
           {/* Columna 3: Legal */}
           <div className="md:col-span-4">
-            <h4 className="font-semibold text-white mb-6">Legal</h4>
+            <h4 className="font-bold text-white mb-6 tracking-wide">Legal y Privacidad</h4>
             <ul className="space-y-4 text-sm text-slate-400">
               <li>
-                <Link href="/terminos" className="hover:text-rose-400 transition-colors">
+                <Link href="/terminos" className="hover:text-cyan-400 transition-colors duration-200 block w-fit">
                   Términos y Condiciones
                 </Link>
               </li>
               <li>
-                <Link href="/politica" className="hover:text-rose-400 transition-colors">
+                <Link href="/politica" className="hover:text-cyan-400 transition-colors duration-200 block w-fit">
                   Política de Privacidad
                 </Link>
               </li>
-              <li>
-                <Link href="/delete-my-data" className="hover:text-red-400 transition-colors flex items-center gap-2">
-                  Eliminar mis datos
+              <li className="pt-2">
+                <Link href="/delete-my-data" className="text-slate-500 hover:text-red-400 transition-colors duration-200 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider w-fit">
+                  <span className="w-1.5 h-1.5 rounded-full bg-red-500/50" /> Eliminar mis datos
                 </Link>
               </li>
             </ul>
@@ -80,10 +84,12 @@ export default function Footer() {
         </div>
 
         {/* Barra Inferior: Copyright */}
-        <div className="pt-8 border-t border-white/10 flex flex-col md:flex-row justify-between items-center gap-4 text-xs text-slate-500">
+        <div className="pt-8 border-t border-white/10 flex flex-col md:flex-row justify-between items-center gap-4 text-xs text-slate-500 font-medium">
           <p>© {currentYear} Wasaaa Inc. Todos los derechos reservados.</p>
-          <div className="flex items-center gap-2">
-            <span>Hecho con 💜 para el sector estético</span>
+          <div className="flex items-center gap-1.5 group cursor-default">
+            <span>Hecho con</span>
+            <Heart className="w-3.5 h-3.5 text-red-500 fill-red-500 animate-pulse" />
+            <span>para el sector estético</span>
           </div>
         </div>
 
@@ -92,14 +98,14 @@ export default function Footer() {
   )
 }
 
-// Componente auxiliar para botones sociales (Adaptado Dark Mode)
+// Componente auxiliar para botones sociales (Adaptado al tema Blue/Cyan)
 function SocialLink({ href, icon: Icon }: { href: string; icon: any }) {
     return (
         <a 
             href={href} 
-            className="w-9 h-9 flex items-center justify-center rounded-full bg-white/5 text-slate-400 hover:bg-rose-500 hover:text-white transition-all duration-300"
+            className="w-10 h-10 flex items-center justify-center rounded-xl bg-white/5 border border-white/5 text-slate-400 hover:bg-cyan-500 hover:border-cyan-400 hover:text-black transition-all duration-300 hover:scale-110 hover:shadow-[0_0_15px_rgba(6,182,212,0.4)]"
         >
-            <Icon className="w-4 h-4" />
+            <Icon className="w-5 h-5" />
         </a>
     )
 }
