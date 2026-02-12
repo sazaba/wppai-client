@@ -5,7 +5,8 @@ import {
   Sparkles, CheckCircle2, Clock, Users, Database, BrainCircuit, 
   CalendarCheck, ChevronRight, Zap, ShieldCheck, Check, XCircle, X,
   ArrowRight,
-  TrendingUp
+  TrendingUp,
+  AlertTriangle
 } from 'lucide-react';
 import { motion, Variants, AnimatePresence } from 'framer-motion';
 import Image from 'next/image'; 
@@ -25,12 +26,12 @@ const CalendarVisual = dynamic(() => import('./CalendarVisual'), { ssr: false, l
 const AestheticChatAnimation = dynamic(() => import('./AestheticChatAnimation'), { ssr: false, loading: LoadingSkeleton });
 const LandingFAQ = dynamic(() => import('./LandingFAQ'), { ssr: false });
 
-// --- COPYWRITING AUDITADO (PERSUASIÓN ALTA) ---
+// --- COPYWRITING ---
 const HERO_BADGE = "IA Especializada en Cierre de Ventas Estéticas";
 const HERO_TITLE = <>Convierte tus Leads de Facebook en <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">Citas Pagadas en Automático</span></>;
 const HERO_DESC = 'Tu equipo pierde horas respondiendo "precio" a curiosos. Wasaaa filtra, cualifica y agenda solo a los pacientes que tienen el dinero en mano.';
 
-// Variants (Sin cambios, funcionan bien)
+// Variants
 const fadeInUp: Variants = { hidden: { opacity: 0, y: 15 }, visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: "easeOut" } } };
 const staggerContainer: Variants = { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.1 } } };
 
@@ -87,9 +88,10 @@ export default function HomePageContent() {
       
       <BookingModal isOpen={isBookingOpen} onClose={() => setIsBookingOpen(false)} />
 
+      {/* Grid Background Global */}
       <div className="fixed inset-0 z-0 pointer-events-none">
          <div className="absolute inset-0 bg-[#050505]" />
-         <div className="absolute inset-0 bg-[url('/grid-pattern.svg')] opacity-[0.03]" style={{ backgroundSize: '30px 30px' }}></div>
+         <div className="absolute inset-0 bg-[url('/grid-pattern.svg')] opacity-[0.04]" style={{ backgroundSize: '30px 30px' }}></div>
       </div>
 
       <div className="relative z-10 max-w-7xl mx-auto px-4 md:px-6 pt-24 pb-16 md:pb-24">
@@ -125,7 +127,7 @@ export default function HomePageContent() {
           </div>
         </section>
 
-        {/* --- FEATURES 1: FILTRADO --- */}
+        {/* --- FEATURES 1 --- */}
         <section className="relative content-visibility-auto contain-paint">
             <motion.div 
               initial="hidden" whileInView="visible" viewport={{ once: true, margin: "100px" }} variants={staggerContainer}
@@ -164,7 +166,7 @@ export default function HomePageContent() {
                 </div>
             </motion.div>
 
-        {/* --- FEATURES 2: AGENDA --- */}
+        {/* --- FEATURES 2 --- */}
             <motion.div 
               initial="hidden" whileInView="visible" viewport={{ once: true, margin: "100px" }} variants={staggerContainer}
               className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center mb-24 md:mb-32"
@@ -195,37 +197,70 @@ export default function HomePageContent() {
             </motion.div>
         </section>
 
-        {/* --- COMPARATIVA DE VALOR --- */}
+        {/* --- COMPARATIVA DE VALOR (MEJORADA) --- */}
         <section className="mb-24 md:mb-32 relative px-4">
             <div className="text-center mb-12">
                 <h2 className="text-2xl md:text-4xl font-bold text-white mb-4">La Realidad de tu Clínica</h2>
                 <p className="text-slate-400">¿Sigues dependiendo de procesos manuales?</p>
             </div>
+            
             <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
-                <div className="p-6 md:p-8 rounded-3xl border border-white/5 bg-white/[0.02] flex flex-col opacity-80 hover:opacity-100 transition-opacity">
-                    <div className="flex items-center gap-3 mb-6 opacity-70">
-                        <Users className="text-slate-400" size={24} />
-                        <h3 className="text-xl font-bold text-slate-300">Gestión Manual (Actual)</h3>
+                {/* TARJETA MANUAL - REDISEÑADA: Más contraste, fondo sólido oscuro */}
+                <div className="relative p-6 md:p-8 rounded-3xl border border-red-500/20 bg-[#120808] flex flex-col shadow-lg">
+                    {/* Badge de alerta sutil */}
+                    <div className="absolute top-4 right-4 text-red-500/40">
+                        <AlertTriangle size={20} />
                     </div>
-                    <ul className="space-y-4 mb-8 flex-1">
-                        <li className="flex items-start gap-3 text-slate-400 text-sm"><XCircle className="text-red-900/50 shrink-0" size={18} /> Pierdes leads por responder horas tarde.</li>
-                        <li className="flex items-start gap-3 text-slate-400 text-sm"><XCircle className="text-red-900/50 shrink-0" size={18} /> Tu recepcionista se satura de mensajes.</li>
-                        <li className="flex items-start gap-3 text-slate-400 text-sm"><XCircle className="text-red-900/50 shrink-0" size={18} /> No hay seguimiento a pacientes antiguos.</li>
-                        <li className="flex items-start gap-3 text-slate-400 text-sm"><XCircle className="text-red-900/50 shrink-0" size={18} /> <strong>Costo oculto: +$2M en ventas perdidas.</strong></li>
+
+                    <div className="flex items-center gap-3 mb-6">
+                        <Users className="text-red-400" size={24} />
+                        <h3 className="text-xl font-bold text-white">Gestión Manual (Actual)</h3>
+                    </div>
+                    
+                    <ul className="space-y-5 flex-1">
+                        <li className="flex items-start gap-3 text-slate-200 text-sm">
+                            <div className="mt-0.5 bg-red-500/10 p-1 rounded text-red-500"><X size={14} strokeWidth={3} /></div>
+                            <span>Pierdes leads por responder horas tarde.</span>
+                        </li>
+                        <li className="flex items-start gap-3 text-slate-200 text-sm">
+                            <div className="mt-0.5 bg-red-500/10 p-1 rounded text-red-500"><X size={14} strokeWidth={3} /></div>
+                            <span>Tu recepcionista se satura de mensajes.</span>
+                        </li>
+                        <li className="flex items-start gap-3 text-slate-200 text-sm">
+                            <div className="mt-0.5 bg-red-500/10 p-1 rounded text-red-500"><X size={14} strokeWidth={3} /></div>
+                            <span>No hay seguimiento a pacientes antiguos.</span>
+                        </li>
+                        <li className="flex items-start gap-3 text-white font-semibold text-sm bg-red-950/30 p-2 rounded-lg border border-red-900/30">
+                             <div className="mt-0.5 text-red-400"><XCircle size={14} /></div>
+                             Costo oculto: +$2M en ventas perdidas.
+                        </li>
                     </ul>
                 </div>
 
-                <div className="p-6 md:p-8 rounded-3xl border border-cyan-500/30 bg-cyan-900/10 relative overflow-hidden flex flex-col shadow-2xl shadow-cyan-900/20">
-                    <div className="absolute top-0 right-0 px-3 py-1 rounded-bl-xl text-[10px] font-bold uppercase tracking-wider bg-cyan-500 text-black">La Solución Wasaaa</div>
+                {/* TARJETA WASAAA - GLOW CYAN */}
+                <div className="p-6 md:p-8 rounded-3xl border border-cyan-500/40 bg-cyan-950/10 relative overflow-hidden flex flex-col shadow-[0_0_40px_-10px_rgba(6,182,212,0.15)]">
+                    <div className="absolute top-0 right-0 px-4 py-1.5 rounded-bl-2xl text-[11px] font-black uppercase tracking-wider bg-cyan-500 text-black">La Solución Wasaaa</div>
                     <div className="flex items-center gap-3 mb-6">
-                        <Zap className="text-cyan-400" size={24} />
+                        <Zap className="text-cyan-400 fill-cyan-400" size={24} />
                         <h3 className="text-xl font-bold text-white">Automatización IA</h3>
                     </div>
-                    <ul className="space-y-4 mb-8 flex-1">
-                        <li className="flex items-start gap-3 text-white text-sm"><CheckCircle2 className="text-cyan-400 shrink-0" size={18} /> Respuesta inmediata (0 fugas de clientes).</li>
-                        <li className="flex items-start gap-3 text-white text-sm"><CheckCircle2 className="text-cyan-400 shrink-0" size={18} /> Cualificación automática de pacientes.</li>
-                        <li className="flex items-start gap-3 text-white text-sm"><CheckCircle2 className="text-cyan-400 shrink-0" size={18} /> Base de datos organizada automáticamente.</li>
-                        <li className="flex items-start gap-3 text-white text-sm"><CheckCircle2 className="text-cyan-400 shrink-0" size={18} /> <strong>Inversión: Menor a una consulta médica.</strong></li>
+                    <ul className="space-y-5 mb-2 flex-1">
+                        <li className="flex items-start gap-3 text-white text-sm">
+                            <CheckCircle2 className="text-cyan-400 shrink-0" size={18} /> 
+                            <span>Respuesta inmediata (0 fugas de clientes).</span>
+                        </li>
+                        <li className="flex items-start gap-3 text-white text-sm">
+                            <CheckCircle2 className="text-cyan-400 shrink-0" size={18} /> 
+                            <span>Cualificación automática de pacientes.</span>
+                        </li>
+                        <li className="flex items-start gap-3 text-white text-sm">
+                            <CheckCircle2 className="text-cyan-400 shrink-0" size={18} /> 
+                            <span>Base de datos organizada automáticamente.</span>
+                        </li>
+                        <li className="flex items-start gap-3 text-white font-semibold text-sm bg-cyan-500/10 p-2 rounded-lg border border-cyan-500/20">
+                            <CheckCircle2 className="text-cyan-400 shrink-0" size={18} /> 
+                            Inversión: Menor a una consulta médica.
+                        </li>
                     </ul>
                 </div>
             </div>
@@ -243,12 +278,10 @@ export default function HomePageContent() {
                 <div className={`absolute top-0 right-0 w-64 h-64 rounded-full blur-3xl -mr-32 -mt-32 pointer-events-none opacity-20 bg-cyan-500`} />
 
                 <div className="grid md:grid-cols-2 gap-8 md:gap-12 items-center">
-                    
                     <div className="space-y-6 text-center md:text-left">
                         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-semibold border border-cyan-500/20 bg-cyan-500/10 text-cyan-400">
                             <Sparkles className="w-4 h-4" /> Plan Clínicas Pro
                         </div>
-
                         <div>
                             <div className="flex items-baseline justify-center md:justify-start gap-1 flex-wrap">
                                 <span className="text-sm font-medium text-slate-400 -mb-2 md:-mb-4">$</span>
@@ -259,7 +292,6 @@ export default function HomePageContent() {
                                 ¿Cuánto cuesta una sesión de Botox o Ácido Hialurónico? Con solo <span className="text-cyan-400 font-bold">UNA</span> cita agendada, el software te sale gratis.
                             </p>
                         </div>
-
                         <div className="space-y-3">
                             <button 
                                 onClick={handleOpenBooking}
@@ -273,16 +305,13 @@ export default function HomePageContent() {
                                 <Image src={amex} alt="Amex" height={20} width={35} unoptimized className="object-contain" />
                             </div>
                         </div>
-                        
                         <p className="text-xs text-slate-500">Garantía de Satisfacción. Te ayudamos con la integración.</p>
                     </div>
-
                     <div className="bg-white/5 rounded-3xl p-6 md:p-8 border border-white/5 text-left">
                         <h3 className="font-bold text-lg text-white mb-6 flex items-center gap-2">
                             <ShieldCheck className="w-5 h-5 text-green-500" />
                             Todo incluido para vender más:
                         </h3>
-                        
                         <ul className="space-y-4">
                             {[
                                 "300 Conversaciones de Venta (IA)", 
@@ -300,34 +329,45 @@ export default function HomePageContent() {
                             ))}
                         </ul>
                     </div>
-
                 </div>
             </div>
           </motion.div>
         </section>
 
-        {/* --- CTA FINAL --- */}
+        {/* --- CTA FINAL (REDISEÑADA COMPACTA & ATRACTIVA) --- */}
         <motion.section 
           initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.3 }} variants={fadeInUp}
-          className="relative py-16 md:py-24 group content-visibility-auto contain-paint"
+          className="relative pb-24 group content-visibility-auto contain-paint px-2"
         >
-            <div className="relative z-10 max-w-3xl mx-auto text-center px-2 md:px-6">
-                <div className="bg-white/[0.02] backdrop-blur-lg md:backdrop-blur-xl p-6 md:p-10 rounded-[24px] md:rounded-[32px] border border-white/10 shadow-xl shadow-black/30 relative overflow-hidden transition-all duration-500 hover:border-white/20 isolation-isolate">
-                    <h2 className="text-3xl md:text-5xl font-bold text-white mb-4 md:mb-6 tracking-tight drop-shadow-sm">Tu competencia ya está <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">automatizando</span></h2>
-                    <p className="text-slate-300 max-w-xl mx-auto mb-8 md:mb-10 text-base md:text-lg leading-relaxed font-medium">
-                        No dejes que otro lead se enfríe en tu WhatsApp. Activa tu recepcionista inteligente hoy.
+            {/* Contenedor Compacto con Fondo Rico */}
+            <div className="relative z-10 max-w-4xl mx-auto rounded-[2.5rem] overflow-hidden border border-white/10 shadow-2xl">
+                {/* Fondo con Gradiente y Grid */}
+                <div className="absolute inset-0 bg-gradient-to-br from-[#0a0a0a] via-[#111] to-[#0a0a0a] z-0" />
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(6,182,212,0.15),transparent_50%)] z-0" />
+                <div className="absolute inset-0 bg-[url('/grid-pattern.svg')] opacity-[0.05] z-0" style={{ backgroundSize: '40px 40px' }}></div>
+                
+                <div className="relative z-10 p-8 md:p-14 text-center flex flex-col items-center">
+                     <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center text-white mb-6 shadow-lg shadow-cyan-500/30">
+                        <TrendingUp size={32} />
+                     </div>
+
+                    <h2 className="text-3xl md:text-5xl font-black text-white mb-4 tracking-tight">
+                        Tu competencia ya está <br className="hidden md:block" />
+                        <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">automatizando su agenda</span>
+                    </h2>
+                    
+                    <p className="text-slate-300 max-w-lg mx-auto mb-8 text-base md:text-lg font-medium leading-relaxed">
+                        No dejes que otro lead se enfríe en tu WhatsApp. Activa tu recepcionista inteligente y deja de perder dinero hoy.
                     </p>
-                    <div className="relative z-10 inline-block group/btn w-full md:w-auto">
-                        <div className="relative">
-                            <div className={`absolute -inset-2 bg-gradient-to-r ${buttonGradient} rounded-2xl blur-xl opacity-30 group-hover/btn:opacity-50 transition-opacity duration-500`} />
-                            <button 
-                                onClick={handleOpenBooking}
-                                className="relative w-full md:w-auto bg-white text-black font-bold text-base md:text-lg px-8 md:px-10 py-4 rounded-xl hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 shadow-lg flex items-center justify-center gap-2 mx-auto"
-                            >
-                                <Zap className="text-cyan-600" size={18} /> Iniciar Transformación <ArrowRight className="text-cyan-600" size={20} />
-                            </button>
-                        </div>
-                    </div>
+
+                    <button 
+                        onClick={handleOpenBooking}
+                        className="w-full md:w-auto bg-white text-black font-extrabold text-lg px-8 py-4 rounded-xl hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 shadow-[0_0_20px_rgba(255,255,255,0.3)] flex items-center justify-center gap-2"
+                    >
+                        <Zap className="text-cyan-600 fill-cyan-600" size={20} /> INICIAR TRANSFORMACIÓN <ArrowRight className="text-cyan-600" size={22} />
+                    </button>
+                    
+                    <p className="mt-4 text-[10px] uppercase tracking-widest text-slate-500 font-bold">Oferta limitada para primeras 10 clínicas</p>
                 </div>
             </div>
         </motion.section>
