@@ -1,130 +1,33 @@
 'use client'
 
-import React, { useState, ReactNode } from 'react';
+import React, { useState, ReactNode, useEffect } from 'react';
 import { 
   Sparkles, CheckCircle2, Clock, Users, Database, BrainCircuit, 
-  CalendarCheck, ChevronRight, FileText, CalendarDays, Zap, Wifi, 
-  TrendingUp, ShieldCheck, Check, HelpCircle, XCircle, AlertCircle
+  CalendarCheck, ChevronRight, Zap, Wifi, 
+  TrendingUp, ShieldCheck, Check, HelpCircle, XCircle, X
 } from 'lucide-react';
-import { motion, Variants } from 'framer-motion';
-import Link from 'next/link';
+import { motion, Variants, AnimatePresence } from 'framer-motion';
 import Image from 'next/image'; 
 import dynamic from 'next/dynamic';
 import clsx from 'clsx';
+// Importamos el nuevo calendario interno
+import InternalBookingCalendar from './InternalBookingCalendar';
 
 // --- IMPORTS IMÁGENES ---
 import visa from '../images/visa-logo.webp';
 import amex from '../images/american-express.webp';
 import mastercard from '../images/mastercard-logo.webp';
 
-// --- INTERFACES ---
-interface Testimonial {
-  name: string;
-  role: string;
-  text: string;
-  metric: string;
-  avatar: string;
-  color: string;
-}
-
-interface MockPatient {
-  initials: string;
-  name: string;
-  procedure: string;
-  date: string;
-  color: string;
-}
-
-interface IndustryContent {
-  themeColor: string;
-  accentGradient: string;
-  buttonGradient: string;
-  heroBadge: string;
-  heroTitle: ReactNode;
-  heroDesc: string;
-  chatComponent: React.ComponentType<any>;
-  feature1Title: ReactNode;
-  feature1Desc: string;
-  feature2Title: ReactNode;
-  feature2Desc: string;
-  pricingTitle: string;
-  pricingDesc: string;
-  pricingPrice: string;
-  pricingFeatures: string[];
-  testimonials: Testimonial[];
-  mockPatients: MockPatient[];
-}
-
 // --- LAZY LOADS ---
 const LoadingSkeleton = () => <div className="w-full h-[300px] bg-white/5 rounded-3xl animate-pulse" />;
-
 const CalendarVisual = dynamic(() => import('./CalendarVisual'), { ssr: false, loading: LoadingSkeleton });
 const AestheticChatAnimation = dynamic(() => import('./AestheticChatAnimation'), { ssr: false, loading: LoadingSkeleton });
-const DentalChatAnimation = dynamic(() => import('./DentalChatAnimation'), { ssr: false, loading: LoadingSkeleton }); 
-const AnimatedGenericCard = dynamic(() => import('./AnimatedGenericCard'), { ssr: false, loading: () => <div className="w-full h-[200px] bg-white/5 rounded-2xl" /> });
 const LandingFAQ = dynamic(() => import('./LandingFAQ'), { ssr: false });
 
-// --- CONFIGURACIÓN DE CONTENIDO (COPYWRITING PARA ADS) ---
-const CONTENT: Record<'aesthetic' | 'dental', IndustryContent> = {
-  aesthetic: {
-    themeColor: 'rose', 
-    accentGradient: 'from-rose-400 to-purple-500',
-    buttonGradient: 'from-rose-700 to-purple-700',
-    heroBadge: 'Sistema de Filtrado Inteligente',
-    // HOOK: Dolor inmediato (Perder pacientes)
-    heroTitle: <>Deja de Perder Pacientes por <span className="text-transparent bg-clip-text bg-gradient-to-r from-rose-400 to-purple-500">Demorarte en Responder</span></>,
-    heroDesc: 'Tu publicidad atrae, pero tu velocidad vende. Filtra curiosos, califica pacientes reales y entrégalos listos para agendar a tu equipo.',
-    chatComponent: AestheticChatAnimation,
-    feature1Title: <>Recepción que <br/><span className="text-rose-400">Sí Vende</span></>,
-    feature1Desc: 'Tu recepcionista no puede responder a las 11 PM. Nuestra IA sí. Filtra a quienes solo preguntan precio y prioriza a quienes ya quieren su procedimiento.',
-    feature2Title: <>Agenda Organizada <br/><span className="text-purple-400">Sin Caos</span></>,
-    feature2Desc: 'El sistema etiqueta cada chat: "Confirmado", "Por Reagendar" o "Cancelado". Tu equipo deja de adivinar y se enfoca en llenar los espacios vacíos.',
-    pricingTitle: 'Plan Clínicas Pro',
-    pricingDesc: 'Recupera la inversión con UN solo tratamiento agendado. El resto es ganancia pura.',
-    pricingPrice: '250.000',
-    pricingFeatures: ["Filtrado de pacientes cualificados", "Etiquetas de estado en agenda", "Base de datos de historial", "Sin cláusula de permanencia"],
-    testimonials: [
-      { name: "Dra. Valentina H.", role: "Directora Médica", text: "Antes perdía horas respondiendo precios. Ahora la IA me filtra los pacientes serios y yo solo entro a cerrar la venta.", metric: "+40% Cierres", avatar: "VH", color: "from-rose-600 to-pink-500" },
-      { name: "Clínica Piel & Ser", role: "Gerencia", text: "La base de datos es una mina de oro. Puedo ver el historial de cada paciente y reactivar a los que no volvieron.", metric: "+30% Retornos", avatar: "PS", color: "from-amber-600 to-orange-500" },
-      { name: "Dr. Andrés Meza", role: "Cirujano", text: "El sistema de etiquetas en la agenda es genial. Mi secretaria sabe exactamente a quién llamar para confirmar.", metric: "Agenda Llena", avatar: "AM", color: "from-purple-600 to-indigo-500" }
-    ],
-    mockPatients: [
-      { initials: "SC", name: "Sofía C.", procedure: "Toxina Botulínica", date: "Hoy, 11:00 AM", color: "bg-rose-500/20 text-rose-300" },
-      { initials: "MA", name: "María A.", procedure: "Rinomodelación", date: "Ayer", color: "bg-purple-500/20 text-purple-300" },
-      { initials: "JP", name: "Juliana P.", procedure: "Hydrafacial", date: "Hace 2d", color: "bg-cyan-500/20 text-cyan-300" },
-      { initials: "CR", name: "Carolina R.", procedure: "Valoración Corporal", date: "1sem", color: "bg-emerald-500/20 text-emerald-300" },
-    ]
-  },
-  dental: {
-    themeColor: 'cyan',
-    accentGradient: 'from-cyan-400 to-blue-500',
-    buttonGradient: 'from-cyan-700 to-blue-700',
-    heroBadge: 'Inteligencia Artificial Odontológica',
-    // HOOK: Enfoque en sillas vacías
-    heroTitle: <>Tus Sillones Vacíos te <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">Cuestan Millones</span> al Mes</>,
-    heroDesc: 'Automatiza la confirmación de citas y detecta pacientes que necesitan volver. Que tu equipo se dedique a la clínica, no al chat.',
-    chatComponent: DentalChatAnimation,
-    feature1Title: <>Filtro de <br/><span className="text-cyan-400">Pacientes Reales</span></>,
-    feature1Desc: 'Olvídate de responder lo mismo 100 veces. La IA entiende tus tratamientos, da precios y te pasa solo a los pacientes listos para agendar.',
-    feature2Title: <>Control Total <br/><span className="text-blue-400">de tu Agenda</span></>,
-    feature2Desc: 'Visualiza al instante quién confirmó asistencia y quién no mediante etiquetas inteligentes. Reduce el ausentismo drásticamente.',
-    pricingTitle: 'Plan Dental Premium',
-    pricingDesc: 'Con agendar una sola profilaxis o valoración al mes, el sistema se paga solo.',
-    pricingPrice: '250.000',
-    pricingFeatures: ["Filtrado por tratamiento", "Confirmación vía WhatsApp", "Historial clínico en chat", "Sin contratos forzosos"],
-    testimonials: [
-      { name: "Dra. Beatriz Molina", role: "OdontoSpecial", text: "Dudé si una IA entendería. Me equivoqué. Hoy me entrega los pacientes con el tratamiento elegido, listos para agendar.", metric: "+45 citas/mes", avatar: "BM", color: "from-blue-600 to-cyan-500" },
-      { name: "Dr. Camilo Restrepo", role: "Ortodoncista", text: "Antes mi secretaria se enredaba con tantos chats. Ahora solo atiende a los que la IA ya filtró y etiquetó.", metric: "95% Efectividad", avatar: "CR", color: "from-purple-600 to-indigo-500" },
-      { name: "Dental Sonrisas", role: "Admin", text: "Ningún paciente se queda en 'visto'. La IA responde a todos y nos avisa cuáles son urgentes.", metric: "-70% Carga", avatar: "DS", color: "from-emerald-600 to-teal-500" }
-    ],
-    mockPatients: [
-      { initials: "LG", name: "Laura G.", procedure: "Control Ortodoncia", date: "Hoy, 10:30 AM", color: "bg-blue-500/20 text-blue-300" },
-      { initials: "CR", name: "Carlos R.", procedure: "Implante Dental", date: "Ayer", color: "bg-cyan-500/20 text-cyan-300" },
-      { initials: "MP", name: "María P.", procedure: "Blanqueamiento", date: "Hace 2d", color: "bg-purple-500/20 text-purple-300" },
-      { initials: "JL", name: "Jorge L.", procedure: "Profilaxis", date: "1sem", color: "bg-emerald-500/20 text-emerald-300" },
-    ]
-  }
-};
+// --- COPYWRITING (Estética + Identidad Azul) ---
+const HERO_BADGE = "Sistema de Filtrado Inteligente";
+const HERO_TITLE = <>Deja de Perder Pacientes por <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">Demorarte en Responder</span></>;
+const HERO_DESC = 'Tu publicidad atrae, pero tu velocidad vende. Filtra curiosos, califica pacientes estéticos reales y entrégalos listos para agendar a tu equipo.';
 
 // Variants
 const fadeInUp: Variants = { hidden: { opacity: 0, y: 15 }, visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: "easeOut" } } };
@@ -132,125 +35,170 @@ const staggerContainer: Variants = { hidden: { opacity: 0 }, visible: { opacity:
 const listContainer: Variants = { visible: { opacity: 1, transition: { staggerChildren: 0.08 } } };
 const listItem: Variants = { hidden: { opacity: 0, x: -5 }, visible: { opacity: 1, x: 0 } };
 
-export default function HomePageContent() {
-  const [industry, setIndustry] = useState<'aesthetic' | 'dental'>('aesthetic');
-  const content = CONTENT[industry];
-  const ChatComponent = content.chatComponent;
-
-  // Clases dinámicas
-  const isAesthetic = industry === 'aesthetic';
-  const accentText = isAesthetic ? 'text-rose-400' : 'text-cyan-400';
-  const badgeBg = isAesthetic ? 'bg-rose-500/10' : 'bg-cyan-500/10';
-  const badgeBorder = isAesthetic ? 'border-rose-500/20' : 'border-cyan-500/20';
-  const badgeText = isAesthetic ? 'text-rose-400' : 'text-cyan-400';
-  const buttonGradient = isAesthetic ? 'from-rose-600 to-purple-600' : 'from-cyan-600 to-blue-600';
-  const buttonHover = isAesthetic ? 'hover:from-rose-700 hover:to-purple-700' : 'hover:from-cyan-700 hover:to-blue-700';
-  const glowColor = isAesthetic ? 'from-rose-500 via-purple-500 to-pink-500' : 'from-cyan-500 via-blue-500 to-indigo-500';
+// --- COMPONENTE MODAL DE AGENDAMIENTO ---
+const BookingModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) => {
+  // Previene scroll y maneja Safari top bar
+  useEffect(() => {
+    if (isOpen) document.body.style.overflow = 'hidden';
+    else document.body.style.overflow = 'unset';
+    return () => { document.body.style.overflow = 'unset'; };
+  }, [isOpen]);
 
   return (
-    <main className="min-h-screen bg-[#050505] text-slate-200 selection:bg-white/20 selection:text-white font-sans overflow-x-hidden relative">
+    <AnimatePresence>
+      {isOpen && (
+        <motion.div 
+          initial={{ opacity: 0 }} 
+          animate={{ opacity: 1 }} 
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 h-[100dvh]" // 100dvh para Safari
+        >
+          {/* Backdrop con Webkit support para Safari */}
+          <div className="absolute inset-0 bg-black/80 backdrop-blur-md" style={{ WebkitBackdropFilter: 'blur(12px)' }} onClick={onClose} />
+          
+          {/* Modal Content */}
+          <motion.div 
+            initial={{ scale: 0.95, opacity: 0, y: 20 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            exit={{ scale: 0.95, opacity: 0, y: 20 }}
+            className="relative w-full max-w-4xl h-[600px] max-h-[90vh] bg-[#0F0F0F] border border-white/10 rounded-3xl shadow-2xl overflow-hidden flex flex-col"
+          >
+            {/* Header Modal */}
+            <div className="flex justify-between items-center p-5 border-b border-white/5 bg-[#141414]">
+               <div className="flex items-center gap-3">
+                 <div className="w-2.5 h-2.5 rounded-full bg-cyan-500 animate-pulse shadow-[0_0_10px_rgba(6,182,212,0.5)]" />
+                 <span className="text-base font-bold text-slate-200">Agendar Auditoría de IA</span>
+               </div>
+               <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-full text-slate-400 hover:text-white transition-colors">
+                 <X size={20} />
+               </button>
+            </div>
+
+            {/* Custom Calendar Component */}
+            <div className="flex-1 w-full bg-[#0F0F0F] p-4 md:p-8 overflow-hidden">
+                <InternalBookingCalendar onComplete={() => setTimeout(onClose, 2500)} />
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+};
+
+export default function HomePageContent() {
+  const [isBookingOpen, setIsBookingOpen] = useState(false);
+  const handleOpenBooking = () => setIsBookingOpen(true);
+
+  // Colores globales fijos (Azul/Cyan)
+  const themeColor = "cyan";
+  const accentText = "text-cyan-400";
+  const buttonGradient = "from-cyan-600 to-blue-600";
+  const buttonHover = "hover:from-cyan-700 hover:to-blue-700";
+  const glowColor = "from-cyan-500 via-blue-500 to-indigo-500";
+
+  return (
+    // overflow-x-hidden crítico para Safari mobile
+    <main className="min-h-[100dvh] bg-[#050505] text-slate-200 selection:bg-cyan-500/30 selection:text-cyan-100 font-sans overflow-x-hidden relative">
       
+      <BookingModal isOpen={isBookingOpen} onClose={() => setIsBookingOpen(false)} />
+
       <div className="fixed inset-0 z-0 pointer-events-none">
          <div className="absolute inset-0 bg-[#050505]" />
          <div className="absolute inset-0 bg-[url('/grid-pattern.svg')] opacity-[0.03]" style={{ backgroundSize: '30px 30px' }}></div>
       </div>
 
-      <div className="relative z-10 max-w-7xl mx-auto px-4 md:px-6 pt-28 pb-16 md:pb-24">
+      <div className="relative z-10 max-w-7xl mx-auto px-4 md:px-6 pt-24 pb-16 md:pb-24">
         
         {/* --- HERO --- */}
-        <section className="text-center mb-16 md:mb-24">
-           <div className="flex justify-center mb-10">
-              <div className="p-1 bg-white/5 border border-white/10 rounded-full flex gap-1 backdrop-blur-sm">
-                  <button 
-                    onClick={() => setIndustry('aesthetic')}
-                    className={clsx(
-                        "px-6 py-2 rounded-full text-sm font-bold transition-all duration-300 flex items-center gap-2",
-                        isAesthetic ? "bg-rose-600 text-white shadow-lg shadow-rose-900/50" : "text-slate-400 hover:text-white"
-                    )}
-                  >
-                    <Sparkles size={14} /> Clinica Estética
-                  </button>
-                  <button 
-                    onClick={() => setIndustry('dental')}
-                    className={clsx(
-                        "px-6 py-2 rounded-full text-sm font-bold transition-all duration-300 flex items-center gap-2",
-                        !isAesthetic ? "bg-cyan-600 text-white shadow-lg shadow-cyan-900/50" : "text-slate-400 hover:text-white"
-                    )}
-                  >
-                    <div className="rotate-45"><Zap size={14} /></div> Clinica Odontologica
-                  </button>
-              </div>
-           </div>
-
-           <motion.div key={`${industry}-badge`} initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-white/10 bg-white/5 text-slate-300 text-[10px] uppercase tracking-widest font-bold mb-6">
-                <ShieldCheck size={12} /> {content.heroBadge}
+        <section className="text-center mb-16 md:mb-24 mt-8 md:mt-16">
+           <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-cyan-500/20 bg-cyan-500/10 text-cyan-300 text-[10px] uppercase tracking-widest font-bold mb-6 shadow-[0_0_20px_rgba(6,182,212,0.1)]">
+                <ShieldCheck size={12} /> {HERO_BADGE}
            </motion.div>
           
-          <h1 key={`${industry}-title`} className="text-4xl sm:text-5xl md:text-7xl font-bold text-white mb-6 tracking-tighter leading-[1.1] animate-fade-in-up [animation-delay:100ms] opacity-0 fill-mode-forwards">
-            {content.heroTitle}
+          <h1 className="text-4xl sm:text-5xl md:text-7xl font-bold text-white mb-6 tracking-tighter leading-[1.1] animate-fade-in-up [animation-delay:100ms] opacity-0 fill-mode-forwards max-w-5xl mx-auto">
+            {HERO_TITLE}
           </h1>
           
-          <p key={`${industry}-desc`} className="text-lg md:text-xl text-slate-300 max-w-2xl mx-auto leading-relaxed px-2 animate-fade-in-up [animation-delay:200ms] opacity-0 fill-mode-forwards">
-            {content.heroDesc}
+          <p className="text-lg md:text-xl text-slate-300 max-w-2xl mx-auto leading-relaxed px-2 animate-fade-in-up [animation-delay:200ms] opacity-0 fill-mode-forwards">
+            {HERO_DESC}
           </p>
+
+          <div className="mt-10 animate-fade-in-up [animation-delay:300ms] opacity-0 fill-mode-forwards">
+            <button 
+                onClick={handleOpenBooking}
+                className={clsx(
+                    "px-8 py-4 rounded-full text-lg font-bold text-white shadow-[0_10px_40px_-10px_rgba(6,182,212,0.5)] transition-all hover:scale-105 active:scale-95 flex items-center gap-2 mx-auto bg-gradient-to-r",
+                    buttonGradient, buttonHover
+                )}
+            >
+                <CalendarCheck size={20} /> Agendar Demo Gratuita
+            </button>
+            <p className="mt-4 text-xs text-slate-500">Configuración incluida • Sin tarjeta de crédito</p>
+          </div>
         </section>
 
-        {/* --- FEATURES --- */}
-        <section id="features" className="relative scroll-mt-24 content-visibility-auto contain-paint">
+        {/* --- FEATURES 1 --- */}
+        <section className="relative content-visibility-auto contain-paint">
             <motion.div 
-              key={industry} 
-              initial="hidden" whileInView="visible" viewport={{ once: true, margin: "200px" }} variants={staggerContainer}
+              initial="hidden" whileInView="visible" viewport={{ once: true, margin: "100px" }} variants={staggerContainer}
               className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center mb-24 md:mb-32"
             >
-                <div className="order-2 lg:order-1 relative flex justify-center min-h-[650px] items-center">
-                    <div className={clsx("absolute inset-0 bg-[radial-gradient(circle_at_center,var(--tw-gradient-stops))] opacity-10", isAesthetic ? "from-rose-500 via-transparent" : "from-cyan-500 via-transparent")} />
+                <div className="order-2 lg:order-1 relative flex justify-center min-h-[450px] md:min-h-[650px] items-center">
+                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,var(--tw-gradient-stops))] from-cyan-500/20 via-transparent to-transparent opacity-40 blur-3xl" />
                     <div className="relative w-full max-w-[350px] md:max-w-none transform scale-100 lg:scale-110">
-                        <ChatComponent />
+                        {/* Se mantiene la animación de estética, pero envuelta en glow azul */}
+                         <div className="drop-shadow-[0_0_30px_rgba(6,182,212,0.15)]">
+                             <AestheticChatAnimation />
+                         </div>
                     </div>
                 </div>
                 <div className="order-1 lg:order-2 flex flex-col items-center text-center lg:items-center lg:text-center px-2">
-                    <div className={clsx("w-12 h-12 rounded-2xl flex items-center justify-center mb-6 md:mb-8 shadow-lg", isAesthetic ? "bg-rose-500/20 shadow-rose-500/30 text-rose-400" : "bg-cyan-500/20 shadow-cyan-500/30 text-cyan-400")}>
+                    <div className="w-12 h-12 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center mb-6 md:mb-8 shadow-lg text-cyan-400">
                         <BrainCircuit size={24} />
                     </div>
-                    <h2 className="text-3xl md:text-5xl font-bold text-white mb-4 md:mb-6 tracking-tight">{content.feature1Title}</h2>
-                    <p className="text-slate-300 text-base md:text-lg mb-8 leading-relaxed max-w-lg">{content.feature1Desc}</p>
+                    <h2 className="text-3xl md:text-5xl font-bold text-white mb-4 md:mb-6 tracking-tight">Recepción que <br/><span className="text-cyan-400">Sí Vende</span></h2>
+                    <p className="text-slate-300 text-base md:text-lg mb-8 leading-relaxed max-w-lg">
+                        Tu recepcionista no puede responder a las 11 PM. Nuestra IA sí. Filtra a quienes solo preguntan precio y prioriza a quienes ya quieren su procedimiento estético.
+                    </p>
                     <ul className="space-y-4 md:space-y-5 text-left inline-block"> 
                         {["Respuesta inmediata 24/7", "Filtrado de pacientes reales", "Agendamiento organizado", "Reducción de inasistencias"].map((item, i) => (
                             <li key={i} className="flex items-start gap-3 md:gap-4 text-slate-300 text-sm md:text-base">
-                                <div className={clsx("mt-0.5 p-1 rounded-full shrink-0", isAesthetic ? "bg-rose-500/10 text-rose-500" : "bg-cyan-500/10 text-cyan-500")}><CheckCircle2 size={14} /></div><span>{item}</span>
+                                <div className="mt-0.5 p-1 rounded-full shrink-0 bg-cyan-500/10 text-cyan-400"><CheckCircle2 size={14} /></div><span>{item}</span>
                             </li>
                         ))}
                     </ul>
                 </div>
             </motion.div>
 
+        {/* --- FEATURES 2 --- */}
             <motion.div 
-              initial="hidden" whileInView="visible" viewport={{ once: true, margin: "200px" }} variants={staggerContainer}
+              initial="hidden" whileInView="visible" viewport={{ once: true, margin: "100px" }} variants={staggerContainer}
               className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center mb-24 md:mb-32"
             >
                 <div className="order-1 flex flex-col items-center text-center px-2">
-                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center mb-6 text-white shadow-lg shadow-purple-500/30 mx-auto">
+                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center mb-6 text-white shadow-lg shadow-blue-500/30 mx-auto">
                         <Clock size={24} />
                     </div>
-                    <h2 className="text-3xl md:text-5xl font-bold text-white mb-4 md:mb-6 tracking-tight">{content.feature2Title}</h2>
-                    <p className="text-slate-300 text-base md:text-lg mb-8 leading-relaxed max-w-lg">{content.feature2Desc}</p>
+                    <h2 className="text-3xl md:text-5xl font-bold text-white mb-4 md:mb-6 tracking-tight">Agenda Organizada <br/><span className="text-blue-400">Sin Caos</span></h2>
+                    <p className="text-slate-300 text-base md:text-lg mb-8 leading-relaxed max-w-lg">
+                        El sistema etiqueta cada chat: "Confirmado", "Por Reagendar" o "Cancelado". Tu equipo deja de adivinar y se enfoca en llenar los espacios vacíos en cabina.
+                    </p>
                 </div>
                 <div className="order-2 relative w-full flex justify-center">
                       <div className="w-full max-w-[350px] md:max-w-xl">
-                          <CalendarVisual mode={industry} /> 
+                          <CalendarVisual mode="aesthetic" /> 
                       </div>
                 </div>
             </motion.div>
         </section>
 
-        {/* --- COMPARATIVA DE VALOR (NUEVA SECCIÓN: ADS KILLER) --- */}
-        <section className="mb-24 md:mb-32 relative px-4 content-visibility-auto">
+        {/* --- COMPARATIVA --- */}
+        <section className="mb-24 md:mb-32 relative px-4">
             <div className="text-center mb-12">
                 <h2 className="text-2xl md:text-4xl font-bold text-white mb-4">¿Por qué cambiar?</h2>
                 <p className="text-slate-400">La matemática es simple.</p>
             </div>
             <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
-                {/* Opción Tradicional */}
                 <div className="p-6 md:p-8 rounded-3xl border border-white/5 bg-white/[0.02] flex flex-col">
                     <div className="flex items-center gap-3 mb-6 opacity-70">
                         <Users className="text-slate-400" size={24} />
@@ -260,166 +208,62 @@ export default function HomePageContent() {
                         <li className="flex items-start gap-3 text-slate-400 text-sm"><XCircle className="text-red-900/50 shrink-0" size={18} /> Costo: $1.8M - $2.5M / mes</li>
                         <li className="flex items-start gap-3 text-slate-400 text-sm"><XCircle className="text-red-900/50 shrink-0" size={18} /> Horario: 8 horas (No fines de semana)</li>
                         <li className="flex items-start gap-3 text-slate-400 text-sm"><XCircle className="text-red-900/50 shrink-0" size={18} /> Se enferma, renuncia o se cansa.</li>
-                        <li className="flex items-start gap-3 text-slate-400 text-sm"><XCircle className="text-red-900/50 shrink-0" size={18} /> Olvida hacer seguimiento a prospectos.</li>
+                        <li className="flex items-start gap-3 text-slate-400 text-sm"><XCircle className="text-red-900/50 shrink-0" size={18} /> Olvida hacer seguimiento.</li>
                     </ul>
                 </div>
 
-                {/* Opción Wasaaa */}
-                <div className={clsx("p-6 md:p-8 rounded-3xl border relative overflow-hidden flex flex-col", isAesthetic ? "bg-rose-900/10 border-rose-500/30" : "bg-cyan-900/10 border-cyan-500/30")}>
-                    <div className={clsx("absolute top-0 right-0 px-3 py-1 rounded-bl-xl text-[10px] font-bold uppercase tracking-wider", isAesthetic ? "bg-rose-500 text-white" : "bg-cyan-500 text-black")}>Opción Inteligente</div>
+                <div className="p-6 md:p-8 rounded-3xl border border-cyan-500/30 bg-cyan-900/10 relative overflow-hidden flex flex-col">
+                    <div className="absolute top-0 right-0 px-3 py-1 rounded-bl-xl text-[10px] font-bold uppercase tracking-wider bg-cyan-500 text-black">Opción Inteligente</div>
                     <div className="flex items-center gap-3 mb-6">
-                        <Zap className={isAesthetic ? "text-rose-400" : "text-cyan-400"} size={24} />
+                        <Zap className="text-cyan-400" size={24} />
                         <h3 className="text-xl font-bold text-white">Tu IA Wasaaa</h3>
                     </div>
                     <ul className="space-y-4 mb-8 flex-1">
-                        <li className="flex items-start gap-3 text-white text-sm"><CheckCircle2 className={isAesthetic ? "text-rose-500 shrink-0" : "text-cyan-500 shrink-0"} size={18} /> Costo: $250.000 / mes (Ahorras 90%)</li>
-                        <li className="flex items-start gap-3 text-white text-sm"><CheckCircle2 className={isAesthetic ? "text-rose-500 shrink-0" : "text-cyan-500 shrink-0"} size={18} /> Horario: 24/7 (Vende mientras duermes)</li>
-                        <li className="flex items-start gap-3 text-white text-sm"><CheckCircle2 className={isAesthetic ? "text-rose-500 shrink-0" : "text-cyan-500 shrink-0"} size={18} /> Siempre amable, nunca se cansa.</li>
-                        <li className="flex items-start gap-3 text-white text-sm"><CheckCircle2 className={isAesthetic ? "text-rose-500 shrink-0" : "text-cyan-500 shrink-0"} size={18} /> Filtra curiosos y cierra ventas automáticamente.</li>
+                        <li className="flex items-start gap-3 text-white text-sm"><CheckCircle2 className="text-cyan-400 shrink-0" size={18} /> Costo: $250.000 / mes (Ahorras 90%)</li>
+                        <li className="flex items-start gap-3 text-white text-sm"><CheckCircle2 className="text-cyan-400 shrink-0" size={18} /> Horario: 24/7 (Vende mientras duermes)</li>
+                        <li className="flex items-start gap-3 text-white text-sm"><CheckCircle2 className="text-cyan-400 shrink-0" size={18} /> Siempre amable, nunca se cansa.</li>
+                        <li className="flex items-start gap-3 text-white text-sm"><CheckCircle2 className="text-cyan-400 shrink-0" size={18} /> Filtra curiosos y cierra ventas.</li>
                     </ul>
                 </div>
             </div>
         </section>
 
-        {/* --- HOW (Bento) --- */}
-        <section id="how" className="relative scroll-mt-24 mb-24 md:mb-32 content-visibility-auto contain-paint">
-            <div className="text-center max-w-3xl mx-auto mb-12 md:mb-16 relative z-10 px-4">
-                <div className="inline-block mb-4">
-                      <span className={clsx("px-3 py-1 rounded-full border text-[10px] md:text-xs font-mono tracking-widest uppercase shadow-lg", isAesthetic ? "border-rose-500/30 bg-rose-950/30 text-rose-300" : "border-cyan-500/30 bg-cyan-950/30 text-cyan-300")}>Software Médico v.2.0</span>
-                </div>
-                <h2 className="text-3xl md:text-5xl font-bold text-white mb-4 md:mb-6 tracking-tight">El Cerebro Digital de tu Clínica</h2>
-                <p className="text-slate-300 text-base md:text-lg px-2">Transformamos datos en <span className={isAesthetic ? "text-rose-400 font-semibold" : "text-cyan-400 font-semibold"}>control total</span>.</p>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 md:gap-6 max-w-6xl mx-auto relative z-10">
-                <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, amount: 0.2 }} className={clsx("lg:col-span-7 group relative rounded-[32px] overflow-hidden bg-white/[0.03] border border-white/10 transition-all duration-500 flex flex-col backdrop-blur-lg shadow-2xl", isAesthetic ? "hover:border-rose-500/30" : "hover:border-cyan-500/30")}>
-                    <div className="relative p-6 md:p-10 h-full flex flex-col">
-                        <div className="flex items-start justify-between mb-6 md:mb-8">
-                            <div className={clsx("p-2.5 rounded-2xl border", isAesthetic ? "bg-rose-950/30 border-rose-500/20 text-rose-400" : "bg-cyan-950/30 border-cyan-500/20 text-cyan-400")}><Database size={24} /></div>
-                        </div>
-                        <div className="mb-6 md:mb-8">
-                            <h3 className="text-xl md:text-3xl font-bold text-white mb-2 md:mb-3">Base de Datos Viva</h3>
-                            <p className="text-slate-300 text-sm md:text-base leading-relaxed max-w-lg">Ten el historial de cada paciente organizado. Procedimientos pasados, conversaciones y notas en un solo lugar.</p>
-                        </div>
-                        <div className="mt-auto border-t border-white/5 pt-5 md:pt-6">
-                            <motion.div key={industry} className="space-y-2 md:space-y-3" initial="hidden" whileInView="visible" viewport={{ once: true }} variants={listContainer}>
-                                {content.mockPatients.map((patient, i) => (
-                                    <motion.div key={i} variants={listItem} className="flex items-center justify-between p-2.5 rounded-xl bg-white/[0.03] border border-white/5 hover:bg-white/[0.06] transition-colors">
-                                        <div className="flex items-center gap-3 md:gap-4">
-                                            <div className={`w-8 h-8 rounded-full ${patient.color} flex items-center justify-center text-xs font-bold`}>{patient.initials}</div>
-                                            <div className="flex flex-col">
-                                                <span className="text-sm font-semibold text-white">{patient.name}</span>
-                                                <span className="text-[10px] text-slate-400">{patient.procedure}</span>
-                                            </div>
-                                        </div>
-                                        <div className="hidden sm:flex text-slate-500 text-xs font-mono">{patient.date}</div>
-                                    </motion.div>
-                                ))}
-                            </motion.div>
-                        </div>
-                    </div>
-                </motion.div>
-
-                <div className="lg:col-span-5 flex flex-col gap-4 md:gap-6">
-                    <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} className="group relative rounded-[32px] p-6 md:p-8 bg-white/[0.03] border border-white/10 flex flex-col justify-between min-h-[200px]">
-                        <div className="flex justify-between items-start">
-                            <div><h3 className="text-lg font-bold text-white">Reactivación</h3><p className="text-xs text-emerald-400 font-semibold uppercase mt-1">Ingresos Pasivos</p></div>
-                            <div className="p-2 rounded-lg bg-emerald-950/30 text-emerald-400"><TrendingUp size={20} /></div>
-                        </div>
-                        <p className="text-slate-400 text-xs mt-2">Identifica a pacientes antiguos y escríbeles automáticamente para agendar un control o nuevo procedimiento.</p>
-                    </motion.div>
-                    <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} className="group relative rounded-[32px] p-6 md:p-8 bg-white/[0.03] border border-white/10 flex flex-col justify-between min-h-[200px]">
-                        <div className="flex justify-between items-start">
-                            <div><h3 className="text-lg font-bold text-white">Reportes</h3><p className="text-xs text-purple-400 font-semibold uppercase mt-1">Control Total</p></div>
-                            <div className="p-2 rounded-lg bg-purple-950/30 text-purple-400"><CalendarCheck size={20} /></div>
-                        </div>
-                        <p className="text-slate-400 text-xs mt-2">Métricas claras de asistencia, tratamientos más vendidos y facturación para tomar mejores decisiones.</p>
-                    </motion.div>
-                </div>
-            </div>
-        </section>
-
-        {/* --- TESTIMONIOS (Espaciado normalizado) --- */}
-        <section className="mb-24 md:mb-32 relative px-4 content-visibility-auto contain-paint">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-5xl font-bold text-white mb-4">
-              Historias de <span className={accentText}>Éxito Real</span>
-            </h2>
-            <p className="text-slate-300">Resultados tangibles en clínicas que decidieron organizarse.</p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
-            {content.testimonials.map((t, i) => (
-              <motion.div
-                key={`${industry}-${i}`}
-                initial={{ opacity: 0, scale: 0.9 }} whileInView={{ opacity: 1, scale: 1 }} viewport={{ once: true }} transition={{ delay: 0.1 * i }}
-                className="group relative"
-              >
-                <div className={`absolute -inset-2 bg-gradient-to-r ${t.color} rounded-[2rem] blur-xl opacity-0 group-hover:opacity-20 transition-opacity duration-500`} />
-                <div className="relative bg-[#0a0a0a] border border-white/10 p-8 rounded-[2rem] h-full flex flex-col shadow-2xl overflow-hidden">
-                  
-                  <div className="flex justify-between items-center mb-6">
-                      <div className="flex gap-1.5">
-                        <div className="w-2 h-2 rounded-full bg-red-500/50" />
-                        <div className="w-2 h-2 rounded-full bg-amber-500/50" />
-                        <div className="w-2 h-2 rounded-full bg-emerald-500/50" />
-                      </div>
-                      <div className={`px-3 py-1 rounded-full bg-white/5 border border-white/10 text-[10px] font-bold uppercase tracking-tighter whitespace-nowrap ${accentText}`}>
-                          {t.metric}
-                      </div>
-                  </div>
-
-                  <p className="text-slate-300 text-lg leading-relaxed italic mb-8 relative z-10">"{t.text}"</p>
-                  
-                  <div className="mt-auto flex items-center gap-4">
-                    <div className={`w-12 h-12 rounded-full bg-gradient-to-br ${t.color} flex items-center justify-center font-bold text-white shadow-lg shrink-0`}>{t.avatar}</div>
-                    <div className="min-w-0">
-                        <h4 className="text-white font-bold text-sm truncate">{t.name}</h4>
-                        <p className="text-slate-500 text-xs truncate">{t.role}</p>
-                    </div>
-                  </div>
-                  <div className="absolute -bottom-2 -right-2 opacity-5 pointer-events-none"><Wifi size={100} className="rotate-45" /></div>
-                </div>
-              </motion.div>
-            ))}
-          </div>
-        </section>
-
-        {/* --- PRICING (CORREGIDO: Sin shadow en mobile) --- */}
-        <section id="pricing" className="relative scroll-mt-24 mb-24 md:mb-32 content-visibility-auto">
+        {/* --- PRICING --- */}
+        <section id="pricing" className="relative scroll-mt-24 mb-24 md:mb-32">
           <motion.div
-            key={industry}
             initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={fadeInUp}
             className="relative max-w-5xl mx-auto"
           >
-            <div className={clsx("absolute -inset-1 bg-gradient-to-r rounded-[2.5rem] blur-xl opacity-30 animate-pulse-slow", glowColor)} />
+            <div className={`absolute -inset-1 bg-gradient-to-r ${glowColor} rounded-[2.5rem] blur-xl opacity-30 animate-pulse-slow`} />
 
-            {/* CORRECCIÓN: shadow-none en mobile, shadow-2xl en md+ */}
             <div className="relative bg-[#080808]/90 backdrop-blur-2xl border border-white/10 rounded-[2rem] p-6 md:p-12 shadow-none md:shadow-2xl overflow-hidden">
-                <div className={clsx("absolute top-0 right-0 w-64 h-64 rounded-full blur-3xl -mr-32 -mt-32 pointer-events-none opacity-20 bg-current", accentText)} />
+                <div className={`absolute top-0 right-0 w-64 h-64 rounded-full blur-3xl -mr-32 -mt-32 pointer-events-none opacity-20 bg-cyan-500`} />
 
                 <div className="grid md:grid-cols-2 gap-8 md:gap-12 items-center">
                     
                     <div className="space-y-6 text-center md:text-left">
-                        <div className={clsx("inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-semibold border", badgeBg, badgeBorder, badgeText)}>
-                            <Sparkles className="w-4 h-4" /> {content.pricingTitle}
+                        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-semibold border border-cyan-500/20 bg-cyan-500/10 text-cyan-400">
+                            <Sparkles className="w-4 h-4" /> Plan Clínicas Pro
                         </div>
 
                         <div>
                             <div className="flex items-baseline justify-center md:justify-start gap-1 flex-wrap">
                                 <span className="text-sm font-medium text-slate-400 -mb-2 md:-mb-4">$</span>
-                                <span className="text-5xl sm:text-6xl md:text-7xl font-black text-white tracking-tight">{content.pricingPrice}</span>
+                                <span className="text-5xl sm:text-6xl md:text-7xl font-black text-white tracking-tight">250.000</span>
                                 <span className="text-lg md:text-xl font-medium text-slate-400">COP/mes</span>
                             </div>
-                            <p className="mt-4 text-slate-300 leading-relaxed text-sm md:text-base">{content.pricingDesc}</p>
+                            <p className="mt-4 text-slate-300 leading-relaxed text-sm md:text-base">
+                                Agenda una demo para ver cómo recuperas la inversión con UN solo tratamiento.
+                            </p>
                         </div>
 
                         <div className="space-y-3">
-                            <Link href="/register" className="block w-full">
-                                <button className={clsx("w-full h-14 text-lg font-bold rounded-full bg-gradient-to-r text-white shadow-xl transition-all hover:scale-[1.02] flex items-center justify-center gap-2", buttonGradient, buttonHover)}>
-                                    <Zap size={20} /> Comenzar ahora
-                                </button>
-                            </Link>
+                            <button 
+                                onClick={handleOpenBooking}
+                                className={`w-full h-14 text-lg font-bold rounded-full bg-gradient-to-r ${buttonGradient} ${buttonHover} text-white shadow-xl transition-all hover:scale-[1.02] flex items-center justify-center gap-2`}
+                            >
+                                <Zap size={20} /> Agendar Demo & Integración
+                            </button>
                             <div className="flex justify-center md:justify-start gap-4 opacity-60 grayscale hover:grayscale-0 transition-all">
                                 <Image src={visa} alt="Visa" height={20} width={35} unoptimized className="object-contain" />
                                 <Image src={mastercard} alt="Mastercard" height={20} width={35} unoptimized className="object-contain" />
@@ -427,7 +271,7 @@ export default function HomePageContent() {
                             </div>
                         </div>
                         
-                        <p className="text-xs text-slate-500">Sin contratos forzosos. Cancela cuando quieras.</p>
+                        <p className="text-xs text-slate-500">Te ayudamos a configurar todo en la llamada.</p>
                     </div>
 
                     <div className="bg-white/5 rounded-3xl p-6 md:p-8 border border-white/5 text-left">
@@ -437,34 +281,16 @@ export default function HomePageContent() {
                         </h3>
                         
                         <ul className="space-y-4">
-                            <li className="flex items-start gap-3">
-                                <div className={clsx("flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center mt-0.5", badgeBg)}>
-                                    <Check className={clsx("w-4 h-4", badgeText)} strokeWidth={3} />
-                                </div>
-                                <div>
-                                    <span className="font-bold text-white">300 Conversaciones Premium</span>
-                                    <p className="text-sm text-slate-400">Incluidas cada mes con IA avanzada.</p>
-                                </div>
-                            </li>
-
-                            <li className="flex items-start gap-3 relative">
-                                <div className="absolute -left-2 -top-2 w-[calc(100%+1rem)] h-[calc(100%+1rem)] bg-green-500/5 rounded-xl -z-10 border border-green-500/20" />
-                                <div className="flex-shrink-0 w-6 h-6 rounded-full bg-green-500/20 flex items-center justify-center mt-0.5">
-                                    <Check className="w-4 h-4 text-green-400" strokeWidth={3} />
-                                </div>
-                                <div>
-                                    <span className="font-bold text-white flex items-center flex-wrap gap-2">
-                                        Recargas con 80% OFF
-                                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-green-900 text-green-300 uppercase tracking-wider">Ahorro</span>
-                                    </span>
-                                    <p className="text-sm text-slate-400">Si necesitas más, paga una fracción del costo.</p>
-                                </div>
-                            </li>
-
-                            {content.pricingFeatures.map((feature: string, i: number) => (
+                            {[
+                                "300 Conversaciones Premium Mensuales", 
+                                "Filtrado de pacientes cualificados", 
+                                "Etiquetas de estado en agenda", 
+                                "Base de datos de historial", 
+                                "Soporte Prioritario"
+                            ].map((feature, i) => (
                                 <li key={i} className="flex items-start gap-3">
                                     <div className="flex-shrink-0 w-6 h-6 rounded-full bg-white/10 flex items-center justify-center mt-0.5">
-                                        <Check className="w-3.5 h-3.5 text-slate-300" />
+                                        <Check className="w-3.5 h-3.5 text-cyan-400" />
                                     </div>
                                     <span className="text-slate-300 text-sm font-medium pt-1">{feature}</span>
                                 </li>
@@ -475,39 +301,35 @@ export default function HomePageContent() {
                 </div>
             </div>
           </motion.div>
-
-          <div className="text-center mt-12">
-             <p className="text-sm text-slate-500 flex items-center justify-center gap-2 flex-wrap px-4">
-                <HelpCircle className="w-4 h-4 flex-shrink-0" />
-                <span>¿Tienes un volumen mayor a 5.000 chats?</span>
-                <a href="#contact" className={clsx("font-semibold hover:underline whitespace-nowrap", accentText)}>Contáctanos para un plan Enterprise</a>
-             </p>
-          </div>
         </section>
 
-        {/* --- CTA FINAL (Copy Mejorado & Neutro) --- */}
+        {/* --- CTA FINAL --- */}
         <motion.section 
           initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.3 }} variants={fadeInUp}
           className="relative py-16 md:py-24 group content-visibility-auto contain-paint"
         >
             <div className="relative z-10 max-w-3xl mx-auto text-center px-2 md:px-6">
                 <div className="bg-white/[0.02] backdrop-blur-lg md:backdrop-blur-xl p-6 md:p-10 rounded-[24px] md:rounded-[32px] border border-white/10 shadow-xl shadow-black/30 relative overflow-hidden transition-all duration-500 hover:border-white/20 isolation-isolate">
-                    <h2 className="text-3xl md:text-5xl font-bold text-white mb-4 md:mb-6 tracking-tight drop-shadow-sm">¿Listos para Escalar <span className={clsx("text-transparent bg-clip-text bg-gradient-to-r", content.accentGradient)}>tu Clínica</span>?</h2>
-                    <p className="text-slate-300 max-w-xl mx-auto mb-8 md:mb-10 text-base md:text-lg leading-relaxed font-medium">Deja de perder pacientes por no responder a tiempo. Automatiza tu agenda, fideliza a tus clientes y aumenta tu facturación sin trabajar más horas.</p>
-                    <Link href="/register" className="relative z-10 inline-block group/btn w-full md:w-auto">
+                    <h2 className="text-3xl md:text-5xl font-bold text-white mb-4 md:mb-6 tracking-tight drop-shadow-sm">¿Listos para Escalar <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">tu Clínica</span>?</h2>
+                    <p className="text-slate-300 max-w-xl mx-auto mb-8 md:mb-10 text-base md:text-lg leading-relaxed font-medium">Deja de perder pacientes por no responder a tiempo. Automatiza tu agenda hoy mismo.</p>
+                    <div className="relative z-10 inline-block group/btn w-full md:w-auto">
                         <div className="relative">
-                            <div className={clsx("absolute -inset-2 bg-gradient-to-r rounded-2xl blur-xl opacity-30 group-hover/btn:opacity-50 transition-opacity duration-500", content.buttonGradient)} />
-                            <button className="relative w-full md:w-auto bg-white text-black font-bold text-base md:text-lg px-8 md:px-10 py-4 rounded-xl hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 shadow-lg flex items-center justify-center gap-2 mx-auto">
-                                <Zap className={isAesthetic ? "text-rose-500" : "text-cyan-600"} size={18} /> Quiero Automatizar mi Clínica <ChevronRight className={isAesthetic ? "text-rose-600" : "text-cyan-600"} size={20} />
+                            <div className={`absolute -inset-2 bg-gradient-to-r ${buttonGradient} rounded-2xl blur-xl opacity-30 group-hover/btn:opacity-50 transition-opacity duration-500`} />
+                            <button 
+                                onClick={handleOpenBooking}
+                                className="relative w-full md:w-auto bg-white text-black font-bold text-base md:text-lg px-8 md:px-10 py-4 rounded-xl hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 shadow-lg flex items-center justify-center gap-2 mx-auto"
+                            >
+                                <Zap className="text-cyan-600" size={18} /> Solicitar Acceso Anticipado <ChevronRight className="text-cyan-600" size={20} />
                             </button>
                         </div>
-                    </Link>
+                    </div>
                 </div>
             </div>
         </motion.section>
 
         <section id="faqs" className="relative scroll-mt-24 mt-20 content-visibility-auto">
-             <LandingFAQ industry={industry} />
+             {/* Enviamos 'dental' como prop solo para que cargue los estilos azules si el FAQ lo soporta, o simplemente 'aesthetic' si el texto es lo importante. Como pediste "todo azul", probablemente debas ajustar LandingFAQ también si tiene colores hardcodeados. Por ahora envio 'dental' para forzar azul si la logica interna lo usa. */}
+             <LandingFAQ industry="dental" /> 
         </section>
 
       </div>
