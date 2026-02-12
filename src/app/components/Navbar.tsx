@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { useEffect, useState, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from '@/components/ui/sheet'
-import { Menu, LogOut, ChevronRight, User, LayoutDashboard, LogIn, Sparkles } from 'lucide-react'
+import { Menu, LogOut, ChevronRight, User, LayoutDashboard, X, LogIn, Sparkles } from 'lucide-react'
 import clsx from 'clsx'
 import { useAuth } from '../context/AuthContext'
 import logo from '../images/Logo-Wasaaa.webp'
@@ -35,7 +35,7 @@ export default function Navbar() {
   const darkRoutes = ['/', '/login', '/register', '/forgot-password', '/delete-my-data', '/propuesta-dental'];
   const isDarkPage = darkRoutes.includes(pathname || ''); 
 
-  // --- Optimización de Scroll ---
+  // --- 1. Optimización de Scroll ---
   useEffect(() => {
     let ticking = false;
     const handleScroll = () => {
@@ -58,7 +58,7 @@ export default function Navbar() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, [lastScrollY]);
 
-  // --- Manejo de Logout ---
+  // --- 2. Manejo de Logout ---
   const handleLogoutFlow = useCallback(async () => {
     setShowLogoutModal(true)
     const confetti = (await import('canvas-confetti')).default;
@@ -187,17 +187,28 @@ export default function Navbar() {
                   <Menu className="h-6 w-6" />
                 </Button>
               </SheetTrigger>
-              <SheetContent side="right" className="w-[300px] sm:w-[350px] bg-[#0a0a0a]/95 backdrop-blur-2xl border-l border-white/10 p-0 text-slate-200">
+              
+              {/* [&>button]:hidden OCULTA LA X POR DEFECTO PARA QUE USEMOS LA NUESTRA */}
+              <SheetContent side="right" className="w-[300px] sm:w-[350px] bg-[#0a0a0a]/95 backdrop-blur-2xl border-l border-white/10 p-0 text-slate-200 [&>button]:hidden">
                 
                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(6,182,212,0.1),transparent_50%)] pointer-events-none" />
 
-                {/* HEADER MÓVIL: Eliminamos el botón manual de cierre */}
+                {/* HEADER MÓVIL */}
                 <SheetHeader className="p-6 border-b border-white/10 flex flex-row items-center justify-between relative z-10 space-y-0">
                     <SheetTitle className="flex items-center gap-3">
-                        <Image src={logo} alt="logo" width={40} height={40} className="w-10 h-10 object-contain" />
+                        <Image src={logo} alt="logo" width={36} height={36} className="w-9 h-9 object-contain" />
                         <span className="font-bold text-xl tracking-tight text-white">Wasaaa</span>
                     </SheetTitle>
-                    {/* La "X" nativa de Sheet se encargará de cerrar */}
+                    
+                    {/* BOTÓN X MANUAL QUE FUNCIONA */}
+                    <button 
+                        type="button"
+                        onClick={() => setOpenSheet(false)}
+                        className="p-2 rounded-full bg-white/5 border border-white/5 text-slate-400 hover:bg-white/10 hover:text-white transition-all active:scale-95"
+                        aria-label="Cerrar menú"
+                    >
+                        <X size={22} />
+                    </button>
                 </SheetHeader>
                 
                 <div className="flex flex-col h-[calc(100vh-80px)] justify-between p-6 overflow-y-auto relative z-10">
