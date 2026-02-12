@@ -6,7 +6,9 @@ import {
   CalendarCheck, ChevronRight, Zap, ShieldCheck, Check, XCircle, X,
   ArrowRight,
   TrendingUp,
-  AlertTriangle
+  AlertTriangle,
+  MessageCircle,
+  Bot
 } from 'lucide-react';
 import { motion, Variants, AnimatePresence } from 'framer-motion';
 import Image from 'next/image'; 
@@ -26,10 +28,11 @@ const CalendarVisual = dynamic(() => import('./CalendarVisual'), { ssr: false, l
 const AestheticChatAnimation = dynamic(() => import('./AestheticChatAnimation'), { ssr: false, loading: LoadingSkeleton });
 const LandingFAQ = dynamic(() => import('./LandingFAQ'), { ssr: false });
 
-// --- COPYWRITING ---
-const HERO_BADGE = "IA Especializada en Cierre de Ventas Estéticas";
-const HERO_TITLE = <>Convierte tus Leads de Facebook en <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">Citas Pagadas en Automático</span></>;
-const HERO_DESC = 'Tu equipo pierde horas respondiendo "precio" a curiosos. Wasaaa filtra, cualifica y agenda solo a los pacientes que tienen el dinero en mano.';
+// --- COPYWRITING ESTRATÉGICO ---
+const HERO_BADGE = "Tu Recepcionista con Inteligencia Artificial";
+const HERO_TITLE = <>El Sistema que <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">Confirma tus Citas</span> y Llena tu Agenda en Automático</>;
+// AJUSTE CLAVE AQUÍ: Diferenciación de "Bot" vs "IA Natural" + Confirmación
+const HERO_DESC = 'Olvídate de los chatbots básicos del mercado que suenan a robot. Wasaaa es un Asistente de IA capaz de mantener conversaciones naturales, confirmar asistencia y agendar pacientes reales sin intervención humana.';
 
 // Variants
 const fadeInUp: Variants = { hidden: { opacity: 0, y: 15 }, visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: "easeOut" } } };
@@ -58,7 +61,7 @@ const BookingModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => voi
             <div className="flex justify-between items-center p-5 border-b border-white/5 bg-[#141414]">
                <div className="flex items-center gap-3">
                  <div className="w-2.5 h-2.5 rounded-full bg-cyan-500 animate-pulse shadow-[0_0_10px_rgba(6,182,212,0.5)]" />
-                 <span className="text-base font-bold text-slate-200">Reserva tu Auditoría de IA</span>
+                 <span className="text-base font-bold text-slate-200">Reserva tu Auditoría de Crecimiento</span>
                </div>
                <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-full text-slate-400 hover:text-white transition-colors">
                  <X size={20} />
@@ -118,16 +121,16 @@ export default function HomePageContent() {
                     buttonGradient, buttonHover
                 )}
             >
-                <CalendarCheck size={20} /> Reservar Auditoría de Ventas
+                <CalendarCheck size={20} /> Auditar Mi Clínica Gratis
             </button>
             <p className="mt-4 text-xs text-slate-500 flex items-center justify-center gap-2">
                 <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span> 
-                Solo 4 cupos de integración disponibles esta semana
+                Te mostramos la diferencia en vivo
             </p>
           </div>
         </section>
 
-        {/* --- FEATURES 1 --- */}
+        {/* --- FEATURES 1: NO ES UN BOT --- */}
         <section className="relative content-visibility-auto contain-paint">
             <motion.div 
               initial="hidden" whileInView="visible" viewport={{ once: true, margin: "100px" }} variants={staggerContainer}
@@ -145,18 +148,19 @@ export default function HomePageContent() {
                     <div className="w-12 h-12 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center mb-6 md:mb-8 shadow-lg text-cyan-400">
                         <BrainCircuit size={24} />
                     </div>
+                    {/* COPY MEJORADO: NO ES UN BOT */}
                     <h2 className="text-3xl md:text-5xl font-bold text-white mb-4 md:mb-6 tracking-tight">
-                        Deja de Hablar con <br/><span className="text-cyan-400">Curiosos sin Dinero</span>
+                        No es un "Bot", es <br/><span className="text-cyan-400">Inteligencia Real</span>
                     </h2>
                     <p className="text-slate-300 text-base md:text-lg mb-8 leading-relaxed max-w-lg">
-                        Facebook Ads trae leads, pero el 80% solo pregunta "precio". Nuestra IA los detecta, les responde amablemente y <strong>solo pasa a tu equipo a quienes quieren agendar ya.</strong>
+                        Tus pacientes odian los mensajes de "presione 1". Wasaaa entiende el lenguaje natural, responde con empatía y resuelve dudas complejas como si fueras tú.
                     </p>
                     <ul className="space-y-4 md:space-y-5 text-left inline-block"> 
                         {[
-                            "Detecta intención de compra real", 
-                            "Cualificación automática 24/7", 
-                            "Respuesta en < 5 segundos", 
-                            "Prioriza pacientes de tratamientos costosos"
+                            "Conversación fluida y humana", 
+                            "Manejo de objeciones de venta", 
+                            "Nunca se enferma ni duerme", 
+                            "Cualifica al paciente antes de agendar"
                         ].map((item, i) => (
                             <li key={i} className="flex items-start gap-3 md:gap-4 text-slate-300 text-sm md:text-base">
                                 <div className="mt-0.5 p-1 rounded-full shrink-0 bg-cyan-500/10 text-cyan-400"><CheckCircle2 size={14} /></div><span>{item}</span>
@@ -166,27 +170,28 @@ export default function HomePageContent() {
                 </div>
             </motion.div>
 
-        {/* --- FEATURES 2 --- */}
+        {/* --- FEATURES 2: CONFIRMACIÓN Y REACTIVACIÓN --- */}
             <motion.div 
               initial="hidden" whileInView="visible" viewport={{ once: true, margin: "100px" }} variants={staggerContainer}
               className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center mb-24 md:mb-32"
             >
                 <div className="order-1 flex flex-col items-center text-center px-2">
                     <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center mb-6 text-white shadow-lg shadow-blue-500/30 mx-auto">
-                        <Clock size={24} />
+                        <Database size={24} />
                     </div>
+                    {/* COPY MEJORADO: CONFIRMACIÓN + BASE DE DATOS */}
                     <h2 className="text-3xl md:text-5xl font-bold text-white mb-4 md:mb-6 tracking-tight">
-                        Llenamos los Huecos <br/><span className="text-blue-400">de tu Agenda</span>
+                        Confirmación Automática <br/><span className="text-blue-400">& Reactivación</span>
                     </h2>
                     <p className="text-slate-300 text-base md:text-lg mb-8 leading-relaxed max-w-lg">
-                        Una silla vacía es dinero perdido. El sistema confirma asistencias por WhatsApp y rellena cancelaciones automáticamente.
+                        El sistema contacta a tus pacientes para confirmar sus citas (reduciendo el ausentismo) y reactiva tu base de datos antigua para generar nuevos ingresos.
                     </p>
                     <div className="p-4 rounded-2xl bg-white/5 border border-white/10 text-left max-w-sm mx-auto">
                         <div className="flex items-center gap-3 mb-2">
                             <TrendingUp className="text-green-400" size={20} />
-                            <span className="font-bold text-white">ROI Inmediato</span>
+                            <span className="font-bold text-white">Ingresos Pasivos</span>
                         </div>
-                        <p className="text-sm text-slate-400">Con recuperar solo 2 pacientes que iban a cancelar, el software se paga solo.</p>
+                        <p className="text-sm text-slate-400">Recupera pacientes antiguos que ya confían en ti, llenando los huecos libres de tu agenda.</p>
                     </div>
                 </div>
                 <div className="order-2 relative w-full flex justify-center">
@@ -197,7 +202,7 @@ export default function HomePageContent() {
             </motion.div>
         </section>
 
-        {/* --- COMPARATIVA DE VALOR (MEJORADA) --- */}
+        {/* --- COMPARATIVA DE VALOR --- */}
         <section className="mb-24 md:mb-32 relative px-4">
             <div className="text-center mb-12">
                 <h2 className="text-2xl md:text-4xl font-bold text-white mb-4">La Realidad de tu Clínica</h2>
@@ -205,57 +210,54 @@ export default function HomePageContent() {
             </div>
             
             <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
-                {/* TARJETA MANUAL - REDISEÑADA: Más contraste, fondo sólido oscuro */}
+                {/* TARJETA MANUAL */}
                 <div className="relative p-6 md:p-8 rounded-3xl border border-red-500/20 bg-[#120808] flex flex-col shadow-lg">
-                    {/* Badge de alerta sutil */}
                     <div className="absolute top-4 right-4 text-red-500/40">
                         <AlertTriangle size={20} />
                     </div>
-
                     <div className="flex items-center gap-3 mb-6">
                         <Users className="text-red-400" size={24} />
-                        <h3 className="text-xl font-bold text-white">Gestión Manual (Actual)</h3>
+                        <h3 className="text-xl font-bold text-white">Gestión Manual</h3>
                     </div>
-                    
                     <ul className="space-y-5 flex-1">
                         <li className="flex items-start gap-3 text-slate-200 text-sm">
                             <div className="mt-0.5 bg-red-500/10 p-1 rounded text-red-500"><X size={14} strokeWidth={3} /></div>
-                            <span>Pierdes leads por responder horas tarde.</span>
+                            <span>Pierdes horas confirmando citas una por una.</span>
                         </li>
                         <li className="flex items-start gap-3 text-slate-200 text-sm">
                             <div className="mt-0.5 bg-red-500/10 p-1 rounded text-red-500"><X size={14} strokeWidth={3} /></div>
-                            <span>Tu recepcionista se satura de mensajes.</span>
+                            <span>Si la recepcionista se ocupa, el chat se detiene.</span>
                         </li>
                         <li className="flex items-start gap-3 text-slate-200 text-sm">
                             <div className="mt-0.5 bg-red-500/10 p-1 rounded text-red-500"><X size={14} strokeWidth={3} /></div>
-                            <span>No hay seguimiento a pacientes antiguos.</span>
+                            <span>Base de datos en Excel o agendas de papel.</span>
                         </li>
                         <li className="flex items-start gap-3 text-white font-semibold text-sm bg-red-950/30 p-2 rounded-lg border border-red-900/30">
                              <div className="mt-0.5 text-red-400"><XCircle size={14} /></div>
-                             Costo oculto: +$2M en ventas perdidas.
+                             Resultado: +20% de inasistencias (No Show).
                         </li>
                     </ul>
                 </div>
 
-                {/* TARJETA WASAAA - GLOW CYAN */}
+                {/* TARJETA WASAAA */}
                 <div className="p-6 md:p-8 rounded-3xl border border-cyan-500/40 bg-cyan-950/10 relative overflow-hidden flex flex-col shadow-[0_0_40px_-10px_rgba(6,182,212,0.15)]">
                     <div className="absolute top-0 right-0 px-4 py-1.5 rounded-bl-2xl text-[11px] font-black uppercase tracking-wider bg-cyan-500 text-black">La Solución Wasaaa</div>
                     <div className="flex items-center gap-3 mb-6">
                         <Zap className="text-cyan-400 fill-cyan-400" size={24} />
-                        <h3 className="text-xl font-bold text-white">Automatización IA</h3>
+                        <h3 className="text-xl font-bold text-white">IA Avanzada</h3>
                     </div>
                     <ul className="space-y-5 mb-2 flex-1">
                         <li className="flex items-start gap-3 text-white text-sm">
                             <CheckCircle2 className="text-cyan-400 shrink-0" size={18} /> 
-                            <span>Respuesta inmediata (0 fugas de clientes).</span>
+                            <span>Lenguaje natural, indistinguible de un humano.</span>
                         </li>
                         <li className="flex items-start gap-3 text-white text-sm">
                             <CheckCircle2 className="text-cyan-400 shrink-0" size={18} /> 
-                            <span>Cualificación automática de pacientes.</span>
+                            <span>Confirmación automática de todas tus citas.</span>
                         </li>
                         <li className="flex items-start gap-3 text-white text-sm">
                             <CheckCircle2 className="text-cyan-400 shrink-0" size={18} /> 
-                            <span>Base de datos organizada automáticamente.</span>
+                            <span>Historial clínico y de ventas organizado.</span>
                         </li>
                         <li className="flex items-start gap-3 text-white font-semibold text-sm bg-cyan-500/10 p-2 rounded-lg border border-cyan-500/20">
                             <CheckCircle2 className="text-cyan-400 shrink-0" size={18} /> 
@@ -315,8 +317,8 @@ export default function HomePageContent() {
                         <ul className="space-y-4">
                             {[
                                 "300 Conversaciones de Venta (IA)", 
-                                "Filtrado Anti-Curiosos", 
-                                "Gestión de Agenda Automatizada", 
+                                "Confirmación de Citas Automática", 
+                                "Gestión de Agenda Inteligente", 
                                 "Base de Datos de Pacientes (CRM)", 
                                 "Soporte Técnico WhatsApp"
                             ].map((feature, i) => (
@@ -334,14 +336,12 @@ export default function HomePageContent() {
           </motion.div>
         </section>
 
-        {/* --- CTA FINAL (REDISEÑADA COMPACTA & ATRACTIVA) --- */}
+        {/* --- CTA FINAL --- */}
         <motion.section 
           initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.3 }} variants={fadeInUp}
           className="relative pb-24 group content-visibility-auto contain-paint px-2"
         >
-            {/* Contenedor Compacto con Fondo Rico */}
             <div className="relative z-10 max-w-4xl mx-auto rounded-[2.5rem] overflow-hidden border border-white/10 shadow-2xl">
-                {/* Fondo con Gradiente y Grid */}
                 <div className="absolute inset-0 bg-gradient-to-br from-[#0a0a0a] via-[#111] to-[#0a0a0a] z-0" />
                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(6,182,212,0.15),transparent_50%)] z-0" />
                 <div className="absolute inset-0 bg-[url('/grid-pattern.svg')] opacity-[0.05] z-0" style={{ backgroundSize: '40px 40px' }}></div>
@@ -353,11 +353,11 @@ export default function HomePageContent() {
 
                     <h2 className="text-3xl md:text-5xl font-black text-white mb-4 tracking-tight">
                         Tu competencia ya está <br className="hidden md:block" />
-                        <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">automatizando su agenda</span>
+                        <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">automatizando su clínica</span>
                     </h2>
                     
                     <p className="text-slate-300 max-w-lg mx-auto mb-8 text-base md:text-lg font-medium leading-relaxed">
-                        No dejes que otro lead se enfríe en tu WhatsApp. Activa tu recepcionista inteligente y deja de perder dinero hoy.
+                        No dejes que otro paciente se pierda por falta de atención. Organiza tu clínica, vende más y trabaja menos hoy mismo.
                     </p>
 
                     <button 
