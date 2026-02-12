@@ -7,8 +7,7 @@ import {
   ArrowRight,
   TrendingUp,
   AlertTriangle,
-  MessageCircle,
-  Bot
+  MessageCircle
 } from 'lucide-react';
 import { motion, Variants, AnimatePresence } from 'framer-motion';
 import Image from 'next/image'; 
@@ -31,7 +30,6 @@ const LandingFAQ = dynamic(() => import('./LandingFAQ'), { ssr: false });
 // --- COPYWRITING ESTRATÉGICO ---
 const HERO_BADGE = "Tu Recepcionista con Inteligencia Artificial";
 const HERO_TITLE = <>El Sistema que <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">Confirma tus Citas</span> y Llena tu Agenda en Automático</>;
-// AJUSTE CLAVE AQUÍ: Diferenciación de "Bot" vs "IA Natural" + Confirmación
 const HERO_DESC = 'Olvídate de los chatbots básicos del mercado que suenan a robot. Wasaaa es un Asistente de IA capaz de mantener conversaciones naturales, confirmar asistencia y agendar pacientes reales sin intervención humana.';
 
 // Variants
@@ -130,8 +128,8 @@ export default function HomePageContent() {
           </div>
         </section>
 
-        {/* --- FEATURES 1: NO ES UN BOT --- */}
-        <section className="relative content-visibility-auto contain-paint">
+        {/* --- FEATURES 1: FUNCIONALIDADES (ID AGREGADO) --- */}
+        <section id="features" className="relative content-visibility-auto contain-paint scroll-mt-32">
             <motion.div 
               initial="hidden" whileInView="visible" viewport={{ once: true, margin: "100px" }} variants={staggerContainer}
               className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center mb-24 md:mb-32"
@@ -170,7 +168,7 @@ export default function HomePageContent() {
                 </div>
             </motion.div>
 
-        {/* --- FEATURES 2: CONFIRMACIÓN Y REACTIVACIÓN --- */}
+        {/* --- FEATURES 2: AGENDA Y REACTIVACIÓN --- */}
             <motion.div 
               initial="hidden" whileInView="visible" viewport={{ once: true, margin: "100px" }} variants={staggerContainer}
               className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center mb-24 md:mb-32"
@@ -202,8 +200,8 @@ export default function HomePageContent() {
             </motion.div>
         </section>
 
-        {/* --- COMPARATIVA DE VALOR --- */}
-        <section className="mb-24 md:mb-32 relative px-4">
+        {/* --- CÓMO FUNCIONA (ID AGREGADO) --- */}
+        <section id="how" className="mb-24 md:mb-32 relative px-4 scroll-mt-32">
             <div className="text-center mb-12">
                 <h2 className="text-2xl md:text-4xl font-bold text-white mb-4">La Realidad de tu Clínica</h2>
                 <p className="text-slate-400">¿Sigues dependiendo de procesos manuales?</p>
@@ -269,7 +267,7 @@ export default function HomePageContent() {
         </section>
 
         {/* --- PRICING --- */}
-        <section id="pricing" className="relative scroll-mt-24 mb-24 md:mb-32">
+        <section id="pricing" className="relative scroll-mt-32 mb-24 md:mb-32">
           <motion.div
             initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={fadeInUp}
             className="relative max-w-5xl mx-auto"
@@ -372,7 +370,8 @@ export default function HomePageContent() {
             </div>
         </motion.section>
 
-        <section id="faqs" className="relative scroll-mt-24 mt-20 content-visibility-auto">
+        {/* --- FAQS --- */}
+        <section id="faqs" className="relative scroll-mt-32 mt-20 content-visibility-auto">
              <LandingFAQ industry="dental" /> 
         </section>
 
