@@ -27,10 +27,10 @@ const CalendarVisual = dynamic(() => import('./CalendarVisual'), { ssr: false, l
 const AestheticChatAnimation = dynamic(() => import('./AestheticChatAnimation'), { ssr: false, loading: LoadingSkeleton });
 const LandingFAQ = dynamic(() => import('./LandingFAQ'), { ssr: false });
 
-// --- COPYWRITING ESTRATÉGICO ---
-const HERO_BADGE = "Tu Recepcionista con Inteligencia Artificial";
-const HERO_TITLE = <>El Sistema que <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">Confirma tus Citas</span> y Llena tu Agenda en Automático</>;
-const HERO_DESC = 'Olvídate de los chatbots básicos del mercado que suenan a robot. Wasaaa es un Asistente de IA capaz de mantener conversaciones naturales, confirmar asistencia y agendar pacientes reales sin intervención humana.';
+// --- COPYWRITING ESTRATÉGICO (VERSIÓN CORTA & PUNCHY) ---
+const HERO_BADGE = "Tu Recepcionista IA 24/7";
+const HERO_TITLE = <>El Sistema que <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">Confirma Citas</span> y Llena tu Agenda Automáticamente</>;
+const HERO_DESC = 'No más "vistos" sin respuesta. Wasaaa atiende al instante, cualifica pacientes reales y agenda citas mientras tu equipo descansa.';
 
 // Variants
 const fadeInUp: Variants = { hidden: { opacity: 0, y: 15 }, visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: "easeOut" } } };
@@ -59,7 +59,7 @@ const BookingModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => voi
             <div className="flex justify-between items-center p-5 border-b border-white/5 bg-[#141414]">
                <div className="flex items-center gap-3">
                  <div className="w-2.5 h-2.5 rounded-full bg-cyan-500 animate-pulse shadow-[0_0_10px_rgba(6,182,212,0.5)]" />
-                 <span className="text-base font-bold text-slate-200">Reserva tu Auditoría de Crecimiento</span>
+                 <span className="text-base font-bold text-slate-200">Reserva tu Auditoría</span>
                </div>
                <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-full text-slate-400 hover:text-white transition-colors">
                  <X size={20} />
@@ -123,12 +123,12 @@ export default function HomePageContent() {
             </button>
             <p className="mt-4 text-xs text-slate-500 flex items-center justify-center gap-2">
                 <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span> 
-                Te mostramos la diferencia en vivo
+                Ver demo en vivo (Sin compromiso)
             </p>
           </div>
         </section>
 
-        {/* --- FEATURES 1: FUNCIONALIDADES (ID AGREGADO) --- */}
+        {/* --- FEATURES 1 (Filtrado) --- */}
         <section id="features" className="relative content-visibility-auto contain-paint scroll-mt-32">
             <motion.div 
               initial="hidden" whileInView="visible" viewport={{ once: true, margin: "100px" }} variants={staggerContainer}
@@ -146,19 +146,20 @@ export default function HomePageContent() {
                     <div className="w-12 h-12 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center mb-6 md:mb-8 shadow-lg text-cyan-400">
                         <BrainCircuit size={24} />
                     </div>
-                    {/* COPY MEJORADO: NO ES UN BOT */}
+                    
+                    {/* TEXTO CORTO */}
                     <h2 className="text-3xl md:text-5xl font-bold text-white mb-4 md:mb-6 tracking-tight">
                         No es un "Bot", es <br/><span className="text-cyan-400">Inteligencia Real</span>
                     </h2>
                     <p className="text-slate-300 text-base md:text-lg mb-8 leading-relaxed max-w-lg">
-                        Tus pacientes odian los mensajes de "presione 1". Wasaaa entiende el lenguaje natural, responde con empatía y resuelve dudas complejas como si fueras tú.
+                        Tus pacientes odian hablar con máquinas tontas. Wasaaa entiende, empatiza y vende como tu mejor recepcionista.
                     </p>
                     <ul className="space-y-4 md:space-y-5 text-left inline-block"> 
                         {[
                             "Conversación fluida y humana", 
                             "Manejo de objeciones de venta", 
-                            "Nunca se enferma ni duerme", 
-                            "Cualifica al paciente antes de agendar"
+                            "Cualifica pacientes (No curiosos)",
+                            "Atención inmediata 24/7"
                         ].map((item, i) => (
                             <li key={i} className="flex items-start gap-3 md:gap-4 text-slate-300 text-sm md:text-base">
                                 <div className="mt-0.5 p-1 rounded-full shrink-0 bg-cyan-500/10 text-cyan-400"><CheckCircle2 size={14} /></div><span>{item}</span>
@@ -168,7 +169,7 @@ export default function HomePageContent() {
                 </div>
             </motion.div>
 
-        {/* --- FEATURES 2: AGENDA Y REACTIVACIÓN --- */}
+        {/* --- FEATURES 2 (Agenda) --- */}
             <motion.div 
               initial="hidden" whileInView="visible" viewport={{ once: true, margin: "100px" }} variants={staggerContainer}
               className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center mb-24 md:mb-32"
@@ -177,19 +178,20 @@ export default function HomePageContent() {
                     <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center mb-6 text-white shadow-lg shadow-blue-500/30 mx-auto">
                         <Database size={24} />
                     </div>
-                    {/* COPY MEJORADO: CONFIRMACIÓN + BASE DE DATOS */}
+                    
+                    {/* TEXTO CORTO */}
                     <h2 className="text-3xl md:text-5xl font-bold text-white mb-4 md:mb-6 tracking-tight">
                         Confirmación Automática <br/><span className="text-blue-400">& Reactivación</span>
                     </h2>
                     <p className="text-slate-300 text-base md:text-lg mb-8 leading-relaxed max-w-lg">
-                        El sistema contacta a tus pacientes para confirmar sus citas (reduciendo el ausentismo) y reactiva tu base de datos antigua para generar nuevos ingresos.
+                        Reduce el ausentismo confirmando citas automáticamente y reactiva pacientes antiguos para llenar huecos libres.
                     </p>
                     <div className="p-4 rounded-2xl bg-white/5 border border-white/10 text-left max-w-sm mx-auto">
                         <div className="flex items-center gap-3 mb-2">
                             <TrendingUp className="text-green-400" size={20} />
                             <span className="font-bold text-white">Ingresos Pasivos</span>
                         </div>
-                        <p className="text-sm text-slate-400">Recupera pacientes antiguos que ya confían en ti, llenando los huecos libres de tu agenda.</p>
+                        <p className="text-sm text-slate-400">Genera ventas sin gastar un peso en publicidad recuperando tu base de datos.</p>
                     </div>
                 </div>
                 <div className="order-2 relative w-full flex justify-center">
@@ -200,7 +202,7 @@ export default function HomePageContent() {
             </motion.div>
         </section>
 
-        {/* --- CÓMO FUNCIONA (ID AGREGADO) --- */}
+        {/* --- CÓMO FUNCIONA --- */}
         <section id="how" className="mb-24 md:mb-32 relative px-4 scroll-mt-32">
             <div className="text-center mb-12">
                 <h2 className="text-2xl md:text-4xl font-bold text-white mb-4">La Realidad de tu Clínica</h2>
@@ -228,11 +230,11 @@ export default function HomePageContent() {
                         </li>
                         <li className="flex items-start gap-3 text-slate-200 text-sm">
                             <div className="mt-0.5 bg-red-500/10 p-1 rounded text-red-500"><X size={14} strokeWidth={3} /></div>
-                            <span>Base de datos en Excel o agendas de papel.</span>
+                            <span>Base de datos en Excel o papel (Inutilizable).</span>
                         </li>
                         <li className="flex items-start gap-3 text-white font-semibold text-sm bg-red-950/30 p-2 rounded-lg border border-red-900/30">
                              <div className="mt-0.5 text-red-400"><XCircle size={14} /></div>
-                             Resultado: +20% de inasistencias (No Show).
+                             Resultado: +20% de Citas Perdidas.
                         </li>
                     </ul>
                 </div>
@@ -251,11 +253,11 @@ export default function HomePageContent() {
                         </li>
                         <li className="flex items-start gap-3 text-white text-sm">
                             <CheckCircle2 className="text-cyan-400 shrink-0" size={18} /> 
-                            <span>Confirmación automática de todas tus citas.</span>
+                            <span>Confirmación y Agendamiento 100% Automático.</span>
                         </li>
                         <li className="flex items-start gap-3 text-white text-sm">
                             <CheckCircle2 className="text-cyan-400 shrink-0" size={18} /> 
-                            <span>Historial clínico y de ventas organizado.</span>
+                            <span>Historial de pacientes organizado al instante.</span>
                         </li>
                         <li className="flex items-start gap-3 text-white font-semibold text-sm bg-cyan-500/10 p-2 rounded-lg border border-cyan-500/20">
                             <CheckCircle2 className="text-cyan-400 shrink-0" size={18} /> 
@@ -289,7 +291,7 @@ export default function HomePageContent() {
                                 <span className="text-lg md:text-xl font-medium text-slate-400">COP/mes</span>
                             </div>
                             <p className="mt-4 text-slate-300 leading-relaxed text-sm md:text-base font-medium">
-                                ¿Cuánto cuesta una sesión de Botox o Ácido Hialurónico? Con solo <span className="text-cyan-400 font-bold">UNA</span> cita agendada, el software te sale gratis.
+                                ¿Cuánto cuesta una sesión de Botox? Con solo <span className="text-cyan-400 font-bold">UNA</span> cita agendada, el software te sale gratis.
                             </p>
                         </div>
                         <div className="space-y-3">
@@ -305,12 +307,12 @@ export default function HomePageContent() {
                                 <Image src={amex} alt="Amex" height={20} width={35} unoptimized className="object-contain" />
                             </div>
                         </div>
-                        <p className="text-xs text-slate-500">Garantía de Satisfacción. Te ayudamos con la integración.</p>
+                        <p className="text-xs text-slate-500">Sin contratos forzosos. Te ayudamos a integrar todo.</p>
                     </div>
                     <div className="bg-white/5 rounded-3xl p-6 md:p-8 border border-white/5 text-left">
                         <h3 className="font-bold text-lg text-white mb-6 flex items-center gap-2">
                             <ShieldCheck className="w-5 h-5 text-green-500" />
-                            Todo incluido para vender más:
+                            Todo incluido:
                         </h3>
                         <ul className="space-y-4">
                             {[
@@ -370,7 +372,6 @@ export default function HomePageContent() {
             </div>
         </motion.section>
 
-        {/* --- FAQS --- */}
         <section id="faqs" className="relative scroll-mt-32 mt-20 content-visibility-auto">
              <LandingFAQ industry="dental" /> 
         </section>
