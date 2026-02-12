@@ -16,10 +16,11 @@ export default function Footer() {
 
       <div className="max-w-7xl mx-auto px-6 relative z-10">
         
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-12 mb-16">
+        {/* GRID PRINCIPAL: Ajustado para mejor alineación */}
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-y-12 gap-x-8 mb-16">
           
-          {/* Columna 1: Marca y Misión */}
-          <div className="md:col-span-5 space-y-6">
+          {/* Columna 1: Marca y Misión (Ocupa 5 columnas en PC) */}
+          <div className="md:col-span-5 flex flex-col items-start space-y-6">
             <Link href="/" className="inline-block group">
                 <div className="flex items-center gap-3">
                     <div className="relative">
@@ -49,34 +50,36 @@ export default function Footer() {
             </div>
           </div>
 
-          {/* Columna 2: Producto */}
+          {/* Spacer para pantallas grandes (opcional) o ajuste de columnas restantes */}
+          
+          {/* Columna 2: Producto (Alineada, ocupa 3 col) */}
           <div className="md:col-span-3">
-            <h4 className="font-bold text-white mb-6 tracking-wide">Plataforma</h4>
+            <h4 className="font-bold text-white mb-6 tracking-wide text-base">Plataforma</h4>
             <ul className="space-y-4 text-sm text-slate-400">
-                <li><Link href="#features" className="hover:text-cyan-400 transition-colors duration-200 block w-fit">Funcionalidades</Link></li>
-                <li><Link href="#how" className="hover:text-cyan-400 transition-colors duration-200 block w-fit">Cómo funciona</Link></li>
-                <li><Link href="#pricing" className="hover:text-cyan-400 transition-colors duration-200 block w-fit">Planes y Precios</Link></li>
-                <li><Link href="#faqs" className="hover:text-cyan-400 transition-colors duration-200 block w-fit">Preguntas Frecuentes</Link></li>
+                <li><Link href="#features" className="hover:text-cyan-400 transition-colors duration-200 inline-block">Funcionalidades</Link></li>
+                <li><Link href="#how" className="hover:text-cyan-400 transition-colors duration-200 inline-block">Cómo funciona</Link></li>
+                <li><Link href="#pricing" className="hover:text-cyan-400 transition-colors duration-200 inline-block">Planes y Precios</Link></li>
+                <li><Link href="#faqs" className="hover:text-cyan-400 transition-colors duration-200 inline-block">Preguntas Frecuentes</Link></li>
             </ul>
           </div>
 
-          {/* Columna 3: Legal */}
+          {/* Columna 3: Legal (Alineada, ocupa 4 col) */}
           <div className="md:col-span-4">
-            <h4 className="font-bold text-white mb-6 tracking-wide">Legal y Privacidad</h4>
+            <h4 className="font-bold text-white mb-6 tracking-wide text-base">Legal y Privacidad</h4>
             <ul className="space-y-4 text-sm text-slate-400">
               <li>
-                <Link href="/terminos" className="hover:text-cyan-400 transition-colors duration-200 block w-fit">
+                <Link href="/terminos" className="hover:text-cyan-400 transition-colors duration-200 inline-block">
                   Términos y Condiciones
                 </Link>
               </li>
               <li>
-                <Link href="/politica" className="hover:text-cyan-400 transition-colors duration-200 block w-fit">
+                <Link href="/politica" className="hover:text-cyan-400 transition-colors duration-200 inline-block">
                   Política de Privacidad
                 </Link>
               </li>
               <li className="pt-2">
-                <Link href="/delete-my-data" className="text-slate-500 hover:text-red-400 transition-colors duration-200 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider w-fit">
-                  <span className="w-1.5 h-1.5 rounded-full bg-red-500/50" /> Eliminar mis datos
+                <Link href="/delete-my-data" className="text-slate-500 hover:text-red-400 transition-colors duration-200 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider w-fit group">
+                  <span className="w-1.5 h-1.5 rounded-full bg-red-500/50 group-hover:bg-red-500 transition-colors" /> Eliminar mis datos
                 </Link>
               </li>
             </ul>

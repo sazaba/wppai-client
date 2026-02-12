@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { useEffect, useState, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from '@/components/ui/sheet'
-import { Menu, Sparkles, LogOut, ChevronRight, User, LayoutDashboard, X } from 'lucide-react'
+import { Menu, LogOut, ChevronRight, User, LayoutDashboard, X, LogIn, Sparkles } from 'lucide-react'
 import clsx from 'clsx'
 import { useAuth } from '../context/AuthContext'
 import logo from '../images/Logo-Wasaaa.webp'
@@ -34,70 +34,52 @@ export default function Navbar() {
   const router = useRouter()
   const pathname = usePathname()
 
-  // Lista de rutas donde el navbar debe comportarse como "página oscura" (texto blanco inicial)
   const darkRoutes = ['/', '/login', '/register', '/forgot-password', '/delete-my-data', '/propuesta-dental'];
   const isDarkPage = darkRoutes.includes(pathname || ''); 
 
-  // --- 1. Optimización de Scroll (Performance en Móviles) ---
+  // --- 1. Optimización de Scroll ---
   useEffect(() => {
     let ticking = false;
-
     const handleScroll = () => {
       const currentScrollY = window.scrollY;
-
       if (!ticking) {
         window.requestAnimationFrame(() => {
           setIsScrolled(currentScrollY > 20);
-          
-          // Lógica de esconder navbar al bajar (si scrolleamos > 100px)
           if (currentScrollY > lastScrollY && currentScrollY > 100) {
             setIsVisible(false);
           } else {
             setIsVisible(true);
           }
-          
           setLastScrollY(currentScrollY);
           ticking = false;
         });
         ticking = true;
       }
     };
-
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, [lastScrollY]);
 
-  // --- 2. Manejo de Logout con Lazy Load (Ahorro de JS inicial) ---
+  // --- 2. Manejo de Logout ---
   const handleLogoutFlow = useCallback(async () => {
-    // A. Mostrar modal inmediatamente para feedback visual rápido
     setShowLogoutModal(true)
-
-    // B. Importar la librería pesada SOLO cuando se necesita
     const confetti = (await import('canvas-confetti')).default;
-
-    // C. Ejecutar animación
     const duration = 2.5 * 1000
     const end = Date.now() + duration
-
     const frame = () => {
-      confetti({ particleCount: 3, angle: 60, spread: 55, origin: { x: 0 }, colors: ['#06b6d4', '#3b82f6'] }) // Cyan/Blue colors
+      confetti({ particleCount: 3, angle: 60, spread: 55, origin: { x: 0 }, colors: ['#06b6d4', '#3b82f6'] }) 
       confetti({ particleCount: 3, angle: 120, spread: 55, origin: { x: 1 }, colors: ['#06b6d4', '#3b82f6'] })
       if (Date.now() < end) requestAnimationFrame(frame)
     }
     frame()
-
-    // D. Logout real y redirección
     const timeout = setTimeout(() => {
       logout()
       router.push('/')
       setShowLogoutModal(false)
     }, 2500)
-    
     return () => clearTimeout(timeout)
   }, [logout, router]);
 
-  // --- 3. Lógica de Colores Dinámicos (MODO DARK PREMIUM) ---
-  // Siempre tendemos a blanco/gris claro para asegurar legibilidad en fondos oscuros
   const textColorClass = isScrolled 
     ? "text-slate-300 hover:text-cyan-400" 
     : "text-slate-200 hover:text-white"
@@ -124,7 +106,7 @@ export default function Navbar() {
                   alt="Wasaaa Logo"
                   width={80} 
                   height={80}
-                  priority // Importante para LCP
+                  priority 
                   className="relative h-10 w-10 md:h-12 md:w-12 object-contain transition-transform duration-300 group-hover:scale-105"
                 />
             </div>
@@ -154,7 +136,6 @@ export default function Navbar() {
 
           {/* Acciones Desktop */}
           <div className="hidden md:flex items-center gap-4">
-            {/* SKELETON LOADING */}
             {loading ? (
                <div className="w-24 h-10 bg-white/5 rounded-full animate-pulse" />
             ) : (
@@ -181,17 +162,13 @@ export default function Navbar() {
                   </div>
                 ) : (
                   <div className="flex items-center gap-3">
+                    {/* Solo mostramos botón de Ingresar */}
                     <Link href="/login">
                       <Button 
                         variant="ghost" 
-                        className="rounded-full text-slate-300 hover:text-white hover:bg-white/10 transition-all"
+                        className="rounded-full text-slate-300 hover:text-white hover:bg-white/10 transition-all flex items-center gap-2"
                       >
-                        Ingresar
-                      </Button>
-                    </Link>
-                    <Link href="/register">
-                      <Button className="rounded-full px-6 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white shadow-lg shadow-cyan-500/25 transition-all hover:scale-105 border border-white/10 font-bold">
-                        <Sparkles className="mr-2 h-4 w-4" /> Probar Gratis
+                        <LogIn size={18} /> Ingresar
                       </Button>
                     </Link>
                   </div>
@@ -200,7 +177,7 @@ export default function Navbar() {
             )}
           </div>
 
-          {/* Menú Móvil (Premium Dark Mode) */}
+          {/* Menú Móvil */}
           <div className="md:hidden">
             <Sheet open={openSheet} onOpenChange={setOpenSheet}>
               <SheetTrigger asChild>
@@ -215,15 +192,21 @@ export default function Navbar() {
               </SheetTrigger>
               <SheetContent side="right" className="w-[300px] sm:w-[350px] bg-[#0a0a0a]/95 backdrop-blur-2xl border-l border-white/10 p-0 text-slate-200">
                 
-                {/* Fondo decorativo interno */}
                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(6,182,212,0.1),transparent_50%)] pointer-events-none" />
 
-                <SheetHeader className="p-6 border-b border-white/10 flex flex-row items-center justify-between relative z-10">
+                {/* HEADER MÓVIL CON X CLARA */}
+                <SheetHeader className="p-6 border-b border-white/10 flex flex-row items-center justify-between relative z-10 space-y-0">
                     <SheetTitle className="flex items-center gap-3">
                         <Image src={logo} alt="logo" width={40} height={40} className="w-10 h-10 object-contain" />
                         <span className="font-bold text-xl tracking-tight text-white">Wasaaa</span>
                     </SheetTitle>
-                    {/* El botón de cerrar lo maneja el componente Sheet por defecto, pero podemos personalizarlo si quisieras */}
+                    {/* Botón de cierre explícito */}
+                    <button 
+                        onClick={() => setOpenSheet(false)}
+                        className="p-2 rounded-full bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white transition-colors"
+                    >
+                        <X size={24} />
+                    </button>
                 </SheetHeader>
                 
                 <div className="flex flex-col h-[calc(100vh-80px)] justify-between p-6 overflow-y-auto relative z-10">
@@ -274,15 +257,11 @@ export default function Navbar() {
                     ) : (
                         <div className="grid grid-cols-1 gap-3">
                             <Link href="/login" onClick={() => setOpenSheet(false)}>
-                                <Button variant="outline" className="w-full rounded-xl h-12 border-white/10 bg-white/5 text-white hover:bg-white/10">
-                                    Iniciar sesión
+                                <Button variant="outline" className="w-full rounded-xl h-12 border-white/10 bg-white/5 text-white hover:bg-white/10 flex items-center justify-center gap-2">
+                                    <LogIn size={18} /> Iniciar sesión
                                 </Button>
                             </Link>
-                            <Link href="/register" onClick={() => setOpenSheet(false)}>
-                                <Button className="w-full rounded-xl h-12 bg-white text-black font-bold hover:bg-slate-200">
-                                    Probar gratis
-                                </Button>
-                            </Link>
+                            {/* Botón de registro ELIMINADO en móvil también */}
                         </div>
                     )}
                   </div>
@@ -293,7 +272,7 @@ export default function Navbar() {
         </div>
       </header>
 
-      {/* Modal Logout (Diseño Glass Dark) */}
+      {/* Modal Logout */}
       <AnimatePresence>
         {showLogoutModal && (
           <Dialog open={showLogoutModal} onClose={() => {}} className="relative z-[100]">
