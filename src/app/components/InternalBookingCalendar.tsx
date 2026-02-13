@@ -4,10 +4,8 @@ import React, { useState } from 'react';
 import { ChevronLeft, ChevronRight, Clock, Calendar as CalendarIcon, CheckCircle2, User, Mail, Phone, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import clsx from 'clsx';
-// Importamos SweetAlert2
 import Swal from 'sweetalert2';
 
-// Utilería simple para generar fechas
 const getNextDays = (days: number) => {
   const dates = [];
   const today = new Date();
@@ -39,41 +37,39 @@ export default function InternalBookingCalendar({ onComplete }: { onComplete?: (
     setTimeout(() => setStep(2), 200);
   };
 
-  // --- CONFIGURACIÓN DE ALERTAS PREMIUM ---
   const showSuccessAlert = () => {
     Swal.fire({
       title: '<span class="text-white font-bold text-2xl">¡Cita Confirmada!</span>',
       html: `
         <div class="text-slate-300 text-sm">
-          Hemos agendado tu auditoría para el <br/>
-          <strong class="text-cyan-400 text-lg">${selectedDate?.toLocaleDateString()}</strong> a las <strong class="text-cyan-400 text-lg">${selectedTime}</strong>.
+          Hemos enviado el enlace de Google Meet a <strong>${formData.email}</strong>.<br/><br/>
+          Te esperamos el <strong class="text-cyan-400">${selectedDate?.toLocaleDateString()}</strong> a las <strong class="text-cyan-400">${selectedTime}</strong>.
         </div>
       `,
       icon: 'success',
-      iconColor: '#06b6d4', // Cyan 500
-      background: '#0F0F0F', // Fondo Dark Premium
+      iconColor: '#06b6d4',
+      background: '#0F0F0F',
       confirmButtonText: 'Genial, continuar',
-      confirmButtonColor: '#06b6d4', // Botón Cyan
+      confirmButtonColor: '#06b6d4',
       buttonsStyling: false,
       customClass: {
         popup: 'border border-white/10 rounded-[2rem] shadow-2xl font-sans',
         confirmButton: 'px-6 py-3 rounded-xl bg-gradient-to-r from-cyan-600 to-blue-600 text-white font-bold shadow-lg hover:scale-105 transition-transform'
       }
     }).then(() => {
-        // Al cerrar la alerta, ejecutamos la acción final
         if (onComplete) onComplete();
     });
   };
 
   const showErrorAlert = (msg: string) => {
     Swal.fire({
-      title: '<span class="text-white font-bold">Ups, algo pasó</span>',
+      title: '<span class="text-white font-bold">No pudimos agendar</span>',
       text: msg,
       icon: 'error',
-      iconColor: '#ef4444', // Red 500
+      iconColor: '#ef4444',
       background: '#0F0F0F',
+      confirmButtonText: 'Intentar otro horario',
       confirmButtonColor: '#333',
-      confirmButtonText: 'Intentar de nuevo',
       customClass: {
         popup: 'border border-white/10 rounded-[2rem] shadow-2xl font-sans'
       }
@@ -101,12 +97,14 @@ export default function InternalBookingCalendar({ onComplete }: { onComplete?: (
         }),
       });
 
+      const data = await response.json();
+
       if (response.ok) {
-        setStep(3); // Mostramos pantalla final interna
-        showSuccessAlert(); // Disparamos SweetAlert Premium
+        setStep(3);
+        showSuccessAlert();
       } else {
-        const errorData = await response.json();
-        showErrorAlert(errorData.error || "No pudimos agendar tu cita. Intenta nuevamente.");
+        // Aquí capturamos el error 409 del backend
+        showErrorAlert(data.error || "Hubo un error al procesar tu solicitud.");
       }
     } catch (error) {
       console.error("Error de red:", error);
@@ -117,7 +115,6 @@ export default function InternalBookingCalendar({ onComplete }: { onComplete?: (
   };
 
   // --- RENDERIZADO ---
-
   const renderStep1 = () => (
     <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="flex flex-col md:flex-row gap-6 h-full">
       <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar">
@@ -233,9 +230,15 @@ export default function InternalBookingCalendar({ onComplete }: { onComplete?: (
         <button 
             type="submit" 
             disabled={isSubmitting}
-            className="w-full bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold py-3 rounded-xl shadow-lg shadow-cyan-900/40 transition-all transform active:scale-95 mt-4 flex items-center justify-center gap-2"
+            className="w-full bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold py-3 rounded-xl shadow-lg shadow-cyan-900/40 transition-all transform active:scale-95 mt-4 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
         >
-            {isSubmitting ? <Loader2 className="animate-spin" /> : "Confirmar Reserva"}
+            {isSubmitting ? (
+                <>
+                    <Loader2 className="animate-spin h-5 w-5" /> Confirmando...
+                </>
+            ) : (
+                "Confirmar Reserva"
+            )}
         </button>
       </form>
     </motion.div>
@@ -251,11 +254,8 @@ export default function InternalBookingCalendar({ onComplete }: { onComplete?: (
         </motion.div>
         <h3 className="text-2xl font-bold text-white mb-2">¡Agenda Confirmada!</h3>
         <p className="text-slate-300 max-w-xs mx-auto mb-6">
-            Te hemos enviado un correo con los detalles.
+            Te hemos enviado un correo con el enlace de acceso.
         </p>
-        <div className="p-4 bg-white/5 rounded-xl border border-white/10 text-sm text-slate-400">
-            Pronto un experto de Wasaaa te contactará para la configuración.
-        </div>
     </div>
   );
 
