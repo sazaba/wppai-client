@@ -9,11 +9,17 @@ export default function DemosPage() {
   const [data, setData] = useState([])
   const [loading, setLoading] = useState(true)
 
+ // src/app/dashboard/demos/page.tsx
+
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Obtenemos los datos frescos
         const res = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/demo-booking`)
+        
+        // --- AGREGA ESTE LOG ---
+        console.log("DATOS RECIBIDOS DEL BACKEND:", res.data) 
+        // -----------------------
+
         setData(res.data)
       } catch (error) {
         console.error("Error cargando demos:", error)
