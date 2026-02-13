@@ -119,7 +119,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         { href: "/dashboard/settings", icon: Settings2, label: "Configuración" },
     ]
     if (isSuperAdmin) {
+        // Opción 1: Superadmin de Empresas
         items.push({ href: "/dashboard/superadmin", icon: ShieldAlert, label: "Superadmin" })
+        
+        // Opción 2: Nueva gestión de Demos
+        items.push({ href: "/dashboard/demos", icon: Calendar, label: "Leads / Demos" })
     }
     return items
   }, [isSuperAdmin])
@@ -149,8 +153,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
       <nav className="flex-1 flex flex-col gap-2 p-4 overflow-y-auto scrollbar-hide">
           {menuItems.map((item) => {
+            // Lógica para detectar si el ítem está activo
             const isActive = pathname === item.href || (item.href !== '/' && pathname?.startsWith(item.href))
-            const isSuperAdminItem = item.href === "/dashboard/superadmin"
+            
+            // Detectar si es un ítem de administración para colorearlo diferente (opcional)
+            const isSuperAdminItem = item.href === "/dashboard/superadmin" || item.href === "/dashboard/demos"
             
             return (
                 <Link 
