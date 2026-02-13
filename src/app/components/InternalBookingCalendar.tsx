@@ -6,53 +6,34 @@ import { motion, AnimatePresence } from 'framer-motion';
 import clsx from 'clsx';
 import Swal from 'sweetalert2';
 
-// --- UTILIDADES DE FECHA Y HORA ---
+// --- UTILIDADES DE FECHA ---
 
-// Generar próximos 14 días (Excluyendo solo Domingos)
 const getNextDays = (days: number) => {
   const dates = [];
   const today = new Date();
   for (let i = 0; i < days; i++) {
     const date = new Date(today);
     date.setDate(today.getDate() + i);
-    // 0 = Domingo. Excluimos solo el Domingo.
-    if (date.getDay() !== 0) { 
+    if (date.getDay() !== 0) { // Excluir Domingos
         dates.push(date);
     }
   }
   return dates;
 };
 
-// Generar horarios según el día seleccionado (DURACIÓN DE 1 HORA)
+// Generar horarios (Duración 1 hora)
 const getDailySlots = (date: Date | null) => {
   if (!date) return [];
 
-  const day = date.getDay(); // 0 (Dom) - 6 (Sab)
+  const day = date.getDay(); 
   const isWeekend = day === 6; // Sábado
 
   if (isWeekend) {
-    // Sábado: 8 AM a 1 PM (Sesiones de 1 hora)
-    // Última sesión inicia a las 12:00 PM para terminar a la 1:00 PM
-    return [
-      "08:00 AM", 
-      "09:00 AM", 
-      "10:00 AM", 
-      "11:00 AM", 
-      "12:00 PM"
-    ];
+    // Sábado: 8 AM a 1 PM
+    return ["08:00 AM", "09:00 AM", "10:00 AM", "11:00 AM", "12:00 PM"];
   } else {
-    // Entre semana (Lun-Vie): 
-    // Mañana: 8 AM a 10 AM -> Slots: 8:00, 9:00 (termina a las 10)
-    // Tarde: 6 PM a 9 PM -> Slots: 6:00, 7:00, 8:00 (termina a las 9)
-    return [
-      // Mañana
-      "08:00 AM", 
-      "09:00 AM",
-      // Tarde/Noche
-      "06:00 PM", 
-      "07:00 PM", 
-      "08:00 PM"
-    ];
+    // Lun-Vie: 8-10 AM y 6-9 PM
+    return ["08:00 AM", "09:00 AM", "06:00 PM", "07:00 PM", "08:00 PM"];
   }
 };
 
@@ -62,27 +43,37 @@ export default function InternalBookingCalendar({ onComplete }: { onComplete?: (
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [formData, setFormData] = useState({ name: '', email: '', phone: '' });
   
-  // Inicializamos fechas disponibles
   const [dates] = useState(getNextDays(14));
-  
-  // Slots dinámicos que cambian según la fecha
   const availableSlots = getDailySlots(selectedDate);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [bookedSlots, setBookedSlots] = useState<number[]>([]);
+  
+  // CAMBIO CLAVE: Guardamos "firmas" de texto en lugar de timestamps numéricos
+  const [bookedSignatures, setBookedSignatures] = useState<string[]>([]);
 
-  // --- LÓGICA DE BLOQUEO ---
+  // --- LÓGICA DE BLOQUEO ROBUSTA ---
   useEffect(() => {
     const fetchBookings = async () => {
       try {
         const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
-        const response = await fetch(`${API_URL}/api/demo-booking`);
+        // Agregamos un timestamp al fetch para evitar caché del navegador
+        const response = await fetch(`${API_URL}/api/demo-booking?t=${new Date().getTime()}`, {
+            headers: { 'Cache-Control': 'no-cache' }
+        });
         
         if (response.ok) {
           const data = await response.json();
-          // Guardamos los timestamps de las citas agendadas
-          const timestamps = data.map((booking: any) => new Date(booking.scheduledAt).getTime());
-          setBookedSlots(timestamps);
+          console.log("Citas recibidas DB:", data); // Para depuración
+
+          // Convertimos cada fecha de la DB a una "Firma única": Año-Mes-Día-Hora-Minuto
+          const signatures = data.map((booking: any) => {
+            const d = new Date(booking.scheduledAt);
+            // Importante: getMonth es 0-11, getDate es 1-31
+            return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}-${d.getHours()}-${d.getMinutes()}`;
+          });
+          
+          console.log("Firmas bloqueadas:", signatures);
+          setBookedSignatures(signatures);
         }
       } catch (error) {
         console.error("Error cargando disponibilidad:", error);
@@ -93,7 +84,8 @@ export default function InternalBookingCalendar({ onComplete }: { onComplete?: (
   }, []);
 
   const isSlotBlocked = (date: Date, time: string) => {
-    const checkDate = new Date(date);
+    // Construimos la firma para el slot que el usuario está mirando
+    const d = new Date(date);
     const [timeStr, modifier] = time.split(' ');
     let [hours, minutes] = timeStr.split(':');
     let hoursInt = parseInt(hours);
@@ -101,8 +93,11 @@ export default function InternalBookingCalendar({ onComplete }: { onComplete?: (
     if (hoursInt === 12) hoursInt = 0;
     if (modifier === 'PM') hoursInt += 12;
     
-    checkDate.setHours(hoursInt, parseInt(minutes), 0, 0);
-    return bookedSlots.includes(checkDate.getTime());
+    // Generamos la misma firma: Año-Mes-Día-Hora-Minuto
+    // Usamos d.getMonth() y d.getDate() de la fecha seleccionada en el calendario
+    const slotSignature = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}-${hoursInt}-${parseInt(minutes)}`;
+    
+    return bookedSignatures.includes(slotSignature);
   };
 
   const handleTimeSelect = (time: string) => {
@@ -110,15 +105,13 @@ export default function InternalBookingCalendar({ onComplete }: { onComplete?: (
     setTimeout(() => setStep(2), 200);
   };
 
-  // --- ALERTAS ---
   const showSuccessAlert = () => {
     Swal.fire({
       title: '<span class="text-white font-bold text-2xl">¡Cita Confirmada!</span>',
       html: `
         <div class="text-slate-300 text-sm">
           Hemos enviado el enlace de Google Meet a <strong>${formData.email}</strong>.<br/><br/>
-          Te esperamos el <strong class="text-cyan-400">${selectedDate?.toLocaleDateString()}</strong> a las <strong class="text-cyan-400">${selectedTime}</strong>.<br/>
-          <span class="text-xs text-slate-500 mt-2 block">(Duración: 1 hora)</span>
+          Te esperamos el <strong class="text-cyan-400">${selectedDate?.toLocaleDateString()}</strong> a las <strong class="text-cyan-400">${selectedTime}</strong>.
         </div>
       `,
       icon: 'success',
@@ -175,16 +168,16 @@ export default function InternalBookingCalendar({ onComplete }: { onComplete?: (
       const data = await response.json();
 
       if (response.ok) {
-        // Bloqueo optimista local
-        const justBookedDate = new Date(selectedDate);
+        // Actualización optimista: Bloquear inmediatamente el slot seleccionado
+        const d = new Date(selectedDate);
         const [timeStr, modifier] = selectedTime.split(' ');
         let [hours, minutes] = timeStr.split(':');
         let hoursInt = parseInt(hours);
         if (hoursInt === 12) hoursInt = 0;
         if (modifier === 'PM') hoursInt += 12;
-        justBookedDate.setHours(hoursInt, parseInt(minutes), 0, 0);
         
-        setBookedSlots([...bookedSlots, justBookedDate.getTime()]);
+        const newSignature = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}-${hoursInt}-${parseInt(minutes)}`;
+        setBookedSignatures([...bookedSignatures, newSignature]);
 
         setStep(3);
         showSuccessAlert();
@@ -202,7 +195,6 @@ export default function InternalBookingCalendar({ onComplete }: { onComplete?: (
   // --- RENDERIZADO ---
   const renderStep1 = () => (
     <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="flex flex-col md:flex-row gap-6 h-full">
-      {/* Columna Fechas */}
       <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar">
         <h3 className="text-white font-bold mb-4 flex items-center gap-2 sticky top-0 bg-[#111] py-2 z-10">
           <CalendarIcon size={18} className="text-cyan-400" /> Selecciona un día
@@ -228,7 +220,6 @@ export default function InternalBookingCalendar({ onComplete }: { onComplete?: (
         </div>
       </div>
 
-      {/* Columna Horas */}
       <div className="flex-1 border-t md:border-t-0 md:border-l border-white/10 md:pl-6 pt-4 md:pt-0 flex flex-col">
         <h3 className={clsx("font-bold mb-4 flex items-center gap-2 transition-colors", selectedDate ? "text-white" : "text-slate-600")}>
           <Clock size={18} className={selectedDate ? "text-cyan-400" : "text-slate-600"} /> Horarios disponibles
@@ -251,7 +242,7 @@ export default function InternalBookingCalendar({ onComplete }: { onComplete?: (
                     className={clsx(
                       "py-2 px-3 rounded-lg border text-sm font-mono text-center transition-all",
                       isBlocked 
-                          ? "bg-red-500/10 border-red-500/20 text-red-500/50 cursor-not-allowed decoration-slice line-through" 
+                          ? "bg-red-500/10 border-red-500/20 text-red-500/50 cursor-not-allowed decoration-slice line-through opacity-60" 
                           : "border-cyan-500/30 text-cyan-100 hover:bg-cyan-500 hover:text-white"
                     )}
                   >
