@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import clsx from 'clsx';
 import Swal from 'sweetalert2';
 
-// --- UTILIDADES DE FECHA ---
+// --- UTILIDADES ---
 
 const getNextDays = (days: number) => {
   const dates = [];
@@ -14,25 +14,22 @@ const getNextDays = (days: number) => {
   for (let i = 0; i < days; i++) {
     const date = new Date(today);
     date.setDate(today.getDate() + i);
-    if (date.getDay() !== 0) { // Excluir Domingos
+    if (date.getDay() !== 0) { 
         dates.push(date);
     }
   }
   return dates;
 };
 
-// Generar horarios (Duración 1 hora)
+// Slots de 1 hora
 const getDailySlots = (date: Date | null) => {
   if (!date) return [];
-
-  const day = date.getDay(); 
-  const isWeekend = day === 6; // Sábado
+  const day = date.getDay();
+  const isWeekend = day === 6;
 
   if (isWeekend) {
-    // Sábado: 8 AM a 1 PM
     return ["08:00 AM", "09:00 AM", "10:00 AM", "11:00 AM", "12:00 PM"];
   } else {
-    // Lun-Vie: 8-10 AM y 6-9 PM
     return ["08:00 AM", "09:00 AM", "06:00 PM", "07:00 PM", "08:00 PM"];
   }
 };
@@ -47,44 +44,43 @@ export default function InternalBookingCalendar({ onComplete }: { onComplete?: (
   const availableSlots = getDailySlots(selectedDate);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
-  // CAMBIO CLAVE: Guardamos "firmas" de texto en lugar de timestamps numéricos
   const [bookedSignatures, setBookedSignatures] = useState<string[]>([]);
 
-  // --- LÓGICA DE BLOQUEO ROBUSTA ---
+  // --- LÓGICA DE BLOQUEO CORREGIDA ---
   useEffect(() => {
     const fetchBookings = async () => {
       try {
         const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
-        // Agregamos un timestamp al fetch para evitar caché del navegador
-        const response = await fetch(`${API_URL}/api/demo-booking?t=${new Date().getTime()}`, {
-            headers: { 'Cache-Control': 'no-cache' }
-        });
+        const response = await fetch(`${API_URL}/api/demo-booking?t=${Date.now()}`);
         
         if (response.ok) {
           const data = await response.json();
-          console.log("Citas recibidas DB:", data); // Para depuración
-
-          // Convertimos cada fecha de la DB a una "Firma única": Año-Mes-Día-Hora-Minuto
+          
+          // MAPEO INTELIGENTE: Ignoramos la Z (UTC) para forzar hora local literal
           const signatures = data.map((booking: any) => {
-            const d = new Date(booking.scheduledAt);
-            // Importante: getMonth es 0-11, getDate es 1-31
-            return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}-${d.getHours()}-${d.getMinutes()}`;
+            // booking.scheduledAt viene como "2026-02-16T09:00:00.000Z" (ejemplo)
+            // Cortamos la 'Z' final para que el navegador lo parsee como "Hora Local"
+            // y no le reste las 5 horas de diferencia.
+            const rawString = String(booking.scheduledAt).replace('Z', ''); 
+            const d = new Date(rawString);
+
+            // Generamos la firma: Año-Mes-Día-Hora
+            // getMinutes no es necesario si tus slots son horas en punto, pero lo dejamos por seguridad
+            return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}-${d.getHours()}`;
           });
           
-          console.log("Firmas bloqueadas:", signatures);
           setBookedSignatures(signatures);
         }
       } catch (error) {
-        console.error("Error cargando disponibilidad:", error);
+        console.error("Error fetching bookings:", error);
       }
     };
 
     fetchBookings();
-  }, []);
+  }, []); // Se ejecuta al montar
 
   const isSlotBlocked = (date: Date, time: string) => {
-    // Construimos la firma para el slot que el usuario está mirando
+    // Construimos la firma del slot candidato
     const d = new Date(date);
     const [timeStr, modifier] = time.split(' ');
     let [hours, minutes] = timeStr.split(':');
@@ -93,9 +89,9 @@ export default function InternalBookingCalendar({ onComplete }: { onComplete?: (
     if (hoursInt === 12) hoursInt = 0;
     if (modifier === 'PM') hoursInt += 12;
     
-    // Generamos la misma firma: Año-Mes-Día-Hora-Minuto
-    // Usamos d.getMonth() y d.getDate() de la fecha seleccionada en el calendario
-    const slotSignature = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}-${hoursInt}-${parseInt(minutes)}`;
+    // Firma candidata: Año-Mes-Día-Hora
+    // Usamos la misma estructura que en el fetch
+    const slotSignature = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}-${hoursInt}`;
     
     return bookedSignatures.includes(slotSignature);
   };
@@ -110,8 +106,9 @@ export default function InternalBookingCalendar({ onComplete }: { onComplete?: (
       title: '<span class="text-white font-bold text-2xl">¡Cita Confirmada!</span>',
       html: `
         <div class="text-slate-300 text-sm">
-          Hemos enviado el enlace de Google Meet a <strong>${formData.email}</strong>.<br/><br/>
-          Te esperamos el <strong class="text-cyan-400">${selectedDate?.toLocaleDateString()}</strong> a las <strong class="text-cyan-400">${selectedTime}</strong>.
+          Enlace enviado a <strong>${formData.email}</strong>.<br/><br/>
+          Fecha: <strong class="text-cyan-400">${selectedDate?.toLocaleDateString()}</strong><br/>
+          Hora: <strong class="text-cyan-400">${selectedTime}</strong>
         </div>
       `,
       icon: 'success',
@@ -119,10 +116,9 @@ export default function InternalBookingCalendar({ onComplete }: { onComplete?: (
       background: '#0F0F0F',
       confirmButtonText: 'Genial, continuar',
       confirmButtonColor: '#06b6d4',
-      buttonsStyling: false,
       customClass: {
         popup: 'border border-white/10 rounded-[2rem] shadow-2xl font-sans',
-        confirmButton: 'px-6 py-3 rounded-xl bg-gradient-to-r from-cyan-600 to-blue-600 text-white font-bold shadow-lg hover:scale-105 transition-transform'
+        confirmButton: 'px-6 py-3 rounded-xl bg-gradient-to-r from-cyan-600 to-blue-600 text-white font-bold'
       }
     }).then(() => {
         if (onComplete) onComplete();
@@ -136,11 +132,9 @@ export default function InternalBookingCalendar({ onComplete }: { onComplete?: (
       icon: 'error',
       iconColor: '#ef4444',
       background: '#0F0F0F',
-      confirmButtonText: 'Intentar otro horario',
+      confirmButtonText: 'Cerrar',
       confirmButtonColor: '#333',
-      customClass: {
-        popup: 'border border-white/10 rounded-[2rem] shadow-2xl font-sans'
-      }
+      customClass: { popup: 'border border-white/10 rounded-[2rem]' }
     });
   };
 
@@ -168,25 +162,27 @@ export default function InternalBookingCalendar({ onComplete }: { onComplete?: (
       const data = await response.json();
 
       if (response.ok) {
-        // Actualización optimista: Bloquear inmediatamente el slot seleccionado
+        // Bloqueo optimista (Actualizamos la lista localmente para no tener que recargar)
         const d = new Date(selectedDate);
         const [timeStr, modifier] = selectedTime.split(' ');
-        let [hours, minutes] = timeStr.split(':');
+        let [hours] = timeStr.split(':');
         let hoursInt = parseInt(hours);
         if (hoursInt === 12) hoursInt = 0;
         if (modifier === 'PM') hoursInt += 12;
         
-        const newSignature = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}-${hoursInt}-${parseInt(minutes)}`;
+        const newSignature = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}-${hoursInt}`;
         setBookedSignatures([...bookedSignatures, newSignature]);
 
         setStep(3);
         showSuccessAlert();
       } else {
+        // Si hay conflicto (409) u otro error
         showErrorAlert(data.error || "Hubo un error al procesar tu solicitud.");
+        // Opcional: Si es conflicto, podrías volver a llamar fetchBookings() aquí
       }
     } catch (error) {
-      console.error("Error de red:", error);
-      showErrorAlert("Error de conexión. Verifica tu internet.");
+      console.error("Error:", error);
+      showErrorAlert("Error de conexión.");
     } finally {
       setIsSubmitting(false);
     }
@@ -252,7 +248,7 @@ export default function InternalBookingCalendar({ onComplete }: { onComplete?: (
               })
             ) : (
                 <div className="col-span-2 text-center text-slate-500 text-sm py-4">
-                    No hay horarios disponibles para este día.
+                    No hay horarios disponibles.
                 </div>
             )}
           </div>
@@ -281,57 +277,26 @@ export default function InternalBookingCalendar({ onComplete }: { onComplete?: (
             <label className="block text-slate-400 text-sm mb-1 ml-1">Nombre Completo</label>
             <div className="relative">
                 <User className="absolute left-3 top-3 text-slate-500" size={18} />
-                <input 
-                    required 
-                    type="text" 
-                    className="w-full bg-white/5 border border-white/10 rounded-xl py-2.5 pl-10 pr-4 text-white focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-all"
-                    placeholder="Dra. María..."
-                    value={formData.name}
-                    onChange={(e) => setFormData({...formData, name: e.target.value})}
-                />
+                <input required type="text" className="w-full bg-white/5 border border-white/10 rounded-xl py-2.5 pl-10 pr-4 text-white focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-all" placeholder="Dra. María..." value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} />
             </div>
         </div>
         <div>
             <label className="block text-slate-400 text-sm mb-1 ml-1">Correo Electrónico</label>
             <div className="relative">
                 <Mail className="absolute left-3 top-3 text-slate-500" size={18} />
-                <input 
-                    required 
-                    type="email" 
-                    className="w-full bg-white/5 border border-white/10 rounded-xl py-2.5 pl-10 pr-4 text-white focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-all"
-                    placeholder="contacto@clinica.com"
-                    value={formData.email}
-                    onChange={(e) => setFormData({...formData, email: e.target.value})}
-                />
+                <input required type="email" className="w-full bg-white/5 border border-white/10 rounded-xl py-2.5 pl-10 pr-4 text-white focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-all" placeholder="contacto@clinica.com" value={formData.email} onChange={(e) => setFormData({...formData, email: e.target.value})} />
             </div>
         </div>
         <div>
             <label className="block text-slate-400 text-sm mb-1 ml-1">WhatsApp / Celular</label>
             <div className="relative">
                 <Phone className="absolute left-3 top-3 text-slate-500" size={18} />
-                <input 
-                    required 
-                    type="tel" 
-                    className="w-full bg-white/5 border border-white/10 rounded-xl py-2.5 pl-10 pr-4 text-white focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-all"
-                    placeholder="+57 300..."
-                    value={formData.phone}
-                    onChange={(e) => setFormData({...formData, phone: e.target.value})}
-                />
+                <input required type="tel" className="w-full bg-white/5 border border-white/10 rounded-xl py-2.5 pl-10 pr-4 text-white focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-all" placeholder="+57 300..." value={formData.phone} onChange={(e) => setFormData({...formData, phone: e.target.value})} />
             </div>
         </div>
 
-        <button 
-            type="submit" 
-            disabled={isSubmitting}
-            className="w-full bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold py-3 rounded-xl shadow-lg shadow-cyan-900/40 transition-all transform active:scale-95 mt-4 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-            {isSubmitting ? (
-                <>
-                    <Loader2 className="animate-spin h-5 w-5" /> Confirmando...
-                </>
-            ) : (
-                "Confirmar Reserva"
-            )}
+        <button type="submit" disabled={isSubmitting} className="w-full bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold py-3 rounded-xl shadow-lg shadow-cyan-900/40 transition-all transform active:scale-95 mt-4 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+            {isSubmitting ? <><Loader2 className="animate-spin h-5 w-5" /> Confirmando...</> : "Confirmar Reserva"}
         </button>
       </form>
     </motion.div>
@@ -339,16 +304,11 @@ export default function InternalBookingCalendar({ onComplete }: { onComplete?: (
 
   const renderStep3 = () => (
     <div className="flex flex-col items-center justify-center h-full text-center p-6">
-        <motion.div 
-            initial={{ scale: 0 }} animate={{ scale: 1 }} 
-            className="w-20 h-20 bg-green-500 rounded-full flex items-center justify-center mb-6 shadow-xl shadow-green-900/50"
-        >
+        <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="w-20 h-20 bg-green-500 rounded-full flex items-center justify-center mb-6 shadow-xl shadow-green-900/50">
             <CheckCircle2 size={40} className="text-white" />
         </motion.div>
         <h3 className="text-2xl font-bold text-white mb-2">¡Agenda Confirmada!</h3>
-        <p className="text-slate-300 max-w-xs mx-auto mb-6">
-            Te hemos enviado un correo con el enlace de acceso.
-        </p>
+        <p className="text-slate-300 max-w-xs mx-auto mb-6">Te hemos enviado un correo con el enlace de acceso.</p>
     </div>
   );
 
@@ -357,14 +317,9 @@ export default function InternalBookingCalendar({ onComplete }: { onComplete?: (
         {step !== 3 && (
             <div className="mb-4 flex items-center justify-between px-1">
                 <span className="text-xs font-bold text-slate-500 tracking-widest uppercase">Paso {step} de 2</span>
-                {step === 2 && (
-                    <button onClick={() => setStep(1)} className="flex items-center gap-1 text-sm text-slate-400 hover:text-white transition-colors">
-                        <ChevronLeft size={14} /> Volver
-                    </button>
-                )}
+                {step === 2 && <button onClick={() => setStep(1)} className="flex items-center gap-1 text-sm text-slate-400 hover:text-white transition-colors"><ChevronLeft size={14} /> Volver</button>}
             </div>
         )}
-        
         <div className="flex-1 relative overflow-hidden">
             <AnimatePresence mode="wait">
                 {step === 1 && renderStep1()}
