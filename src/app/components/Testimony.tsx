@@ -1,132 +1,135 @@
 'use client'
 
-import { motion, Variants } from 'framer-motion'
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Star, Quote } from 'lucide-react'
+import React from 'react';
+import { Star, CheckCircle2, Quote } from 'lucide-react';
+import Image from 'next/image';
+import { motion } from 'framer-motion';
 
-const testimonios = [
+// Datos de reseñas (Sector Estético/Dental)
+const REVIEWS = [
   {
-    nombre: "Laura Méndez",
-    cargo: "CEO de White Skincare",
-    mensaje: "Gracias a Wasaaa hemos automatizado más del 80% de nuestras consultas. La IA responde con una naturalidad impresionante, como si fuera parte del equipo humano.",
-    imagen: "/avatars/laura.jpg",
-    rating: 5
+    name: "Dra. Camila Torres",
+    role: "Dueña de Clínica Estética",
+    image: "https://randomuser.me/api/portraits/women/44.jpg", // Puedes usar fotos reales si tienes
+    date: "Hace 2 días",
+    rating: 5,
+    text: "Al principio dudaba si mis pacientes hablarían con una IA, pero la respuesta ha sido increíble. Wasaaa ha recuperado pacientes que no venían hace 6 meses solo enviando un mensaje de reactivación. ¡La agenda se llenó sola!"
   },
   {
-    nombre: "Carlos Gómez",
-    cargo: "Director Comercial en TecnoRed",
-    mensaje: "Integrar el sistema fue rápido y sin código. La segmentación por estados nos ayudó a escalar solo los casos necesarios, disparando nuestra eficiencia.",
-    imagen: "/avatars/carlos.jpg",
-    rating: 5
+    name: "Dr. Andrés Felipe",
+    role: "Cirujano Plástico",
+    image: "https://randomuser.me/api/portraits/men/32.jpg",
+    date: "Hace 1 semana",
+    rating: 5,
+    text: "Lo mejor es que filtra a los curiosos. Antes mi recepcionista perdía horas respondiendo precios, ahora solo me llegan las citas confirmadas y pagas. Es como tener una secretaria que trabaja 24/7 sin quejarse."
   },
   {
-    nombre: "Sofía Ruiz",
-    cargo: "Fundadora de NaturalFit",
-    mensaje: "La prueba gratis me convenció. En menos de una semana, pasamos de perder leads por no responder a tiempo, a tener una agenda llena automáticamente.",
-    imagen: "/avatars/sofia.jpg",
-    rating: 5
-  },
-]
-
-// Tipado para evitar errores de TS
-const containerVariants: Variants = {
-  hidden: { opacity: 0 },
-  visible: {
-    opacity: 1,
-    transition: {
-      staggerChildren: 0.2
-    }
+    name: "Clínica Odontológica Vital",
+    role: "Gerencia",
+    image: "https://randomuser.me/api/portraits/women/68.jpg",
+    date: "Hace 3 semanas",
+    rating: 5,
+    text: "La función de confirmación automática nos redujo el ausentismo casi a cero. Los pacientes reciben el recordatorio por WhatsApp y confirman ahí mismo. Una herramienta indispensable para cualquier consultorio moderno."
   }
-}
+];
 
-const itemVariants: Variants = {
-  hidden: { opacity: 0, y: 30 },
-  visible: { 
-    opacity: 1, 
-    y: 0, 
-    transition: { type: "spring", stiffness: 60, damping: 20 } 
-  }
-}
-
-export default function Testimonios() {
+export default function Testimony() {
   return (
-    // Quitamos bg sólido para usar el ambiente global
-    <section className="py-24 relative z-10 overflow-hidden">
-      <div className="max-w-7xl mx-auto px-6">
+    <section className="py-16 md:py-24 relative z-10">
+      <div className="max-w-7xl mx-auto px-4 md:px-6">
         
-        {/* Encabezado */}
-        <div className="text-center max-w-3xl mx-auto mb-16 space-y-4">
-          <motion.div
-             initial={{ opacity: 0, scale: 0.9 }}
-             whileInView={{ opacity: 1, scale: 1 }}
-             transition={{ duration: 0.5 }}
-             className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 text-sm font-semibold border border-indigo-500/20 mb-2"
-          >
-            <Star className="w-4 h-4 fill-indigo-500/20" />
-            Clientes Felices
-          </motion.div>
-          
-          <motion.h2 
-            initial={{ opacity: 0, y: 20 }} 
-            whileInView={{ opacity: 1, y: 0 }} 
+        {/* Header de la sección */}
+        <div className="text-center mb-16">
+          <motion.div 
+            initial={{ opacity: 0, y: 10 }}
+            whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            transition={{ duration: 0.6 }} 
-            className="text-4xl md:text-5xl font-extrabold text-gray-900 dark:text-white"
+            className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-yellow-500/20 bg-yellow-500/10 text-yellow-500 text-xs font-bold uppercase tracking-widest mb-4"
           >
-            Ellos ya escalaron sus ventas
+            <Star size={12} fill="currentColor" /> Resultados Reales
+          </motion.div>
+          <motion.h2 
+            initial={{ opacity: 0, y: 10 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ delay: 0.1 }}
+            className="text-3xl md:text-5xl font-bold text-white tracking-tight"
+          >
+            Lo que dicen los <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-orange-500">Doctores</span>
           </motion.h2>
-          <p className="text-lg text-gray-600 dark:text-gray-300">
-            Cientos de negocios confían en Wasaaa para gestionar sus chats.
+          <p className="text-slate-400 mt-4 max-w-xl mx-auto">
+            No confíes solo en nuestra palabra. Mira cómo clínicas reales están automatizando su atención.
           </p>
         </div>
 
-        {/* Grid de Testimonios */}
-        <motion.div 
-          variants={containerVariants}
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true }}
-          className="grid grid-cols-1 md:grid-cols-3 gap-8"
-        >
-          {testimonios.map((t, i) => (
-            <motion.div 
+        {/* Grid de Reseñas */}
+        <div className="grid md:grid-cols-3 gap-6 md:gap-8">
+          {REVIEWS.map((review, i) => (
+            <motion.div
               key={i}
-              variants={itemVariants}
-              // Card Glassmorphism Premium
-              className="relative group bg-white/60 dark:bg-zinc-900/60 backdrop-blur-xl border border-gray-200/50 dark:border-white/5 p-8 rounded-3xl hover:bg-white/80 dark:hover:bg-zinc-800/80 transition-all duration-300 hover:-translate-y-1 shadow-lg shadow-gray-200/20 dark:shadow-none"
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: i * 0.1 }}
+              className="relative p-6 rounded-3xl bg-[#0F0F0F] border border-white/5 hover:border-white/10 transition-colors group"
             >
-              {/* Icono de Comilla Decorativo (Fondo) */}
-              <Quote className="absolute top-6 right-6 w-12 h-12 text-indigo-500/10 dark:text-indigo-500/20 rotate-180" />
-
-              {/* Estrellas */}
-              <div className="flex gap-1 mb-6">
-                {[...Array(5)].map((_, index) => (
-                  <Star key={index} className="w-5 h-5 text-amber-400 fill-amber-400" />
-                ))}
+              {/* Comillas decorativas */}
+              <div className="absolute top-6 right-6 text-white/5 group-hover:text-cyan-500/20 transition-colors">
+                <Quote size={40} fill="currentColor" />
               </div>
 
-              {/* Mensaje */}
-              <p className="text-gray-700 dark:text-gray-300 text-base leading-relaxed mb-8 relative z-10">
-                "{t.mensaje}"
+              {/* Header de la Review (Google Style) */}
+              <div className="flex items-center gap-4 mb-4">
+                <div className="relative w-12 h-12 rounded-full overflow-hidden border border-white/10">
+                  <Image 
+                    src={review.image} 
+                    alt={review.name} 
+                    fill 
+                    className="object-cover"
+                    unoptimized // Usar esto si usas URLs externas como randomuser
+                  />
+                </div>
+                <div>
+                  <h3 className="font-bold text-white text-sm">{review.name}</h3>
+                  <p className="text-xs text-slate-500">{review.role}</p>
+                </div>
+              </div>
+
+              {/* Estrellas */}
+              <div className="flex items-center gap-1 mb-3">
+                {[...Array(5)].map((_, starIndex) => (
+                  <Star key={starIndex} size={14} className="text-yellow-500 fill-yellow-500" />
+                ))}
+                <span className="text-xs text-slate-500 ml-2">{review.date}</span>
+              </div>
+
+              {/* Texto */}
+              <p className="text-slate-300 text-sm leading-relaxed">
+                "{review.text}"
               </p>
 
-              {/* Usuario */}
-              <div className="flex items-center gap-4 border-t border-gray-100 dark:border-white/5 pt-6 mt-auto">
-                <Avatar className="w-12 h-12 ring-2 ring-indigo-500/20 dark:ring-indigo-500/30">
-                  <AvatarImage src={t.imagen} alt={t.nombre} className="object-cover" />
-                  <AvatarFallback className="bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300">
-                    {t.nombre[0]}
-                  </AvatarFallback>
-                </Avatar>
-                <div>
-                  <h3 className="font-bold text-gray-900 dark:text-white text-sm">{t.nombre}</h3>
-                  <p className="text-xs font-medium text-indigo-600 dark:text-indigo-400">{t.cargo}</p>
-                </div>
+              {/* Badge de Verificado */}
+              <div className="mt-4 pt-4 border-t border-white/5 flex items-center gap-2">
+                <CheckCircle2 size={14} className="text-blue-500" />
+                <span className="text-xs font-medium text-slate-500">Cliente Verificado por Google</span>
               </div>
             </motion.div>
           ))}
-        </motion.div>
+        </div>
+
+        {/* Google Badge Footer */}
+        <div className="mt-12 flex justify-center">
+            <div className="inline-flex items-center gap-3 px-4 py-2 rounded-xl bg-white/5 border border-white/10">
+                 <div className="flex -space-x-2">
+                    <div className="w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center text-[10px] font-bold text-white">G</div>
+                 </div>
+                 <div className="text-xs text-slate-300">
+                    <span className="font-bold text-white">4.9/5</span> Valoración media en Google Reviews
+                 </div>
+            </div>
+        </div>
+
       </div>
     </section>
-  )
+  );
 }

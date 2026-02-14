@@ -18,11 +18,15 @@ import visa from '../images/visa-logo.webp';
 import amex from '../images/american-express.webp';
 import mastercard from '../images/mastercard-logo.webp';
 
-// --- LAZY LOADS ---
+// --- LAZY LOADS (OPTIMIZACIÓN SAFARI) ---
+// Usamos un esqueleto de carga simple para evitar saltos de layout (CLS)
 const LoadingSkeleton = () => <div className="w-full h-[300px] bg-white/5 rounded-3xl animate-pulse" />;
+
 const CalendarVisual = dynamic(() => import('./CalendarVisual'), { ssr: false, loading: LoadingSkeleton });
 const AestheticChatAnimation = dynamic(() => import('./AestheticChatAnimation'), { ssr: false, loading: LoadingSkeleton });
 const LandingFAQ = dynamic(() => import('./LandingFAQ'), { ssr: false });
+// AQUI ESTÁ EL CAMBIO: Cargamos Testimony de forma dinámica
+const Testimony = dynamic(() => import('./Testimony'), { ssr: false });
 
 // --- COPYWRITING ---
 const HERO_BADGE = "Tu Recepcionista IA 24/7";
@@ -93,11 +97,7 @@ export default function HomePageContent() {
          <div className="absolute inset-0 bg-[#020405]" />
          <div className="absolute inset-0 bg-[url('/grid-pattern.svg')] opacity-[0.04]" style={{ backgroundSize: '30px 30px' }}></div>
 
-         {/* LUCES AMBIENTALES AJUSTADAS 
-            Móvil: bg-blue-900 (azul profundo) y menor opacidad.
-            Desktop (md:): bg-blue-600 (azul vibrante) y mayor opacidad.
-         */}
-
+         {/* LUCES AMBIENTALES AJUSTADAS */}
          {/* 1. HERO GLOW (Top Left) */}
          <div 
             className="absolute -top-[10%] -left-[20%] w-[120vw] h-[100vw] md:w-[800px] md:h-[800px] bg-blue-900/30 md:bg-blue-600/40 rounded-full blur-[100px] md:blur-[160px] opacity-100 mix-blend-screen" 
@@ -157,7 +157,6 @@ export default function HomePageContent() {
               className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center mb-24 md:mb-32"
             >
                 <div className="order-2 lg:order-1 relative flex justify-center min-h-[450px] md:min-h-[650px] items-center">
-                    {/* Glow específico del feature: También oscurecido en móvil */}
                     <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,var(--tw-gradient-stops))] from-cyan-900/20 md:from-cyan-500/20 via-transparent to-transparent opacity-70 blur-3xl" />
                     <div className="relative w-full max-w-[350px] md:max-w-none transform scale-100 lg:scale-110">
                           <div className="drop-shadow-[0_0_30px_rgba(6,182,212,0.15)]">
@@ -289,6 +288,9 @@ export default function HomePageContent() {
             </div>
         </section>
 
+        {/* --- TESTIMONIOS (LAZY LOADED) --- */}
+        <Testimony />
+
         {/* --- PRICING --- */}
         <section id="pricing" className="relative scroll-mt-32 mb-24 md:mb-32">
           <motion.div
@@ -358,7 +360,7 @@ export default function HomePageContent() {
           </motion.div>
         </section>
 
-        {/* --- CTA FINAL (Ajustado pb-12 para móvil) --- */}
+        {/* --- CTA FINAL --- */}
         <motion.section 
           initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.3 }} variants={fadeInUp}
           className="relative pb-12 md:pb-24 group content-visibility-auto contain-paint px-2"
@@ -394,7 +396,7 @@ export default function HomePageContent() {
             </div>
         </motion.section>
 
-        {/* --- FAQs Wrapper (Ajustado mt-0 para móvil) --- */}
+        {/* --- FAQs Wrapper --- */}
         <section id="faqs" className="relative scroll-mt-32 mt-0 md:mt-20 content-visibility-auto">
              <LandingFAQ industry="dental" /> 
         </section>
