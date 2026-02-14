@@ -12,7 +12,7 @@ const REVIEWS = [
     date: "Hace 2 días",
     rating: 5,
     text: "Al principio dudaba si mis pacientes hablarían con una IA, pero la respuesta ha sido increíble. Wasaaa ha recuperado pacientes que no venían hace 6 meses. ¡La agenda se llenó sola!",
-    color: "bg-purple-600", // Color del avatar
+    color: "bg-purple-600",
     initials: "CT"
   },
   {
@@ -70,15 +70,8 @@ export default function Testimony() {
           </motion.h2>
         </div>
 
-        {/* CONTENEDOR DEL CARRUSEL / GRID 
-            - En móvil: flex + overflow-x-auto (Scroll lateral)
-            - En desktop: grid (Rejilla estática)
-        */}
-        <div className="
-            flex flex-row overflow-x-auto snap-x snap-mandatory gap-4 pb-8 -mx-4 px-4 
-            md:grid md:grid-cols-3 md:gap-8 md:overflow-visible md:pb-0 md:mx-0 md:px-0
-            scrollbar-hide
-        ">
+        {/* CONTENEDOR DEL CARRUSEL / GRID */}
+        <div className="flex flex-row overflow-x-auto snap-x snap-mandatory gap-4 pb-8 -mx-4 px-4 md:grid md:grid-cols-3 md:gap-8 md:overflow-visible md:pb-0 md:mx-0 md:px-0 scrollbar-hide">
           {REVIEWS.map((review, i) => (
             <motion.div
               key={i}
@@ -86,11 +79,7 @@ export default function Testimony() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ delay: i * 0.1 }}
-              className="
-                relative flex-shrink-0 w-[85vw] md:w-auto snap-center
-                bg-white rounded-3xl p-6 md:p-8 
-                shadow-[0_10px_40px_-10px_rgba(0,0,0,0.5)] border border-white/10
-              "
+              className="relative flex-shrink-0 w-[85vw] md:w-auto snap-center bg-white rounded-3xl p-6 md:p-8 shadow-[0_10px_40px_-10px_rgba(0,0,0,0.5)] border border-white/10"
             >
               {/* Icono de Google pequeño arriba a la derecha */}
               <div className="absolute top-6 right-6 opacity-20 grayscale hover:grayscale-0 hover:opacity-100 transition-all">
@@ -134,7 +123,7 @@ export default function Testimony() {
             </motion.div>
           ))}
           
-          {/* Spacer final para móvil (para que la última tarjeta no quede pegada) */}
+          {/* Spacer final para móvil */}
           <div className="w-2 md:hidden flex-shrink-0" />
         </div>
 
@@ -147,7 +136,7 @@ export default function Testimony() {
 
       </div>
       
-      {/* CSS para ocultar la barra de scroll pero mantener la funcionalidad */}
+      {/* CSS para ocultar la barra de scroll */}
       <style jsx global>{`
         .scrollbar-hide::-webkit-scrollbar {
             display: none;
