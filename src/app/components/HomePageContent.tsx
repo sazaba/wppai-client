@@ -2,12 +2,9 @@
 
 import React, { useState, useEffect } from 'react';
 import { 
-  Sparkles, CheckCircle2, Clock, Users, Database, BrainCircuit, 
-  CalendarCheck, ChevronRight, Zap, ShieldCheck, Check, XCircle, X,
-  ArrowRight,
-  TrendingUp,
-  AlertTriangle,
-  MessageCircle
+  Sparkles, CheckCircle2, Users, Database, BrainCircuit, 
+  CalendarCheck, Zap, ShieldCheck, Check, XCircle, X,
+  ArrowRight, TrendingUp, AlertTriangle
 } from 'lucide-react';
 import { motion, Variants, AnimatePresence } from 'framer-motion';
 import Image from 'next/image'; 
@@ -27,7 +24,7 @@ const CalendarVisual = dynamic(() => import('./CalendarVisual'), { ssr: false, l
 const AestheticChatAnimation = dynamic(() => import('./AestheticChatAnimation'), { ssr: false, loading: LoadingSkeleton });
 const LandingFAQ = dynamic(() => import('./LandingFAQ'), { ssr: false });
 
-// --- COPYWRITING ESTRATÉGICO (VERSIÓN CORTA & PUNCHY) ---
+// --- COPYWRITING ---
 const HERO_BADGE = "Tu Recepcionista IA 24/7";
 const HERO_TITLE = <>El Sistema que <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">Confirma Citas</span> y Llena tu Agenda Automáticamente</>;
 const HERO_DESC = 'No más "vistos" sin respuesta. Wasaaa atiende al instante, cualifica pacientes reales y agenda citas mientras tu equipo descansa.';
@@ -79,7 +76,7 @@ export default function HomePageContent() {
   const [isBookingOpen, setIsBookingOpen] = useState(false);
   const handleOpenBooking = () => setIsBookingOpen(true);
 
-  // Colores globales fijos (Azul/Cyan)
+  // Colores globales
   const buttonGradient = "from-cyan-600 to-blue-600";
   const buttonHover = "hover:from-cyan-700 hover:to-blue-700";
   const glowColor = "from-cyan-500 via-blue-500 to-indigo-500";
@@ -89,21 +86,42 @@ export default function HomePageContent() {
       
       <BookingModal isOpen={isBookingOpen} onClose={() => setIsBookingOpen(false)} />
 
-      {/* Grid Background Global */}
-      <div className="fixed inset-0 z-0 pointer-events-none">
+      {/* --- BACKGROUND PREMIUM OPTIMIZADO (GPU LAYERS) --- */}
+      <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
+         {/* Base oscura pero no negra pura para reducir fatiga visual */}
          <div className="absolute inset-0 bg-[#050505]" />
-         <div className="absolute inset-0 bg-[url('/grid-pattern.svg')] opacity-[0.04]" style={{ backgroundSize: '30px 30px' }}></div>
+         
+         {/* Grid pattern muy sutil */}
+         <div className="absolute inset-0 bg-[url('/grid-pattern.svg')] opacity-[0.03]" style={{ backgroundSize: '30px 30px' }}></div>
+
+         {/* Luz Ambiental 1: Top Izquierda (Cyan/Azul) - Hero glow */}
+         <div 
+            className="absolute -top-[10%] -left-[10%] w-[80vw] h-[80vw] md:w-[600px] md:h-[600px] bg-blue-600/10 rounded-full blur-[80px] md:blur-[128px] opacity-60 mix-blend-screen" 
+            style={{ transform: 'translate3d(0,0,0)', willChange: 'transform' }} // Safari Hardware Accel
+         />
+
+         {/* Luz Ambiental 2: Medio Derecha (Indigo) - Features glow */}
+         <div 
+            className="absolute top-[40%] -right-[20%] w-[70vw] h-[70vw] md:w-[500px] md:h-[500px] bg-indigo-600/10 rounded-full blur-[80px] md:blur-[128px] opacity-40 mix-blend-screen" 
+            style={{ transform: 'translate3d(0,0,0)', willChange: 'transform' }} 
+         />
+
+         {/* Luz Ambiental 3: Fondo Izquierda (Cyan) - CTA glow */}
+         <div 
+            className="absolute bottom-0 -left-[10%] w-[80vw] h-[80vw] md:w-[600px] md:h-[600px] bg-cyan-600/10 rounded-full blur-[80px] md:blur-[128px] opacity-30 mix-blend-screen" 
+            style={{ transform: 'translate3d(0,0,0)', willChange: 'transform' }} 
+         />
       </div>
 
       <div className="relative z-10 max-w-7xl mx-auto px-4 md:px-6 pt-24 pb-16 md:pb-24">
         
         {/* --- HERO --- */}
         <section className="text-center mb-16 md:mb-24 mt-8 md:mt-16">
-           <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-cyan-500/20 bg-cyan-500/10 text-cyan-300 text-[10px] uppercase tracking-widest font-bold mb-6 shadow-[0_0_20px_rgba(6,182,212,0.1)]">
+           <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-cyan-500/20 bg-cyan-500/10 text-cyan-300 text-[10px] uppercase tracking-widest font-bold mb-6 shadow-[0_0_20px_rgba(6,182,212,0.1)] backdrop-blur-sm">
                 <ShieldCheck size={12} /> {HERO_BADGE}
            </motion.div>
           
-          <h1 className="text-4xl sm:text-5xl md:text-7xl font-bold text-white mb-6 tracking-tighter leading-[1.1] animate-fade-in-up [animation-delay:100ms] opacity-0 fill-mode-forwards max-w-5xl mx-auto">
+          <h1 className="text-4xl sm:text-5xl md:text-7xl font-bold text-white mb-6 tracking-tighter leading-[1.1] animate-fade-in-up [animation-delay:100ms] opacity-0 fill-mode-forwards max-w-5xl mx-auto drop-shadow-2xl">
             {HERO_TITLE}
           </h1>
           
@@ -115,7 +133,7 @@ export default function HomePageContent() {
             <button 
                 onClick={handleOpenBooking}
                 className={clsx(
-                    "px-8 py-4 rounded-full text-lg font-bold text-white shadow-[0_10px_40px_-10px_rgba(6,182,212,0.5)] transition-all hover:scale-105 active:scale-95 flex items-center gap-2 mx-auto bg-gradient-to-r",
+                    "px-8 py-4 rounded-full text-lg font-bold text-white shadow-[0_10px_40px_-10px_rgba(6,182,212,0.4)] transition-all hover:scale-105 active:scale-95 flex items-center gap-2 mx-auto bg-gradient-to-r border border-white/10",
                     buttonGradient, buttonHover
                 )}
             >
@@ -128,14 +146,15 @@ export default function HomePageContent() {
           </div>
         </section>
 
-        {/* --- FEATURES 1 (Filtrado) --- */}
+        {/* --- FEATURES 1 --- */}
         <section id="features" className="relative content-visibility-auto contain-paint scroll-mt-32">
             <motion.div 
               initial="hidden" whileInView="visible" viewport={{ once: true, margin: "100px" }} variants={staggerContainer}
               className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center mb-24 md:mb-32"
             >
                 <div className="order-2 lg:order-1 relative flex justify-center min-h-[450px] md:min-h-[650px] items-center">
-                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,var(--tw-gradient-stops))] from-cyan-500/20 via-transparent to-transparent opacity-40 blur-3xl" />
+                    {/* Glow específico del feature para resaltar la imagen */}
+                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,var(--tw-gradient-stops))] from-cyan-500/10 via-transparent to-transparent opacity-60 blur-3xl" />
                     <div className="relative w-full max-w-[350px] md:max-w-none transform scale-100 lg:scale-110">
                           <div className="drop-shadow-[0_0_30px_rgba(6,182,212,0.15)]">
                              <AestheticChatAnimation />
@@ -143,11 +162,10 @@ export default function HomePageContent() {
                     </div>
                 </div>
                 <div className="order-1 lg:order-2 flex flex-col items-center text-center lg:items-center lg:text-center px-2">
-                    <div className="w-12 h-12 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center mb-6 md:mb-8 shadow-lg text-cyan-400">
+                    <div className="w-12 h-12 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center mb-6 md:mb-8 shadow-lg text-cyan-400 backdrop-blur-md">
                         <BrainCircuit size={24} />
                     </div>
                     
-                    {/* TEXTO CORTO */}
                     <h2 className="text-3xl md:text-5xl font-bold text-white mb-4 md:mb-6 tracking-tight">
                         No es un "Bot", es <br/><span className="text-cyan-400">Inteligencia Real</span>
                     </h2>
@@ -169,7 +187,7 @@ export default function HomePageContent() {
                 </div>
             </motion.div>
 
-        {/* --- FEATURES 2 (Agenda) --- */}
+        {/* --- FEATURES 2 --- */}
             <motion.div 
               initial="hidden" whileInView="visible" viewport={{ once: true, margin: "100px" }} variants={staggerContainer}
               className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center mb-24 md:mb-32"
@@ -179,14 +197,13 @@ export default function HomePageContent() {
                         <Database size={24} />
                     </div>
                     
-                    {/* TEXTO CORTO */}
                     <h2 className="text-3xl md:text-5xl font-bold text-white mb-4 md:mb-6 tracking-tight">
                         Confirmación Automática <br/><span className="text-blue-400">& Reactivación</span>
                     </h2>
                     <p className="text-slate-300 text-base md:text-lg mb-8 leading-relaxed max-w-lg">
                         Reduce el ausentismo confirmando citas automáticamente y reactiva pacientes antiguos para llenar huecos libres.
                     </p>
-                    <div className="p-4 rounded-2xl bg-white/5 border border-white/10 text-left max-w-sm mx-auto">
+                    <div className="p-4 rounded-2xl bg-white/5 border border-white/10 text-left max-w-sm mx-auto backdrop-blur-sm">
                         <div className="flex items-center gap-3 mb-2">
                             <TrendingUp className="text-green-400" size={20} />
                             <span className="font-bold text-white">Ingresos Pasivos</span>
@@ -202,7 +219,7 @@ export default function HomePageContent() {
             </motion.div>
         </section>
 
-        {/* --- CÓMO FUNCIONA --- */}
+        {/* --- CÓMO FUNCIONA (Con Glassmorphism mejorado) --- */}
         <section id="how" className="mb-24 md:mb-32 relative px-4 scroll-mt-32">
             <div className="text-center mb-12">
                 <h2 className="text-2xl md:text-4xl font-bold text-white mb-4">La Realidad de tu Clínica</h2>
@@ -211,7 +228,7 @@ export default function HomePageContent() {
             
             <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
                 {/* TARJETA MANUAL */}
-                <div className="relative p-6 md:p-8 rounded-3xl border border-red-500/20 bg-[#120808] flex flex-col shadow-lg">
+                <div className="relative p-6 md:p-8 rounded-3xl border border-red-500/20 bg-[#120808]/80 backdrop-blur-md flex flex-col shadow-lg">
                     <div className="absolute top-4 right-4 text-red-500/40">
                         <AlertTriangle size={20} />
                     </div>
@@ -232,7 +249,7 @@ export default function HomePageContent() {
                             <div className="mt-0.5 bg-red-500/10 p-1 rounded text-red-500"><X size={14} strokeWidth={3} /></div>
                             <span>Base de datos en Excel o papel (Inutilizable).</span>
                         </li>
-                        <li className="flex items-start gap-3 text-white font-semibold text-sm bg-red-950/30 p-2 rounded-lg border border-red-900/30">
+                        <li className="flex items-start gap-3 text-white font-semibold text-sm bg-red-950/40 p-2 rounded-lg border border-red-900/30">
                              <div className="mt-0.5 text-red-400"><XCircle size={14} /></div>
                              Resultado: +20% de Citas Perdidas.
                         </li>
@@ -240,7 +257,7 @@ export default function HomePageContent() {
                 </div>
 
                 {/* TARJETA WASAAA */}
-                <div className="p-6 md:p-8 rounded-3xl border border-cyan-500/40 bg-cyan-950/10 relative overflow-hidden flex flex-col shadow-[0_0_40px_-10px_rgba(6,182,212,0.15)]">
+                <div className="p-6 md:p-8 rounded-3xl border border-cyan-500/30 bg-cyan-950/20 backdrop-blur-md relative overflow-hidden flex flex-col shadow-[0_0_40px_-10px_rgba(6,182,212,0.15)]">
                     <div className="absolute top-0 right-0 px-4 py-1.5 rounded-bl-2xl text-[11px] font-black uppercase tracking-wider bg-cyan-500 text-black">La Solución Wasaaa</div>
                     <div className="flex items-center gap-3 mb-6">
                         <Zap className="text-cyan-400 fill-cyan-400" size={24} />
@@ -276,7 +293,8 @@ export default function HomePageContent() {
           >
             <div className={`absolute -inset-1 bg-gradient-to-r ${glowColor} rounded-[2.5rem] blur-xl opacity-30 animate-pulse-slow`} />
 
-            <div className="relative bg-[#080808]/90 backdrop-blur-2xl border border-white/10 rounded-[2rem] p-6 md:p-12 shadow-none md:shadow-2xl overflow-hidden">
+            {/* Fondo con backdrop-blur aumentado para mejor contraste */}
+            <div className="relative bg-[#080808]/80 backdrop-blur-3xl border border-white/10 rounded-[2rem] p-6 md:p-12 shadow-none md:shadow-2xl overflow-hidden">
                 <div className={`absolute top-0 right-0 w-64 h-64 rounded-full blur-3xl -mr-32 -mt-32 pointer-events-none opacity-20 bg-cyan-500`} />
 
                 <div className="grid md:grid-cols-2 gap-8 md:gap-12 items-center">
