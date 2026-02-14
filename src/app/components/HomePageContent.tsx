@@ -87,34 +87,32 @@ export default function HomePageContent() {
       <BookingModal isOpen={isBookingOpen} onClose={() => setIsBookingOpen(false)} />
 
       {/* --- BACKGROUND PREMIUM OPTIMIZADO (GPU LAYERS) --- */}
-      {/* Usamos translate3d(0,0,0) para forzar aceleración de hardware en iOS */}
       <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden" style={{ transform: 'translate3d(0,0,0)' }}>
          
-         {/* Base azul muy oscuro (casi negro) para evitar el "black crush" en pantallas OLED */}
+         {/* Base oscura profunda */}
          <div className="absolute inset-0 bg-[#020405]" />
-         
-         {/* Grid pattern sutil */}
          <div className="absolute inset-0 bg-[url('/grid-pattern.svg')] opacity-[0.04]" style={{ backgroundSize: '30px 30px' }}></div>
 
-         {/* LUCES AMBIENTALES (AGRESIVAS) 
-             Estrategia: Opacidad alta (30-40%) + Blur alto + Tamaño gigante
+         {/* LUCES AMBIENTALES AJUSTADAS 
+            Móvil: bg-blue-900 (azul profundo) y menor opacidad.
+            Desktop (md:): bg-blue-600 (azul vibrante) y mayor opacidad.
          */}
 
-         {/* 1. HERO GLOW (Top Left) - Azul Eléctrico */}
+         {/* 1. HERO GLOW (Top Left) */}
          <div 
-            className="absolute -top-[10%] -left-[20%] w-[120vw] h-[100vw] md:w-[800px] md:h-[800px] bg-blue-600/40 rounded-full blur-[100px] md:blur-[160px] opacity-100 mix-blend-screen" 
+            className="absolute -top-[10%] -left-[20%] w-[120vw] h-[100vw] md:w-[800px] md:h-[800px] bg-blue-900/30 md:bg-blue-600/40 rounded-full blur-[100px] md:blur-[160px] opacity-100 mix-blend-screen" 
             style={{ transform: 'translate3d(0,0,0)' }} 
          />
 
-         {/* 2. MIDDLE GLOW (Derecha) - Indigo/Morado para contraste */}
+         {/* 2. MIDDLE GLOW (Derecha) */}
          <div 
-            className="absolute top-[35%] -right-[30%] w-[120vw] h-[120vw] md:w-[800px] md:h-[800px] bg-indigo-600/30 rounded-full blur-[100px] md:blur-[160px] opacity-100 mix-blend-screen" 
+            className="absolute top-[35%] -right-[30%] w-[120vw] h-[120vw] md:w-[800px] md:h-[800px] bg-indigo-950/20 md:bg-indigo-600/30 rounded-full blur-[100px] md:blur-[160px] opacity-100 mix-blend-screen" 
             style={{ transform: 'translate3d(0,0,0)' }} 
          />
 
-         {/* 3. BOTTOM GLOW (Izquierda) - Cyan para el CTA */}
+         {/* 3. BOTTOM GLOW (Izquierda) */}
          <div 
-            className="absolute bottom-[-10%] -left-[20%] w-[120vw] h-[100vw] md:w-[800px] md:h-[800px] bg-cyan-600/30 rounded-full blur-[100px] md:blur-[160px] opacity-100 mix-blend-screen" 
+            className="absolute bottom-[-10%] -left-[20%] w-[120vw] h-[100vw] md:w-[800px] md:h-[800px] bg-cyan-950/20 md:bg-cyan-600/30 rounded-full blur-[100px] md:blur-[160px] opacity-100 mix-blend-screen" 
             style={{ transform: 'translate3d(0,0,0)' }} 
          />
       </div>
@@ -159,8 +157,8 @@ export default function HomePageContent() {
               className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center mb-24 md:mb-32"
             >
                 <div className="order-2 lg:order-1 relative flex justify-center min-h-[450px] md:min-h-[650px] items-center">
-                    {/* Glow específico del feature para resaltar la imagen */}
-                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,var(--tw-gradient-stops))] from-cyan-500/20 via-transparent to-transparent opacity-70 blur-3xl" />
+                    {/* Glow específico del feature: También oscurecido en móvil */}
+                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,var(--tw-gradient-stops))] from-cyan-900/20 md:from-cyan-500/20 via-transparent to-transparent opacity-70 blur-3xl" />
                     <div className="relative w-full max-w-[350px] md:max-w-none transform scale-100 lg:scale-110">
                           <div className="drop-shadow-[0_0_30px_rgba(6,182,212,0.15)]">
                              <AestheticChatAnimation />
