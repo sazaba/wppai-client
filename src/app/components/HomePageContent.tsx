@@ -82,34 +82,40 @@ export default function HomePageContent() {
   const glowColor = "from-cyan-500 via-blue-500 to-indigo-500";
 
   return (
-    <main className="min-h-[100dvh] bg-[#050505] text-slate-200 selection:bg-cyan-500/30 selection:text-cyan-100 font-sans overflow-x-hidden relative">
+    <main className="min-h-[100dvh] bg-[#05080a] text-slate-200 selection:bg-cyan-500/30 selection:text-cyan-100 font-sans overflow-x-hidden relative">
       
       <BookingModal isOpen={isBookingOpen} onClose={() => setIsBookingOpen(false)} />
 
       {/* --- BACKGROUND PREMIUM OPTIMIZADO (GPU LAYERS) --- */}
-      <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
-         {/* Base oscura pero no negra pura para reducir fatiga visual */}
-         <div className="absolute inset-0 bg-[#050505]" />
+      {/* Usamos translate3d(0,0,0) para forzar aceleración de hardware en iOS */}
+      <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden" style={{ transform: 'translate3d(0,0,0)' }}>
          
-         {/* Grid pattern muy sutil */}
-         <div className="absolute inset-0 bg-[url('/grid-pattern.svg')] opacity-[0.03]" style={{ backgroundSize: '30px 30px' }}></div>
+         {/* Base azul muy oscuro (casi negro) para evitar el "black crush" en pantallas OLED */}
+         <div className="absolute inset-0 bg-[#020405]" />
+         
+         {/* Grid pattern sutil */}
+         <div className="absolute inset-0 bg-[url('/grid-pattern.svg')] opacity-[0.04]" style={{ backgroundSize: '30px 30px' }}></div>
 
-         {/* Luz Ambiental 1: Top Izquierda (Cyan/Azul) - Hero glow */}
+         {/* LUCES AMBIENTALES (AGRESIVAS) 
+             Estrategia: Opacidad alta (30-40%) + Blur alto + Tamaño gigante
+         */}
+
+         {/* 1. HERO GLOW (Top Left) - Azul Eléctrico */}
          <div 
-            className="absolute -top-[10%] -left-[10%] w-[80vw] h-[80vw] md:w-[600px] md:h-[600px] bg-blue-600/10 rounded-full blur-[80px] md:blur-[128px] opacity-60 mix-blend-screen" 
-            style={{ transform: 'translate3d(0,0,0)', willChange: 'transform' }} // Safari Hardware Accel
+            className="absolute -top-[10%] -left-[20%] w-[120vw] h-[100vw] md:w-[800px] md:h-[800px] bg-blue-600/40 rounded-full blur-[100px] md:blur-[160px] opacity-100 mix-blend-screen" 
+            style={{ transform: 'translate3d(0,0,0)' }} 
          />
 
-         {/* Luz Ambiental 2: Medio Derecha (Indigo) - Features glow */}
+         {/* 2. MIDDLE GLOW (Derecha) - Indigo/Morado para contraste */}
          <div 
-            className="absolute top-[40%] -right-[20%] w-[70vw] h-[70vw] md:w-[500px] md:h-[500px] bg-indigo-600/10 rounded-full blur-[80px] md:blur-[128px] opacity-40 mix-blend-screen" 
-            style={{ transform: 'translate3d(0,0,0)', willChange: 'transform' }} 
+            className="absolute top-[35%] -right-[30%] w-[120vw] h-[120vw] md:w-[800px] md:h-[800px] bg-indigo-600/30 rounded-full blur-[100px] md:blur-[160px] opacity-100 mix-blend-screen" 
+            style={{ transform: 'translate3d(0,0,0)' }} 
          />
 
-         {/* Luz Ambiental 3: Fondo Izquierda (Cyan) - CTA glow */}
+         {/* 3. BOTTOM GLOW (Izquierda) - Cyan para el CTA */}
          <div 
-            className="absolute bottom-0 -left-[10%] w-[80vw] h-[80vw] md:w-[600px] md:h-[600px] bg-cyan-600/10 rounded-full blur-[80px] md:blur-[128px] opacity-30 mix-blend-screen" 
-            style={{ transform: 'translate3d(0,0,0)', willChange: 'transform' }} 
+            className="absolute bottom-[-10%] -left-[20%] w-[120vw] h-[100vw] md:w-[800px] md:h-[800px] bg-cyan-600/30 rounded-full blur-[100px] md:blur-[160px] opacity-100 mix-blend-screen" 
+            style={{ transform: 'translate3d(0,0,0)' }} 
          />
       </div>
 
@@ -117,7 +123,7 @@ export default function HomePageContent() {
         
         {/* --- HERO --- */}
         <section className="text-center mb-16 md:mb-24 mt-8 md:mt-16">
-           <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-cyan-500/20 bg-cyan-500/10 text-cyan-300 text-[10px] uppercase tracking-widest font-bold mb-6 shadow-[0_0_20px_rgba(6,182,212,0.1)] backdrop-blur-sm">
+           <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-cyan-500/30 bg-cyan-500/10 text-cyan-300 text-[10px] uppercase tracking-widest font-bold mb-6 shadow-[0_0_20px_rgba(6,182,212,0.2)] backdrop-blur-sm">
                 <ShieldCheck size={12} /> {HERO_BADGE}
            </motion.div>
           
@@ -154,7 +160,7 @@ export default function HomePageContent() {
             >
                 <div className="order-2 lg:order-1 relative flex justify-center min-h-[450px] md:min-h-[650px] items-center">
                     {/* Glow específico del feature para resaltar la imagen */}
-                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,var(--tw-gradient-stops))] from-cyan-500/10 via-transparent to-transparent opacity-60 blur-3xl" />
+                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,var(--tw-gradient-stops))] from-cyan-500/20 via-transparent to-transparent opacity-70 blur-3xl" />
                     <div className="relative w-full max-w-[350px] md:max-w-none transform scale-100 lg:scale-110">
                           <div className="drop-shadow-[0_0_30px_rgba(6,182,212,0.15)]">
                              <AestheticChatAnimation />
@@ -219,7 +225,7 @@ export default function HomePageContent() {
             </motion.div>
         </section>
 
-        {/* --- CÓMO FUNCIONA (Con Glassmorphism mejorado) --- */}
+        {/* --- CÓMO FUNCIONA --- */}
         <section id="how" className="mb-24 md:mb-32 relative px-4 scroll-mt-32">
             <div className="text-center mb-12">
                 <h2 className="text-2xl md:text-4xl font-bold text-white mb-4">La Realidad de tu Clínica</h2>
