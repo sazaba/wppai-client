@@ -39,12 +39,12 @@ const REVIEWS = [
   }
 ];
 
-// Duplicamos la lista para el efecto de scroll infinito suave
-const INFINITE_REVIEWS = [...REVIEWS, ...REVIEWS];
+// Triplicamos para asegurar que el scroll infinito no tenga saltos visuales
+const INFINITE_REVIEWS = [...REVIEWS, ...REVIEWS, ...REVIEWS];
 
 export default function Testimony() {
   return (
-    <section className="py-16 md:py-24 relative z-10 overflow-hidden" id="testimonios">
+    <section className="py-16 md:py-24 relative z-10 overflow-hidden bg-transparent" id="testimonios">
       <div className="max-w-7xl mx-auto px-4 md:px-6 mb-12 text-center">
           <motion.div 
             initial={{ opacity: 0, y: 10 }}
@@ -64,16 +64,19 @@ export default function Testimony() {
           </motion.h2>
       </div>
 
-      {/* Contenedor del Carrusel Infinito */}
-      <div className="relative flex overflow-hidden py-10">
+      {/* MÁSCARA DE DESVANECIMIENTO: 
+          Esto hace que las tarjetas 'aparezcan' y 'desaparezcan' suavemente 
+          al entrar/salir de los bordes laterales sin usar fondos sólidos.
+      */}
+      <div className="relative w-full overflow-hidden py-10 [mask-image:linear-gradient(to_right,transparent,black_15%,black_85%,transparent)]">
         <motion.div 
           className="flex gap-6 md:gap-8 flex-nowrap"
-          animate={{ x: ["0%", "-50%"] }}
+          animate={{ x: ["0%", "-33.33%"] }}
           transition={{
             x: {
               repeat: Infinity,
               repeatType: "loop",
-              duration: 30, // Velocidad del carrusel (más alto = más lento)
+              duration: 40, 
               ease: "linear",
             },
           }}
@@ -82,7 +85,8 @@ export default function Testimony() {
           {INFINITE_REVIEWS.map((review, i) => (
             <div
               key={i}
-              className="relative flex-shrink-0 w-[85vw] md:w-[400px] bg-white/[0.03] backdrop-blur-xl border border-white/10 rounded-[2rem] p-6 md:p-8 shadow-2xl"
+              className="relative flex-shrink-0 w-[85vw] md:w-[400px] bg-white/[0.03] backdrop-blur-sm border border-white/10 rounded-[2rem] p-6 md:p-8 shadow-2xl"
+              style={{ transform: 'translate3d(0,0,0)' }}
             >
               {/* Logo G de Google con Colores */}
               <div className="absolute top-6 right-8">
@@ -94,7 +98,7 @@ export default function Testimony() {
                  </svg>
               </div>
 
-              {/* Estrellas y Fecha */}
+              {/* Estrellas */}
               <div className="flex items-center gap-2 mb-4">
                 <div className="flex text-yellow-500">
                     {[...Array(5)].map((_, idx) => <Star key={idx} size={14} fill="currentColor" className="stroke-none" />)}
@@ -102,14 +106,12 @@ export default function Testimony() {
                 <span className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">{review.date}</span>
               </div>
 
-              {/* Texto */}
               <p className="text-slate-300 text-sm md:text-base leading-relaxed mb-8 italic">
                 "{review.text}"
               </p>
 
-              {/* Footer */}
               <div className="flex items-center gap-4 border-t border-white/5 pt-6">
-                <div className={`w-11 h-11 rounded-full ${review.color} flex items-center justify-center text-white font-black text-sm shadow-[0_0_15px_rgba(0,0,0,0.3)]`}>
+                <div className={`w-11 h-11 rounded-full ${review.color} flex items-center justify-center text-white font-black text-sm shadow-lg`}>
                     {review.initials}
                 </div>
                 <div>
@@ -123,10 +125,6 @@ export default function Testimony() {
             </div>
           ))}
         </motion.div>
-
-        {/* Gradientes laterales para desvanecer el carrusel y que no se vea el corte */}
-        <div className="absolute inset-y-0 left-0 w-20 bg-gradient-to-r from-[#05080a] to-transparent z-20 pointer-events-none" />
-        <div className="absolute inset-y-0 right-0 w-20 bg-gradient-to-l from-[#05080a] to-transparent z-20 pointer-events-none" />
       </div>
     </section>
   );
