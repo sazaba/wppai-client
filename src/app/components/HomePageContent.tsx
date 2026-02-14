@@ -361,9 +361,10 @@ export default function HomePageContent() {
         </section>
 
     {/* --- CTA FINAL REFACTORIZADO: MODO DARK & BORDE SUAVE --- */}
+        {/* --- CTA FINAL REFACTORIZADO: MODO DARK & BORDE SUAVE --- */}
         <motion.section 
           initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.3 }} variants={fadeInUp}
-          className="relative pb-12 md:pb-32 px-2 md:px-6" // Reducido px-2 para que en móvil esté más pegado
+          className="relative pb-12 md:pb-32 px-2 md:px-6"
         >
             <div className="relative z-10 max-w-5xl mx-auto rounded-2xl md:rounded-[2.5rem] overflow-hidden border border-white/5 bg-[#080808]/40 backdrop-blur-sm shadow-2xl">
                 {/* Luces de fondo internas muy sutiles */}
@@ -385,16 +386,23 @@ export default function HomePageContent() {
                         Deja atrás la gestión manual. Únete a los profesionales que ya están escalando sus resultados con inteligencia artificial.
                     </p>
 
+                    {/* --- BOTÓN CORREGIDO AL ESTILO PRICING --- */}
                     <button 
                         onClick={handleOpenBooking}
-                        className="w-full md:w-auto relative group overflow-hidden px-10 py-4 rounded-xl bg-gradient-to-r from-cyan-600 to-blue-600 text-white font-bold text-base transition-all hover:scale-[1.02] active:scale-[0.98] shadow-[0_20px_40px_-15px_rgba(6,182,212,0.3)] border border-white/10"
+                        className={`
+                            w-full md:w-auto px-10 h-14 
+                            text-lg font-bold rounded-full 
+                            bg-gradient-to-r ${buttonGradient} ${buttonHover} 
+                            text-white shadow-xl shadow-cyan-500/20
+                            transition-all hover:scale-105 active:scale-95 
+                            flex items-center justify-center gap-3
+                            border border-white/10
+                        `}
                     >
-                        {/* Brillo interno al hacer hover */}
-                        <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity" />
-                        <span className="relative flex items-center justify-center gap-3 uppercase tracking-wider">
-                            <CalendarCheck size={18} /> Agendar Auditoría Gratis
-                        </span>
+                        <CalendarCheck size={22} /> 
+                        Agendar Prueba Gratuita
                     </button>
+                    {/* ----------------------------------------- */}
                     
                     <div className="mt-12 flex flex-wrap justify-center items-center gap-x-8 gap-y-4 opacity-30">
                         <div className="flex items-center gap-2 text-[10px] text-slate-400 font-bold uppercase tracking-widest">
@@ -413,7 +421,6 @@ export default function HomePageContent() {
             {/* Resplandor ambiental externo muy suave */}
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full bg-blue-500/[0.03] blur-[150px] pointer-events-none -z-10" />
         </motion.section>
-
         {/* --- FAQs Wrapper --- */}
         <section id="faqs" className="relative scroll-mt-32 mt-0 md:mt-20 content-visibility-auto">
              <LandingFAQ industry="dental" /> 
