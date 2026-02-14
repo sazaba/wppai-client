@@ -3,11 +3,10 @@
 import React, { useEffect, useState, useMemo, useRef } from 'react'
 import { 
   Search, Calendar, Phone, Loader2, Database, 
-  ChevronDown, Download, ChevronLeft, ChevronRight, 
+  ChevronDown, ChevronLeft, ChevronRight, 
   Mail, Trash2, CheckCircle2, Clock, XCircle, RefreshCw, Check
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
-import * as XLSX from 'xlsx' 
 import Swal from 'sweetalert2' 
 import axios from 'axios'
 import clsx from 'clsx'
@@ -101,7 +100,7 @@ const StatusSelect = ({ value, onChange, className }: { value: string, onChange:
 }
 
 // ============================================================================
-// PÁGINA PRINCIPAL OPTIMIZADA (FORZADA FULLSCREEN)
+// PÁGINA PRINCIPAL OPTIMIZADA
 // ============================================================================
 
 export default function DemosPage() {
@@ -191,22 +190,6 @@ export default function DemosPage() {
     }
   }
 
-  const handleExportExcel = () => {
-    if (filtered.length === 0) return
-    const dataToExport = filtered.map(c => ({
-      ID: c.id,
-      Nombre: c.name,
-      Email: c.email,
-      Teléfono: c.phone,
-      'Fecha Cita': format(new Date(c.scheduledAt), "dd/MM/yyyy HH:mm"),
-      Estado: STATUS_STYLES[c.status]?.label || c.status
-    }))
-    const ws = XLSX.utils.json_to_sheet(dataToExport)
-    const wb = XLSX.utils.book_new()
-    XLSX.utils.book_append_sheet(wb, ws, "Leads")
-    XLSX.writeFile(wb, `Leads_Wasaaa_${new Date().toISOString().split('T')[0]}.xlsx`)
-  }
-
   return (
     // ESTRATEGIA NUCLEAR: fixed inset-0 z-50 para cubrir cualquier padding del layout padre
     <div className="fixed inset-0 z-50 h-[100dvh] w-full bg-zinc-950 text-white overflow-hidden flex flex-col font-sans">
@@ -217,7 +200,7 @@ export default function DemosPage() {
          <div className="absolute bottom-[-10%] left-[-5%] w-[250px] md:w-[400px] h-[250px] md:h-[400px] bg-purple-600/5 rounded-full blur-[60px] md:blur-[100px]" />
       </div>
 
-      {/* Contenedor SCROLLABLE con padding interno (igual que ClientsPage) */}
+      {/* Contenedor SCROLLABLE con padding interno */}
       <div className="flex-1 w-full overflow-y-auto overflow-x-hidden relative z-10 p-4 md:p-8 whatsapp-scroll">
         <div className="max-w-7xl mx-auto space-y-6 flex flex-col min-h-full pb-20">
         
@@ -229,8 +212,9 @@ export default function DemosPage() {
                 Gestión de Leads
               </h1>
               
-              {/* TABS */}
-              <div className="flex items-center gap-2 md:gap-6 mt-4 overflow-x-auto pb-1 w-full no-scrollbar mask-gradient-right">
+              {/* TABS CON SCROLL Oculto */}
+              {/* Agregado: [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] */}
+              <div className="flex items-center gap-2 md:gap-6 mt-4 overflow-x-auto pb-1 w-full mask-gradient-right [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
                 {[
                   { id: 'all', label: 'Todos', icon: null },
                   { id: 'pending', label: 'Pendientes', icon: Clock },
@@ -272,18 +256,9 @@ export default function DemosPage() {
               <div className="flex gap-2">
                   <button 
                     onClick={fetchData}
-                    className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl border border-white/10 bg-zinc-900/50 text-zinc-400 hover:text-white hover:bg-white/5 transition-all flex-1 sm:flex-none"
+                    className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl border border-white/10 bg-zinc-900/50 text-zinc-400 hover:text-white hover:bg-white/5 transition-all flex-1 sm:flex-none h-full"
                   >
                     <RefreshCw className={clsx("w-4 h-4", loading && "animate-spin")} />
-                  </button>
-
-                  <button 
-                    onClick={handleExportExcel}
-                    disabled={filtered.length === 0}
-                    className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl border border-emerald-500/20 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 transition-all text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed flex-1 sm:flex-none"
-                  >
-                    <Download className="w-4 h-4" />
-                    <span className="inline">Excel</span>
                   </button>
               </div>
             </div>
