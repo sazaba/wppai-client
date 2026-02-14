@@ -2,9 +2,9 @@
 
 import React, { useEffect, useState, useMemo, useRef } from 'react'
 import { 
-  Search, User, Calendar, Phone, Loader2, Database, 
-  Filter, X, ChevronDown, Download, ChevronLeft, ChevronRight, 
-  Mail, Trash2, CheckCircle2, Clock, XCircle, RefreshCw, MoreHorizontal, Check
+  Search, Calendar, Phone, Loader2, Database, 
+  ChevronDown, Download, ChevronLeft, ChevronRight, 
+  Mail, Trash2, CheckCircle2, Clock, XCircle, RefreshCw, Check
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import * as XLSX from 'xlsx' 
@@ -14,7 +14,7 @@ import clsx from 'clsx'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 
-// --- INTERFAZ DE DATOS ---
+// --- INTERFAZ ---
 interface DemoBooking {
   id: number
   name: string
@@ -25,7 +25,7 @@ interface DemoBooking {
   createdAt?: string
 }
 
-// Configuración de estilos por estado
+// Configuración de estilos
 const STATUS_STYLES: Record<string, { label: string, color: string, icon: any }> = {
   pending: { label: 'Pendiente', color: 'text-amber-400 bg-amber-500/10 border-amber-500/20', icon: Clock },
   contacted: { label: 'Contactado', color: 'text-blue-400 bg-blue-500/10 border-blue-500/20', icon: CheckCircle2 },
@@ -34,7 +34,7 @@ const STATUS_STYLES: Record<string, { label: string, color: string, icon: any }>
 
 const ITEMS_PER_PAGE = 9 
 
-// --- COMPONENTE INTERNO: SELECTOR PERSONALIZADO ---
+// --- COMPONENTE SELECTOR MEJORADO (Z-Index Fix) ---
 const StatusSelect = ({ value, onChange, className }: { value: string, onChange: (val: string) => void, className?: string }) => {
     const [isOpen, setIsOpen] = useState(false)
     const ref = useRef<HTMLDivElement>(null)
@@ -71,8 +71,11 @@ const StatusSelect = ({ value, onChange, className }: { value: string, onChange:
         <AnimatePresence>
             {isOpen && (
             <motion.div 
-                initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 5 }} exit={{ opacity: 0, y: -5 }}
-                className="absolute left-0 z-50 w-40 p-1.5 bg-[#09090b] border border-white/10 rounded-xl shadow-2xl backdrop-blur-xl"
+                initial={{ opacity: 0, y: -5, scale: 0.95 }} 
+                animate={{ opacity: 1, y: 5, scale: 1 }} 
+                exit={{ opacity: 0, y: -5, scale: 0.95 }}
+                transition={{ duration: 0.1 }}
+                className="absolute left-0 z-[100] w-full min-w-[150px] p-1.5 bg-[#09090b] border border-white/10 rounded-xl shadow-2xl backdrop-blur-xl"
             >
                 <div className="flex flex-col gap-1">
                 {Object.entries(STATUS_STYLES).map(([key, style]) => (
@@ -98,19 +101,19 @@ const StatusSelect = ({ value, onChange, className }: { value: string, onChange:
 }
 
 // ============================================================================
-// COMPONENTE PRINCIPAL (PÁGINA)
+// PÁGINA PRINCIPAL (Responsive Corregido)
 // ============================================================================
 
 export default function DemosPage() {
   const [data, setData] = useState<DemoBooking[]>([])
   const [loading, setLoading] = useState(true)
   
-  // Filtros y Estados
+  // Filtros
   const [search, setSearch] = useState('')
-  const [viewTab, setViewTab] = useState('all') // 'all', 'pending', 'contacted', 'closed'
+  const [viewTab, setViewTab] = useState('all')
   const [currentPage, setCurrentPage] = useState(1)
 
-  // --- CARGA DE DATOS ---
+  // Carga de datos
   const fetchData = async () => {
     try {
       const res = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/demo-booking`)
@@ -124,13 +127,11 @@ export default function DemosPage() {
 
   useEffect(() => { fetchData() }, [])
 
-  // --- LÓGICA DE FILTRADO ---
+  // Filtrado
   const filtered = useMemo(() => {
     return data.filter(item => {
-      // 1. Filtro por Pestaña (Status)
       if (viewTab !== 'all' && item.status !== viewTab) return false
-
-      // 2. Filtro por Texto
+      
       const text = search.toLowerCase()
       const matchesSearch = 
         item.name.toLowerCase().includes(text) || 
@@ -138,25 +139,21 @@ export default function DemosPage() {
         item.phone.includes(text)
 
       if (!matchesSearch) return false
-
       return true
     })
   }, [data, search, viewTab])
 
-  // Reset de página al filtrar
   useEffect(() => { setCurrentPage(1) }, [filtered.length, viewTab])
 
-  // Paginación
   const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE)
   const paginatedData = useMemo(() => {
     const start = (currentPage - 1) * ITEMS_PER_PAGE
     return filtered.slice(start, start + ITEMS_PER_PAGE)
   }, [filtered, currentPage])
 
-  // --- ACTIONS ---
+  // --- HANDLERS ---
 
   const handleStatusChange = async (id: number, newStatus: string) => {
-    // Optimistic Update
     const originalData = [...data]
     setData(prev => prev.map(d => d.id === id ? { ...d, status: newStatus } : d))
 
@@ -168,7 +165,7 @@ export default function DemosPage() {
         })
         Toast.fire({ icon: 'success', title: 'Estado actualizado' })
     } catch (error) {
-        setData(originalData) // Revertir
+        setData(originalData)
         console.error(error)
         Swal.fire({ title: 'Error', text: 'No se pudo actualizar', icon: 'error', background: '#09090b', color: '#fff' })
     }
@@ -177,7 +174,7 @@ export default function DemosPage() {
   const handleDelete = async (id: number) => {
     const result = await Swal.fire({
         title: '¿Eliminar lead?',
-        text: "Se borrará permanentemente de la base de datos.",
+        text: "Se borrará permanentemente.",
         icon: 'warning',
         showCancelButton: true,
         confirmButtonColor: '#ef4444',
@@ -205,8 +202,7 @@ export default function DemosPage() {
       Email: c.email,
       Teléfono: c.phone,
       'Fecha Cita': format(new Date(c.scheduledAt), "dd/MM/yyyy HH:mm"),
-      Estado: STATUS_STYLES[c.status]?.label || c.status,
-      'Fecha Registro': c.createdAt ? format(new Date(c.createdAt), "dd/MM/yyyy") : '-'
+      Estado: STATUS_STYLES[c.status]?.label || c.status
     }))
     const ws = XLSX.utils.json_to_sheet(dataToExport)
     const wb = XLSX.utils.book_new()
@@ -214,11 +210,11 @@ export default function DemosPage() {
     XLSX.writeFile(wb, `Leads_Wasaaa_${new Date().toISOString().split('T')[0]}.xlsx`)
   }
 
-  // --- RENDER ---
   return (
+    // ESTRUCTURA PRINCIPAL IGUAL AL DE CLIENTES (h-full + overflow-y-auto)
     <div className="h-full w-full bg-zinc-950 text-white p-4 md:p-8 relative overflow-y-auto whatsapp-scroll flex flex-col">
       
-      {/* Fondo ambiental */}
+      {/* Fondo fijo (fixed) para que no se mueva ni se corte en móvil */}
       <div className="fixed top-0 left-0 w-full h-full overflow-hidden pointer-events-none z-0">
          <div className="absolute top-[-10%] right-[-5%] w-[500px] h-[500px] bg-indigo-600/5 rounded-full blur-[120px]" />
          <div className="absolute bottom-[-10%] left-[-5%] w-[400px] h-[400px] bg-purple-600/5 rounded-full blur-[100px]" />
@@ -226,7 +222,7 @@ export default function DemosPage() {
 
       <div className="relative z-10 max-w-7xl mx-auto space-y-6 w-full flex-1 flex flex-col">
         
-        {/* HEADER SUPERIOR */}
+        {/* HEADER */}
         <div className="flex flex-col xl:flex-row justify-between items-start xl:items-end gap-4 border-b border-white/5 pb-6">
           <div>
             <h1 className="text-3xl font-bold text-white tracking-tight flex items-center gap-3">
@@ -234,8 +230,8 @@ export default function DemosPage() {
               Gestión de Leads
             </h1>
             
-            {/* TABS DE ESTADO (Filtros rápidos) */}
-            <div className="flex items-center gap-6 mt-4 overflow-x-auto scrollbar-hide w-full">
+            {/* TABS (Scroll horizontal oculto para móvil) */}
+            <div className="flex items-center gap-6 mt-4 overflow-x-auto scrollbar-hide w-full pb-1">
                 <button onClick={() => setViewTab('all')} className={`text-sm font-medium pb-1 border-b-2 transition-all whitespace-nowrap ${viewTab === 'all' ? 'text-white border-indigo-500' : 'text-zinc-500 border-transparent hover:text-zinc-300'}`}>
                     Todos
                 </button>
@@ -252,7 +248,6 @@ export default function DemosPage() {
           </div>
           
           <div className="flex flex-col sm:flex-row gap-3 w-full xl:w-auto">
-            {/* Buscador */}
             <div className="relative w-full sm:w-64 group">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 group-focus-within:text-indigo-500 transition-colors w-4 h-4" />
               <input 
@@ -268,7 +263,6 @@ export default function DemosPage() {
                 <button 
                     onClick={fetchData}
                     className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl border border-white/10 bg-zinc-900/50 text-zinc-400 hover:text-white hover:bg-white/5 transition-all"
-                    title="Recargar datos"
                 >
                     <RefreshCw className={clsx("w-4 h-4", loading && "animate-spin")} />
                 </button>
@@ -294,17 +288,12 @@ export default function DemosPage() {
         ) : filtered.length === 0 ? (
            <div className="flex-1 flex flex-col items-center justify-center py-20 text-center border border-dashed border-white/5 rounded-3xl bg-white/5">
               <div className="p-4 rounded-full bg-zinc-800/50 mb-4">
-                <User className="w-8 h-8 text-zinc-600" />
+                <Search className="w-8 h-8 text-zinc-600" />
               </div>
               <h3 className="text-lg font-medium text-white">No se encontraron leads</h3>
               <p className="text-zinc-500 text-sm mt-1 max-w-xs mx-auto">
                  Intenta ajustar los filtros de búsqueda.
               </p>
-              {search && (
-                <button onClick={() => setSearch('')} className="mt-4 text-indigo-400 text-sm hover:underline">
-                  Borrar búsqueda
-                </button>
-              )}
            </div>
         ) : (
           <div className="flex-1 flex flex-col">
@@ -314,11 +303,12 @@ export default function DemosPage() {
                     <motion.div 
                         layout
                         key={demo.id}
-                        initial={{ opacity: 0, scale: 0.9 }}
+                        initial={{ opacity: 0, scale: 0.95 }}
                         animate={{ opacity: 1, scale: 1 }}
-                        exit={{ opacity: 0, scale: 0.9 }}
+                        exit={{ opacity: 0, scale: 0.95 }}
                         transition={{ delay: i * 0.05, duration: 0.2 }}
-                        className="group relative backdrop-blur-md border rounded-2xl p-5 transition-all duration-300 bg-zinc-900/40 border-white/5 hover:bg-zinc-800/60 hover:border-indigo-500/20 hover:shadow-2xl hover:shadow-indigo-900/10"
+                        // overflow-visible es CLAVE para que el dropdown no se corte
+                        className="group relative backdrop-blur-md border rounded-2xl p-5 transition-all duration-300 bg-zinc-900/40 border-white/5 hover:bg-zinc-800/60 hover:border-indigo-500/20 hover:shadow-2xl overflow-visible"
                     >
                         {/* Indicador lateral de estado */}
                         <div className={clsx("absolute left-0 top-4 bottom-4 w-1 rounded-r-full opacity-50", STATUS_STYLES[demo.status]?.color.split(' ')[0].replace('text-', 'bg-'))} />
@@ -339,11 +329,9 @@ export default function DemosPage() {
                                 </div>
                             </div>
 
-                            {/* Botón Borrar */}
                             <button
                                 onClick={() => handleDelete(demo.id)}
                                 className="p-2 rounded-lg bg-zinc-800 text-zinc-500 hover:text-red-400 hover:bg-red-500/10 transition-colors opacity-0 group-hover:opacity-100"
-                                title="Eliminar"
                             >
                                 <Trash2 className="w-4 h-4" />
                             </button>
@@ -384,8 +372,7 @@ export default function DemosPage() {
                                     onChange={(val) => handleStatusChange(demo.id, val)}
                                 />
                             </div>
-                            {/* Botón Llamar en Móvil y Desktop */}
-                            <a href={`tel:${demo.phone}`} className="p-2.5 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20 transition-all" title="Llamar">
+                            <a href={`tel:${demo.phone}`} className="p-2.5 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20 transition-all">
                                 <Phone className="w-4 h-4" />
                             </a>
                         </div>
@@ -400,7 +387,7 @@ export default function DemosPage() {
         {filtered.length > 0 && (
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4 py-4 border-t border-white/5 mt-auto">
                 <span className="text-xs text-zinc-500">
-                    Mostrando <span className="text-white font-medium">{paginatedData.length}</span> de <span className="text-white font-medium">{filtered.length}</span> leads
+                    Mostrando <span className="text-white font-medium">{paginatedData.length}</span> de <span className="text-white font-medium">{filtered.length}</span>
                 </span>
                 
                 <div className="flex items-center gap-2">
