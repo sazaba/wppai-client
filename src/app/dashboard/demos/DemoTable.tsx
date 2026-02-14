@@ -5,7 +5,7 @@ import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { 
   Search, Trash2, Calendar, Mail, Phone, Filter, 
-  CheckCircle2, Clock, XCircle, UserPlus, MoreHorizontal, User 
+  CheckCircle2, Clock, XCircle, UserPlus, ChevronDown 
 } from 'lucide-react'
 import Swal from 'sweetalert2'
 import axios from 'axios'
@@ -30,17 +30,17 @@ interface DemoTableProps {
 const STATUS_STYLES: Record<string, { label: string, color: string, icon: any }> = {
   pending: { 
     label: 'Pendiente', 
-    color: 'text-amber-400 bg-amber-500/10 border-amber-500/20', 
+    color: 'text-amber-400 bg-amber-500/10 border-amber-500/20 hover:bg-amber-500/20 focus:ring-amber-500/40', 
     icon: Clock 
   },
   contacted: { 
     label: 'Contactado', 
-    color: 'text-blue-400 bg-blue-500/10 border-blue-500/20', 
+    color: 'text-blue-400 bg-blue-500/10 border-blue-500/20 hover:bg-blue-500/20 focus:ring-blue-500/40', 
     icon: CheckCircle2 
   },
   closed: { 
     label: 'Cerrado', 
-    color: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20', 
+    color: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20 hover:bg-emerald-500/20 focus:ring-emerald-500/40', 
     icon: XCircle 
   }
 }
@@ -124,28 +124,16 @@ export default function DemoTable({ initialData }: DemoTableProps) {
     }
   }
 
-  // Helper para renderizar estado
-  const renderStatus = (status: string) => {
-    const style = STATUS_STYLES[status] || STATUS_STYLES.pending
-    const Icon = style.icon
-    return (
-        <span className={clsx("flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide border", style.color)}>
-            <Icon className="w-3 h-3" />
-            {style.label}
-        </span>
-    )
-  }
-
   return (
     <div className="relative">
       
-      {/* Luces ambientales (Estilo SuperAdmin) */}
+      {/* Luces ambientales */}
       <div className="absolute top-[-10%] left-[-5%] w-[300px] h-[300px] bg-indigo-600/10 rounded-full blur-[100px] pointer-events-none" />
       <div className="absolute bottom-[-10%] right-[-5%] w-[300px] h-[300px] bg-purple-600/10 rounded-full blur-[100px] pointer-events-none" />
 
       <div className="space-y-6 relative z-10">
       
-        {/* --- HEADER & FILTROS (Sticky Glass) --- */}
+        {/* --- HEADER & FILTROS --- */}
         <div className="flex flex-col sm:flex-row gap-4 justify-between items-center bg-zinc-900/60 p-2 rounded-2xl border border-white/5 backdrop-blur-xl sticky top-2 z-20 shadow-2xl">
           
           {/* Buscador */}
@@ -162,13 +150,13 @@ export default function DemoTable({ initialData }: DemoTableProps) {
             />
           </div>
 
-          {/* Filtro Estado */}
-          <div className="flex items-center gap-2 w-full sm:w-auto bg-zinc-950/50 rounded-xl border border-white/5 p-1 pr-3">
-            <div className="p-2 bg-zinc-800/50 rounded-lg text-zinc-400">
-                <Filter className="w-4 h-4" />
+          {/* Filtro Estado (PREMIUM DROPDOWN) */}
+          <div className="relative w-full sm:w-auto">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <Filter className="h-4 w-4 text-zinc-400" />
             </div>
             <select 
-              className="bg-transparent border-none text-sm text-zinc-300 focus:outline-none w-full sm:w-auto cursor-pointer"
+              className="appearance-none bg-zinc-800/50 border border-white/5 text-zinc-300 text-sm rounded-xl pl-10 pr-10 py-2.5 w-full sm:w-48 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:bg-zinc-800 transition-all cursor-pointer hover:bg-zinc-800"
               value={filterStatus}
               onChange={e => setFilterStatus(e.target.value)}
             >
@@ -179,10 +167,13 @@ export default function DemoTable({ initialData }: DemoTableProps) {
                   </option>
               ))}
             </select>
+            <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+              <ChevronDown className="h-4 w-4 text-zinc-500" />
+            </div>
           </div>
         </div>
 
-        {/* --- VISTA MÓVIL (CARDS PREMIUM) --- */}
+        {/* --- VISTA MÓVIL (CARDS) --- */}
         <div className="grid grid-cols-1 gap-4 md:hidden">
           {filteredDemos.map((demo) => (
             <div key={demo.id} className="bg-zinc-900/60 backdrop-blur-md border border-white/5 rounded-2xl p-5 shadow-lg relative overflow-hidden group">
@@ -201,15 +192,12 @@ export default function DemoTable({ initialData }: DemoTableProps) {
                   </div>
                 </div>
                 
-                {/* Menú de acciones móvil */}
-                <div className="flex gap-2">
-                    <button 
-                        onClick={() => handleDelete(demo.id)} 
-                        className="p-2 rounded-lg bg-zinc-800/50 text-zinc-500 hover:text-red-400 hover:bg-red-500/10 transition-colors border border-white/5"
-                    >
-                        <Trash2 className="w-4 h-4" />
-                    </button>
-                </div>
+                <button 
+                    onClick={() => handleDelete(demo.id)} 
+                    className="p-2 rounded-lg bg-zinc-800/50 text-zinc-500 hover:text-red-400 hover:bg-red-500/10 transition-colors border border-white/5"
+                >
+                    <Trash2 className="w-4 h-4" />
+                </button>
               </div>
 
               {/* Info Grid */}
@@ -238,13 +226,14 @@ export default function DemoTable({ initialData }: DemoTableProps) {
 
               {/* Footer Actions */}
               <div className="flex items-center justify-between pt-4 border-t border-white/5 pl-3">
-                  {/* Selector Estado Nativo Estilizado */}
-                  <div className="relative">
+                  
+                  {/* Selector Estado (Móvil) */}
+                  <div className="relative group">
                       <select 
                           value={demo.status}
                           onChange={(e) => handleStatusChange(demo.id, e.target.value)}
                           className={clsx(
-                              "appearance-none pl-3 pr-8 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wide border bg-zinc-950 focus:outline-none cursor-pointer",
+                              "appearance-none pl-3 pr-8 py-2 rounded-full text-xs font-bold uppercase tracking-wide border bg-transparent focus:outline-none cursor-pointer transition-all hover:shadow-md focus:ring-2",
                               STATUS_STYLES[demo.status]?.color
                           )}
                       >
@@ -254,14 +243,14 @@ export default function DemoTable({ initialData }: DemoTableProps) {
                               </option>
                           ))}
                       </select>
-                      <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none opacity-50">
-                          <MoreHorizontal className="w-3 h-3" />
+                      <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none opacity-50">
+                          <ChevronDown className="w-3 h-3" />
                       </div>
                   </div>
                   
                   <a 
                     href={`tel:${demo.phone}`} 
-                    className="flex items-center gap-2 px-4 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs font-bold uppercase tracking-wider hover:bg-emerald-500/20 transition-all"
+                    className="flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs font-bold uppercase tracking-wider hover:bg-emerald-500/20 transition-all hover:shadow-lg hover:shadow-emerald-900/20"
                   >
                       <UserPlus className="w-3 h-3" /> Llamar
                   </a>
@@ -326,7 +315,7 @@ export default function DemoTable({ initialData }: DemoTableProps) {
                         {/* Cita */}
                         <td className="p-6">
                             <div className="flex items-center gap-3">
-                                <div className="p-2 bg-zinc-800 rounded-lg text-zinc-400 border border-white/5">
+                                <div className="p-2 bg-zinc-800/50 rounded-lg text-zinc-400 border border-white/5">
                                     <Calendar className="w-4 h-4" />
                                 </div>
                                 <div>
@@ -340,14 +329,14 @@ export default function DemoTable({ initialData }: DemoTableProps) {
                             </div>
                         </td>
 
-                        {/* Estado (Selector) */}
+                        {/* Estado (Selector Premium Desktop) */}
                         <td className="p-6">
-                            <div className="relative w-fit">
+                            <div className="relative w-fit group">
                                 <select 
                                     value={demo.status}
                                     onChange={(e) => handleStatusChange(demo.id, e.target.value)}
                                     className={clsx(
-                                        "appearance-none pl-3 pr-8 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wide border cursor-pointer focus:outline-none hover:brightness-110 transition-all bg-transparent",
+                                        "appearance-none pl-4 pr-9 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wide border cursor-pointer focus:outline-none hover:shadow-lg transition-all bg-transparent",
                                         STATUS_STYLES[demo.status]?.color
                                     )}
                                 >
@@ -357,9 +346,10 @@ export default function DemoTable({ initialData }: DemoTableProps) {
                                         </option>
                                     ))}
                                 </select>
-                                <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none opacity-50">
+                                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none opacity-50">
                                     {(() => {
                                         const Icon = STATUS_STYLES[demo.status]?.icon || Clock
+                                        // Usamos el color pero sin el fondo para el icono
                                         return <Icon className={clsx("w-3 h-3", STATUS_STYLES[demo.status]?.color.split(' ')[0])} />
                                     })()}
                                 </div>
