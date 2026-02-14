@@ -54,7 +54,6 @@ const StatusSelect = ({ value, onChange, className }: { value: string, onChange:
       <div className="relative w-full sm:w-auto" ref={ref}>
         <button 
           onClick={(e) => { e.stopPropagation(); setIsOpen(!isOpen) }}
-          // Ajuste: w-full en móvil, min-w controlado
           className={clsx(
             "flex items-center justify-between gap-2 px-3 py-2 rounded-xl text-xs font-bold uppercase tracking-wide border transition-all duration-200 outline-none w-full sm:min-w-[140px]",
             currentStyle.color,
@@ -76,7 +75,7 @@ const StatusSelect = ({ value, onChange, className }: { value: string, onChange:
                 animate={{ opacity: 1, y: 5, scale: 1 }} 
                 exit={{ opacity: 0, y: -5, scale: 0.95 }}
                 transition={{ duration: 0.1 }}
-                className="absolute left-0 right-0 sm:right-auto z-[50] mt-1 p-1.5 bg-[#09090b] border border-white/10 rounded-xl shadow-2xl backdrop-blur-xl"
+                className="absolute left-0 right-0 sm:right-auto z-[100] mt-1 p-1.5 bg-[#09090b] border border-white/10 rounded-xl shadow-2xl backdrop-blur-xl"
             >
                 <div className="flex flex-col gap-1">
                 {Object.entries(STATUS_STYLES).map(([key, style]) => (
@@ -102,7 +101,7 @@ const StatusSelect = ({ value, onChange, className }: { value: string, onChange:
 }
 
 // ============================================================================
-// PÁGINA PRINCIPAL OPTIMIZADA
+// PÁGINA PRINCIPAL OPTIMIZADA (FORZADA FULLSCREEN)
 // ============================================================================
 
 export default function DemosPage() {
@@ -209,18 +208,18 @@ export default function DemosPage() {
   }
 
   return (
-    // FIX 1: h-[100dvh] para móviles y overflow-hidden global para evitar scroll horizontal
-    <div className="h-[100dvh] w-full bg-zinc-950 text-white relative overflow-hidden flex flex-col">
+    // ESTRATEGIA NUCLEAR: fixed inset-0 z-50 para cubrir cualquier padding del layout padre
+    <div className="fixed inset-0 z-50 h-[100dvh] w-full bg-zinc-950 text-white overflow-hidden flex flex-col font-sans">
       
-      {/* FIX 2: Fondo fijo absolute z-0 */}
+      {/* Fondo ambiental */}
       <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden">
          <div className="absolute top-[-10%] right-[-5%] w-[300px] md:w-[500px] h-[300px] md:h-[500px] bg-indigo-600/5 rounded-full blur-[80px] md:blur-[120px]" />
          <div className="absolute bottom-[-10%] left-[-5%] w-[250px] md:w-[400px] h-[250px] md:h-[400px] bg-purple-600/5 rounded-full blur-[60px] md:blur-[100px]" />
       </div>
 
-      {/* Contenedor con scroll vertical propio */}
-      <div className="flex-1 w-full overflow-y-auto overflow-x-hidden relative z-10 px-4 md:px-8 py-4 md:py-8 whatsapp-scroll">
-        <div className="max-w-7xl mx-auto space-y-6 flex flex-col min-h-full">
+      {/* Contenedor SCROLLABLE con padding interno (igual que ClientsPage) */}
+      <div className="flex-1 w-full overflow-y-auto overflow-x-hidden relative z-10 p-4 md:p-8 whatsapp-scroll">
+        <div className="max-w-7xl mx-auto space-y-6 flex flex-col min-h-full pb-20">
         
           {/* HEADER */}
           <div className="flex flex-col xl:flex-row justify-between items-start xl:items-end gap-5 border-b border-white/5 pb-6">
@@ -230,7 +229,7 @@ export default function DemosPage() {
                 Gestión de Leads
               </h1>
               
-              {/* TABS CON SCROLL SUAVE Y OCULTO */}
+              {/* TABS */}
               <div className="flex items-center gap-2 md:gap-6 mt-4 overflow-x-auto pb-1 w-full no-scrollbar mask-gradient-right">
                 {[
                   { id: 'all', label: 'Todos', icon: null },
@@ -308,7 +307,7 @@ export default function DemosPage() {
              </div>
           ) : (
             <div className="flex-1">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-5 content-start pb-20">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-5 content-start">
                 <AnimatePresence mode='popLayout'>
                 {paginatedData.map((demo, i) => (
                     <motion.div 
@@ -318,7 +317,6 @@ export default function DemosPage() {
                         animate={{ opacity: 1, scale: 1 }}
                         exit={{ opacity: 0, scale: 0.95 }}
                         transition={{ delay: i * 0.05, duration: 0.2 }}
-                        // overflow-visible para que el dropdown no se corte
                         className="group relative backdrop-blur-md border rounded-2xl p-5 transition-all duration-300 bg-zinc-900/40 border-white/5 hover:bg-zinc-800/60 hover:border-indigo-500/20 hover:shadow-2xl overflow-visible flex flex-col"
                     >
                         {/* Indicador lateral */}
