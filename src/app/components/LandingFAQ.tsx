@@ -16,7 +16,6 @@ const faqs = [
   },
   {
     question: "¿Es difícil de configurar para mi clínica?",
-    // CORRECCIÓN: Texto actualizado (Base de datos en vez de PDF)
     answer: "No. Es muy sencillo. Solo necesitas ingresar tu información básica (servicios, precios y doctores) en nuestra base de datos. La IA se entrena automáticamente con esa estructura en minutos.",
   },
   {
@@ -66,7 +65,8 @@ export default function LandingFAQ({ industry = 'aesthetic' }: LandingFAQProps) 
     : 'hover:border-rose-500/30 data-[state=open]:border-rose-500/20';
 
   return (
-    <section className="py-24 relative z-10" id="faqs">
+    // AJUSTE AQUÍ: py-12 para móvil, py-24 para desktop
+    <section className="py-12 md:py-24 relative z-10" id="faqs">
       <div className="max-w-3xl mx-auto px-6">
         
         {/* Header */}

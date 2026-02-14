@@ -137,9 +137,9 @@ export default function HomePageContent() {
                 <div className="order-2 lg:order-1 relative flex justify-center min-h-[450px] md:min-h-[650px] items-center">
                     <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,var(--tw-gradient-stops))] from-cyan-500/20 via-transparent to-transparent opacity-40 blur-3xl" />
                     <div className="relative w-full max-w-[350px] md:max-w-none transform scale-100 lg:scale-110">
-                         <div className="drop-shadow-[0_0_30px_rgba(6,182,212,0.15)]">
+                          <div className="drop-shadow-[0_0_30px_rgba(6,182,212,0.15)]">
                              <AestheticChatAnimation />
-                         </div>
+                          </div>
                     </div>
                 </div>
                 <div className="order-1 lg:order-2 flex flex-col items-center text-center lg:items-center lg:text-center px-2">
@@ -336,10 +336,10 @@ export default function HomePageContent() {
           </motion.div>
         </section>
 
-        {/* --- CTA FINAL --- */}
+        {/* --- CTA FINAL (Ajustado pb-12 para móvil) --- */}
         <motion.section 
           initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.3 }} variants={fadeInUp}
-          className="relative pb-24 group content-visibility-auto contain-paint px-2"
+          className="relative pb-12 md:pb-24 group content-visibility-auto contain-paint px-2"
         >
             <div className="relative z-10 max-w-4xl mx-auto rounded-[2.5rem] overflow-hidden border border-white/10 shadow-2xl">
                 <div className="absolute inset-0 bg-gradient-to-br from-[#0a0a0a] via-[#111] to-[#0a0a0a] z-0" />
@@ -347,9 +347,9 @@ export default function HomePageContent() {
                 <div className="absolute inset-0 bg-[url('/grid-pattern.svg')] opacity-[0.05] z-0" style={{ backgroundSize: '40px 40px' }}></div>
                 
                 <div className="relative z-10 p-8 md:p-14 text-center flex flex-col items-center">
-                     <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center text-white mb-6 shadow-lg shadow-cyan-500/30">
-                        <TrendingUp size={32} />
-                     </div>
+                      <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center text-white mb-6 shadow-lg shadow-cyan-500/30">
+                         <TrendingUp size={32} />
+                      </div>
 
                     <h2 className="text-3xl md:text-5xl font-black text-white mb-4 tracking-tight">
                         Tu competencia ya está <br className="hidden md:block" />
@@ -372,7 +372,8 @@ export default function HomePageContent() {
             </div>
         </motion.section>
 
-        <section id="faqs" className="relative scroll-mt-32 mt-20 content-visibility-auto">
+        {/* --- FAQs Wrapper (Ajustado mt-0 para móvil) --- */}
+        <section id="faqs" className="relative scroll-mt-32 mt-0 md:mt-20 content-visibility-auto">
              <LandingFAQ industry="dental" /> 
         </section>
 
