@@ -4,8 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   Sparkles, CheckCircle2, Users, Database, BrainCircuit, 
   CalendarCheck, Zap, ShieldCheck, Check, XCircle, X,
-  ArrowRight, TrendingUp, AlertTriangle,
-  MessageCircle
+  ArrowRight, TrendingUp, AlertTriangle
 } from 'lucide-react';
 import { motion, Variants, AnimatePresence } from 'framer-motion';
 import Image from 'next/image'; 
@@ -361,62 +360,58 @@ export default function HomePageContent() {
           </motion.div>
         </section>
 
-    {/* --- CTA FINAL REFACTORIZADO --- */}
+    {/* --- CTA FINAL REFACTORIZADO: MODO DARK & BORDE SUAVE --- */}
         <motion.section 
           initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.3 }} variants={fadeInUp}
-          className="relative pb-16 md:pb-32 group px-4 md:px-6"
+          className="relative pb-12 md:pb-32 px-2 md:px-6" // Reducido px-2 para que en móvil esté más pegado
         >
-            <div className="relative z-10 max-w-5xl mx-auto rounded-[2.5rem] overflow-hidden border border-white/10 shadow-2xl backdrop-blur-sm bg-gradient-to-b from-white/[0.03] to-transparent">
-                <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(6,182,212,0.12),transparent_60%)] z-0" />
-                <div className="absolute inset-0 bg-[url('/grid-pattern.svg')] opacity-[0.03] z-0" style={{ backgroundSize: '40px 40px' }}></div>
+            <div className="relative z-10 max-w-5xl mx-auto rounded-2xl md:rounded-[2.5rem] overflow-hidden border border-white/5 bg-[#080808]/40 backdrop-blur-sm shadow-2xl">
+                {/* Luces de fondo internas muy sutiles */}
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(6,182,212,0.08),transparent_60%)] z-0" />
+                <div className="absolute inset-0 bg-[url('/grid-pattern.svg')] opacity-[0.02] z-0" style={{ backgroundSize: '40px 40px' }}></div>
                 
-                <div className="relative z-10 p-10 md:p-20 text-center flex flex-col items-center">
-                    {/* Badge de confianza */}
-                    <div className="flex items-center gap-2 mb-8 px-4 py-1.5 rounded-full border border-cyan-500/20 bg-cyan-500/5 text-cyan-400 text-[10px] uppercase tracking-[0.2em] font-bold">
-                        <Sparkles size={12} className="animate-pulse" /> Únete a la Élite Tecnológica
+                <div className="relative z-10 p-8 md:p-20 text-center flex flex-col items-center">
+                    {/* Badge minimalista */}
+                    <div className="flex items-center gap-2 mb-6 md:mb-8 px-3 py-1 rounded-full border border-white/10 bg-white/5 text-slate-400 text-[9px] md:text-[10px] uppercase tracking-[0.3em] font-medium">
+                        <Sparkles size={10} className="text-cyan-500" /> Tecnología de Vanguardia
                     </div>
 
                     <h2 className="text-3xl md:text-6xl font-bold text-white mb-6 tracking-tight leading-[1.1]">
-                        Recupera tu tiempo. <br />
-                        <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-blue-400 to-indigo-400 italic">Lidera tu sector.</span>
+                        El futuro de tu clínica <br />
+                        <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">empieza ahora.</span>
                     </h2>
                     
-                    <p className="text-slate-400 max-w-xl mx-auto mb-10 text-base md:text-lg font-medium leading-relaxed">
-                        Transforma la operación de tu clínica en una máquina autónoma de agendamiento. Menos gestión manual, más pacientes satisfechos.
+                    <p className="text-slate-500 max-w-xl mx-auto mb-10 text-sm md:text-lg font-medium leading-relaxed">
+                        Deja atrás la gestión manual. Únete a los profesionales que ya están escalando sus resultados con inteligencia artificial.
                     </p>
 
-                    <div className="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto">
-                        <button 
-                            onClick={handleOpenBooking}
-                            className="w-full sm:w-auto relative group overflow-hidden px-8 py-4 rounded-2xl bg-gradient-to-r from-cyan-600 to-blue-600 text-white font-bold text-base transition-all hover:scale-[1.03] active:scale-[0.97] shadow-[0_20px_50px_-10px_rgba(6,182,212,0.3)]"
-                        >
-                            <div className="absolute inset-0 bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity" />
-                            <span className="relative flex items-center justify-center gap-3">
-                                <CalendarCheck size={18} /> Iniciar Auditoría Gratuita
-                            </span>
-                        </button>
-                        
-                        <button 
-                            onClick={() => window.open('https://wa.me/tu_numero', '_blank')}
-                            className="w-full sm:w-auto px-8 py-4 rounded-2xl border border-white/10 bg-white/5 text-slate-300 font-bold text-base hover:bg-white/10 transition-all flex items-center justify-center gap-2"
-                        >
-                            <MessageCircle size={18} /> Hablar con un experto
-                        </button>
-                    </div>
+                    <button 
+                        onClick={handleOpenBooking}
+                        className="w-full md:w-auto relative group overflow-hidden px-10 py-4 rounded-xl bg-gradient-to-r from-cyan-600 to-blue-600 text-white font-bold text-base transition-all hover:scale-[1.02] active:scale-[0.98] shadow-[0_20px_40px_-15px_rgba(6,182,212,0.3)] border border-white/10"
+                    >
+                        {/* Brillo interno al hacer hover */}
+                        <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity" />
+                        <span className="relative flex items-center justify-center gap-3 uppercase tracking-wider">
+                            <CalendarCheck size={18} /> Agendar Auditoría Gratis
+                        </span>
+                    </button>
                     
-                    <div className="mt-10 flex items-center gap-6 opacity-40 grayscale">
-                        <div className="flex items-center gap-2 text-[10px] text-slate-400 uppercase tracking-tighter">
-                            <ShieldCheck size={14} /> Encriptación grado médico
+                    <div className="mt-12 flex flex-wrap justify-center items-center gap-x-8 gap-y-4 opacity-30">
+                        <div className="flex items-center gap-2 text-[10px] text-slate-400 font-bold uppercase tracking-widest">
+                            <ShieldCheck size={14} className="text-cyan-500" /> Privacidad Total
                         </div>
-                        <div className="flex items-center gap-2 text-[10px] text-slate-400 uppercase tracking-tighter">
-                            <Zap size={14} /> Implementación en 24h
+                        <div className="flex items-center gap-2 text-[10px] text-slate-400 font-bold uppercase tracking-widest">
+                            <Zap size={14} className="text-cyan-500" /> Setup en 24h
+                        </div>
+                        <div className="flex items-center gap-2 text-[10px] text-slate-400 font-bold uppercase tracking-widest">
+                            <Check size={14} className="text-cyan-500" /> Sin Contratos
                         </div>
                     </div>
                 </div>
             </div>
             
-            {/* Glow de fondo para la sección */}
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[120%] h-full bg-cyan-500/10 blur-[120px] pointer-events-none -z-10" />
+            {/* Resplandor ambiental externo muy suave */}
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full bg-blue-500/[0.03] blur-[150px] pointer-events-none -z-10" />
         </motion.section>
 
         {/* --- FAQs Wrapper --- */}
