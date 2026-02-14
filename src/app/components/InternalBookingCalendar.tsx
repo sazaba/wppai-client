@@ -10,9 +10,14 @@ import Swal from 'sweetalert2';
 const getNextDays = (days: number) => {
   const dates = [];
   const today = new Date();
-  for (let i = 0; i < days; i++) {
+  
+  // CAMBIO AQUÍ: Empezamos en i = 1 (Mañana) en vez de i = 0 (Hoy)
+  // Así tienes al menos 24h para organizarte.
+  for (let i = 1; i <= days; i++) {
     const date = new Date(today);
     date.setDate(today.getDate() + i);
+    
+    // Opcional: Si quieres saltarte los domingos (día 0), mantén esto.
     if (date.getDay() !== 0) { 
         dates.push(date);
     }
@@ -168,7 +173,7 @@ export default function InternalBookingCalendar({ onComplete }: { onComplete?: (
     }
   };
 
-  // --- RENDERIZADO (VERSIÓN COMPACTA & SIN SCROLLBAR) ---
+  // --- RENDERIZADO COMPACTO ---
   const renderStep1 = () => (
     <motion.div 
       initial={{ opacity: 0, x: 20 }} 
@@ -179,7 +184,7 @@ export default function InternalBookingCalendar({ onComplete }: { onComplete?: (
       
       {/* COLUMNA IZQUIERDA: DÍAS */}
       <div className={clsx(
-        "flex-1 overflow-y-auto no-scrollbar transition-all", // Cambio: no-scrollbar
+        "flex-1 overflow-y-auto no-scrollbar transition-all",
         selectedDate ? "hidden md:block" : "block"
       )}>
         <h3 className="text-white text-sm font-bold mb-3 flex items-center gap-2 sticky top-0 bg-[#0F0F0F] py-2 z-10 border-b border-white/5 md:border-none">
@@ -248,7 +253,7 @@ export default function InternalBookingCalendar({ onComplete }: { onComplete?: (
             <p>Selecciona una fecha para ver horarios</p>
           </div>
         ) : (
-          <div className="flex-1 overflow-y-auto no-scrollbar pb-4"> {/* Cambio: no-scrollbar */}
+          <div className="flex-1 overflow-y-auto no-scrollbar pb-4">
             <p className="md:hidden text-xs text-slate-400 mb-2 flex items-center gap-2">
                 <Clock size={12} className="text-cyan-400"/> Selecciona una hora:
             </p>
@@ -285,7 +290,7 @@ export default function InternalBookingCalendar({ onComplete }: { onComplete?: (
   );
 
   const renderStep2 = () => (
-    <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="h-full overflow-y-auto no-scrollbar"> {/* Cambio: no-scrollbar */}
+    <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="h-full overflow-y-auto no-scrollbar">
       <div className="max-w-md mx-auto w-full pt-1">
           <div className="mb-6 bg-gradient-to-br from-cyan-950/40 to-blue-950/40 border border-cyan-500/20 p-4 rounded-xl flex items-center gap-4">
             <div className="bg-cyan-500/20 w-10 h-10 rounded-lg flex items-center justify-center text-cyan-400 shrink-0">
@@ -352,7 +357,7 @@ export default function InternalBookingCalendar({ onComplete }: { onComplete?: (
 
   return (
     <div className="h-full flex flex-col bg-[#0F0F0F]"> 
-        {/* ESTILOS PARA OCULTAR SCROLLBAR */}
+        {/* CSS INYECTADO PARA QUITAR SCROLLBAR */}
         <style jsx global>{`
           .no-scrollbar::-webkit-scrollbar {
             display: none;
