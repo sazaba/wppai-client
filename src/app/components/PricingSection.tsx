@@ -1,140 +1,133 @@
 'use client'
 
-import { Check, Sparkles, Zap, HelpCircle } from 'lucide-react'
-import { motion } from 'framer-motion'
-import { Button } from '@/components/ui/button'
-import Link from 'next/link'
+import React from 'react'
+import { Check, Sparkles, Zap, HelpCircle, CalendarCheck, ShieldCheck } from 'lucide-react'
+import { motion, Variants } from 'framer-motion'
+import Image from 'next/image'
+import clsx from 'clsx'
 
-export default function PricingSection() {
+// --- IMPORTS IMÁGENES (Asegúrate de tener estas rutas correctas) ---
+import visa from '../images/visa-logo.webp';
+import amex from '../images/american-express.webp';
+import mastercard from '../images/mastercard-logo.webp';
+
+const fadeInUp: Variants = { 
+  hidden: { opacity: 0, y: 15 }, 
+  visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: "easeOut" } } 
+};
+
+export default function PricingSection({ handleOpenBooking }: { handleOpenBooking?: () => void }) {
   return (
-    <section id="pricing" className="py-24 relative z-10 overflow-hidden">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6">
+    <section id="pricing" className="py-16 md:py-24 relative z-10 overflow-hidden bg-transparent">
+      <div className="max-w-7xl mx-auto px-4 md:px-6">
         
         {/* Encabezado */}
-        <div className="text-center max-w-3xl mx-auto mb-16">
+        <div className="text-center max-w-3xl mx-auto mb-12 md:mb-16">
+          <motion.div 
+            initial="hidden" whileInView="visible" viewport={{ once: true }} variants={fadeInUp}
+            className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-white/10 bg-white/5 text-slate-400 text-[10px] uppercase tracking-[0.3em] font-medium mb-4"
+          >
+            <Sparkles size={10} className="text-cyan-500" /> Inversión Inteligente
+          </motion.div>
+          
           <motion.h2
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.5 }}
-            className="text-4xl md:text-5xl font-extrabold text-gray-900 dark:text-white mb-6"
+            initial="hidden" whileInView="visible" viewport={{ once: true }} variants={fadeInUp}
+            className="text-3xl md:text-6xl font-bold text-white mb-6 tracking-tight leading-tight"
           >
-            Un plan simple, <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-500 to-pink-500">resultados masivos</span>
+            Un plan simple, <br />
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">resultados masivos.</span>
           </motion.h2>
-          <motion.p
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.5, delay: 0.1 }}
-            className="text-lg text-gray-600 dark:text-gray-300"
-          >
-            Todo lo que necesitas para automatizar tu negocio en un solo paquete premium. Sin comisiones ocultas.
-          </motion.p>
         </div>
 
-        {/* Tarjeta de Precio Único (Hero Card) */}
+        {/* Tarjeta de Precio Único */}
         <motion.div
-          initial={{ opacity: 0, scale: 0.95, y: 30 }}
-          whileInView={{ opacity: 1, scale: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.6 }}
-          className="relative max-w-4xl mx-auto"
+          initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={fadeInUp}
+          className="relative max-w-5xl mx-auto"
         >
-          {/* Efecto de Resplandor (Glow) detrás de la tarjeta */}
-          <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 rounded-[2.5rem] blur-xl opacity-30 dark:opacity-40 animate-pulse-slow" />
+          {/* Resplandor ambiental externo (Glow) sutil */}
+          <div className="absolute -inset-1 bg-gradient-to-r from-cyan-500/20 via-blue-500/20 to-indigo-500/20 rounded-2xl md:rounded-[2.5rem] blur-2xl opacity-30 pointer-events-none" />
 
-          {/* Tarjeta Principal */}
-          {/* CAMBIO: p-6 en móvil para ganar espacio, md:p-12 en desktop */}
-          <div className="relative bg-white/80 dark:bg-zinc-900/80 backdrop-blur-2xl border border-white/20 dark:border-white/10 rounded-[2rem] p-6 md:p-12 shadow-2xl overflow-hidden">
+          {/* Tarjeta Principal Dark */}
+          <div className="relative bg-[#080808]/60 backdrop-blur-xl border border-white/5 rounded-2xl md:rounded-[2.5rem] p-8 md:p-14 shadow-2xl overflow-hidden">
             
             {/* Decoración de fondo interna */}
-            <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl -mr-32 -mt-32 pointer-events-none" />
+            <div className="absolute top-0 right-0 w-80 h-80 bg-cyan-500/5 rounded-full blur-[100px] -mr-40 -mt-40 pointer-events-none" />
 
-            <div className="grid md:grid-cols-2 gap-8 md:gap-12 items-center">
+            <div className="grid lg:grid-cols-2 gap-10 md:gap-16 items-center">
               
-              {/* Columna Izquierda: Precio y Título */}
-              <div className="space-y-6 text-center md:text-left">
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-100 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 text-sm font-semibold border border-indigo-200 dark:border-indigo-500/30">
-                  <Sparkles className="w-4 h-4" />
-                  Plan Premium Todo Incluido
-                </div>
-
-                <div>
-                  {/* CAMBIO: flex-wrap para seguridad y tamaños de fuente responsivos (text-4xl -> sm:text-6xl -> md:text-7xl) */}
-                  <div className="flex items-baseline justify-center md:justify-start gap-1 flex-wrap">
-                    <span className="text-sm font-medium text-gray-500 dark:text-gray-400 -mb-2 md:-mb-4">$</span>
-                    <span className="text-5xl sm:text-6xl md:text-7xl font-black text-gray-900 dark:text-white tracking-tight">250.000</span>
-                    <span className="text-lg md:text-xl font-medium text-gray-500 dark:text-gray-400">COP/mes</span>
+              {/* Columna Izquierda: Precio y Acción */}
+              <div className="space-y-8 text-center lg:text-left">
+                <div className="space-y-4">
+                  <div className="flex items-baseline justify-center lg:justify-start gap-2 flex-wrap">
+                    <span className="text-lg font-bold text-slate-500">$</span>
+                    <span className="text-6xl md:text-8xl font-black text-white tracking-tighter">250.000</span>
+                    <span className="text-lg font-medium text-slate-500">COP/mes</span>
                   </div>
-                  <p className="mt-4 text-gray-600 dark:text-gray-300 leading-relaxed text-sm md:text-base">
-                    Diseñado para clínicas estéticas y negocios de alto flujo que no pueden perder ni un solo cliente.
+                  <p className="text-slate-400 text-sm md:text-lg leading-relaxed max-w-md mx-auto lg:mx-0">
+                    Diseñado para clínicas estéticas que buscan automatizar el 100% de su agendamiento sin errores humanos.
                   </p>
                 </div>
 
-                <Link href="/register" className="block">
-                  <Button className="w-full h-14 text-lg rounded-full bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white shadow-xl shadow-indigo-500/25 transition-all hover:scale-[1.02]">
-                    Comenzar ahora
-                  </Button>
-                </Link>
-                <p className="text-xs text-center md:text-left text-gray-400 dark:text-gray-500">
-                  Sin contratos forzosos. Cancela cuando quieras.
+                <div className="space-y-4">
+                  <button 
+                    onClick={handleOpenBooking}
+                    className="w-full h-16 text-lg font-bold rounded-xl bg-gradient-to-r from-cyan-600 to-blue-600 text-white shadow-xl shadow-cyan-900/20 transition-all hover:scale-[1.02] active:scale-[0.98] border border-white/10 flex items-center justify-center gap-3 uppercase tracking-wider"
+                  >
+                    <Zap size={20} className="fill-white" /> Probar Sistema Ahora
+                  </button>
+                  
+                  {/* Pasarelas de Pago */}
+                  <div className="flex justify-center lg:justify-start gap-6 opacity-30 grayscale contrast-125">
+                      <Image src={visa} alt="Visa" height={22} width={40} unoptimized className="object-contain" />
+                      <Image src={mastercard} alt="Mastercard" height={22} width={40} unoptimized className="object-contain" />
+                      <Image src={amex} alt="Amex" height={22} width={40} unoptimized className="object-contain" />
+                  </div>
+                </div>
+                
+                <p className="text-[10px] text-slate-500 uppercase tracking-[0.2em] font-bold">
+                  Sin contratos permanentes • Cancela en cualquier momento
                 </p>
               </div>
 
-              {/* Columna Derecha: Beneficios */}
-              <div className="bg-gray-50/50 dark:bg-white/5 rounded-3xl p-6 md:p-8 border border-gray-100 dark:border-white/5 text-left">
-                <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-6 flex items-center gap-2">
-                  <Zap className="w-5 h-5 text-amber-500 fill-amber-500" />
-                  Lo que incluye tu membresía:
+              {/* Columna Derecha: Beneficios List */}
+              <div className="bg-white/[0.02] border border-white/5 rounded-2xl p-6 md:p-10 text-left backdrop-blur-sm">
+                <h3 className="font-bold text-lg text-white mb-8 flex items-center gap-3">
+                  <ShieldCheck className="w-5 h-5 text-cyan-500" />
+                  El paquete Pro incluye:
                 </h3>
                 
-                <ul className="space-y-4">
-                  {/* Item Destacado */}
-                  <li className="flex items-start gap-3">
-                    <div className="flex-shrink-0 w-6 h-6 rounded-full bg-indigo-100 dark:bg-indigo-500/20 flex items-center justify-center mt-0.5">
-                      <Check className="w-4 h-4 text-indigo-600 dark:text-indigo-400" strokeWidth={3} />
-                    </div>
-                    <div>
-                      <span className="font-bold text-gray-900 dark:text-white">300 Conversaciones Premium</span>
-                      <p className="text-sm text-gray-500 dark:text-gray-400">Incluidas cada mes con IA avanzada.</p>
-                    </div>
-                  </li>
-
-                  {/* Feature Killer: Descuento */}
-                  <li className="flex items-start gap-3 relative">
-                    <div className="absolute -left-2 -top-2 w-[calc(100%+1rem)] h-[calc(100%+1rem)] bg-green-500/5 rounded-xl -z-10 border border-green-500/20" />
-                    <div className="flex-shrink-0 w-6 h-6 rounded-full bg-green-100 dark:bg-green-500/20 flex items-center justify-center mt-0.5">
-                      <Check className="w-4 h-4 text-green-600 dark:text-green-400" strokeWidth={3} />
-                    </div>
-                    <div>
-                      <span className="font-bold text-gray-900 dark:text-white flex items-center flex-wrap gap-2">
-                        Recargas con 80% OFF
-                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300 uppercase tracking-wider">Ahorro</span>
-                      </span>
-                      <p className="text-sm text-gray-500 dark:text-gray-400">Si necesitas más, paga una fracción del costo.</p>
-                    </div>
-                  </li>
-
-                  <li className="flex items-start gap-3">
-                    <div className="flex-shrink-0 w-6 h-6 rounded-full bg-gray-100 dark:bg-white/10 flex items-center justify-center mt-0.5">
-                      <Check className="w-3.5 h-3.5 text-gray-600 dark:text-gray-300" />
-                    </div>
-                    <span className="text-gray-700 dark:text-gray-300 text-sm font-medium pt-1">Dashboard de métricas avanzado</span>
-                  </li>
-                  
-                  <li className="flex items-start gap-3">
-                    <div className="flex-shrink-0 w-6 h-6 rounded-full bg-gray-100 dark:bg-white/10 flex items-center justify-center mt-0.5">
-                      <Check className="w-3.5 h-3.5 text-gray-600 dark:text-gray-300" />
-                    </div>
-                    <span className="text-gray-700 dark:text-gray-300 text-sm font-medium pt-1">Agenda y confirmación de citas</span>
-                  </li>
-
-                  <li className="flex items-start gap-3">
-                    <div className="flex-shrink-0 w-6 h-6 rounded-full bg-gray-100 dark:bg-white/10 flex items-center justify-center mt-0.5">
-                      <Check className="w-3.5 h-3.5 text-gray-600 dark:text-gray-300" />
-                    </div>
-                    <span className="text-gray-700 dark:text-gray-300 text-sm font-medium pt-1">Soporte técnico prioritario</span>
-                  </li>
+                <ul className="space-y-6">
+                  {[
+                    { 
+                      title: "300 Mensajes Premium IA", 
+                      desc: "IA avanzada con lenguaje natural humano.",
+                      highlight: true 
+                    },
+                    { 
+                      title: "Confirmación Automática", 
+                      desc: "Reduce el ausentismo sin mover un dedo.",
+                    },
+                    { 
+                      title: "Gestión de Agenda 24/7", 
+                      desc: "Tus pacientes agendan mientras tú descansas.",
+                    },
+                    { 
+                      title: "Dashboard de Métricas", 
+                      desc: "Control total de tus leads y ventas.",
+                    }
+                  ].map((item, i) => (
+                    <li key={i} className="flex items-start gap-4">
+                      <div className="flex-shrink-0 w-6 h-6 rounded-full bg-cyan-500/10 flex items-center justify-center mt-1">
+                        <Check className="w-3.5 h-3.5 text-cyan-400" strokeWidth={3} />
+                      </div>
+                      <div>
+                        <span className={clsx("font-bold text-slate-200", item.highlight && "text-white")}>
+                          {item.title}
+                        </span>
+                        <p className="text-xs text-slate-500 mt-1">{item.desc}</p>
+                      </div>
+                    </li>
+                  ))}
                 </ul>
               </div>
 
@@ -142,12 +135,14 @@ export default function PricingSection() {
           </div>
         </motion.div>
         
-        {/* FAQ Trigger o texto de confianza */}
+        {/* Enterprise Trigger */}
         <div className="text-center mt-12">
-            <p className="text-sm text-gray-500 dark:text-gray-400 flex items-center justify-center gap-2 flex-wrap px-4">
-                <HelpCircle className="w-4 h-4 flex-shrink-0" />
-                <span>¿Tienes un volumen mayor a 5.000 chats?</span>
-                <a href="#contact" className="text-indigo-600 dark:text-indigo-400 font-semibold hover:underline whitespace-nowrap">Contáctanos para un plan Enterprise</a>
+            <p className="text-[11px] md:text-xs text-slate-500 flex items-center justify-center gap-2 uppercase tracking-widest font-bold">
+                <HelpCircle className="w-3 h-3 text-cyan-500" />
+                ¿Necesitas un plan a medida? 
+                <a href="#contact" className="text-cyan-400 hover:text-cyan-300 transition-colors underline underline-offset-4">
+                  Consultar plan Enterprise
+                </a>
             </p>
         </div>
 
