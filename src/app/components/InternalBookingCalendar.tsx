@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import clsx from 'clsx';
 import Swal from 'sweetalert2';
 
-// --- UTILIDADES (Lógica intacta) ---
+// --- UTILIDADES ---
 const getNextDays = (days: number) => {
   const dates = [];
   const today = new Date();
@@ -44,7 +44,7 @@ export default function InternalBookingCalendar({ onComplete }: { onComplete?: (
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [bookedSignatures, setBookedSignatures] = useState<string[]>([]);
 
-  // --- LÓGICA DE BLOQUEO (Intacta) ---
+  // --- LÓGICA DE BLOQUEO ---
   useEffect(() => {
     const fetchBookings = async () => {
       try {
@@ -87,9 +87,9 @@ export default function InternalBookingCalendar({ onComplete }: { onComplete?: (
 
   const showSuccessAlert = () => {
     Swal.fire({
-      title: '<span class="text-white font-bold text-2xl">¡Cita Confirmada!</span>',
+      title: '<span class="text-white font-bold text-xl">¡Cita Confirmada!</span>',
       html: `
-        <div class="text-slate-300 text-sm">
+        <div class="text-slate-300 text-xs">
           Enlace enviado a <strong>${formData.email}</strong>.<br/><br/>
           Fecha: <strong class="text-cyan-400">${selectedDate?.toLocaleDateString()}</strong><br/>
           Hora: <strong class="text-cyan-400">${selectedTime}</strong>
@@ -101,8 +101,8 @@ export default function InternalBookingCalendar({ onComplete }: { onComplete?: (
       confirmButtonText: 'Genial, continuar',
       confirmButtonColor: '#06b6d4',
       customClass: {
-        popup: 'border border-white/10 rounded-[2rem] shadow-2xl font-sans',
-        confirmButton: 'px-6 py-3 rounded-xl bg-gradient-to-r from-cyan-600 to-blue-600 text-white font-bold'
+        popup: 'border border-white/10 rounded-2xl shadow-2xl font-sans',
+        confirmButton: 'px-5 py-2 rounded-lg bg-gradient-to-r from-cyan-600 to-blue-600 text-white font-bold text-sm'
       }
     }).then(() => {
         if (onComplete) onComplete();
@@ -111,14 +111,14 @@ export default function InternalBookingCalendar({ onComplete }: { onComplete?: (
 
   const showErrorAlert = (msg: string) => {
     Swal.fire({
-      title: '<span class="text-white font-bold">No pudimos agendar</span>',
+      title: '<span class="text-white font-bold text-lg">No pudimos agendar</span>',
       text: msg,
       icon: 'error',
       iconColor: '#ef4444',
       background: '#0F0F0F',
       confirmButtonText: 'Cerrar',
       confirmButtonColor: '#333',
-      customClass: { popup: 'border border-white/10 rounded-[2rem]' }
+      customClass: { popup: 'border border-white/10 rounded-2xl' }
     });
   };
 
@@ -168,92 +168,91 @@ export default function InternalBookingCalendar({ onComplete }: { onComplete?: (
     }
   };
 
-  // --- RENDERIZADO MEJORADO (UI UX) ---
+  // --- RENDERIZADO (VERSIÓN COMPACTA & SIN SCROLLBAR) ---
   const renderStep1 = () => (
     <motion.div 
       initial={{ opacity: 0, x: 20 }} 
       animate={{ opacity: 1, x: 0 }} 
       exit={{ opacity: 0, x: -20 }} 
-      className="flex flex-col md:flex-row gap-6 h-full overflow-hidden" // Overflow hidden para evitar scroll en el contenedor padre
+      className="flex flex-col md:flex-row gap-4 h-full overflow-hidden"
     >
       
-      {/* COLUMNA IZQUIERDA: DÍAS 
-          En móvil: Se oculta si ya seleccionaste fecha (para dar paso a las horas).
-          En desktop: Siempre visible.
-      */}
+      {/* COLUMNA IZQUIERDA: DÍAS */}
       <div className={clsx(
-        "flex-1 overflow-y-auto pr-2 custom-scrollbar transition-all",
+        "flex-1 overflow-y-auto no-scrollbar transition-all", // Cambio: no-scrollbar
         selectedDate ? "hidden md:block" : "block"
       )}>
-        <h3 className="text-white font-bold mb-4 flex items-center gap-2 sticky top-0 bg-[#0F0F0F] py-2 z-10 border-b border-white/5 md:border-none">
-          <CalendarIcon size={18} className="text-cyan-400" /> Selecciona un día
+        <h3 className="text-white text-sm font-bold mb-3 flex items-center gap-2 sticky top-0 bg-[#0F0F0F] py-2 z-10 border-b border-white/5 md:border-none">
+          <CalendarIcon size={16} className="text-cyan-400" /> Selecciona un día
         </h3>
-        <div className="grid grid-cols-1 gap-3 pb-20 md:pb-0"> {/* Padding bottom extra en móvil para que no se corte el último */}
+        <div className="grid grid-cols-1 gap-2 pb-16 md:pb-0">
           {dates.map((date, i) => (
             <button
               key={i}
               onClick={() => { setSelectedDate(date); setSelectedTime(null); }}
               className={clsx(
-                "p-4 rounded-2xl border text-left transition-all flex justify-between items-center group relative overflow-hidden",
+                "p-3 rounded-xl border text-left transition-all flex justify-between items-center group relative overflow-hidden",
                 selectedDate?.toDateString() === date.toDateString()
                   ? "bg-cyan-600 border-cyan-500 text-white shadow-lg shadow-cyan-900/50"
                   : "bg-white/5 border-white/10 text-slate-300 hover:bg-white/10 hover:border-white/20"
               )}
             >
               <div>
-                <span className="block text-xs uppercase tracking-wider opacity-70 mb-1">
+                <span className="block text-[10px] uppercase tracking-wider opacity-70 mb-0.5">
                     {date.toLocaleDateString('es-CO', { month: 'long' })}
                 </span>
-                <span className="text-lg font-bold capitalize">
+                <span className="text-sm font-bold capitalize">
                     {date.toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric' })}
                 </span>
               </div>
-              <ChevronRight size={20} className={clsx("transition-transform", selectedDate === date ? "translate-x-1" : "opacity-50 group-hover:opacity-100")} />
+              <ChevronRight size={16} className={clsx("transition-transform", selectedDate === date ? "translate-x-1" : "opacity-50 group-hover:opacity-100")} />
             </button>
           ))}
         </div>
       </div>
 
-      {/* COLUMNA DERECHA: HORAS 
-          En móvil: Se oculta si NO has seleccionado fecha.
-          En desktop: Siempre visible (muestra mensaje si no hay fecha).
-      */}
+      {/* COLUMNA DERECHA: HORAS */}
       <div className={clsx(
-        "flex-1 md:border-l border-white/10 md:pl-6 flex flex-col h-full",
-        !selectedDate ? "hidden md:flex" : "flex"
+        "flex-1 md:border-l border-white/10 md:pl-4 h-full",
+        !selectedDate 
+            ? "hidden md:flex md:flex-col" 
+            : "flex flex-col"
       )}>
         
-        {/* Header Móvil con botón "Atrás" */}
-        <div className="md:hidden mb-4 flex items-center gap-3 pb-4 border-b border-white/10">
+        {/* Header Móvil Compacto */}
+        <div className="md:hidden mb-3 flex items-center gap-3 pb-3 border-b border-white/10">
             <button 
                 onClick={() => setSelectedDate(null)} 
-                className="p-2 rounded-full bg-white/5 text-slate-300 hover:text-white"
+                className="p-1.5 rounded-full bg-white/5 text-slate-300 hover:text-white"
             >
-                <ArrowLeft size={18} />
+                <ArrowLeft size={16} />
             </button>
             <div>
-                <p className="text-xs text-slate-500 uppercase">Día seleccionado</p>
-                <p className="font-bold text-white capitalize">
+                <p className="text-[10px] text-slate-500 uppercase">Día seleccionado</p>
+                <p className="font-bold text-white text-sm capitalize">
                     {selectedDate?.toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric' })}
                 </p>
             </div>
         </div>
 
-        <h3 className={clsx("font-bold mb-4 flex items-center gap-2 hidden md:flex", selectedDate ? "text-white" : "text-slate-600")}>
-          <Clock size={18} className={selectedDate ? "text-cyan-400" : "text-slate-600"} /> Horarios disponibles
+        <h3 className={clsx(
+            "text-sm font-bold mb-3 items-center gap-2 hidden md:flex", 
+            selectedDate ? "text-white" : "text-slate-600"
+        )}>
+          <Clock size={16} className={selectedDate ? "text-cyan-400" : "text-slate-600"} /> Horarios disponibles
         </h3>
         
         {!selectedDate ? (
-          <div className="flex-1 flex flex-col items-center justify-center text-slate-600 text-sm italic h-full">
-            <CalendarIcon size={40} className="mb-3 opacity-20" />
+          <div className="flex-1 flex flex-col items-center justify-center text-slate-600 text-xs italic h-full">
+            <CalendarIcon size={32} className="mb-2 opacity-20" />
             <p>Selecciona una fecha para ver horarios</p>
           </div>
         ) : (
-          <div className="flex-1 overflow-y-auto custom-scrollbar pb-4">
-            <p className="md:hidden text-sm text-slate-400 mb-3 flex items-center gap-2">
-                <Clock size={14} className="text-cyan-400"/> Selecciona una hora:
+          <div className="flex-1 overflow-y-auto no-scrollbar pb-4"> {/* Cambio: no-scrollbar */}
+            <p className="md:hidden text-xs text-slate-400 mb-2 flex items-center gap-2">
+                <Clock size={12} className="text-cyan-400"/> Selecciona una hora:
             </p>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-2">
               {availableSlots.length > 0 ? (
                 availableSlots.map((time, i) => {
                   const isBlocked = isSlotBlocked(selectedDate, time);
@@ -263,7 +262,7 @@ export default function InternalBookingCalendar({ onComplete }: { onComplete?: (
                       disabled={isBlocked}
                       onClick={() => handleTimeSelect(time)}
                       className={clsx(
-                        "py-3 px-4 rounded-xl border text-sm font-bold text-center transition-all relative",
+                        "py-2 px-3 rounded-lg border text-xs font-medium text-center transition-all relative",
                         isBlocked 
                           ? "bg-red-900/10 border-red-500/10 text-red-500/30 cursor-not-allowed decoration-slice line-through" 
                           : "bg-white/5 border-white/10 text-cyan-100 hover:bg-cyan-600 hover:border-cyan-500 hover:text-white hover:shadow-lg hover:shadow-cyan-500/20"
@@ -274,7 +273,7 @@ export default function InternalBookingCalendar({ onComplete }: { onComplete?: (
                   );
                 })
               ) : (
-                <div className="col-span-2 text-center text-slate-500 text-sm py-10 bg-white/5 rounded-xl border border-dashed border-white/10">
+                <div className="col-span-2 text-center text-slate-500 text-xs py-8 bg-white/5 rounded-lg border border-dashed border-white/10">
                     No hay horarios disponibles.
                 </div>
               )}
@@ -286,49 +285,49 @@ export default function InternalBookingCalendar({ onComplete }: { onComplete?: (
   );
 
   const renderStep2 = () => (
-    <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="h-full overflow-y-auto custom-scrollbar">
-      <div className="max-w-md mx-auto w-full pt-2">
-          <div className="mb-8 bg-gradient-to-br from-cyan-950/40 to-blue-950/40 border border-cyan-500/20 p-5 rounded-2xl flex items-center gap-5">
-            <div className="bg-cyan-500/20 w-12 h-12 rounded-xl flex items-center justify-center text-cyan-400 shrink-0">
-                <CalendarIcon size={24} />
+    <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="h-full overflow-y-auto no-scrollbar"> {/* Cambio: no-scrollbar */}
+      <div className="max-w-md mx-auto w-full pt-1">
+          <div className="mb-6 bg-gradient-to-br from-cyan-950/40 to-blue-950/40 border border-cyan-500/20 p-4 rounded-xl flex items-center gap-4">
+            <div className="bg-cyan-500/20 w-10 h-10 rounded-lg flex items-center justify-center text-cyan-400 shrink-0">
+                <CalendarIcon size={20} />
             </div>
             <div>
-                <p className="text-slate-400 text-[10px] uppercase tracking-widest font-bold mb-1">Tu Reserva</p>
-                <p className="text-white font-bold text-lg capitalize leading-tight">
+                <p className="text-slate-400 text-[9px] uppercase tracking-widest font-bold mb-0.5">Tu Reserva</p>
+                <p className="text-white font-bold text-sm capitalize leading-tight">
                     {selectedDate?.toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric' })}
                 </p>
-                <p className="text-cyan-300 font-medium">
+                <p className="text-cyan-300 text-xs font-medium">
                     A las {selectedTime}
                 </p>
             </div>
-            <button onClick={() => setStep(1)} className="ml-auto text-xs text-slate-400 hover:text-white underline p-2">Editar</button>
+            <button onClick={() => setStep(1)} className="ml-auto text-[10px] text-slate-400 hover:text-white underline p-1">Editar</button>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-5">
+          <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-                <label className="block text-slate-300 text-xs font-bold uppercase tracking-wider mb-2 ml-1">Nombre Completo</label>
+                <label className="block text-slate-300 text-[10px] font-bold uppercase tracking-wider mb-1.5 ml-1">Nombre Completo</label>
                 <div className="relative group">
-                    <User className="absolute left-4 top-3.5 text-slate-500 group-focus-within:text-cyan-400 transition-colors" size={20} />
-                    <input required type="text" className="w-full bg-[#1A1A1A] border border-white/10 rounded-xl py-3 pl-12 pr-4 text-white placeholder:text-slate-600 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-all" placeholder="Ej. Juan Pérez" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} />
+                    <User className="absolute left-3 top-2.5 text-slate-500 group-focus-within:text-cyan-400 transition-colors" size={16} />
+                    <input required type="text" className="w-full bg-[#1A1A1A] border border-white/10 rounded-lg py-2 pl-9 pr-3 text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-all" placeholder="Ej. Juan Pérez" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} />
                 </div>
             </div>
             <div>
-                <label className="block text-slate-300 text-xs font-bold uppercase tracking-wider mb-2 ml-1">Correo Electrónico</label>
+                <label className="block text-slate-300 text-[10px] font-bold uppercase tracking-wider mb-1.5 ml-1">Correo Electrónico</label>
                 <div className="relative group">
-                    <Mail className="absolute left-4 top-3.5 text-slate-500 group-focus-within:text-cyan-400 transition-colors" size={20} />
-                    <input required type="email" className="w-full bg-[#1A1A1A] border border-white/10 rounded-xl py-3 pl-12 pr-4 text-white placeholder:text-slate-600 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-all" placeholder="juan@gmail.com" value={formData.email} onChange={(e) => setFormData({...formData, email: e.target.value})} />
+                    <Mail className="absolute left-3 top-2.5 text-slate-500 group-focus-within:text-cyan-400 transition-colors" size={16} />
+                    <input required type="email" className="w-full bg-[#1A1A1A] border border-white/10 rounded-lg py-2 pl-9 pr-3 text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-all" placeholder="juan@gmail.com" value={formData.email} onChange={(e) => setFormData({...formData, email: e.target.value})} />
                 </div>
             </div>
             <div>
-                <label className="block text-slate-300 text-xs font-bold uppercase tracking-wider mb-2 ml-1">WhatsApp</label>
+                <label className="block text-slate-300 text-[10px] font-bold uppercase tracking-wider mb-1.5 ml-1">WhatsApp</label>
                 <div className="relative group">
-                    <Phone className="absolute left-4 top-3.5 text-slate-500 group-focus-within:text-cyan-400 transition-colors" size={20} />
-                    <input required type="tel" className="w-full bg-[#1A1A1A] border border-white/10 rounded-xl py-3 pl-12 pr-4 text-white placeholder:text-slate-600 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-all" placeholder="+57 300 123 4567" value={formData.phone} onChange={(e) => setFormData({...formData, phone: e.target.value})} />
+                    <Phone className="absolute left-3 top-2.5 text-slate-500 group-focus-within:text-cyan-400 transition-colors" size={16} />
+                    <input required type="tel" className="w-full bg-[#1A1A1A] border border-white/10 rounded-lg py-2 pl-9 pr-3 text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-all" placeholder="+57 300 123 4567" value={formData.phone} onChange={(e) => setFormData({...formData, phone: e.target.value})} />
                 </div>
             </div>
 
-            <button type="submit" disabled={isSubmitting} className="w-full bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold py-4 rounded-xl shadow-lg shadow-cyan-900/40 transition-all transform active:scale-[0.98] mt-6 flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed">
-                {isSubmitting ? <><Loader2 className="animate-spin h-5 w-5" /> Confirmando...</> : "Confirmar Reserva Gratuita"}
+            <button type="submit" disabled={isSubmitting} className="w-full bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold py-3 rounded-lg shadow-lg shadow-cyan-900/40 transition-all transform active:scale-[0.98] mt-4 flex items-center justify-center gap-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed">
+                {isSubmitting ? <><Loader2 className="animate-spin h-4 w-4" /> Confirmando...</> : "Confirmar Reserva Gratuita"}
             </button>
           </form>
       </div>
@@ -336,27 +335,37 @@ export default function InternalBookingCalendar({ onComplete }: { onComplete?: (
   );
 
   const renderStep3 = () => (
-    <div className="flex flex-col items-center justify-center h-full text-center p-6 animate-in fade-in zoom-in duration-300">
-        <div className="w-24 h-24 bg-green-500/10 rounded-full flex items-center justify-center mb-6 shadow-[0_0_40px_rgba(34,197,94,0.3)] border border-green-500/20">
-            <CheckCircle2 size={48} className="text-green-400" />
+    <div className="flex flex-col items-center justify-center h-full text-center p-4 animate-in fade-in zoom-in duration-300">
+        <div className="w-20 h-20 bg-green-500/10 rounded-full flex items-center justify-center mb-4 shadow-[0_0_30px_rgba(34,197,94,0.3)] border border-green-500/20">
+            <CheckCircle2 size={40} className="text-green-400" />
         </div>
-        <h3 className="text-3xl font-bold text-white mb-3">¡Agenda Lista!</h3>
-        <p className="text-slate-400 max-w-xs mx-auto mb-8 leading-relaxed">
+        <h3 className="text-2xl font-bold text-white mb-2">¡Agenda Lista!</h3>
+        <p className="text-slate-400 text-sm max-w-xs mx-auto mb-6 leading-relaxed">
             Hemos enviado los detalles a tu correo. <br/>
             <span className="text-cyan-400">¡Nos vemos pronto!</span>
         </p>
-        <button onClick={() => { if(onComplete) onComplete() }} className="text-sm text-slate-500 hover:text-white underline">
+        <button onClick={() => { if(onComplete) onComplete() }} className="text-xs text-slate-500 hover:text-white underline">
             Cerrar ventana
         </button>
     </div>
   );
 
   return (
-    <div className="h-full flex flex-col bg-[#0F0F0F]"> {/* Fondo forzado para evitar transparencia rara */}
+    <div className="h-full flex flex-col bg-[#0F0F0F]"> 
+        {/* ESTILOS PARA OCULTAR SCROLLBAR */}
+        <style jsx global>{`
+          .no-scrollbar::-webkit-scrollbar {
+            display: none;
+          }
+          .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+          }
+        `}</style>
+
         {step !== 3 && (
             <div className="mb-2 flex items-center justify-between px-1 shrink-0">
-                {/* Indicador de pasos dinámico */}
-                <span className="text-[10px] font-bold text-slate-500 tracking-[0.2em] uppercase bg-white/5 px-2 py-1 rounded">
+                <span className="text-[9px] font-bold text-slate-500 tracking-[0.2em] uppercase bg-white/5 px-2 py-1 rounded">
                     {step === 1 
                         ? (selectedDate ? "Paso 1.5: Horario" : "Paso 1: Fecha") 
                         : "Paso 2: Tus Datos"
@@ -364,8 +373,8 @@ export default function InternalBookingCalendar({ onComplete }: { onComplete?: (
                 </span>
                 
                 {step === 2 && (
-                    <button onClick={() => setStep(1)} className="flex items-center gap-1 text-xs text-slate-400 hover:text-white transition-colors py-2">
-                        <ChevronLeft size={14} /> Volver
+                    <button onClick={() => setStep(1)} className="flex items-center gap-1 text-[10px] text-slate-400 hover:text-white transition-colors py-2">
+                        <ChevronLeft size={12} /> Volver
                     </button>
                 )}
             </div>
