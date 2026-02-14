@@ -19,13 +19,11 @@ import amex from '../images/american-express.webp';
 import mastercard from '../images/mastercard-logo.webp';
 
 // --- LAZY LOADS (OPTIMIZACIÓN SAFARI) ---
-// Usamos un esqueleto de carga simple para evitar saltos de layout (CLS)
 const LoadingSkeleton = () => <div className="w-full h-[300px] bg-white/5 rounded-3xl animate-pulse" />;
 
 const CalendarVisual = dynamic(() => import('./CalendarVisual'), { ssr: false, loading: LoadingSkeleton });
 const AestheticChatAnimation = dynamic(() => import('./AestheticChatAnimation'), { ssr: false, loading: LoadingSkeleton });
 const LandingFAQ = dynamic(() => import('./LandingFAQ'), { ssr: false });
-// AQUI ESTÁ EL CAMBIO: Cargamos Testimony de forma dinámica
 const Testimony = dynamic(() => import('./Testimony'), { ssr: false });
 
 // --- COPYWRITING ---
@@ -92,29 +90,11 @@ export default function HomePageContent() {
 
       {/* --- BACKGROUND PREMIUM OPTIMIZADO (GPU LAYERS) --- */}
       <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden" style={{ transform: 'translate3d(0,0,0)' }}>
-         
-         {/* Base oscura profunda */}
          <div className="absolute inset-0 bg-[#020405]" />
          <div className="absolute inset-0 bg-[url('/grid-pattern.svg')] opacity-[0.04]" style={{ backgroundSize: '30px 30px' }}></div>
-
-         {/* LUCES AMBIENTALES AJUSTADAS */}
-         {/* 1. HERO GLOW (Top Left) */}
-         <div 
-            className="absolute -top-[10%] -left-[20%] w-[120vw] h-[100vw] md:w-[800px] md:h-[800px] bg-blue-900/30 md:bg-blue-600/40 rounded-full blur-[100px] md:blur-[160px] opacity-100 mix-blend-screen" 
-            style={{ transform: 'translate3d(0,0,0)' }} 
-         />
-
-         {/* 2. MIDDLE GLOW (Derecha) */}
-         <div 
-            className="absolute top-[35%] -right-[30%] w-[120vw] h-[120vw] md:w-[800px] md:h-[800px] bg-indigo-950/20 md:bg-indigo-600/30 rounded-full blur-[100px] md:blur-[160px] opacity-100 mix-blend-screen" 
-            style={{ transform: 'translate3d(0,0,0)' }} 
-         />
-
-         {/* 3. BOTTOM GLOW (Izquierda) */}
-         <div 
-            className="absolute bottom-[-10%] -left-[20%] w-[120vw] h-[100vw] md:w-[800px] md:h-[800px] bg-cyan-950/20 md:bg-cyan-600/30 rounded-full blur-[100px] md:blur-[160px] opacity-100 mix-blend-screen" 
-            style={{ transform: 'translate3d(0,0,0)' }} 
-         />
+         <div className="absolute -top-[10%] -left-[20%] w-[120vw] h-[100vw] md:w-[800px] md:h-[800px] bg-blue-900/30 md:bg-blue-600/40 rounded-full blur-[100px] md:blur-[160px] opacity-100 mix-blend-screen" style={{ transform: 'translate3d(0,0,0)' }} />
+         <div className="absolute top-[35%] -right-[30%] w-[120vw] h-[120vw] md:w-[800px] md:h-[800px] bg-indigo-950/20 md:bg-indigo-600/30 rounded-full blur-[100px] md:blur-[160px] opacity-100 mix-blend-screen" style={{ transform: 'translate3d(0,0,0)' }} />
+         <div className="absolute bottom-[-10%] -left-[20%] w-[120vw] h-[100vw] md:w-[800px] md:h-[800px] bg-cyan-950/20 md:bg-cyan-600/30 rounded-full blur-[100px] md:blur-[160px] opacity-100 mix-blend-screen" style={{ transform: 'translate3d(0,0,0)' }} />
       </div>
 
       <div className="relative z-10 max-w-7xl mx-auto px-4 md:px-6 pt-24 pb-16 md:pb-24">
@@ -124,23 +104,14 @@ export default function HomePageContent() {
            <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-cyan-500/30 bg-cyan-500/10 text-cyan-300 text-[10px] uppercase tracking-widest font-bold mb-6 shadow-[0_0_20px_rgba(6,182,212,0.2)] backdrop-blur-sm">
                 <ShieldCheck size={12} /> {HERO_BADGE}
            </motion.div>
-          
           <h1 className="text-4xl sm:text-5xl md:text-7xl font-bold text-white mb-6 tracking-tighter leading-[1.1] animate-fade-in-up [animation-delay:100ms] opacity-0 fill-mode-forwards max-w-5xl mx-auto drop-shadow-2xl">
             {HERO_TITLE}
           </h1>
-          
           <p className="text-lg md:text-xl text-slate-300 max-w-2xl mx-auto leading-relaxed px-2 animate-fade-in-up [animation-delay:200ms] opacity-0 fill-mode-forwards">
             {HERO_DESC}
           </p>
-
           <div className="mt-10 animate-fade-in-up [animation-delay:300ms] opacity-0 fill-mode-forwards">
-            <button 
-                onClick={handleOpenBooking}
-                className={clsx(
-                    "px-8 py-4 rounded-full text-lg font-bold text-white shadow-[0_10px_40px_-10px_rgba(6,182,212,0.4)] transition-all hover:scale-105 active:scale-95 flex items-center gap-2 mx-auto bg-gradient-to-r border border-white/10",
-                    buttonGradient, buttonHover
-                )}
-            >
+            <button onClick={handleOpenBooking} className={clsx("px-8 py-4 rounded-full text-lg font-bold text-white shadow-[0_10px_40px_-10px_rgba(6,182,212,0.4)] transition-all hover:scale-105 active:scale-95 flex items-center gap-2 mx-auto bg-gradient-to-r border border-white/10", buttonGradient, buttonHover)}>
                 <CalendarCheck size={20} /> Auditar Mi Clínica Gratis
             </button>
             <p className="mt-4 text-xs text-slate-500 flex items-center justify-center gap-2">
@@ -152,10 +123,7 @@ export default function HomePageContent() {
 
         {/* --- FEATURES 1 --- */}
         <section id="features" className="relative content-visibility-auto contain-paint scroll-mt-32">
-            <motion.div 
-              initial="hidden" whileInView="visible" viewport={{ once: true, margin: "100px" }} variants={staggerContainer}
-              className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center mb-24 md:mb-32"
-            >
+            <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "100px" }} variants={staggerContainer} className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center mb-24 md:mb-32">
                 <div className="order-2 lg:order-1 relative flex justify-center min-h-[450px] md:min-h-[650px] items-center">
                     <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,var(--tw-gradient-stops))] from-cyan-900/20 md:from-cyan-500/20 via-transparent to-transparent opacity-70 blur-3xl" />
                     <div className="relative w-full max-w-[350px] md:max-w-none transform scale-100 lg:scale-110">
@@ -168,7 +136,6 @@ export default function HomePageContent() {
                     <div className="w-12 h-12 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center mb-6 md:mb-8 shadow-lg text-cyan-400 backdrop-blur-md">
                         <BrainCircuit size={24} />
                     </div>
-                    
                     <h2 className="text-3xl md:text-5xl font-bold text-white mb-4 md:mb-6 tracking-tight">
                         No es un "Bot", es <br/><span className="text-cyan-400">Inteligencia Real</span>
                     </h2>
@@ -176,12 +143,7 @@ export default function HomePageContent() {
                         Tus pacientes odian hablar con máquinas tontas. Wasaaa entiende, empatiza y vende como tu mejor recepcionista.
                     </p>
                     <ul className="space-y-4 md:space-y-5 text-left inline-block"> 
-                        {[
-                            "Conversación fluida y humana", 
-                            "Manejo de objeciones de venta", 
-                            "Cualifica pacientes (No curiosos)",
-                            "Atención inmediata 24/7"
-                        ].map((item, i) => (
+                        {["Conversación fluida y humana", "Manejo de objeciones de venta", "Cualifica pacientes (No curiosos)", "Atención inmediata 24/7"].map((item, i) => (
                             <li key={i} className="flex items-start gap-3 md:gap-4 text-slate-300 text-sm md:text-base">
                                 <div className="mt-0.5 p-1 rounded-full shrink-0 bg-cyan-500/10 text-cyan-400"><CheckCircle2 size={14} /></div><span>{item}</span>
                             </li>
@@ -191,15 +153,11 @@ export default function HomePageContent() {
             </motion.div>
 
         {/* --- FEATURES 2 --- */}
-            <motion.div 
-              initial="hidden" whileInView="visible" viewport={{ once: true, margin: "100px" }} variants={staggerContainer}
-              className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center mb-24 md:mb-32"
-            >
+            <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "100px" }} variants={staggerContainer} className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center mb-24 md:mb-32">
                 <div className="order-1 flex flex-col items-center text-center px-2">
                     <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center mb-6 text-white shadow-lg shadow-blue-500/30 mx-auto">
                         <Database size={24} />
                     </div>
-                    
                     <h2 className="text-3xl md:text-5xl font-bold text-white mb-4 md:mb-6 tracking-tight">
                         Confirmación Automática <br/><span className="text-blue-400">& Reactivación</span>
                     </h2>
@@ -228,129 +186,86 @@ export default function HomePageContent() {
                 <h2 className="text-2xl md:text-4xl font-bold text-white mb-4">La Realidad de tu Clínica</h2>
                 <p className="text-slate-400">¿Sigues dependiendo de procesos manuales?</p>
             </div>
-            
             <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
-                {/* TARJETA MANUAL */}
                 <div className="relative p-6 md:p-8 rounded-3xl border border-red-500/20 bg-[#120808]/80 backdrop-blur-md flex flex-col shadow-lg">
-                    <div className="absolute top-4 right-4 text-red-500/40">
-                        <AlertTriangle size={20} />
-                    </div>
+                    <div className="absolute top-4 right-4 text-red-500/40"><AlertTriangle size={20} /></div>
                     <div className="flex items-center gap-3 mb-6">
-                        <Users className="text-red-400" size={24} />
-                        <h3 className="text-xl font-bold text-white">Gestión Manual</h3>
+                        <Users className="text-red-400" size={24} /><h3 className="text-xl font-bold text-white">Gestión Manual</h3>
                     </div>
                     <ul className="space-y-5 flex-1">
-                        <li className="flex items-start gap-3 text-slate-200 text-sm">
-                            <div className="mt-0.5 bg-red-500/10 p-1 rounded text-red-500"><X size={14} strokeWidth={3} /></div>
-                            <span>Pierdes horas confirmando citas una por una.</span>
-                        </li>
-                        <li className="flex items-start gap-3 text-slate-200 text-sm">
-                            <div className="mt-0.5 bg-red-500/10 p-1 rounded text-red-500"><X size={14} strokeWidth={3} /></div>
-                            <span>Si la recepcionista se ocupa, el chat se detiene.</span>
-                        </li>
-                        <li className="flex items-start gap-3 text-slate-200 text-sm">
-                            <div className="mt-0.5 bg-red-500/10 p-1 rounded text-red-500"><X size={14} strokeWidth={3} /></div>
-                            <span>Base de datos en Excel o papel (Inutilizable).</span>
-                        </li>
-                        <li className="flex items-start gap-3 text-white font-semibold text-sm bg-red-950/40 p-2 rounded-lg border border-red-900/30">
-                             <div className="mt-0.5 text-red-400"><XCircle size={14} /></div>
-                             Resultado: +20% de Citas Perdidas.
-                        </li>
+                        <li className="flex items-start gap-3 text-slate-200 text-sm"><div className="mt-0.5 bg-red-500/10 p-1 rounded text-red-500"><X size={14} strokeWidth={3} /></div><span>Pierdes horas confirmando citas una por una.</span></li>
+                        <li className="flex items-start gap-3 text-slate-200 text-sm"><div className="mt-0.5 bg-red-500/10 p-1 rounded text-red-500"><X size={14} strokeWidth={3} /></div><span>Si la recepcionista se ocupa, el chat se detiene.</span></li>
+                        <li className="flex items-start gap-3 text-slate-200 text-sm"><div className="mt-0.5 bg-red-500/10 p-1 rounded text-red-500"><X size={14} strokeWidth={3} /></div><span>Base de datos en Excel o papel (Inutilizable).</span></li>
+                        <li className="flex items-start gap-3 text-white font-semibold text-sm bg-red-950/40 p-2 rounded-lg border border-red-900/30"><div className="mt-0.5 text-red-400"><XCircle size={14} /></div>Resultado: +20% de Citas Perdidas.</li>
                     </ul>
                 </div>
-
-                {/* TARJETA WASAAA */}
                 <div className="p-6 md:p-8 rounded-3xl border border-cyan-500/30 bg-cyan-950/20 backdrop-blur-md relative overflow-hidden flex flex-col shadow-[0_0_40px_-10px_rgba(6,182,212,0.15)]">
                     <div className="absolute top-0 right-0 px-4 py-1.5 rounded-bl-2xl text-[11px] font-black uppercase tracking-wider bg-cyan-500 text-black">La Solución Wasaaa</div>
                     <div className="flex items-center gap-3 mb-6">
-                        <Zap className="text-cyan-400 fill-cyan-400" size={24} />
-                        <h3 className="text-xl font-bold text-white">IA Avanzada</h3>
+                        <Zap className="text-cyan-400 fill-cyan-400" size={24} /><h3 className="text-xl font-bold text-white">IA Avanzada</h3>
                     </div>
                     <ul className="space-y-5 mb-2 flex-1">
-                        <li className="flex items-start gap-3 text-white text-sm">
-                            <CheckCircle2 className="text-cyan-400 shrink-0" size={18} /> 
-                            <span>Lenguaje natural, indistinguible de un humano.</span>
-                        </li>
-                        <li className="flex items-start gap-3 text-white text-sm">
-                            <CheckCircle2 className="text-cyan-400 shrink-0" size={18} /> 
-                            <span>Confirmación y Agendamiento 100% Automático.</span>
-                        </li>
-                        <li className="flex items-start gap-3 text-white text-sm">
-                            <CheckCircle2 className="text-cyan-400 shrink-0" size={18} /> 
-                            <span>Historial de pacientes organizado al instante.</span>
-                        </li>
-                        <li className="flex items-start gap-3 text-white font-semibold text-sm bg-cyan-500/10 p-2 rounded-lg border border-cyan-500/20">
-                            <CheckCircle2 className="text-cyan-400 shrink-0" size={18} /> 
-                            Inversión: Menor a una consulta médica.
-                        </li>
+                        <li className="flex items-start gap-3 text-white text-sm"><CheckCircle2 className="text-cyan-400 shrink-0" size={18} /><span>Lenguaje natural, indistinguible de un humano.</span></li>
+                        <li className="flex items-start gap-3 text-white text-sm"><CheckCircle2 className="text-cyan-400 shrink-0" size={18} /><span>Confirmación y Agendamiento 100% Automático.</span></li>
+                        <li className="flex items-start gap-3 text-white text-sm"><CheckCircle2 className="text-cyan-400 shrink-0" size={18} /><span>Historial de pacientes organizado al instante.</span></li>
+                        <li className="flex items-start gap-3 text-white font-semibold text-sm bg-cyan-500/10 p-2 rounded-lg border border-cyan-500/20"><CheckCircle2 className="text-cyan-400 shrink-0" size={18} />Inversión: Menor a una consulta médica.</li>
                     </ul>
                 </div>
             </div>
         </section>
 
-        {/* --- TESTIMONIOS (LAZY LOADED) --- */}
         <Testimony />
 
-        {/* --- PRICING --- */}
-        <section id="pricing" className="relative scroll-mt-32 mb-24 md:mb-32">
-          <motion.div
-            initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={fadeInUp}
-            className="relative max-w-5xl mx-auto"
-          >
-            <div className={`absolute -inset-1 bg-gradient-to-r ${glowColor} rounded-[2.5rem] blur-xl opacity-30 animate-pulse-slow`} />
+        {/* --- SECCIÓN PRICING (UPGRADED DARK PREMIUM) --- */}
+        <section id="pricing" className="relative scroll-mt-32 mb-24 md:mb-32 bg-transparent">
+          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={fadeInUp} className="relative max-w-5xl mx-auto">
+            {/* Glow de fondo para Pricing */}
+            <div className={`absolute -inset-1 bg-gradient-to-r ${glowColor} rounded-2xl md:rounded-[2.5rem] blur-2xl opacity-20 pointer-events-none`} />
 
-            {/* Fondo con backdrop-blur aumentado para mejor contraste */}
-            <div className="relative bg-[#080808]/80 backdrop-blur-3xl border border-white/10 rounded-[2rem] p-6 md:p-12 shadow-none md:shadow-2xl overflow-hidden">
-                <div className={`absolute top-0 right-0 w-64 h-64 rounded-full blur-3xl -mr-32 -mt-32 pointer-events-none opacity-20 bg-cyan-500`} />
+            <div className="relative bg-[#080808]/60 backdrop-blur-xl border border-white/5 rounded-2xl md:rounded-[2.5rem] p-8 md:p-14 shadow-2xl overflow-hidden">
+                <div className={`absolute top-0 right-0 w-80 h-80 rounded-full blur-[100px] -mr-40 -mt-40 pointer-events-none opacity-20 bg-cyan-500`} />
 
-                <div className="grid md:grid-cols-2 gap-8 md:gap-12 items-center">
-                    <div className="space-y-6 text-center md:text-left">
-                        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-semibold border border-cyan-500/20 bg-cyan-500/10 text-cyan-400">
-                            <Sparkles className="w-4 h-4" /> Plan Clínicas Pro
-                        </div>
-                        <div>
-                            <div className="flex items-baseline justify-center md:justify-start gap-1 flex-wrap">
-                                <span className="text-sm font-medium text-slate-400 -mb-2 md:-mb-4">$</span>
-                                <span className="text-5xl sm:text-6xl md:text-7xl font-black text-white tracking-tight">250.000</span>
-                                <span className="text-lg md:text-xl font-medium text-slate-400">COP/mes</span>
+                <div className="grid lg:grid-cols-2 gap-10 md:gap-16 items-center">
+                    <div className="space-y-8 text-center lg:text-left">
+                        <div className="space-y-4">
+                            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-white/10 bg-white/5 text-slate-400 text-[10px] uppercase tracking-[0.3em] font-medium">
+                                <Sparkles size={10} className="text-cyan-500" /> Plan Clínicas Pro
                             </div>
-                            <p className="mt-4 text-slate-300 leading-relaxed text-sm md:text-base font-medium">
-                                ¿Cuánto cuesta una sesión de Botox? Con solo <span className="text-cyan-400 font-bold">UNA</span> cita agendada, el software te sale gratis.
+                            <div className="flex items-baseline justify-center lg:justify-start gap-2 flex-wrap">
+                                <span className="text-lg font-bold text-slate-500">$</span>
+                                <span className="text-6xl md:text-8xl font-black text-white tracking-tighter">250.000</span>
+                                <span className="text-lg font-medium text-slate-500">COP/mes</span>
+                            </div>
+                            <p className="mt-4 text-slate-400 text-sm md:text-lg leading-relaxed max-w-md mx-auto lg:mx-0 font-medium">
+                                ¿Cuánto cuesta una sesión de Botox? Con solo <span className="text-cyan-400 font-bold uppercase tracking-tight">Una</span> cita agendada, el software se paga solo.
                             </p>
                         </div>
-                        <div className="space-y-3">
-                            <button 
-                                onClick={handleOpenBooking}
-                                className={`w-full h-14 text-lg font-bold rounded-full bg-gradient-to-r ${buttonGradient} ${buttonHover} text-white shadow-xl transition-all hover:scale-[1.02] flex items-center justify-center gap-2`}
-                            >
-                                <Zap size={20} /> Quiero Probar el Sistema
+                        <div className="space-y-4">
+                            <button onClick={handleOpenBooking} className={clsx("w-full h-16 text-lg font-bold rounded-xl bg-gradient-to-r text-white shadow-xl transition-all hover:scale-[1.02] active:scale-[0.98] border border-white/10 flex items-center justify-center gap-3 uppercase tracking-wider", buttonGradient, buttonHover)}>
+                                <Zap size={20} className="fill-white" /> Quiero Probar el Sistema
                             </button>
-                            <div className="flex justify-center md:justify-start gap-4 opacity-60 grayscale hover:grayscale-0 transition-all">
-                                <Image src={visa} alt="Visa" height={20} width={35} unoptimized className="object-contain" />
-                                <Image src={mastercard} alt="Mastercard" height={20} width={35} unoptimized className="object-contain" />
-                                <Image src={amex} alt="Amex" height={20} width={35} unoptimized className="object-contain" />
+                            <div className="flex justify-center lg:justify-start gap-6 opacity-30 grayscale contrast-125">
+                                <Image src={visa} alt="Visa" height={22} width={40} unoptimized className="object-contain" />
+                                <Image src={mastercard} alt="Mastercard" height={22} width={40} unoptimized className="object-contain" />
+                                <Image src={amex} alt="Amex" height={22} width={40} unoptimized className="object-contain" />
                             </div>
                         </div>
-                        <p className="text-xs text-slate-500">Sin contratos forzosos. Te ayudamos a integrar todo.</p>
+                        <p className="text-[10px] text-slate-500 uppercase tracking-[0.2em] font-bold">Sin contratos forzosos • Te ayudamos a integrar todo</p>
                     </div>
-                    <div className="bg-white/5 rounded-3xl p-6 md:p-8 border border-white/5 text-left">
-                        <h3 className="font-bold text-lg text-white mb-6 flex items-center gap-2">
-                            <ShieldCheck className="w-5 h-5 text-green-500" />
-                            Todo incluido:
-                        </h3>
-                        <ul className="space-y-4">
+
+                    <div className="bg-white/[0.02] border border-white/5 rounded-2xl p-6 md:p-10 text-left backdrop-blur-sm">
+                        <h3 className="font-bold text-lg text-white mb-8 flex items-center gap-3"><ShieldCheck className="w-5 h-5 text-cyan-500" /> Todo incluido:</h3>
+                        <ul className="space-y-6">
                             {[
-                                "300 Conversaciones de Venta (IA)", 
-                                "Confirmación de Citas Automática", 
-                                "Gestión de Agenda Inteligente", 
-                                "Base de Datos de Pacientes (CRM)", 
-                                "Soporte Técnico WhatsApp"
-                            ].map((feature, i) => (
-                                <li key={i} className="flex items-start gap-3">
-                                    <div className="flex-shrink-0 w-6 h-6 rounded-full bg-white/10 flex items-center justify-center mt-0.5">
-                                        <Check className="w-3.5 h-3.5 text-cyan-400" />
-                                    </div>
-                                    <span className="text-slate-300 text-sm font-medium pt-1">{feature}</span>
+                                { t: "300 Conversaciones de Venta (IA)", d: "IA avanzada con lenguaje natural humano." },
+                                { t: "Confirmación de Citas Automática", d: "Reduce el ausentismo sin mover un dedo." },
+                                { t: "Gestión de Agenda Inteligente", d: "Tus pacientes agendan mientras tú descansas." },
+                                { t: "Base de Datos de Pacientes (CRM)", d: "Control total de tus leads y ventas." },
+                                { t: "Soporte Técnico WhatsApp", d: "Acompañamiento prioritario en la implementación." }
+                            ].map((f, i) => (
+                                <li key={i} className="flex items-start gap-4">
+                                    <div className="flex-shrink-0 w-6 h-6 rounded-full bg-cyan-500/10 flex items-center justify-center mt-1"><Check className="w-3.5 h-3.5 text-cyan-400" strokeWidth={3} /></div>
+                                    <div><span className="font-bold text-slate-200">{f.t}</span><p className="text-xs text-slate-500 mt-1">{f.d}</p></div>
                                 </li>
                             ))}
                         </ul>
@@ -360,57 +275,25 @@ export default function HomePageContent() {
           </motion.div>
         </section>
 
-    {/* --- CTA FINAL REFACTORIZADO: MODO DARK & BORDE SUAVE --- */}
-        <motion.section 
-          initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.3 }} variants={fadeInUp}
-          className="relative pb-12 md:pb-32 px-2 md:px-6" // Reducido px-2 para que en móvil esté más pegado
-        >
+        {/* --- CTA FINAL REFACTORIZADO --- */}
+        <motion.section initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.3 }} variants={fadeInUp} className="relative pb-12 md:pb-32 px-2 md:px-6">
             <div className="relative z-10 max-w-5xl mx-auto rounded-2xl md:rounded-[2.5rem] overflow-hidden border border-white/5 bg-[#080808]/40 backdrop-blur-sm shadow-2xl">
-                {/* Luces de fondo internas muy sutiles */}
                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(6,182,212,0.08),transparent_60%)] z-0" />
                 <div className="absolute inset-0 bg-[url('/grid-pattern.svg')] opacity-[0.02] z-0" style={{ backgroundSize: '40px 40px' }}></div>
-                
                 <div className="relative z-10 p-8 md:p-20 text-center flex flex-col items-center">
-                    {/* Badge minimalista */}
-                    <div className="flex items-center gap-2 mb-6 md:mb-8 px-3 py-1 rounded-full border border-white/10 bg-white/5 text-slate-400 text-[9px] md:text-[10px] uppercase tracking-[0.3em] font-medium">
-                        <Sparkles size={10} className="text-cyan-500" /> Tecnología de Vanguardia
-                    </div>
-
-                    <h2 className="text-3xl md:text-6xl font-bold text-white mb-6 tracking-tight leading-[1.1]">
-                        El futuro de tu clínica <br />
-                        <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">empieza ahora.</span>
-                    </h2>
-                    
-                    <p className="text-slate-500 max-w-xl mx-auto mb-10 text-sm md:text-lg font-medium leading-relaxed">
-                        Deja atrás la gestión manual. Únete a los profesionales que ya están escalando sus resultados con inteligencia artificial.
-                    </p>
-
-                    <button 
-                        onClick={handleOpenBooking}
-                        className="w-full md:w-auto relative group overflow-hidden px-10 py-4 rounded-xl bg-gradient-to-r from-cyan-600 to-blue-600 text-white font-bold text-base transition-all hover:scale-[1.02] active:scale-[0.98] shadow-[0_20px_40px_-15px_rgba(6,182,212,0.3)] border border-white/10"
-                    >
-                        {/* Brillo interno al hacer hover */}
-                        <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity" />
-                        <span className="relative flex items-center justify-center gap-3 uppercase tracking-wider">
-                            <CalendarCheck size={18} /> Agendar Auditoría Gratis
-                        </span>
+                    <div className="flex items-center gap-2 mb-6 md:mb-8 px-3 py-1 rounded-full border border-white/10 bg-white/5 text-slate-400 text-[9px] md:text-[10px] uppercase tracking-[0.3em] font-medium"><Sparkles size={10} className="text-cyan-500" /> Tecnología de Vanguardia</div>
+                    <h2 className="text-3xl md:text-6xl font-bold text-white mb-6 tracking-tight leading-[1.1]">El futuro de tu clínica <br /><span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">empieza ahora.</span></h2>
+                    <p className="text-slate-500 max-w-xl mx-auto mb-10 text-sm md:text-lg font-medium leading-relaxed">Deja atrás la gestión manual. Únete a los profesionales que ya están escalando sus resultados con inteligencia artificial.</p>
+                    <button onClick={handleOpenBooking} className="w-full md:w-auto relative group overflow-hidden px-10 py-4 rounded-xl bg-gradient-to-r from-cyan-600 to-blue-600 text-white font-bold text-base transition-all hover:scale-[1.02] active:scale-[0.98] shadow-[0_20px_40px_-15px_rgba(6,182,212,0.3)] border border-white/10">
+                        <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity" /><span className="relative flex items-center justify-center gap-3 uppercase tracking-wider"><CalendarCheck size={18} /> Agendar Auditoría Gratis</span>
                     </button>
-                    
                     <div className="mt-12 flex flex-wrap justify-center items-center gap-x-8 gap-y-4 opacity-30">
-                        <div className="flex items-center gap-2 text-[10px] text-slate-400 font-bold uppercase tracking-widest">
-                            <ShieldCheck size={14} className="text-cyan-500" /> Privacidad Total
-                        </div>
-                        <div className="flex items-center gap-2 text-[10px] text-slate-400 font-bold uppercase tracking-widest">
-                            <Zap size={14} className="text-cyan-500" /> Setup en 24h
-                        </div>
-                        <div className="flex items-center gap-2 text-[10px] text-slate-400 font-bold uppercase tracking-widest">
-                            <Check size={14} className="text-cyan-500" /> Sin Contratos
-                        </div>
+                        <div className="flex items-center gap-2 text-[10px] text-slate-400 font-bold uppercase tracking-widest"><ShieldCheck size={14} className="text-cyan-500" /> Privacidad Total</div>
+                        <div className="flex items-center gap-2 text-[10px] text-slate-400 font-bold uppercase tracking-widest"><Zap size={14} className="text-cyan-500" /> Setup en 24h</div>
+                        <div className="flex items-center gap-2 text-[10px] text-slate-400 font-bold uppercase tracking-widest"><Check size={14} className="text-cyan-500" /> Sin Contratos</div>
                     </div>
                 </div>
             </div>
-            
-            {/* Resplandor ambiental externo muy suave */}
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full bg-blue-500/[0.03] blur-[150px] pointer-events-none -z-10" />
         </motion.section>
 
