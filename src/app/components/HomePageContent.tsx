@@ -387,21 +387,25 @@ export default function HomePageContent() {
                     </p>
 
                     {/* --- BOTÓN CORREGIDO AL ESTILO PRICING --- */}
-                    <button 
-                        onClick={handleOpenBooking}
-                        className={`
-                            w-full md:w-auto px-10 h-14 
-                            text-lg font-bold rounded-full 
-                            bg-gradient-to-r ${buttonGradient} ${buttonHover} 
-                            text-white shadow-xl shadow-cyan-500/20
-                            transition-all hover:scale-105 active:scale-95 
-                            flex items-center justify-center gap-3
-                            border border-white/10
-                        `}
-                    >
-                        <CalendarCheck size={22} /> 
-                        Agendar Prueba Gratuita
-                    </button>
+                   <button 
+    onClick={handleOpenBooking}
+    className={`
+        w-full md:w-auto 
+        px-6 md:px-10               // Padding lateral ajustado
+        py-4 md:py-0 md:h-14        // Mobile: Padding vertical (aire). Desktop: Altura fija (simetría)
+        text-base md:text-lg        // Mobile: Texto legible. Desktop: Texto grande
+        font-bold rounded-full 
+        bg-gradient-to-r ${buttonGradient} ${buttonHover} 
+        text-white shadow-xl shadow-cyan-500/20
+        transition-all hover:scale-105 active:scale-95 
+        flex items-center justify-center gap-2 md:gap-3
+        border border-white/10
+    `}
+>
+    {/* Icono ligeramente más pequeño en móvil para proporciones correctas */}
+    <CalendarCheck className="w-5 h-5 md:w-[22px] md:h-[22px]" /> 
+    Agendar Prueba Gratuita
+</button>
                     {/* ----------------------------------------- */}
                     
                     <div className="mt-12 flex flex-wrap justify-center items-center gap-x-8 gap-y-4 opacity-30">
